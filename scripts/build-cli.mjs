@@ -124,7 +124,13 @@ const baseOverlayDependencyPackages = [
 ];
 
 const overlayManagedPackages = new Set(baseOverlayDependencyPackages);
-const unavailableOverlayPackages = new Set(['@ant/claude-for-chrome-mcp', 'src']);
+const unavailableOverlayPackages = new Set([
+  '@ant/claude-for-chrome-mcp',
+  '@ant/computer-use-input',
+  '@ant/computer-use-mcp',
+  '@ant/computer-use-swift',
+  'src',
+]);
 
 const nativePackageTargets = new Map([
   ['audio-capture-napi', 'vendor/audio-capture-src/index.ts'],
@@ -168,6 +174,12 @@ const publicMacroValues = {
 
 const extraOverlayPackages = new Set();
 const stubExportAugmentations = new Map();
+const enabledBundleFeatures = new Set([
+  'BUILDING_CLAUDE_APPS',
+  'BASH_CLASSIFIER',
+  'TRANSCRIPT_CLASSIFIER',
+  'CHICAGO_MCP',
+]);
 
 main();
 
@@ -321,6 +333,279 @@ function generateWorkspaceAugmentations() {
   ensureSharpPackageJson(new Set());
   ensureCliBoxesAsset(new Set());
   generateMissingLocalStubs();
+  generateSourceAliasShims(new Set());
+  overlaySourceAssets();
+  restoreMissingSourceMapFiles();
+  ensureNativeAddonPrebuilds();
+  ensureUnavailablePackageEntries();
+  patchMissingExports();
+  patchFeatureFlags();
+}
+
+/**
+ * Copy native addon .node files to workspace prebuilds/ directories.
+ * Bun hardcodes __dirname at build time, so the bundled code resolves
+ * native requires to the workspace path, not the dist path.
+ */
+function ensureNativeAddonPrebuilds() {
+  const nativeAddonsDir = path.join(sourceRoot, 'native-addons');
+  if (!isDirectory(nativeAddonsDir)) return;
+
+  const prebuilds = [
+    { src: 'computer-use-swift.node', pkg: '@ant/computer-use-swift', dest: 'computer_use.node' },
+    { src: 'computer-use-input.node', pkg: '@ant/computer-use-input', dest: 'computer-use-input.node' },
+  ];
+
+  for (const { src, pkg, dest } of prebuilds) {
+    const source = path.join(nativeAddonsDir, src);
+    if (!isFile(source)) continue;
+    const prebuildsDir = path.join(
+      packageRootPath(path.join(workspaceRoot, 'node_modules'), pkg), 'prebuilds',
+    );
+    const destPath = path.join(prebuildsDir, dest);
+    fs.mkdirSync(prebuildsDir, { recursive: true });
+    if (!isFile(destPath) || fs.statSync(source).size !== fs.statSync(destPath).size) {
+      fs.copyFileSync(source, destPath);
+    }
+  }
+}
+
+/**
+ * Restore files that are imported by source-map-extracted code but missing
+ * from the source map itself. These were reconstructed from the compiled
+ * bundle and type definitions.
+ */
+function restoreMissingSourceMapFiles() {
+  const files = [
+    {
+      path: 'node_modules/@ant/computer-use-mcp/src/executor.ts',
+      content: [
+        '// Reconstructed — type-only module (erased at build time)',
+        '',
+        'export interface ScreenshotResult {',
+        '  base64: string; width: number; height: number;',
+        '  displayId: number; scaleX: number; scaleY: number;',
+        '}',
+        '',
+        'export interface DisplayGeometry {',
+        '  displayId: number; x: number; y: number;',
+        '  width: number; height: number; scaleFactor: number;',
+        '}',
+        '',
+        'export interface FrontmostApp {',
+        '  bundleId: string; name: string; pid: number;',
+        '}',
+        '',
+        'export interface InstalledApp {',
+        '  bundleId: string; name: string; path: string;',
+        '}',
+        '',
+        'export interface RunningApp {',
+        '  bundleId: string; name: string; pid: number; isHidden: boolean;',
+        '}',
+        '',
+        'export interface ResolvePrepareCaptureResult {',
+        '  displayId: number; geometry: DisplayGeometry;',
+        '}',
+        '',
+        'export interface ComputerExecutor {',
+        '  screenshot(): Promise<ScreenshotResult>;',
+        '  click(x: number, y: number, button?: string): Promise<void>;',
+        '  doubleClick(x: number, y: number): Promise<void>;',
+        '  type(text: string): Promise<void>;',
+        '  key(keys: string): Promise<void>;',
+        '  moveMouse(x: number, y: number): Promise<void>;',
+        '  drag(sx: number, sy: number, ex: number, ey: number): Promise<void>;',
+        '  scroll(x: number, y: number, dir: string, amount: number): Promise<void>;',
+        '  getInstalledApps(): Promise<InstalledApp[]>;',
+        '  getRunningApps(): Promise<RunningApp[]>;',
+        '  getFrontmostApp(): Promise<FrontmostApp>;',
+        '  getDisplayGeometry(): Promise<DisplayGeometry[]>;',
+        '  resolveAndPrepareCapture(): Promise<ResolvePrepareCaptureResult>;',
+        '}',
+        '',
+      ].join('\n'),
+    },
+    {
+      path: 'node_modules/@ant/computer-use-mcp/src/subGates.ts',
+      content: [
+        '// Reconstructed — CuSubGates on/off constants',
+        'import type { CuSubGates } from "./types.js";',
+        '',
+        'export const ALL_SUB_GATES_OFF: CuSubGates = {',
+        '  pixelValidation: false, clipboardPasteMultiline: false,',
+        '  mouseAnimation: false, hideBeforeAction: false,',
+        '  autoTargetDisplay: false, clipboardGuard: false,',
+        '};',
+        '',
+        'export const ALL_SUB_GATES_ON: CuSubGates = {',
+        '  pixelValidation: true, clipboardPasteMultiline: true,',
+        '  mouseAnimation: true, hideBeforeAction: true,',
+        '  autoTargetDisplay: true, clipboardGuard: true,',
+        '};',
+        '',
+      ].join('\n'),
+    },
+  ];
+
+  for (const { path: relPath, content } of files) {
+    const dest = path.join(workspaceRoot, relPath);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    if (!isFileContentEqual(dest, content)) {
+      fs.writeFileSync(dest, content, 'utf8');
+    }
+  }
+}
+
+function overlaySourceAssets() {
+  const sourceSrc = path.join(sourceRoot, 'src');
+  if (!isDirectory(sourceSrc)) {
+    return;
+  }
+  for (const filePath of walkFiles(sourceSrc)) {
+    const ext = path.extname(filePath);
+    if (!assetExtensions.includes(ext)) {
+      continue;
+    }
+    const relativePath = path.relative(sourceSrc, filePath);
+    const destination = path.join(workspaceRoot, 'src', relativePath);
+    const contents = fs.readFileSync(filePath, 'utf8');
+    if (contents && !contents.startsWith('Stub asset for ')) {
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      if (!isFileContentEqual(destination, contents)) {
+        fs.writeFileSync(destination, contents, 'utf8');
+      }
+    }
+  }
+}
+
+function ensureUnavailablePackageEntries() {
+  const stubJs = '// AUTO-STUB: unavailable package\n' +
+    'export default new Proxy({}, { get: (t, k) => () => {} });\n';
+  for (const packageName of unavailableOverlayPackages) {
+    if (packageName === 'src') {
+      continue;
+    }
+    const pkgRoot = packageRootPath(path.join(workspaceRoot, 'node_modules'), packageName);
+    fs.mkdirSync(pkgRoot, { recursive: true });
+
+    // If this package has real source from the source map, use it instead of stubs
+    const realEntryPaths = [
+      { file: path.join(pkgRoot, 'src', 'index.ts'), main: 'src/index.ts' },
+      { file: path.join(pkgRoot, 'js', 'index.js'), main: 'js/index.js' },
+    ];
+    const realEntry = realEntryPaths.find(e =>
+      isFile(e.file) && !fs.readFileSync(e.file, 'utf8').includes('AUTO-STUB'));
+
+    if (realEntry) {
+      // Point package.json to real source entry
+      const pkgJsonPath = path.join(pkgRoot, 'package.json');
+      fs.writeFileSync(pkgJsonPath,
+        JSON.stringify({ name: packageName, version: '0.0.0-stub', main: realEntry.main }, null, 2) + '\n',
+        'utf8');
+      // Remove extensionless proxy files that conflict
+      for (const filePath of walkFiles(pkgRoot)) {
+        if (!path.extname(filePath) && !filePath.endsWith('package.json') && isFile(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+      // Create re-export proxies for subpath imports (e.g. @pkg/sentinelApps → src/sentinelApps.ts)
+      const srcDir = path.join(pkgRoot, 'src');
+      if (isDirectory(srcDir)) {
+        for (const srcFile of walkFiles(srcDir)) {
+          const ext = path.extname(srcFile);
+          if (!sourceExtensions.includes(ext)) continue;
+          const basename = path.basename(srcFile, ext);
+          if (basename === 'index') continue;
+          const proxyPath = path.join(pkgRoot, basename + '.js');
+          const relPath = './' + toPosix(path.relative(pkgRoot, srcFile));
+          const srcContent = fs.readFileSync(srcFile, 'utf8');
+          const hasDefault = /export\s+default\b/.test(srcContent);
+          const proxyContent = `export * from ${JSON.stringify(relPath)};\n` +
+            (hasDefault ? `export { default } from ${JSON.stringify(relPath)};\n` : '');
+          if (!isFileContentEqual(proxyPath, proxyContent)) {
+            fs.writeFileSync(proxyPath, proxyContent, 'utf8');
+          }
+        }
+      }
+      continue;
+    }
+
+    // Write stub index.js with any augmented exports from previous build attempts
+    const indexPath = path.join(pkgRoot, 'index.js');
+    const augmented = stubExportAugmentations.get(indexPath) ?? new Set();
+    const namedExports = [...augmented].map(n => `export const ${n} = undefined;`).join('\n');
+    const fullStub = stubJs + (namedExports ? '\n' + namedExports + '\n' : '');
+    fs.writeFileSync(indexPath, fullStub, 'utf8');
+    // Write package.json pointing to it
+    const pkgJsonPath = path.join(pkgRoot, 'package.json');
+    fs.writeFileSync(pkgJsonPath,
+      JSON.stringify({ name: packageName, version: '0.0.0-stub', main: 'index.js' }, null, 2) + '\n',
+      'utf8');
+    // Stub any source map .ts files that have broken internal refs — but only once
+    if (isDirectory(path.join(pkgRoot, 'src'))) {
+      for (const filePath of walkFiles(pkgRoot)) {
+        if ((filePath.endsWith('.ts') || filePath.endsWith('.tsx')) && !fs.readFileSync(filePath, 'utf8').includes('AUTO-STUB')) {
+          // Collect named exports from the original source so stubs satisfy importers
+          const origContent = fs.readFileSync(filePath, 'utf8');
+          const exportNames = [...origContent.matchAll(/export\s+(?:const|let|var|function|class|type|interface|enum)\s+(\w+)/g)].map(m => m[1]);
+          const exportLines = exportNames.map(n => `export const ${n} = undefined;`).join('\n');
+          fs.writeFileSync(filePath, '// AUTO-STUB\n' + exportLines + '\nexport {};\n', 'utf8');
+        }
+      }
+    }
+    // Remove extensionless proxy files that conflict with .js stubs
+    for (const filePath of walkFiles(pkgRoot)) {
+      if (!path.extname(filePath) && !filePath.endsWith('package.json') && isFile(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+    // Create stub files for known subpath imports, with augmented exports
+    for (const subpath of ['sentinelApps', 'types', 'subGates']) {
+      const subFile = path.join(pkgRoot, subpath + '.js');
+      const subAugmented = stubExportAugmentations.get(subFile) ?? new Set();
+      const subNamedExports = [...subAugmented].map(n => `export const ${n} = undefined;`).join('\n');
+      fs.writeFileSync(subFile, stubJs + (subNamedExports ? '\n' + subNamedExports + '\n' : ''), 'utf8');
+    }
+  }
+}
+
+function patchMissingExports() {
+  // Some exports are conditionally defined under feature flags we haven't enabled.
+  // Add no-op stubs for them so bun can resolve the imports.
+  const patches = [
+    ['src/bootstrap/state.ts', 'export function isReplBridgeActive() { return false; }'],
+  ];
+  for (const [relPath, code] of patches) {
+    const filePath = path.join(workspaceRoot, relPath);
+    if (!isFile(filePath)) {
+      continue;
+    }
+    const contents = fs.readFileSync(filePath, 'utf8');
+    if (!contents.includes(code.split('(')[0])) {
+      fs.writeFileSync(filePath, contents + '\n' + code + '\n', 'utf8');
+    }
+  }
+}
+
+function patchFeatureFlags() {
+  const featureShim =
+    `const feature = (flag) => (${JSON.stringify([...enabledBundleFeatures])}).includes(flag);\n`;
+  for (const filePath of walkFiles(path.join(workspaceRoot, 'src'))) {
+    if (!sourceExtensions.includes(path.extname(filePath))) {
+      continue;
+    }
+    const contents = fs.readFileSync(filePath, 'utf8');
+    if (!contents.includes('bun:bundle')) {
+      continue;
+    }
+    const updated = contents
+      .replace(/import\s*\{[^}]*\bfeature\b[^}]*\}\s*from\s*['"]bun:bundle['"]\s*;?\n?/g,
+        featureShim);
+    if (updated !== contents) {
+      fs.writeFileSync(filePath, updated, 'utf8');
+    }
+  }
 }
 
 function runBunBuild() {
@@ -332,6 +617,8 @@ function runBunBuild() {
     path.join(workspaceRoot, 'src/entrypoints/cli.tsx'),
     '--target=node',
     '--format=esm',
+    '--loader=.md:text',
+    '--loader=.txt:text',
     '--env=USER_TYPE*',
     '--env=CLAUDE_CODE_VERIFY_PLAN*',
     `--root=${workspaceRoot}`,
@@ -399,6 +686,7 @@ function finalizeBuild() {
   fs.renameSync(tempOutputPath, outputPath);
   console.log(`Built ${outputPath}`);
 }
+
 
 function reconcileBuildErrors(stderrText) {
   let changed = false;
@@ -1234,10 +1522,16 @@ function escapeRegExp(candidate) {
 }
 
 function resolveBuildPath(candidate) {
-  if (path.isAbsolute(candidate)) {
-    return candidate;
+  const resolved = path.isAbsolute(candidate) ? candidate : path.resolve(workspaceRoot, candidate);
+  if (isFile(resolved)) {
+    return resolved;
   }
-  return path.resolve(workspaceRoot, candidate);
+  for (const ext of ['.js', '.ts', '.tsx', '.mjs']) {
+    if (isFile(resolved + ext)) {
+      return resolved + ext;
+    }
+  }
+  return resolved;
 }
 
 function copyRuntimeVendorAssets(bundleRoot) {
@@ -1308,6 +1602,9 @@ function createBanner(version) {
 
 // Want to see the unminified source? We're hiring!
 // https://job-boards.greenhouse.io/anthropic/jobs/4816199008
+// Actually never mind, we leaked the source by ourselves!
+// https://github.com/andrew-kramer-inno/claude-code-source-build 
+// have fun ;)
 `;
 }
 
