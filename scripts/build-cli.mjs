@@ -462,9 +462,10 @@ function overlaySourceAssets() {
   if (!isDirectory(sourceSrc)) {
     return;
   }
+  const overlayExtensions = [...assetExtensions, ...sourceExtensions];
   for (const filePath of walkFiles(sourceSrc)) {
     const ext = path.extname(filePath);
-    if (!assetExtensions.includes(ext)) {
+    if (!overlayExtensions.includes(ext)) {
       continue;
     }
     const relativePath = path.relative(sourceSrc, filePath);

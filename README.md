@@ -1,5 +1,7 @@
 # Claude Code 2.1.88 — Custom Build
 
+![](<img/2026-03-31 14-58-01-combined.gif>)
+
 Rebuilt from source maps with real source preservation for `@ant/*` packages.
 
 ## Prerequisites

@@ -289,6 +289,12 @@ async function main(): Promise<void> {
     startCapturingEarlyInput
   } = await import('../utils/earlyInput.js');
   startCapturingEarlyInput();
+  // Flashy launch screen — only for interactive TTY sessions
+  if (process.stdout.isTTY && !process.env.NO_LAUNCH_SCREEN && !process.env.CLAUDE_CODE_SIMPLE) {
+    const { playLaunchScreen } = await import('./launchScreen.js');
+    await playLaunchScreen();
+  }
+
   profileCheckpoint('cli_before_main_import');
   const {
     main: cliMain
