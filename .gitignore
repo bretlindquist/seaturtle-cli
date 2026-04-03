@@ -10,6 +10,13 @@ agents.md
 AGENTS.md
 .env
 .env.*
+.envrc
 .codex/
 .claude/
 .mcp.json
+/auth.json
+/credentials.json
+/oauth.json
+/oauth.local.json
+/token.json
+/tokens.json
