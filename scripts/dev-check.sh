@@ -44,8 +44,12 @@ if ! "${build_cmd[@]}"; then
 fi
 
 echo
-echo "[2/2] Smoke check"
+echo "[2/3] Smoke check"
 node dist/cli.js --help >/dev/null
+
+echo
+echo "[3/3] Lint"
+npm run lint:openai-codex >/dev/null
 
 echo
 echo "dev-check passed"

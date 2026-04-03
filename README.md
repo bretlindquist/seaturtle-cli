@@ -121,12 +121,14 @@ node scripts/build-cli.mjs --no-minify
 Use the canonical repo check:
 
 ```bash
+npm run lint:openai-codex
 npm run dev-check
 npm run openai-codex-check
 ```
 
 That verifies `node` / `npm` / `bun`, runs the unminified build, and smoke-tests
-the built CLI. The OpenAI/Codex check runs the provider regression harness.
+the built CLI. The lint command checks the production port surfaces directly,
+and the OpenAI/Codex check runs the provider regression harness.
 When the live ChatGPT/Codex account is quota-limited, that harness exits with
 an explicit skip rather than a false failure.
 

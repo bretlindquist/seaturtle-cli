@@ -80,12 +80,15 @@ not real token files.
 Canonical checks:
 
 ```bash
+npm run lint:openai-codex
 npm run dev-check
 npm run openai-codex-check
 ```
 
 Notes:
 
+- `npm run lint:openai-codex` is the repo-local lint gate for the OpenAI/Codex
+  ported surfaces
 - `npm run dev-check` is the main repo build/smoke check
 - `npm run openai-codex-check` is the provider regression harness
 - if the live OpenAI/Codex account is quota-limited, the OpenAI harness exits
