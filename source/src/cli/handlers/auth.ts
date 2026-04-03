@@ -20,6 +20,7 @@ import {
 import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProfile.js'
 import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
+import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
 import {
   clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
@@ -233,6 +234,7 @@ export async function authStatus(opts: {
   json?: boolean
   text?: boolean
 }): Promise<void> {
+  const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot()
   const { source: authTokenSource, hasToken } = getAuthTokenSource()
   const { source: apiKeySource } = getAnthropicApiKeyWithSource()
   const hasApiKeyEnvVar =
@@ -240,8 +242,9 @@ export async function authStatus(opts: {
   const oauthAccount = getOauthAccountInfo()
   const subscriptionType = getSubscriptionType()
   const using3P = isUsing3PServices()
+  const hasOpenAiCodexAuth = runtimeSnapshot.openAiCodexAuthReady
   const loggedIn =
-    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P
+    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P || hasOpenAiCodexAuth
 
   // Determine auth method
   let authMethod: string = 'none'
@@ -257,6 +260,8 @@ export async function authStatus(opts: {
     authMethod = 'api_key'
   } else if (apiKeySource === '/login managed key') {
     authMethod = 'claude.ai'
+  } else if (hasOpenAiCodexAuth) {
+    authMethod = 'openai_codex_oauth'
   }
 
   if (opts.text) {
@@ -302,6 +307,12 @@ export async function authStatus(opts: {
       loggedIn,
       authMethod,
       apiProvider,
+      mainLoopRuntime: runtimeSnapshot.execution.provider,
+      preferredMainLoopRuntime: runtimeSnapshot.preferred.provider,
+      openAiCodexAuthReady: runtimeSnapshot.openAiCodexAuthReady,
+    }
+    if (runtimeSnapshot.openAiCodexAuthSource) {
+      output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource
     }
     if (resolvedApiKeySource) {
       output.apiKeySource = resolvedApiKeySource

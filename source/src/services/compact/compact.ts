@@ -98,8 +98,8 @@ import {
 } from '../analytics/index.js'
 import {
   getMaxOutputTokensForModel,
-  queryModelWithStreaming,
 } from '../api/claude.js'
+import { queryModelWithStreamingViaProviderRuntime } from '../api/providerRuntime.js'
 import {
   getPromptTooLongTokenGap,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
@@ -1289,7 +1289,7 @@ async function streamCompactSummary({
           )
         : [FileReadTool]
 
-      const streamingGen = queryModelWithStreaming({
+      const streamingGen = queryModelWithStreamingViaProviderRuntime({
         messages: normalizeMessagesForAPI(
           stripImagesFromMessages(
             stripReinjectedAttachments([

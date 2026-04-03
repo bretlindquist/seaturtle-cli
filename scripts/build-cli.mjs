@@ -41,6 +41,7 @@ const baseOverlayDependencyPackages = [
   '@aws-sdk/client-sts',
   '@aws-sdk/credential-provider-node',
   '@azure/identity',
+  '@azure/msal-node',
   '@azure/msal-common',
   '@commander-js/extra-typings',
   '@growthbook/growthbook',
@@ -124,6 +125,16 @@ const baseOverlayDependencyPackages = [
 ];
 
 const overlayManagedPackages = new Set(baseOverlayDependencyPackages);
+const overlayVersionOverrides = new Map([
+  // Newer Azure auth packages drifted into an internally inconsistent set in
+  // the generated workspace (`msal-node` importing symbols no longer exported
+  // by the newest `msal-common`). Pin the Azure auth chain to a known-compatible
+  // band so overlay reinstalls are reproducible.
+  ['@azure/identity', '4.4.1'],
+  ['@azure/msal-node', '3.8.1'],
+  ['@azure/msal-common', '15.13.1'],
+  ['supports-hyperlinks', '3.2.0'],
+]);
 const unavailableOverlayPackages = new Set([
   '@ant/claude-for-chrome-mcp',
   '@ant/computer-use-input',
@@ -209,6 +220,11 @@ function main() {
 
 function getOverlayPackages() {
   return [...new Set([...baseOverlayDependencyPackages, ...extraOverlayPackages])].sort();
+}
+
+function getOverlayPackageSpec(packageName) {
+  const override = overlayVersionOverrides.get(packageName);
+  return override ? `${packageName}@${override}` : packageName;
 }
 
 function prepareWorkspace(overlayPackages) {
@@ -302,7 +318,7 @@ function ensureOverlayDependencies(packageNames) {
     '--no-audit',
     '--no-fund',
     '--legacy-peer-deps',
-    ...packageNames,
+    ...packageNames.map(getOverlayPackageSpec),
   ];
   const install = spawnSync('npm', installArgs, {
     cwd: workspaceRoot,

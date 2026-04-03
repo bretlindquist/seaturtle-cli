@@ -73,6 +73,20 @@ rm -f .cache/workspace/.prepared.json
 node scripts/build-cli.mjs --no-minify
 ```
 
+## Development Check
+
+Use the canonical repo check:
+
+```bash
+npm run dev-check
+```
+
+That verifies `node` / `npm` / `bun`, runs the unminified build, and smoke-tests
+the built CLI.
+
+See [`DEVELOPMENT.md`](./DEVELOPMENT.md) for the generated-workspace model and
+day-to-day setup notes.
+
 ## Structure
 
 ```

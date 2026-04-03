@@ -6,6 +6,7 @@ import { join } from 'path'
 import { z } from 'zod/v4'
 import { OAUTH_BETA_HEADER } from '../../constants/oauth.js'
 import { getAnthropicClient } from '../../services/api/client.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { isClaudeAISubscriber } from '../auth.js'
 import { logForDebugging } from '../debug.js'
 import { getClaudeConfigHomeDir } from '../envUtils.js'
@@ -44,6 +45,7 @@ function getCachePath(): string {
 }
 
 function isModelCapabilitiesEligible(): boolean {
+  if (getMainLoopProviderRuntime().family !== 'anthropic') return false
   if (process.env.USER_TYPE !== 'ant') return false
   if (getAPIProvider() !== 'firstParty') return false
   if (!isFirstPartyAnthropicBaseUrl()) return false

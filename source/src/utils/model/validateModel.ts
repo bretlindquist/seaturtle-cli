@@ -3,6 +3,8 @@ import { MODEL_ALIASES } from './aliases.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { getAPIProvider } from './providers.js'
 import { sideQuery } from '../sideQuery.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
+import { validateOpenAiCodexModel } from '../../services/api/openaiCodex.js'
 import {
   NotFoundError,
   APIError,
@@ -51,6 +53,15 @@ export async function validateModel(
     return { valid: true }
   }
 
+  const runtime = getMainLoopProviderRuntime()
+  if (runtime.family === 'openai') {
+    const modelError = validateOpenAiCodexModel(normalizedModel)
+    if (modelError) {
+      return { valid: false, error: modelError }
+    }
+    validModelCache.set(normalizedModel, true)
+    return { valid: true }
+  }
 
   // Try to make an actual API call with minimal parameters
   try {

@@ -8,6 +8,7 @@ import {
   getMainLoopModel,
   parseUserSpecifiedModel,
 } from '../../utils/model/model.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import {
   type AutoModeRules,
   buildDefaultExternalSystemPrompt,
@@ -73,6 +74,15 @@ const CRITIQUE_SYSTEM_PROMPT =
 export async function autoModeCritiqueHandler(options: {
   model?: string
 }): Promise<void> {
+  if (getMainLoopProviderRuntime().family === 'openai') {
+    process.stderr.write(
+      'auto-mode critique is not wired to the OpenAI/Codex provider yet. ' +
+        'It still depends on the Anthropic-only sideQuery helper.\n',
+    )
+    process.exitCode = 1
+    return
+  }
+
   const config = getAutoModeConfig()
   const hasCustomRules =
     (config?.allow?.length ?? 0) > 0 ||

@@ -3,6 +3,13 @@ import { isEnvTruthy } from '../envUtils.js'
 
 export type APIProvider = 'firstParty' | 'bedrock' | 'vertex' | 'foundry'
 
+export function shouldUseOpenAiCodexProvider(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX) ||
+    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'openai-codex'
+  )
+}
+
 export function getAPIProvider(): APIProvider {
   return isEnvTruthy(process.env.CLAUDE_CODE_USE_BEDROCK)
     ? 'bedrock'

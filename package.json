@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun ./scripts/build-cli.mjs"
+    "build": "bun ./scripts/build-cli.mjs",
+    "dev-check": "./scripts/dev-check.sh",
+    "openai-codex-check": "./scripts/openai-codex-regression.sh"
   }
 }

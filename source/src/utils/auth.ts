@@ -20,6 +20,10 @@ import {
   shouldUseMockSubscription,
 } from '../services/mockRateLimits.js'
 import {
+  buildAnthropicClaudeAiAuthProfile,
+  upsertProviderAuthProfileInStore,
+} from '../services/authProfiles/store.js'
+import {
   isOAuthTokenExpired,
   refreshOAuthToken,
   shouldUseClaudeAIAuth,
@@ -1227,6 +1231,21 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       rateLimitTier:
         tokens.rateLimitTier ?? existingOauth?.rateLimitTier ?? null,
     }
+
+    storageData.providerAuthProfiles = upsertProviderAuthProfileInStore({
+      store: storageData.providerAuthProfiles,
+      profile: buildAnthropicClaudeAiAuthProfile({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
+        scopes: tokens.scopes,
+        subscriptionType:
+          tokens.subscriptionType ?? existingOauth?.subscriptionType ?? null,
+        rateLimitTier: tokens.rateLimitTier ?? existingOauth?.rateLimitTier ?? null,
+        account: getOauthAccountInfo(),
+      }),
+      setAsDefault: true,
+    })
 
     const updateStatus = secureStorage.update(storageData)
 

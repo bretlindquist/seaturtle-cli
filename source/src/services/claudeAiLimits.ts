@@ -12,6 +12,7 @@ import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 
 import { logEvent } from './analytics/index.js'
 import { getAPIMetadata } from './api/claude.js'
 import { getAnthropicClient } from './api/client.js'
+import { getMainLoopProviderRuntime } from './api/providerRuntime.js'
 import {
   processRateLimitHeaders,
   shouldProcessRateLimits,
@@ -218,6 +219,10 @@ async function makeTestQuery() {
 }
 
 export async function checkQuotaStatus(): Promise<void> {
+  if (getMainLoopProviderRuntime().family === 'openai') {
+    return
+  }
+
   // Skip network requests if nonessential traffic is disabled
   if (isEssentialTrafficOnly()) {
     return

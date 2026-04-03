@@ -3,6 +3,7 @@ import figures from 'figures';
 import * as React from 'react';
 import { color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
+import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
 import { getDoctorDiagnostic } from './doctorDiagnostic.js';
@@ -239,6 +240,7 @@ export function buildAccountProperties(): Property[] {
 }
 export function buildAPIProviderProperties(): Property[] {
   const apiProvider = getAPIProvider();
+  const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot();
   const properties: Property[] = [];
   if (apiProvider !== 'firstParty') {
     const providerLabel = {
@@ -320,6 +322,28 @@ export function buildAPIProviderProperties(): Property[] {
         value: 'Microsoft Foundry auth skipped'
       });
     }
+  }
+  properties.push({
+    label: 'Main model runtime',
+    value: runtimeSnapshot.execution.displayName
+  });
+  if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
+    const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
+    properties.push({
+      label: 'Preferred runtime',
+      value: `${runtimeSnapshot.preferred.displayName} (${preferredSuffix})`
+    });
+  } else if (runtimeSnapshot.openAiCodexAuthReady) {
+    const sourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'configured auth';
+    properties.push({
+      label: 'OpenAI/Codex OAuth',
+      value: `Ready via ${sourceLabel}`
+    });
+  } else {
+    properties.push({
+      label: 'OpenAI/Codex OAuth',
+      value: 'Not configured'
+    });
   }
   const proxyUrl = getProxyUrl();
   if (proxyUrl) {

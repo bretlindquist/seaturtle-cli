@@ -1,9 +1,10 @@
 import { feature } from 'bun:bundle'
+import { querySmallFastViaProviderRuntime } from '../services/api/providerHelpers.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
-import { getDefaultSonnetModel } from '../utils/model/model.js'
-import { sideQuery } from '../utils/sideQuery.js'
+import { extractTextContent } from '../utils/messages.js'
 import { jsonParse } from '../utils/slowOperations.js'
+import { asSystemPrompt } from '../utils/systemPromptType.js'
 import {
   formatMemoryManifest,
   type MemoryHeader,
@@ -95,38 +96,28 @@ async function selectRelevantMemories(
       : ''
 
   try {
-    const result = await sideQuery({
-      model: getDefaultSonnetModel(),
-      system: SELECT_MEMORIES_SYSTEM_PROMPT,
-      skipSystemPromptPrefix: true,
-      messages: [
-        {
-          role: 'user',
-          content: `Query: ${query}\n\nAvailable memories:\n${manifest}${toolsSection}`,
-        },
-      ],
-      max_tokens: 256,
-      output_format: {
-        type: 'json_schema',
-        schema: {
-          type: 'object',
-          properties: {
-            selected_memories: { type: 'array', items: { type: 'string' } },
-          },
-          required: ['selected_memories'],
-          additionalProperties: false,
-        },
-      },
+    const result = await querySmallFastViaProviderRuntime({
+      systemPrompt: asSystemPrompt([SELECT_MEMORIES_SYSTEM_PROMPT]),
+      userPrompt:
+        `Query: ${query}\n\nAvailable memories:\n${manifest}${toolsSection}\n\n` +
+        'Respond with ONLY a JSON object like {"selected_memories":["file1.md"]}.',
       signal,
-      querySource: 'memdir_relevance',
+      options: {
+        querySource: 'memdir_relevance',
+        agents: [],
+        isNonInteractiveSession: false,
+        hasAppendSystemPrompt: false,
+        mcpTools: [],
+        enablePromptCaching: false,
+      },
     })
 
-    const textBlock = result.content.find(block => block.type === 'text')
-    if (!textBlock || textBlock.type !== 'text') {
+    const text = extractTextContent(result.message.content)
+    if (!text) {
       return []
     }
 
-    const parsed: { selected_memories: string[] } = jsonParse(textBlock.text)
+    const parsed: { selected_memories: string[] } = jsonParse(text)
     return parsed.selected_memories.filter(f => validFilenames.has(f))
   } catch (e) {
     if (signal.aborted) {
