@@ -10,19 +10,44 @@ fi
 
 export CLAUDE_CODE_USE_OPENAI_CODEX=1
 
-plain_text_output="$(node dist/cli.js -p "say hello in five words")"
+readonly OPENAI_CODEX_SKIP_SENTINEL="__OPENAI_CODEX_CHECK_SKIPPED__"
+
+run_openai_cli() {
+  local output
+  if ! output="$("$@" 2>&1)"; then
+    if [[ "$output" == *'"usage_limit_reached"'* ]] || [[ "$output" == *'429 Too Many Requests'* ]]; then
+      print -r -- "${OPENAI_CODEX_SKIP_SENTINEL}:OpenAI/Codex usage limit reached"
+      return 0
+    fi
+    echo "$output" >&2
+    exit 1
+  fi
+  print -r -- "$output"
+}
+
+exit_if_skipped() {
+  local output="$1"
+  if [[ "$output" == "${OPENAI_CODEX_SKIP_SENTINEL}:"* ]]; then
+    echo "openai-codex-regression skipped: ${output#${OPENAI_CODEX_SKIP_SENTINEL}:}" >&2
+    exit 0
+  fi
+}
+
+plain_text_output="$(run_openai_cli node dist/cli.js -p "say hello in five words")"
+exit_if_skipped "$plain_text_output"
 if [[ -z "$plain_text_output" ]]; then
   echo "error: plain-text OpenAI/Codex run returned empty output" >&2
   exit 1
 fi
 
 stream_output="$(
-  node dist/cli.js \
+  run_openai_cli node dist/cli.js \
     -p "say hello in five words" \
     --output-format stream-json \
     --verbose \
     --include-partial-messages
 )"
+exit_if_skipped "$stream_output"
 if ! print -r -- "$stream_output" | rg -q '"type":"stream_event".*"type":"message_start"'; then
   echo "error: streamed OpenAI/Codex run did not emit message_start" >&2
   exit 1
@@ -40,7 +65,8 @@ if ! print -r -- "$stream_output" | rg -q '"type":"result".*"subtype":"success"'
   exit 1
 fi
 
-tool_output="$(node dist/cli.js -p "Use the Bash tool to run 'pwd' and reply with only the resulting path.")"
+tool_output="$(run_openai_cli node dist/cli.js -p "Use the Bash tool to run 'pwd' and reply with only the resulting path.")"
+exit_if_skipped "$tool_output"
 expected_path="$repo_root"
 if [[ "$tool_output" != "$expected_path" ]]; then
   echo "error: OpenAI/Codex tool turn returned unexpected path" >&2
@@ -50,12 +76,13 @@ if [[ "$tool_output" != "$expected_path" ]]; then
 fi
 
 stream_tool_output="$(
-  node dist/cli.js \
+  run_openai_cli node dist/cli.js \
     -p "Use the Bash tool to run 'pwd' and reply with only the resulting path." \
     --output-format stream-json \
     --verbose \
     --include-partial-messages
 )"
+exit_if_skipped "$stream_tool_output"
 if ! print -r -- "$stream_tool_output" | rg -q '"type":"stream_event".*"content_block_start".*"type":"tool_use"'; then
   echo "error: streamed OpenAI/Codex tool turn did not emit tool_use start" >&2
   exit 1
@@ -70,7 +97,8 @@ if ! print -r -- "$stream_tool_output" | rg -q "\"type\":\"result\".*\"result\":
 fi
 
 session_id="$(uuidgen)"
-first_turn_output="$(node dist/cli.js --session-id "$session_id" -p "Use the Bash tool to run 'pwd' and reply with only the resulting path.")"
+first_turn_output="$(run_openai_cli node dist/cli.js --session-id "$session_id" -p "Use the Bash tool to run 'pwd' and reply with only the resulting path.")"
+exit_if_skipped "$first_turn_output"
 if [[ "$first_turn_output" != "$expected_path" ]]; then
   echo "error: OpenAI/Codex first session turn returned unexpected path" >&2
   echo "expected: $expected_path" >&2
@@ -78,7 +106,8 @@ if [[ "$first_turn_output" != "$expected_path" ]]; then
   exit 1
 fi
 
-replay_output="$(node dist/cli.js --resume "$session_id" -p "What path did the Bash tool return last turn? Reply with only the path.")"
+replay_output="$(run_openai_cli node dist/cli.js --resume "$session_id" -p "What path did the Bash tool return last turn? Reply with only the path.")"
+exit_if_skipped "$replay_output"
 if [[ "$replay_output" != "$expected_path" ]]; then
   echo "error: OpenAI/Codex replay turn returned unexpected path" >&2
   echo "expected: $expected_path" >&2

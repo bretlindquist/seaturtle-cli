@@ -345,6 +345,12 @@ export function buildAPIProviderProperties(): Property[] {
       value: 'Not configured'
     });
   }
+  if (runtimeSnapshot.execution.family === 'openai') {
+    properties.push({
+      label: 'Provider notes',
+      value: 'Auto-mode safety classifier, permission explainer, and Claude in Chrome lightning inference remain Anthropic-only.'
+    });
+  }
   const proxyUrl = getProxyUrl();
   if (proxyUrl) {
     properties.push({

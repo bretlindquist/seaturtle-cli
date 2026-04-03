@@ -303,7 +303,7 @@ export async function authStatus(opts: {
         : hasApiKeyEnvVar
           ? 'ANTHROPIC_API_KEY'
           : null
-    const output: Record<string, string | boolean | null> = {
+    const output: Record<string, string | boolean | null | string[]> = {
       loggedIn,
       authMethod,
       apiProvider,
@@ -316,6 +316,13 @@ export async function authStatus(opts: {
     }
     if (resolvedApiKeySource) {
       output.apiKeySource = resolvedApiKeySource
+    }
+    if (runtimeSnapshot.execution.family === 'openai') {
+      output.openAiCodexKnownGates = [
+        'auto_mode_classifier',
+        'permission_explainer',
+        'claude_in_chrome_lightning',
+      ]
     }
     if (authMethod === 'claude.ai') {
       output.email = oauthAccount?.emailAddress ?? null
