@@ -1,8 +1,34 @@
-# Claude Code 2.1.88 — Custom Build
+# Claude Code 2.1.88 — Custom Build With OpenAI/Codex OAuth Port
 
 ![](<img/2026-03-31 14-58-01-combined.gif>)
 
 Rebuilt from source maps with real source preservation for `@ant/*` packages.
+
+This fork keeps Andrew Kramer-Inno's Claude Code source-build as the product
+surface base, and adds a native OpenAI/Codex provider path for the main loop.
+
+Current fork goals:
+
+- preserve as much of the local Claude Code feature surface as possible
+- run the main conversation loop on OpenAI/Codex OAuth when selected
+- keep tools, MCP, replay, and streaming working on that provider path
+- avoid silent fallback into Anthropic-only helper behavior
+
+Current OpenAI/Codex status:
+
+- supported:
+  - main-loop OpenAI/Codex execution
+  - local tool use
+  - replay/resume
+  - partial stream-json event parity
+  - provider-aware `status` and `auth status`
+- still gated or Anthropic-only:
+  - auto-mode safety classifier
+  - permission explainer
+  - Claude in Chrome lightning inference path
+
+See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for provider behavior,
+setup, validation, and current gaps.
 
 ## Prerequisites
 
@@ -31,6 +57,22 @@ First build runs `npm install` for ~80 overlay packages. Subsequent builds skip 
 
 ```bash
 node dist/cli.js
+```
+
+### Run With OpenAI/Codex
+
+This fork supports an OpenAI/Codex-backed main loop when the provider is
+enabled:
+
+```bash
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+```
+
+Useful checks:
+
+```bash
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js auth status --json
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js -p "say hello in five words"
 ```
 
 ### Computer Use (macOS)
@@ -79,13 +121,23 @@ Use the canonical repo check:
 
 ```bash
 npm run dev-check
+npm run openai-codex-check
 ```
 
 That verifies `node` / `npm` / `bun`, runs the unminified build, and smoke-tests
-the built CLI.
+the built CLI. The OpenAI/Codex check runs the provider regression harness.
+When the live ChatGPT/Codex account is quota-limited, that harness exits with
+an explicit skip rather than a false failure.
 
-See [`DEVELOPMENT.md`](./DEVELOPMENT.md) for the generated-workspace model and
-day-to-day setup notes.
+## Auth And Secrets
+
+Do not commit live auth state to this repo.
+
+- OpenAI/Codex auth is expected to come from local Codex CLI auth state
+  (for example `~/.codex/auth.json`) and/or secure storage
+- local machine config and credential dumps should stay untracked
+- if additional setup docs or examples are needed, add sanitized examples such
+  as `.env.example` or `*.example.json`, not real credentials
 
 ## Structure
 
@@ -96,4 +148,5 @@ source/native-addons/     — Pre-built .node binaries
 source/src/               — Overlay assets (.md skill files)
 .cache/workspace/         — Extracted workspace (generated, gitignored)
 dist/                     — Build output (generated)
+docs/OPENAI-CODEX.md      — Provider port behavior, setup, and validation
 ```

@@ -1,0 +1,98 @@
+# OpenAI/Codex Provider Port
+
+This fork adds a native OpenAI/Codex provider path to the Andrew
+`claude-code-source-build` codebase.
+
+It does not replace every Anthropic- or claude.ai-specific feature. The goal is
+to preserve the local Claude Code runtime where possible while making the main
+conversation loop work on OpenAI/Codex OAuth.
+
+## What This Fork Adds
+
+- provider-aware main-loop runtime selection
+- OpenAI/Codex-backed main-loop execution
+- OpenAI/Codex tool use through the existing local tool loop
+- replay/resume support on the OpenAI/Codex path
+- stream-json support with OpenAI/Codex event translation
+- provider-aware `status` and `auth status`
+
+## What Currently Works
+
+- `CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js`
+- direct prompts on the OpenAI/Codex path
+- local built-in tools such as `Bash`
+- replay/resume against prior OpenAI/Codex sessions
+- `auth status --json` reporting of the active provider path
+
+## Current Known Gates
+
+These surfaces are intentionally not pretending to work on OpenAI/Codex yet:
+
+- auto-mode safety classifier
+- permission explainer
+- Claude in Chrome lightning inference path
+
+When the active main-loop runtime is OpenAI/Codex:
+
+- `auth status --json` exposes these in `openAiCodexKnownGates`
+- text `status` includes a provider note explaining the current boundary
+
+## Enabling OpenAI/Codex
+
+Build first:
+
+```bash
+node scripts/build-cli.mjs --no-minify
+```
+
+Run on OpenAI/Codex:
+
+```bash
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+```
+
+Quick smoke check:
+
+```bash
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js auth status --json
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js -p "say hello in five words"
+```
+
+## Auth Model
+
+This fork is designed so auth does not live in the repo.
+
+- OpenAI/Codex auth is expected to come from local Codex CLI auth state and/or
+  secure storage
+- repo-local secrets, token dumps, and machine-specific auth files should stay
+  ignored
+- do not commit live credentials
+
+If you need to document setup for other users, use sanitized examples and docs,
+not real token files.
+
+## Validation
+
+Canonical checks:
+
+```bash
+npm run dev-check
+npm run openai-codex-check
+```
+
+Notes:
+
+- `npm run dev-check` is the main repo build/smoke check
+- `npm run openai-codex-check` is the provider regression harness
+- if the live OpenAI/Codex account is quota-limited, the OpenAI harness exits
+  with an explicit skip instead of reporting a false regression
+
+## Remaining Work
+
+Main remaining areas:
+
+- stricter OpenAI tool-schema handling
+- more streaming parity with the Anthropic path
+- broader provider-neutral replacement of the remaining Anthropic-only helper
+  seams
+- additional repo-facing docs and operator guidance as the fork stabilizes
