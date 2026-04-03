@@ -81,6 +81,16 @@ type SyntheticStreamEnvelope = {
   emittedAssistantMessages: AssistantMessage[]
 }
 
+type PendingSyntheticToolUse = {
+  callId: string
+  itemId: string | null
+  name: string
+  index: number | null
+  partialJson: string
+  finalArguments: string | null
+  finalized: boolean
+}
+
 const ZERO_USAGE = {
   input_tokens: 0,
   output_tokens: 0,
@@ -294,14 +304,17 @@ async function buildOpenAiCodexTools(params: {
         ? tool.inputJSONSchema
         : zodToJsonSchema(tool.inputSchema)
 
+    const parameters = normalizeOpenAiToolParameterSchema(schema ?? {})
+
     return [
       {
         type: 'function' as const,
         name: tool.name,
-        parameters: normalizeOpenAiToolParameterSchema(schema ?? {}),
+        parameters,
         ...(shouldUseStrictOpenAiToolSchema({
           toolName: tool.name,
           strict: tool.strict,
+          parameters,
         })
           ? { strict: true }
           : {}),
@@ -564,6 +577,242 @@ async function* emitSyntheticToolUse(
     {
       type: 'content_block_stop',
       index,
+    },
+    envelope,
+    startTime,
+  )
+}
+
+async function* ensureSyntheticToolUseStart(
+  envelope: SyntheticStreamEnvelope,
+  startTime: number,
+  model: string,
+  pendingToolUse: PendingSyntheticToolUse,
+): AsyncGenerator<StreamEvent | AssistantMessage, void> {
+  yield* flushSyntheticTextBlock(envelope, startTime)
+  yield* ensureSyntheticMessageStart(envelope, startTime, model)
+
+  if (pendingToolUse.index != null) {
+    return
+  }
+
+  pendingToolUse.index = envelope.nextContentBlockIndex++
+  yield* emitSyntheticStreamEvent(
+    {
+      type: 'content_block_start',
+      index: pendingToolUse.index,
+      content_block: {
+        type: 'tool_use',
+        id: pendingToolUse.callId,
+        name: pendingToolUse.name,
+        input: {},
+      },
+    },
+    envelope,
+    startTime,
+  )
+}
+
+function canRenderPendingSyntheticToolUse(
+  pendingToolUse: PendingSyntheticToolUse,
+): boolean {
+  return (
+    pendingToolUse.callId !== 'missing_tool_id' &&
+    pendingToolUse.name !== 'unknown_tool'
+  )
+}
+
+function mergePendingSyntheticToolUseMetadata(
+  pendingToolUse: PendingSyntheticToolUse,
+  item: {
+    id?: unknown
+    name?: unknown
+    arguments?: unknown
+  },
+): void {
+  if (typeof item.id === 'string') {
+    pendingToolUse.itemId = item.id
+  }
+
+  if (typeof item.name === 'string') {
+    pendingToolUse.name = item.name
+  }
+
+  if (
+    pendingToolUse.partialJson.length === 0 &&
+    typeof item.arguments === 'string'
+  ) {
+    pendingToolUse.partialJson = item.arguments
+  }
+}
+
+async function* flushBufferedSyntheticToolUseDelta(
+  envelope: SyntheticStreamEnvelope,
+  startTime: number,
+  model: string,
+  pendingToolUse: PendingSyntheticToolUse,
+  latestDelta?: string,
+): AsyncGenerator<StreamEvent | AssistantMessage, void> {
+  if (
+    !canRenderPendingSyntheticToolUse(pendingToolUse) ||
+    pendingToolUse.partialJson.length === 0
+  ) {
+    return
+  }
+
+  const shouldEmitFullBuffer = pendingToolUse.index == null
+  yield* ensureSyntheticToolUseStart(
+    envelope,
+    startTime,
+    model,
+    pendingToolUse,
+  )
+
+  const partialJson = shouldEmitFullBuffer
+    ? pendingToolUse.partialJson
+    : (latestDelta ?? '')
+  if (partialJson.length === 0) {
+    return
+  }
+
+  yield* emitSyntheticStreamEvent(
+    {
+      type: 'content_block_delta',
+      index: pendingToolUse.index ?? 0,
+      delta: {
+        type: 'input_json_delta',
+        partial_json: partialJson,
+      },
+    },
+    envelope,
+    startTime,
+  )
+}
+
+async function* emitSyntheticToolUseDelta(
+  envelope: SyntheticStreamEnvelope,
+  startTime: number,
+  model: string,
+  pendingToolUse: PendingSyntheticToolUse,
+  delta: string,
+): AsyncGenerator<StreamEvent | AssistantMessage, void> {
+  if (delta.length === 0) {
+    return
+  }
+
+  pendingToolUse.partialJson += delta
+  yield* flushBufferedSyntheticToolUseDelta(
+    envelope,
+    startTime,
+    model,
+    pendingToolUse,
+    delta,
+  )
+}
+
+async function* finalizeSyntheticToolUse(
+  envelope: SyntheticStreamEnvelope,
+  startTime: number,
+  model: string,
+  pendingToolUse: PendingSyntheticToolUse,
+  finalArguments?: string,
+): AsyncGenerator<StreamEvent | AssistantMessage, void> {
+  if (pendingToolUse.finalized) {
+    return
+  }
+
+  const finalJson =
+    typeof finalArguments === 'string'
+      ? finalArguments
+      : pendingToolUse.partialJson
+
+  if (!canRenderPendingSyntheticToolUse(pendingToolUse)) {
+    pendingToolUse.partialJson = finalJson
+    pendingToolUse.finalArguments = finalJson
+    return
+  }
+
+  const shouldEmitFullBuffer = pendingToolUse.index == null
+  yield* ensureSyntheticToolUseStart(
+    envelope,
+    startTime,
+    model,
+    pendingToolUse,
+  )
+
+  if (
+    shouldEmitFullBuffer &&
+    finalJson.length > 0
+  ) {
+    pendingToolUse.partialJson = finalJson
+    yield* emitSyntheticStreamEvent(
+      {
+        type: 'content_block_delta',
+        index: pendingToolUse.index ?? 0,
+        delta: {
+          type: 'input_json_delta',
+          partial_json: finalJson,
+        },
+      },
+      envelope,
+      startTime,
+    )
+  } else if (
+    finalJson.length > pendingToolUse.partialJson.length &&
+    finalJson.startsWith(pendingToolUse.partialJson)
+  ) {
+    const delta = finalJson.slice(pendingToolUse.partialJson.length)
+    pendingToolUse.partialJson = finalJson
+    yield* emitSyntheticStreamEvent(
+      {
+        type: 'content_block_delta',
+        index: pendingToolUse.index ?? 0,
+        delta: {
+          type: 'input_json_delta',
+          partial_json: delta,
+        },
+      },
+      envelope,
+      startTime,
+    )
+  } else if (pendingToolUse.partialJson.length === 0) {
+    pendingToolUse.partialJson = finalJson
+    if (finalJson.length > 0) {
+      yield* emitSyntheticStreamEvent(
+        {
+          type: 'content_block_delta',
+          index: pendingToolUse.index ?? 0,
+          delta: {
+            type: 'input_json_delta',
+            partial_json: finalJson,
+          },
+        },
+        envelope,
+        startTime,
+      )
+    }
+  }
+
+  const contentBlock: BetaContentBlock = {
+    type: 'tool_use',
+    id: pendingToolUse.callId,
+    name: pendingToolUse.name,
+    input: parseFunctionCallInput(pendingToolUse.partialJson),
+  } as BetaContentBlock
+  const assistantMessage = createAssistantMessage({
+    content: [contentBlock],
+  })
+  assistantMessage.message.stop_reason = null
+
+  envelope.completedBlocks.push(contentBlock)
+  envelope.emittedAssistantMessages.push(assistantMessage)
+  pendingToolUse.finalized = true
+
+  yield assistantMessage
+  yield* emitSyntheticStreamEvent(
+    {
+      type: 'content_block_stop',
+      index: pendingToolUse.index ?? 0,
     },
     envelope,
     startTime,
@@ -878,6 +1127,7 @@ export async function* queryOpenAiCodexWithStreaming(params: {
       emittedAssistantMessages: [],
     }
     let stopReason: 'end_turn' | 'tool_use' = 'end_turn'
+    const pendingToolUseByCallId = new Map<string, PendingSyntheticToolUse>()
 
     while (true) {
       const { done, value } = await reader.read()
@@ -896,6 +1146,42 @@ export async function* queryOpenAiCodexWithStreaming(params: {
 
         const event = JSON.parse(payload) as ChatgptSseEvent
         switch (event.type) {
+          case 'response.output_item.added': {
+            const item =
+              event.item && typeof event.item === 'object'
+                ? (event.item as {
+                    type?: unknown
+                    id?: unknown
+                    call_id?: unknown
+                    name?: unknown
+                    arguments?: unknown
+                  })
+                : null
+            if (item?.type === 'function_call') {
+              const callId =
+                typeof item.call_id === 'string'
+                  ? item.call_id
+                  : 'missing_tool_id'
+              const pendingToolUse = pendingToolUseByCallId.get(callId) ?? {
+                callId,
+                itemId: null,
+                name: 'unknown_tool',
+                index: null,
+                partialJson: '',
+                finalArguments: null,
+                finalized: false,
+              }
+              mergePendingSyntheticToolUseMetadata(pendingToolUse, item)
+              pendingToolUseByCallId.set(callId, pendingToolUse)
+              yield* flushBufferedSyntheticToolUseDelta(
+                envelope,
+                startTime,
+                params.options.model,
+                pendingToolUse,
+              )
+            }
+            break
+          }
           case 'response.output_text.delta':
             if (typeof event.delta === 'string' && event.delta.length > 0) {
               yield* ensureSyntheticTextBlockStart(
@@ -919,6 +1205,70 @@ export async function* queryOpenAiCodexWithStreaming(params: {
               )
             }
             break
+          case 'response.function_call_arguments.delta': {
+            const callId =
+              typeof (event as { call_id?: unknown }).call_id === 'string'
+                ? ((event as { call_id: string }).call_id as string)
+                : 'missing_tool_id'
+            const delta =
+              typeof event.delta === 'string' ? event.delta : ''
+            const pendingToolUse =
+              pendingToolUseByCallId.get(callId) ?? {
+                callId,
+                itemId: null,
+                name: 'unknown_tool',
+                index: null,
+                partialJson: '',
+                finalArguments: null,
+                finalized: false,
+              }
+            pendingToolUseByCallId.set(callId, pendingToolUse)
+            stopReason = 'tool_use'
+            yield* emitSyntheticToolUseDelta(
+              envelope,
+              startTime,
+              params.options.model,
+              pendingToolUse,
+              delta,
+            )
+            break
+          }
+          case 'response.function_call_arguments.done': {
+            const callId =
+              typeof (event as { call_id?: unknown }).call_id === 'string'
+                ? ((event as { call_id: string }).call_id as string)
+                : 'missing_tool_id'
+            const finalArguments =
+              event &&
+              typeof event === 'object' &&
+              typeof (event as { arguments?: unknown }).arguments === 'string'
+                ? ((event as { arguments: string }).arguments as string)
+                : undefined
+            const pendingToolUse =
+              pendingToolUseByCallId.get(callId) ?? {
+                callId,
+                itemId: null,
+                name: 'unknown_tool',
+                index: null,
+                partialJson: '',
+                finalArguments: null,
+                finalized: false,
+              }
+            pendingToolUseByCallId.set(callId, pendingToolUse)
+            stopReason = 'tool_use'
+            pendingToolUse.finalArguments =
+              finalArguments ?? pendingToolUse.partialJson
+            if (canRenderPendingSyntheticToolUse(pendingToolUse)) {
+              yield* finalizeSyntheticToolUse(
+                envelope,
+                startTime,
+                params.options.model,
+                pendingToolUse,
+                pendingToolUse.finalArguments,
+              )
+            }
+            break
+          }
           case 'response.output_item.done': {
             const itemType =
               event.item && typeof event.item === 'object'
@@ -926,16 +1276,37 @@ export async function* queryOpenAiCodexWithStreaming(params: {
                 : null
             if (itemType === 'function_call') {
               stopReason = 'tool_use'
-              yield* emitSyntheticToolUse(
-                envelope,
-                startTime,
-                params.options.model,
-                (event.item ?? {}) as {
-                  call_id?: unknown
-                  name?: unknown
-                  arguments?: unknown
-                },
-              )
+              const item = (event.item ?? {}) as {
+                call_id?: unknown
+                name?: unknown
+                arguments?: unknown
+                id?: unknown
+              }
+              const callId =
+                typeof item.call_id === 'string'
+                  ? item.call_id
+                  : 'missing_tool_id'
+              const pendingToolUse = pendingToolUseByCallId.get(callId)
+              if (pendingToolUse) {
+                mergePendingSyntheticToolUseMetadata(pendingToolUse, item)
+                yield* finalizeSyntheticToolUse(
+                  envelope,
+                  startTime,
+                  params.options.model,
+                  pendingToolUse,
+                  pendingToolUse.finalArguments ??
+                    (typeof item.arguments === 'string'
+                      ? item.arguments
+                      : undefined),
+                )
+              } else {
+                yield* emitSyntheticToolUse(
+                  envelope,
+                  startTime,
+                  params.options.model,
+                  item,
+                )
+              }
             } else {
               const itemText = outputItemText(event.item)
               if (

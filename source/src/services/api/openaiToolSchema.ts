@@ -1,6 +1,6 @@
 type JsonSchemaRecord = Record<string, unknown>
 
-const STRICT_SAFE_OPENAI_TOOL_NAMES = new Set(['Bash', 'Read', 'Write'])
+const STRICT_SAFE_OPENAI_TOOL_NAMES = new Set(['Write'])
 
 function extractEnumValues(schema: unknown): unknown[] | undefined {
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
@@ -248,12 +248,39 @@ export function normalizeOpenAiToolParameterSchema(
   }
 }
 
+function hasStrictCompatibleTopLevelSchema(schema: Record<string, unknown>): boolean {
+  if (schema.type !== 'object') {
+    return false
+  }
+
+  const properties =
+    schema.properties &&
+    typeof schema.properties === 'object' &&
+    !Array.isArray(schema.properties)
+      ? Object.keys(schema.properties as JsonSchemaRecord)
+      : []
+  const required = Array.isArray(schema.required)
+    ? schema.required.filter((key): key is string => typeof key === 'string')
+    : []
+
+  if (properties.length === 0) {
+    return true
+  }
+
+  return (
+    required.length === properties.length &&
+    properties.every(property => required.includes(property))
+  )
+}
+
 export function shouldUseStrictOpenAiToolSchema(params: {
   toolName: string
   strict?: boolean
+  parameters: Record<string, unknown>
 }): boolean {
   return (
     params.strict === true &&
-    STRICT_SAFE_OPENAI_TOOL_NAMES.has(params.toolName)
+    STRICT_SAFE_OPENAI_TOOL_NAMES.has(params.toolName) &&
+    hasStrictCompatibleTopLevelSchema(params.parameters)
   )
 }
