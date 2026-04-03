@@ -3,6 +3,10 @@ import type {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID } from 'crypto'
 import { API_ERROR_MESSAGE_PREFIX } from './errors.js'
+import {
+  normalizeOpenAiToolParameterSchema,
+  shouldUseStrictOpenAiToolSchema,
+} from './openaiToolSchema.js'
 import { readExternalCodexCliAuth } from '../authProfiles/store.js'
 import type {
   AssistantMessage,
@@ -269,44 +273,6 @@ function collectOpenAiCodexInputItems(messages: Message[]): OpenAiCodexRequestIt
   return items
 }
 
-function normalizeToolSchema(schema: unknown): unknown {
-  if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {
-    return schema
-  }
-
-  const normalized = { ...(schema as Record<string, unknown>) }
-  if (Array.isArray(normalized.anyOf)) {
-    normalized.anyOf = normalized.anyOf.map(normalizeToolSchema)
-  }
-  if (Array.isArray(normalized.oneOf)) {
-    normalized.oneOf = normalized.oneOf.map(normalizeToolSchema)
-  }
-  if (Array.isArray(normalized.allOf)) {
-    normalized.allOf = normalized.allOf.map(normalizeToolSchema)
-  }
-  if (normalized.items !== undefined) {
-    normalized.items = normalizeToolSchema(normalized.items)
-  }
-
-  if (normalized.type === 'object') {
-    const properties =
-      normalized.properties &&
-      typeof normalized.properties === 'object' &&
-      !Array.isArray(normalized.properties)
-        ? (normalized.properties as Record<string, unknown>)
-        : {}
-
-    normalized.properties = Object.fromEntries(
-      Object.entries(properties).map(([key, value]) => [
-        key,
-        normalizeToolSchema(value),
-      ]),
-    )
-    normalized.required = Object.keys(normalized.properties as Record<string, unknown>)
-  }
-  return normalized
-}
-
 async function buildOpenAiCodexTools(params: {
   tools: Tools
 }): Promise<
@@ -315,6 +281,7 @@ async function buildOpenAiCodexTools(params: {
     name: string
     description?: string
     parameters: unknown
+    strict?: boolean
   }>
 > {
   return params.tools.flatMap(tool => {
@@ -331,11 +298,13 @@ async function buildOpenAiCodexTools(params: {
       {
         type: 'function' as const,
         name: tool.name,
-        // Andrew tool schemas rely on local runtime validation and frequently
-        // use optional fields. OpenAI "strict" function schemas require a more
-        // invasive optional-field normalization than Andrew currently emits, so
-        // keep the transport permissive here until the schema layer is ported.
-        parameters: normalizeToolSchema(schema ?? {}),
+        parameters: normalizeOpenAiToolParameterSchema(schema ?? {}),
+        ...(shouldUseStrictOpenAiToolSchema({
+          toolName: tool.name,
+          strict: tool.strict,
+        })
+          ? { strict: true }
+          : {}),
       },
     ]
   })
