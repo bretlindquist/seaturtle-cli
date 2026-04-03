@@ -20,7 +20,8 @@ Current OpenAI/Codex status:
   - main-loop OpenAI/Codex execution
   - local tool use
   - replay/resume
-  - partial stream-json event parity
+  - stream-json text and tool-use event parity
+  - strict OpenAI tool-schema coverage for `TodoWrite`
   - provider-aware `status` and `auth status`
 - still gated or Anthropic-only:
   - auto-mode safety classifier

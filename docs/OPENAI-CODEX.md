@@ -14,6 +14,7 @@ conversation loop work on OpenAI/Codex OAuth.
 - OpenAI/Codex tool use through the existing local tool loop
 - replay/resume support on the OpenAI/Codex path
 - stream-json support with OpenAI/Codex event translation
+- strict OpenAI tool-schema coverage for `TodoWrite`
 - provider-aware `status` and `auth status`
 
 ## What Currently Works
@@ -21,8 +22,10 @@ conversation loop work on OpenAI/Codex OAuth.
 - `CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js`
 - direct prompts on the OpenAI/Codex path
 - local built-in tools such as `Bash`
+- strict `TodoWrite` turns
 - replay/resume against prior OpenAI/Codex sessions
 - `auth status --json` reporting of the active provider path
+- streamed text and tool-use events without synthetic `unknown_tool` leakage
 
 ## Current Known Gates
 
@@ -31,6 +34,7 @@ These surfaces are intentionally not pretending to work on OpenAI/Codex yet:
 - auto-mode safety classifier
 - permission explainer
 - Claude in Chrome lightning inference path
+- Anthropic-only `sideQuery` helper flows outside the explicitly supported gates
 
 When the active main-loop runtime is OpenAI/Codex:
 
@@ -87,12 +91,10 @@ Notes:
 - if the live OpenAI/Codex account is quota-limited, the OpenAI harness exits
   with an explicit skip instead of reporting a false regression
 
-## Remaining Work
+## Future Expansion Areas
 
-Main remaining areas:
+After the current planned port/hardening chunks, the most likely next areas are:
 
-- stricter OpenAI tool-schema handling
-- more streaming parity with the Anthropic path
-- broader provider-neutral replacement of the remaining Anthropic-only helper
-  seams
-- additional repo-facing docs and operator guidance as the fork stabilizes
+- expand strict OpenAI tool-schema coverage beyond `TodoWrite`
+- broaden provider-neutral replacements for Anthropic-only account surfaces
+- continue operator-facing polish as the fork stabilizes
