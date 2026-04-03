@@ -6,3 +6,10 @@ dist/
 .Trashes/
 2026-04-03-openai-codex-provider-port-state.md
 DEVELOPMENT.md
+agents.md
+AGENTS.md
+.env
+.env.*
+.codex/
+.claude/
+.mcp.json
