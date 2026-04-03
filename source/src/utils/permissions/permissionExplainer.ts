@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { logEvent } from '../../services/analytics/index.js'
 import { sanitizeToolNameForAnalytics } from '../../services/analytics/metadata.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { getGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
@@ -153,6 +154,13 @@ export async function generatePermissionExplanation({
 }: GenerateExplanationParams): Promise<PermissionExplanation | null> {
   // Check if feature is enabled
   if (!isPermissionExplainerEnabled()) {
+    return null
+  }
+
+  if (getMainLoopProviderRuntime().family === 'openai') {
+    logForDebugging(
+      `Permission explainer: unavailable for ${toolName} on the OpenAI/Codex provider`,
+    )
     return null
   }
 
