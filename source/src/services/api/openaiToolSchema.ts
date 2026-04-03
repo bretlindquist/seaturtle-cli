@@ -1,6 +1,6 @@
 type JsonSchemaRecord = Record<string, unknown>
 
-const STRICT_SAFE_OPENAI_TOOL_NAMES = new Set(['Write'])
+const STRICT_SAFE_OPENAI_TOOL_NAMES = new Set(['TodoWrite', 'Write'])
 
 function extractEnumValues(schema: unknown): unknown[] | undefined {
   if (!schema || typeof schema !== 'object' || Array.isArray(schema)) {

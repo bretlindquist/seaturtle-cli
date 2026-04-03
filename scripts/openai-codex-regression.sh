@@ -115,4 +115,52 @@ if [[ "$replay_output" != "$expected_path" ]]; then
   exit 1
 fi
 
+strict_session_id="$(uuidgen)"
+strict_todo_output="$(
+  run_openai_cli node dist/cli.js \
+    --session-id "$strict_session_id" \
+    -p "Use only the TodoWrite tool to create a single todo named strict-proof and reply with only the word done."
+)"
+exit_if_skipped "$strict_todo_output"
+if [[ "$strict_todo_output" != "done" ]]; then
+  echo "error: OpenAI/Codex strict TodoWrite turn returned unexpected result" >&2
+  echo "expected: done" >&2
+  echo "actual:   $strict_todo_output" >&2
+  exit 1
+fi
+
+strict_stream_output="$(
+  run_openai_cli node dist/cli.js \
+    -p "Use only the TodoWrite tool to create a single todo named strict-proof and reply with only the word done." \
+    --output-format stream-json \
+    --verbose \
+    --include-partial-messages
+)"
+exit_if_skipped "$strict_stream_output"
+if ! print -r -- "$strict_stream_output" | rg -q '"type":"stream_event".*"content_block_start".*"name":"TodoWrite"'; then
+  echo "error: strict TodoWrite stream did not emit a TodoWrite tool_use start" >&2
+  exit 1
+fi
+if ! print -r -- "$strict_stream_output" | rg -q '"type":"stream_event".*"type":"input_json_delta"'; then
+  echo "error: strict TodoWrite stream did not emit input_json_delta" >&2
+  exit 1
+fi
+if ! print -r -- "$strict_stream_output" | rg -q '"type":"result".*"result":"done"'; then
+  echo "error: strict TodoWrite stream did not finish with done" >&2
+  exit 1
+fi
+
+strict_replay_output="$(
+  run_openai_cli node dist/cli.js \
+    --resume "$strict_session_id" \
+    -p "What todo did you add last turn? Reply with only the todo content."
+)"
+exit_if_skipped "$strict_replay_output"
+if [[ "$strict_replay_output" != "strict-proof" ]]; then
+  echo "error: strict TodoWrite replay returned unexpected result" >&2
+  echo "expected: strict-proof" >&2
+  echo "actual:   $strict_replay_output" >&2
+  exit 1
+fi
+
 echo "openai-codex-regression passed"
