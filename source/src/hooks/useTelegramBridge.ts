@@ -2,16 +2,22 @@ import { randomUUID } from 'crypto'
 import { useEffect, useMemo, useRef } from 'react'
 import { useMailbox } from '../context/mailbox.js'
 import type { Message } from '../types/message.js'
+import { enqueue } from '../utils/messageQueueManager.js'
 import { extractTextContent, stripPromptXMLTags } from '../utils/messages.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
-import type { TelegramUpdate } from '../services/telegram/client.js'
 import {
-  getTelegramUpdates,
+  sendTelegramDocument,
   sendTelegramMessage,
+  sendTelegramPhoto,
   splitTelegramMessage,
+  getTelegramUpdates,
 } from '../services/telegram/client.js'
 import { getTelegramConfig } from '../services/telegram/config.js'
+import {
+  classifyTelegramOutboundAttachments,
+  resolveTelegramInboundPayload,
+} from '../services/telegram/media.js'
 
 type PendingTelegramResponse = {
   chatId: string
@@ -21,21 +27,6 @@ type PendingTelegramResponse = {
 type Props = {
   isLoading: boolean
   messages: Message[]
-}
-
-function getInboundText(update: TelegramUpdate): {
-  chatId: string
-  text: string
-} | null {
-  const text = update.message?.text?.trim()
-  const chatId = update.message?.chat.id
-  if (!text || chatId === undefined) {
-    return null
-  }
-  return {
-    chatId: String(chatId),
-    text,
-  }
 }
 
 function getOutboundText(messages: Message[], startIndex: number): string | null {
@@ -60,6 +51,76 @@ function getOutboundText(messages: Message[], startIndex: number): string | null
   }
 
   return null
+}
+
+type TelegramOutboundPayload = {
+  text: string | null
+  photos: string[]
+  documents: string[]
+}
+
+function stripAttachmentOnlyLines(
+  text: string,
+  attachments: { photos: string[]; documents: string[] },
+): string {
+  const attachmentSet = new Set([...attachments.photos, ...attachments.documents])
+  const normalizeAttachmentLine = (line: string): string => {
+    let normalized = line.trim()
+    if (normalized.startsWith('@')) {
+      normalized = normalized.slice(1).trim()
+    }
+    if (
+      (normalized.startsWith('"') && normalized.endsWith('"')) ||
+      (normalized.startsWith("'") && normalized.endsWith("'"))
+    ) {
+      normalized = normalized.slice(1, -1)
+    }
+    return normalized
+  }
+
+  return text
+    .split('\n')
+    .filter(line => {
+      const trimmed = line.trim()
+      if (!trimmed) {
+        return true
+      }
+      if (attachmentSet.has(normalizeAttachmentLine(trimmed))) {
+        return false
+      }
+      if (
+        trimmed.startsWith('Path: ') &&
+        attachmentSet.has(
+          normalizeAttachmentLine(trimmed.slice('Path: '.length).trim()),
+        )
+      ) {
+        return false
+      }
+      return true
+    })
+    .join('\n')
+    .trim()
+}
+
+async function getOutboundPayload(
+  messages: Message[],
+  startIndex: number,
+): Promise<TelegramOutboundPayload> {
+  const text = getOutboundText(messages, startIndex)
+  if (!text) {
+    return {
+      text: null,
+      photos: [],
+      documents: [],
+    }
+  }
+
+  const attachments = await classifyTelegramOutboundAttachments(text)
+  return {
+    text: stripAttachmentOnlyLines(text, attachments) || null,
+    photos: attachments.photos,
+    documents: attachments.documents,
+  }
 }
 
 export function useTelegramBridge({ isLoading, messages }: Props): void {
@@ -89,7 +150,7 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
 
           for (const update of updates) {
             offsetRef.current = update.update_id + 1
-            const inbound = getInboundText(update)
+            const inbound = await resolveTelegramInboundPayload(config, update)
             if (!inbound) {
               continue
             }
@@ -101,13 +162,21 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
               chatId: inbound.chatId,
               startIndex: null,
             })
-            mailbox.send({
-              id: randomUUID(),
-              source: 'user',
-              content: inbound.text,
-              from: `telegram:${inbound.chatId}`,
-              timestamp: new Date().toISOString(),
-            })
+            if (inbound.kind === 'text') {
+              mailbox.send({
+                id: randomUUID(),
+                source: 'user',
+                content: inbound.text,
+                from: `telegram:${inbound.chatId}`,
+                timestamp: new Date().toISOString(),
+              })
+            } else {
+              enqueue({
+                value: inbound.content,
+                mode: 'prompt',
+                skipSlashCommands: true,
+              })
+            }
           }
         } catch (error) {
           if (cancelled || abortController.signal.aborted) {
@@ -149,10 +218,18 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
     if (wasLoading && !isLoading) {
       const pending = queue[0]
       if (pending && pending.startIndex !== null) {
-        const outboundText =
-          getOutboundText(messages, pending.startIndex) ?? 'Done.'
         void (async () => {
           try {
+            const outbound = await getOutboundPayload(messages, pending.startIndex)
+
+            for (const photoPath of outbound.photos) {
+              await sendTelegramPhoto(config, pending.chatId, photoPath)
+            }
+            for (const documentPath of outbound.documents) {
+              await sendTelegramDocument(config, pending.chatId, documentPath)
+            }
+
+            const outboundText = outbound.text ?? 'Done.'
             for (const chunk of splitTelegramMessage(outboundText)) {
               await sendTelegramMessage(config, pending.chatId, chunk)
             }

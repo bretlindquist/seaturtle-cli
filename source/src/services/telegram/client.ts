@@ -1,8 +1,18 @@
 import type { TelegramConfig } from './config.js'
+import { basename } from 'path'
+import { readFile } from 'fs/promises'
 
 type TelegramGetUpdatesResponse = {
   ok: boolean
   result: TelegramUpdate[]
+}
+
+type TelegramGetFileResponse = {
+  ok: boolean
+  result: {
+    file_path?: string
+    file_size?: number
+  }
 }
 
 export type TelegramUpdate = {
@@ -11,6 +21,9 @@ export type TelegramUpdate = {
     message_id: number
     date: number
     text?: string
+    caption?: string
+    photo?: TelegramPhotoSize[]
+    document?: TelegramDocument
     chat: {
       id: number
       type: string
@@ -24,6 +37,22 @@ export type TelegramUpdate = {
       last_name?: string
     }
   }
+}
+
+export type TelegramPhotoSize = {
+  file_id: string
+  file_unique_id: string
+  width: number
+  height: number
+  file_size?: number
+}
+
+export type TelegramDocument = {
+  file_id: string
+  file_unique_id: string
+  file_name?: string
+  mime_type?: string
+  file_size?: number
 }
 
 type TelegramSendMessageResponse = {
@@ -60,6 +89,54 @@ export async function getTelegramUpdates(
   return payload.result
 }
 
+export async function getTelegramFile(
+  config: TelegramConfig,
+  fileId: string,
+  signal?: AbortSignal,
+): Promise<{ filePath: string; fileSize?: number }> {
+  const response = await fetch(`${getBaseUrl(config.botToken)}/getFile`, {
+    method: 'POST',
+    signal,
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      file_id: fileId,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Telegram getFile failed with ${response.status}`)
+  }
+
+  const payload = (await response.json()) as TelegramGetFileResponse
+  if (!payload.ok || !payload.result.file_path) {
+    throw new Error('Telegram getFile returned ok=false or no file_path')
+  }
+
+  return {
+    filePath: payload.result.file_path,
+    fileSize: payload.result.file_size,
+  }
+}
+
+export async function downloadTelegramFile(
+  config: TelegramConfig,
+  filePath: string,
+  signal?: AbortSignal,
+): Promise<Buffer> {
+  const response = await fetch(
+    `https://api.telegram.org/file/bot${config.botToken}/${filePath}`,
+    { signal },
+  )
+
+  if (!response.ok) {
+    throw new Error(`Telegram file download failed with ${response.status}`)
+  }
+
+  return Buffer.from(await response.arrayBuffer())
+}
+
 export async function sendTelegramMessage(
   config: TelegramConfig,
   chatId: string,
@@ -84,6 +161,70 @@ export async function sendTelegramMessage(
   if (!payload.ok) {
     throw new Error('Telegram sendMessage returned ok=false')
   }
+}
+
+async function sendTelegramMultipart(
+  config: TelegramConfig,
+  method: 'sendPhoto' | 'sendDocument',
+  field: 'photo' | 'document',
+  chatId: string,
+  filePath: string,
+  caption?: string,
+): Promise<void> {
+  const fileName = basename(filePath)
+  const fileData = await readFile(filePath)
+  const formData = new FormData()
+  formData.append('chat_id', chatId)
+  if (caption) {
+    formData.append('caption', caption)
+  }
+  formData.append(field, new Blob([fileData]), fileName)
+
+  const response = await fetch(`${getBaseUrl(config.botToken)}/${method}`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Telegram ${method} failed with ${response.status}`)
+  }
+
+  const payload = (await response.json()) as TelegramSendMessageResponse
+  if (!payload.ok) {
+    throw new Error(`Telegram ${method} returned ok=false`)
+  }
+}
+
+export async function sendTelegramPhoto(
+  config: TelegramConfig,
+  chatId: string,
+  filePath: string,
+  caption?: string,
+): Promise<void> {
+  await sendTelegramMultipart(
+    config,
+    'sendPhoto',
+    'photo',
+    chatId,
+    filePath,
+    caption,
+  )
+}
+
+export async function sendTelegramDocument(
+  config: TelegramConfig,
+  chatId: string,
+  filePath: string,
+  caption?: string,
+): Promise<void> {
+  await sendTelegramMultipart(
+    config,
+    'sendDocument',
+    'document',
+    chatId,
+    filePath,
+    caption,
+  )
 }
 
 export function splitTelegramMessage(text: string, maxLength = 4096): string[] {
