@@ -59,6 +59,7 @@ import {
   replaceUltraplanKeyword,
 } from '../ultraplan/keyword.js'
 import { processTextPrompt } from './processTextPrompt.js'
+import type { EditablePromptInputMode } from '../../types/textInputTypes.js'
 export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
@@ -79,6 +80,8 @@ export type ProcessUserInputBaseResult = {
   // When set, prefills or submits the next input after command completes
   // Used by /discover to chain into the selected feature's command
   nextInput?: string
+  nextInputMode?: EditablePromptInputMode
+  nextPastedContents?: Record<number, PastedContent>
   submitNextInput?: boolean
 }
 

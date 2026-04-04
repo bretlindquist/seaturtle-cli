@@ -13,6 +13,7 @@ import type { VimMode, PromptInputMode } from '../../types/textInputTypes.js';
 import type { ToolPermissionContext } from '../../Tool.js';
 import { isVimModeEnabled } from './utils.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
+import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js';
 import { isDefaultMode, permissionModeSymbol, permissionModeTitle, getModeColor } from '../../utils/permissions/PermissionMode.js';
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js';
 import { isBackgroundTask } from '../../tasks/types.js';
@@ -58,6 +59,7 @@ type Props = {
   mode: PromptInputMode;
   toolPermissionContext: ToolPermissionContext;
   suppressHint: boolean;
+  canQueueMessage: boolean;
   isLoading: boolean;
   showMemoryTypeSelector?: boolean;
   tasksSelected: boolean;
@@ -125,13 +127,14 @@ function ProactiveCountdown() {
   return t4;
 }
 export function PromptInputFooterLeftSide(t0) {
-  const $ = _c(27);
+  const $ = _c(28);
   const {
     exitMessage,
     vimMode,
     mode,
     toolPermissionContext,
     suppressHint,
+    canQueueMessage,
     isLoading,
     tasksSelected,
     teamsSelected,
@@ -165,6 +168,7 @@ export function PromptInputFooterLeftSide(t0) {
     }
     return t1;
   }
+  const queueShortcut = getShortcutDisplay('chat:queueMessage', 'Chat', 'tab');
   let t1;
   if ($[3] !== isSearching || $[4] !== vimMode) {
     t1 = isVimModeEnabled() && vimMode === "INSERT" && !isSearching;
@@ -195,6 +199,12 @@ export function PromptInputFooterLeftSide(t0) {
     t3 = $[12];
   }
   const t4 = !suppressHint && !showVim;
+  const queueHint =
+    canQueueMessage && !isSearching && !showVim ? (
+      <Text dimColor={true}>{
+        `${queueShortcut} to queue message`
+      }</Text>
+    ) : null;
   let t5;
   if ($[13] !== isLoading || $[14] !== mode || $[15] !== onOpenTasksDialog || $[16] !== t4 || $[17] !== tasksSelected || $[18] !== teammateFooterIndex || $[19] !== teamsSelected || $[20] !== tmuxSelected || $[21] !== toolPermissionContext) {
     t5 = <ModeIndicator mode={mode} toolPermissionContext={toolPermissionContext} showHint={t4} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} onOpenTasksDialog={onOpenTasksDialog} />;
@@ -212,14 +222,17 @@ export function PromptInputFooterLeftSide(t0) {
     t5 = $[22];
   }
   let t6;
-  if ($[23] !== t2 || $[24] !== t3 || $[25] !== t5) {
-    t6 = <Box justifyContent="flex-start" gap={1}>{t2}{t3}{t5}</Box>;
-    $[23] = t2;
-    $[24] = t3;
-    $[25] = t5;
-    $[26] = t6;
+  if ($[23] !== queueHint || $[24] !== t2 || $[25] !== t3 || $[26] !== t5) {
+    t6 = <Box justifyContent="flex-start" gap={1}>{t2}{t3}{queueHint}{t5}</Box>;
+    $[23] = queueHint;
+    $[24] = t2;
+    $[25] = t3;
+    $[26] = t5;
   } else {
-    t6 = $[26];
+    t6 = $[27];
+  }
+  if ($[27] !== t6) {
+    $[27] = t6;
   }
   return t6;
 }

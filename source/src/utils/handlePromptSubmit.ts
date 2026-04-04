@@ -13,6 +13,7 @@ import type { SetToolJSXFn } from '../Tool.js'
 import type { LocalJSXCommandOnDone } from '../types/command.js'
 import type { Message } from '../types/message.js'
 import {
+  type EditablePromptInputMode,
   isValidImagePaste,
   type PromptInputMode,
   type QueuedCommand,
@@ -81,6 +82,10 @@ type BaseExecutionParams = {
 type ExecuteUserInputParams = BaseExecutionParams & {
   resetHistory: () => void
   onInputChange: (value: string) => void
+  onModeChange: (mode: EditablePromptInputMode) => void
+  setPastedContents: React.Dispatch<
+    React.SetStateAction<Record<number, PastedContent>>
+  >
 }
 
 export type PromptInputHelpers = {
@@ -96,6 +101,7 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   pastedContents?: Record<number, PastedContent>
   helpers: PromptInputHelpers
   onInputChange: (value: string) => void
+  onModeChange: (mode: EditablePromptInputMode) => void
   setPastedContents: React.Dispatch<
     React.SetStateAction<Record<number, PastedContent>>
   >
@@ -126,6 +132,7 @@ export async function handlePromptSubmit(
     isExternalLoading = false,
     commands,
     onInputChange,
+    onModeChange,
     setPastedContents,
     setToolJSX,
     getToolUseContext,
@@ -167,6 +174,8 @@ export async function handlePromptSubmit(
       resetHistory,
       canUseTool,
       onInputChange,
+      onModeChange,
+      setPastedContents,
     })
     return
   }
@@ -285,10 +294,21 @@ export async function handlePromptSubmit(
           })
         }
         if (options?.nextInput) {
+          const nextInputMode = options.nextInputMode ?? 'prompt'
+          const nextPastedContents = options.nextPastedContents ?? {}
           if (options.submitNextInput) {
-            enqueue({ value: options.nextInput, mode: 'prompt' })
+            enqueue({
+              value: options.nextInput,
+              mode: nextInputMode,
+              pastedContents:
+                Object.keys(nextPastedContents).length > 0
+                  ? nextPastedContents
+                  : undefined,
+            })
           } else {
+            onModeChange(nextInputMode)
             onInputChange(options.nextInput)
+            setPastedContents(nextPastedContents)
           }
         }
       }
@@ -443,6 +463,8 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     let model: string | undefined
     let effort: EffortValue | undefined
     let nextInput: string | undefined
+    let nextInputMode: EditablePromptInputMode | undefined
+    let nextPastedContents: Record<number, PastedContent> | undefined
     let submitNextInput: boolean | undefined
 
     // Iterate all commands uniformly. First command gets attachments +
@@ -517,6 +539,8 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           model = result.model
           effort = result.effort
           nextInput = result.nextInput
+          nextInputMode = result.nextInputMode
+          nextPastedContents = result.nextPastedContents
           submitNextInput = result.submitNextInput
         }
       }
@@ -587,10 +611,21 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
 
       // Handle nextInput from commands that want to chain (e.g., /discover activation)
       if (nextInput) {
+        const restoredMode = nextInputMode ?? 'prompt'
+        const restoredPastedContents = nextPastedContents ?? {}
         if (submitNextInput) {
-          enqueue({ value: nextInput, mode: 'prompt' })
+          enqueue({
+            value: nextInput,
+            mode: restoredMode,
+            pastedContents:
+              Object.keys(restoredPastedContents).length > 0
+                ? restoredPastedContents
+                : undefined,
+          })
         } else {
+          params.onModeChange(restoredMode)
           params.onInputChange(nextInput)
+          params.setPastedContents(restoredPastedContents)
         }
       }
     }) // end runWithWorkload — ALS context naturally scoped, no finally needed
