@@ -16,6 +16,7 @@ conversation loop work on OpenAI/Codex OAuth.
 - stream-json support with OpenAI/Codex event translation
 - strict OpenAI tool-schema coverage for `TodoWrite`
 - provider-aware `status` and `auth status`
+- provider-neutral `auto-mode critique`
 
 ## What Currently Works
 
@@ -26,15 +27,18 @@ conversation loop work on OpenAI/Codex OAuth.
 - replay/resume against prior OpenAI/Codex sessions
 - `auth status --json` reporting of the active provider path
 - streamed text and tool-use events without synthetic `unknown_tool` leakage
+- `claude auto-mode critique` on the OpenAI/Codex path
 
 ## Current Known Gates
 
 These surfaces are intentionally not pretending to work on OpenAI/Codex yet:
 
-- auto-mode safety classifier
+- auto-mode safety classifier itself
 - permission explainer
 - Claude in Chrome lightning inference path
 - Anthropic-only `sideQuery` helper flows outside the explicitly supported gates
+- OpenAI/Codex GitHub Actions setup remains gated for OAuth-only installs;
+  the defensible CI path is API-key-based via `openai/codex-action`
 
 When the active main-loop runtime is OpenAI/Codex:
 

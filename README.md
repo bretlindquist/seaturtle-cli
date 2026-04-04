@@ -23,10 +23,12 @@ Current OpenAI/Codex status:
   - stream-json text and tool-use event parity
   - strict OpenAI tool-schema coverage for `TodoWrite`
   - provider-aware `status` and `auth status`
+  - `claude auto-mode critique`
 - still gated or Anthropic-only:
-  - auto-mode safety classifier
+  - auto-mode safety classifier itself
   - permission explainer
   - Claude in Chrome lightning inference path
+  - OpenAI/Codex GitHub Actions setup for OAuth-only installs
 
 See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for provider behavior,
 setup, validation, and current gaps.
