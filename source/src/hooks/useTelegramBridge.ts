@@ -158,6 +158,11 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
               continue
             }
 
+            if (inbound.kind === 'notice') {
+              await sendTelegramMessage(config, inbound.chatId, inbound.text)
+              continue
+            }
+
             pendingResponsesRef.current.push({
               chatId: inbound.chatId,
               startIndex: null,

@@ -9,15 +9,27 @@ import { extractAtMentionedFiles } from '../../utils/attachments.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import type { TelegramConfig } from './config.js'
 import type {
+  TelegramAudio,
   TelegramDocument,
   TelegramPhotoSize,
   TelegramUpdate,
+  TelegramVoice,
 } from './client.js'
 import { downloadTelegramFile, getTelegramFile } from './client.js'
+import {
+  getTelegramTranscriptionConfig,
+  getTelegramTranscriptionGateMessage,
+  transcribeTelegramAudioFile,
+} from './transcription.js'
 
 type TelegramInboundPayload =
   | {
       kind: 'text'
+      chatId: string
+      text: string
+    }
+  | {
+      kind: 'notice'
       chatId: string
       text: string
     }
@@ -174,6 +186,30 @@ async function resolveDocumentPrompt(
   return formatDocumentPrompt(filePath, caption)
 }
 
+async function resolveVoicePrompt(
+  config: TelegramConfig,
+  audio: TelegramVoice | TelegramAudio,
+  options?: {
+    caption?: string
+    fileName?: string
+  },
+): Promise<string> {
+  const { path: filePath } = await persistTelegramFile(config, audio.file_id, {
+    suggestedName:
+      options?.fileName ??
+      `${audio.file_unique_id}${extname(options?.fileName || '') || '.ogg'}`,
+  })
+
+  const transcript = await transcribeTelegramAudioFile({
+    filePath,
+    mimeType: audio.mime_type,
+  })
+
+  return options?.caption
+    ? `${transcript}\n\n[Telegram audio caption: ${options.caption}]`
+    : transcript
+}
+
 async function resolvePhotoPrompt(
   config: TelegramConfig,
   photos: TelegramPhotoSize[],
@@ -236,6 +272,41 @@ export async function resolveTelegramInboundPayload(
       kind: 'prompt',
       chatId: String(chatId),
       content: await resolveDocumentPrompt(config, message.document, caption),
+    }
+  }
+
+  if (message.voice) {
+    if (!getTelegramTranscriptionConfig()) {
+      return {
+        kind: 'notice',
+        chatId: String(chatId),
+        text: getTelegramTranscriptionGateMessage(),
+      }
+    }
+
+    return {
+      kind: 'text',
+      chatId: String(chatId),
+      text: await resolveVoicePrompt(config, message.voice, { caption }),
+    }
+  }
+
+  if (message.audio) {
+    if (!getTelegramTranscriptionConfig()) {
+      return {
+        kind: 'notice',
+        chatId: String(chatId),
+        text: getTelegramTranscriptionGateMessage(),
+      }
+    }
+
+    return {
+      kind: 'text',
+      chatId: String(chatId),
+      text: await resolveVoicePrompt(config, message.audio, {
+        caption,
+        fileName: message.audio.file_name,
+      }),
     }
   }
 
