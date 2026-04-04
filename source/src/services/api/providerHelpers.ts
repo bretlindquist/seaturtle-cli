@@ -1,7 +1,10 @@
 import type { BetaJSONOutputFormat } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
-import type { AssistantMessage } from '../../types/message.js'
-import { createUserMessage } from '../../utils/messages.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
+import {
+  createUserMessage,
+  getAssistantMessageText,
+} from '../../utils/messages.js'
 import {
   getMainLoopModel,
   getSmallFastModel,
@@ -21,6 +24,14 @@ export type SmallFastHelperOptions = Omit<
   Options,
   'model' | 'getToolPermissionContext'
 >
+
+export type TextQueryHelperOptions = Pick<
+  Options,
+  'querySource' | 'isNonInteractiveSession' | 'hasAppendSystemPrompt'
+> & {
+  model: string
+  maxOutputTokensOverride?: number
+}
 
 function getProviderAwareSmallFastModel(): string {
   const runtime = getMainLoopProviderRuntime()
@@ -77,4 +88,43 @@ export async function querySmallFastViaProviderRuntime({
   )
 
   return result[0]! as AssistantMessage
+}
+
+export async function queryTextViaProviderRuntime({
+  systemPrompt = asSystemPrompt([]),
+  promptMessages,
+  signal,
+  options,
+}: {
+  systemPrompt?: SystemPrompt
+  promptMessages: Message[]
+  signal: AbortSignal
+  options: TextQueryHelperOptions
+}): Promise<{ response: AssistantMessage; text: string | null }> {
+  const result = await withVCR(promptMessages, async () => {
+    const response = await queryModelWithoutStreamingViaProviderRuntime({
+      messages: promptMessages,
+      systemPrompt,
+      thinkingConfig: { type: 'disabled' },
+      tools: [],
+      signal,
+      options: {
+        getToolPermissionContext: async () => getEmptyToolPermissionContext(),
+        model: options.model,
+        agents: [],
+        isNonInteractiveSession: options.isNonInteractiveSession,
+        hasAppendSystemPrompt: options.hasAppendSystemPrompt,
+        querySource: options.querySource,
+        maxOutputTokensOverride: options.maxOutputTokensOverride,
+        mcpTools: [],
+      },
+    })
+    return [response]
+  })
+
+  const response = result[0]! as AssistantMessage
+  return {
+    response,
+    text: getAssistantMessageText(response),
+  }
 }

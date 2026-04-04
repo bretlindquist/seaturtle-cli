@@ -124,6 +124,9 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
 
   const runtime = getMainLoopProviderRuntime()
   if (runtime.family === 'openai') {
+    // Keep sideQuery Anthropic-only. Migrate text-only utility callers to the
+    // provider-neutral helper in services/api/providerHelpers.ts instead of
+    // widening this helper into a second generic provider transport.
     throw new Error(
       'sideQuery is currently Anthropic-only and is not available when the OpenAI/Codex runtime is active.',
     )
