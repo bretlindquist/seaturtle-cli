@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "bun ./scripts/build-cli.mjs",
-    "lint:openai-codex": "bunx --yes oxlint source/src/services/api/openaiCodex.ts source/src/services/api/openaiToolSchema.ts source/src/services/api/providerHelpers.ts source/src/cli/handlers/autoMode.ts source/src/utils/sideQuery.ts && zsh -n scripts/dev-check.sh scripts/openai-codex-regression.sh",
+    "lint:openai-codex": "bunx --yes oxlint source/src/services/api/openaiCodex.ts source/src/services/api/openaiToolSchema.ts source/src/services/api/providerHelpers.ts source/src/cli/handlers/autoMode.ts source/src/utils/sideQuery.ts source/src/constants/github-app.ts source/src/commands/install-github-app/install-github-app.tsx source/src/commands/install-github-app/setupGitHubActions.ts && zsh -n scripts/dev-check.sh scripts/openai-codex-regression.sh",
     "dev-check": "./scripts/dev-check.sh",
     "openai-codex-check": "./scripts/openai-codex-regression.sh"
   }

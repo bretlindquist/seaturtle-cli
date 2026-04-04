@@ -1,3 +1,25 @@
+export type GitHubActionAuthType = 'api_key' | 'oauth_token'
+
+export type GitHubActionWorkflowSpec = {
+  path: string
+  content: string
+  message: string
+}
+
+export type GitHubActionProviderSpec = {
+  providerId: 'anthropic'
+  providerLabel: string
+  docsUrl: string
+  actionRepoUrl: string
+  prTitle: string
+  prBody: string
+  defaultSecretName: string
+  apiKeyInputName: string
+  oauthInputName: string
+  authModes: readonly GitHubActionAuthType[]
+  workflows: Record<'claude' | 'claude-review', GitHubActionWorkflowSpec>
+}
+
 export const PR_TITLE = 'Add Claude Code GitHub Workflow'
 
 export const GITHUB_ACTION_SETUP_DOCS_URL =
@@ -142,3 +164,28 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
 
 `
+
+export const ANTHROPIC_GITHUB_ACTION_SPEC: GitHubActionProviderSpec = {
+  providerId: 'anthropic',
+  providerLabel: 'Anthropic Claude Code',
+  docsUrl: GITHUB_ACTION_SETUP_DOCS_URL,
+  actionRepoUrl: 'https://github.com/anthropics/claude-code-action',
+  prTitle: PR_TITLE,
+  prBody: PR_BODY,
+  defaultSecretName: 'ANTHROPIC_API_KEY',
+  apiKeyInputName: 'anthropic_api_key',
+  oauthInputName: 'claude_code_oauth_token',
+  authModes: ['api_key', 'oauth_token'],
+  workflows: {
+    claude: {
+      path: '.github/workflows/claude.yml',
+      content: WORKFLOW_CONTENT,
+      message: 'Claude PR Assistant workflow',
+    },
+    'claude-review': {
+      path: '.github/workflows/claude-code-review.yml',
+      content: CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT,
+      message: 'Claude Code Review workflow',
+    },
+  },
+}

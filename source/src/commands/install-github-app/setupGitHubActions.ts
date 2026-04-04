@@ -4,22 +4,55 @@ import {
 } from 'src/services/analytics/index.js'
 import { saveGlobalConfig } from 'src/utils/config.js'
 import {
-  CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT,
-  PR_BODY,
-  PR_TITLE,
-  WORKFLOW_CONTENT,
+  ANTHROPIC_GITHUB_ACTION_SPEC,
+  type GitHubActionAuthType,
+  type GitHubActionProviderSpec,
 } from '../../constants/github-app.js'
 import { openBrowser } from '../../utils/browser.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { logError } from '../../utils/log.js'
 import type { Workflow } from './types.js'
 
+function applyWorkflowSecretSubstitution(
+  spec: GitHubActionProviderSpec,
+  workflowContent: string,
+  secretName: string,
+  authType: GitHubActionAuthType,
+): string {
+  const escapedDefaultSecret = spec.defaultSecretName.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    '\\$&',
+  )
+  const secretReferencePattern = new RegExp(
+    `${spec.apiKeyInputName}: \\$\\{\\{ secrets\\.${escapedDefaultSecret} \\}\\}`,
+    'g',
+  )
+
+  if (authType === 'oauth_token') {
+    return workflowContent.replace(
+      secretReferencePattern,
+      `${spec.oauthInputName}: \${{ secrets.${secretName} }}`,
+    )
+  }
+
+  if (secretName !== spec.defaultSecretName) {
+    return workflowContent.replace(
+      secretReferencePattern,
+      `${spec.apiKeyInputName}: \${{ secrets.${secretName} }}`,
+    )
+  }
+
+  return workflowContent
+}
+
 async function createWorkflowFile(
+  spec: GitHubActionProviderSpec,
   repoName: string,
   branchName: string,
   workflowPath: string,
   workflowContent: string,
   secretName: string,
+  authType: GitHubActionAuthType,
   message: string,
   context?: {
     useCurrentRepo?: boolean
@@ -40,20 +73,12 @@ async function createWorkflowFile(
     fileSha = checkFileResult.stdout.trim()
   }
 
-  let content = workflowContent
-  if (secretName === 'CLAUDE_CODE_OAUTH_TOKEN') {
-    // For OAuth tokens, use the claude_code_oauth_token parameter
-    content = workflowContent.replace(
-      /anthropic_api_key: \$\{\{ secrets\.ANTHROPIC_API_KEY \}\}/g,
-      `claude_code_oauth_token: \${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}`,
-    )
-  } else if (secretName !== 'ANTHROPIC_API_KEY') {
-    // For other custom secret names, keep using anthropic_api_key parameter
-    content = workflowContent.replace(
-      /anthropic_api_key: \$\{\{ secrets\.ANTHROPIC_API_KEY \}\}/g,
-      `anthropic_api_key: \${{ secrets.${secretName} }}`,
-    )
-  }
+  const content = applyWorkflowSecretSubstitution(
+    spec,
+    workflowContent,
+    secretName,
+    authType,
+  )
   const base64Content = Buffer.from(content).toString('base64')
 
   const apiParams = [
@@ -101,7 +126,7 @@ async function createWorkflowFile(
       '\n\nNeed help? Common issues:\n' +
       '· Permission denied → Run: gh auth refresh -h github.com -s repo,workflow\n' +
       '· Not authorized → Ensure you have admin access to the repository\n' +
-      '· For manual setup → Visit: https://github.com/anthropics/claude-code-action'
+      `· For manual setup → Visit: ${spec.actionRepoUrl}`
 
     throw new Error(
       `Failed to create workflow file ${workflowPath}: ${createFileResult.stderr}${helpText}`,
@@ -116,7 +141,8 @@ export async function setupGitHubActions(
   updateProgress: () => void,
   skipWorkflow = false,
   selectedWorkflows: Workflow[],
-  authType: 'api_key' | 'oauth_token',
+  authType: GitHubActionAuthType,
+  spec: GitHubActionProviderSpec = ANTHROPIC_GITHUB_ACTION_SPEC,
   context?: {
     useCurrentRepo?: boolean
     workflowExists?: boolean
@@ -127,7 +153,7 @@ export async function setupGitHubActions(
     logEvent('tengu_setup_github_actions_started', {
       skip_workflow: skipWorkflow,
       has_api_key: !!apiKeyOrOAuthToken,
-      using_default_secret_name: secretName === 'ANTHROPIC_API_KEY',
+      using_default_secret_name: secretName === spec.defaultSecretName,
       selected_claude_workflow: selectedWorkflows.includes('claude'),
       selected_claude_review_workflow:
         selectedWorkflows.includes('claude-review'),
@@ -222,28 +248,22 @@ export async function setupGitHubActions(
       const workflows = []
 
       if (selectedWorkflows.includes('claude')) {
-        workflows.push({
-          path: '.github/workflows/claude.yml',
-          content: WORKFLOW_CONTENT,
-          message: 'Claude PR Assistant workflow',
-        })
+        workflows.push(spec.workflows.claude)
       }
 
       if (selectedWorkflows.includes('claude-review')) {
-        workflows.push({
-          path: '.github/workflows/claude-code-review.yml',
-          content: CODE_REVIEW_PLUGIN_WORKFLOW_CONTENT,
-          message: 'Claude Code Review workflow',
-        })
+        workflows.push(spec.workflows['claude-review'])
       }
 
       for (const workflow of workflows) {
         await createWorkflowFile(
+          spec,
           repoName,
           branchName,
           workflow.path,
           workflow.content,
           secretName,
+          authType,
           workflow.message,
           context,
         )
@@ -274,7 +294,7 @@ export async function setupGitHubActions(
           '\n\nNeed help? Common issues:\n' +
           '· Permission denied → Run: gh auth refresh -h github.com -s repo\n' +
           '· Not authorized → Ensure you have admin access to the repository\n' +
-          '· For manual setup → Visit: https://github.com/anthropics/claude-code-action'
+          `· For manual setup → Visit: ${spec.actionRepoUrl}`
 
         throw new Error(
           `Failed to set API key secret: ${setSecretResult.stderr || 'Unknown error'}${helpText}`,
@@ -285,7 +305,7 @@ export async function setupGitHubActions(
     if (!skipWorkflow && branchName) {
       updateProgress()
       // Create PR template URL instead of creating PR directly
-      const compareUrl = `https://github.com/${repoName}/compare/${defaultBranch}...${branchName}?quick_pull=1&title=${encodeURIComponent(PR_TITLE)}&body=${encodeURIComponent(PR_BODY)}`
+      const compareUrl = `https://github.com/${repoName}/compare/${defaultBranch}...${branchName}?quick_pull=1&title=${encodeURIComponent(spec.prTitle)}&body=${encodeURIComponent(spec.prBody)}`
 
       await openBrowser(compareUrl)
     }
@@ -295,7 +315,7 @@ export async function setupGitHubActions(
       has_api_key: !!apiKeyOrOAuthToken,
       auth_type:
         authType as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-      using_default_secret_name: secretName === 'ANTHROPIC_API_KEY',
+      using_default_secret_name: secretName === spec.defaultSecretName,
       selected_claude_workflow: selectedWorkflows.includes('claude'),
       selected_claude_review_workflow:
         selectedWorkflows.includes('claude-review'),

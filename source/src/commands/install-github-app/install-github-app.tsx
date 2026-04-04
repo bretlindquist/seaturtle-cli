@@ -2,7 +2,10 @@ import { execa } from 'execa';
 import React, { useCallback, useState } from 'react';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { WorkflowMultiselectDialog } from '../../components/WorkflowMultiselectDialog.js';
-import { GITHUB_ACTION_SETUP_DOCS_URL } from '../../constants/github-app.js';
+import {
+  ANTHROPIC_GITHUB_ACTION_SPEC,
+  GITHUB_ACTION_SETUP_DOCS_URL,
+} from '../../constants/github-app.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js';
 import { Box } from '../../ink.js';
@@ -37,7 +40,7 @@ const INITIAL_STATE: State = {
   currentWorkflowInstallStep: 0,
   warnings: [],
   secretExists: false,
-  secretName: 'ANTHROPIC_API_KEY',
+  secretName: ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName,
   useExistingSecret: true,
   workflowExists: false,
   selectedWorkflows: ['claude', 'claude-review'] as Workflow[],
@@ -155,7 +158,7 @@ function InstallGitHubApp(props: {
           ...prev_4,
           currentWorkflowInstallStep: prev_4.currentWorkflowInstallStep + 1
         }));
-      }, state.workflowAction === 'skip', state.selectedWorkflows, state.authType, {
+      }, state.workflowAction === 'skip', state.selectedWorkflows, state.authType, ANTHROPIC_GITHUB_ACTION_SPEC, {
         useCurrentRepo: state.useCurrentRepo,
         workflowExists: state.workflowExists,
         secretExists: state.secretExists
@@ -234,7 +237,9 @@ function InstallGitHubApp(props: {
     if (checkSecretsResult.code === 0) {
       const lines = checkSecretsResult.stdout.split('\n');
       const hasAnthropicKey = lines.some((line: string) => {
-        return /^ANTHROPIC_API_KEY\s+/.test(line);
+        return new RegExp(
+          `^${ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName}\\s+`,
+        ).test(line);
       });
       if (hasAnthropicKey) {
         setState(prev_6 => ({
@@ -409,12 +414,14 @@ function InstallGitHubApp(props: {
         useExistingKey: state.selectedApiKeyOption === 'existing'
       }));
 
-      // Check if ANTHROPIC_API_KEY secret already exists
+      // Check if the provider default secret already exists
       const checkSecretsResult_0 = await execFileNoThrow('gh', ['secret', 'list', '--app', 'actions', '--repo', state.selectedRepoName]);
       if (checkSecretsResult_0.code === 0) {
         const lines_0 = checkSecretsResult_0.stdout.split('\n');
         const hasAnthropicKey_0 = lines_0.some((line_0: string) => {
-          return /^ANTHROPIC_API_KEY\s+/.test(line_0);
+          return new RegExp(
+            `^${ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName}\\s+`,
+          ).test(line_0);
         });
         if (hasAnthropicKey_0) {
           logEvent('tengu_install_github_app_step_completed', {
@@ -511,7 +518,9 @@ function InstallGitHubApp(props: {
     setState(prev_28 => ({
       ...prev_28,
       useExistingSecret,
-      secretName: useExistingSecret ? 'ANTHROPIC_API_KEY' : ''
+      secretName: useExistingSecret
+        ? ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName
+        : ''
     }));
   };
   const handleWorkflowAction = async (action: 'update' | 'skip' | 'exit') => {
