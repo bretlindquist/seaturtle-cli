@@ -47,6 +47,21 @@ const INITIAL_STATE: State = {
   selectedApiKeyOption: 'new' as 'existing' | 'new' | 'oauth',
   authType: 'api_key'
 };
+
+const OPENAI_CODEX_GITHUB_ACTIONS_ERROR = {
+  error:
+    'OpenAI/Codex GitHub Actions setup is unavailable with OAuth-only auth.',
+  reason: 'OpenAI/Codex CI requires a non-interactive auth contract',
+  instructions: [
+    'Local OpenAI/Codex OAuth works in this fork.',
+    'GitHub Actions automation is not available for OpenAI/Codex when you only have local OAuth login.',
+    'The standard supported CI path uses an OpenAI API key on the runner.',
+    'You can keep using Anthropic for GitHub Actions, or set up repository workflows manually for now.',
+  ],
+  manualSetupLabel: 'See current OpenAI/Codex limits in:',
+  manualSetupTarget: 'docs/OPENAI-CODEX.md',
+} as const
+
 function InstallGitHubApp(props: {
   onDone: (message: string) => void;
 }): React.ReactNode {
@@ -68,9 +83,9 @@ function InstallGitHubApp(props: {
     setState(prev => ({
       ...prev,
       step: 'error',
-      error: 'GitHub Actions setup is not wired to the OpenAI/Codex provider yet.',
-      errorReason: 'Anthropic-only workflow setup',
-      errorInstructions: ['This setup flow currently provisions Anthropic-specific GitHub Actions secrets and workflow templates.', 'Use Anthropic auth for this command today, or set up your repository workflows manually while the OpenAI/Codex GitHub path is still gated.']
+      error: OPENAI_CODEX_GITHUB_ACTIONS_ERROR.error,
+      errorReason: OPENAI_CODEX_GITHUB_ACTIONS_ERROR.reason,
+      errorInstructions: [...OPENAI_CODEX_GITHUB_ACTIONS_ERROR.instructions]
     }));
   }, [isOpenAiCodex, state.step]);
   const checkGitHubCLI = useCallback(async () => {
@@ -553,7 +568,10 @@ function InstallGitHubApp(props: {
     if (state.step === 'success') {
       logEvent('tengu_install_github_app_completed', {});
     }
-    props.onDone(state.step === 'success' ? 'GitHub Actions setup complete!' : state.error ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}` : `GitHub App installation failed\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`);
+    const manualSetupTarget = isOpenAiCodex
+      ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupTarget
+      : GITHUB_ACTION_SETUP_DOCS_URL;
+    props.onDone(state.step === 'success' ? 'GitHub Actions setup complete!' : state.error ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${manualSetupTarget}` : `GitHub App installation failed\nFor manual setup instructions, see: ${manualSetupTarget}`);
   }
   switch (state.step) {
     case 'check-gh':
@@ -578,7 +596,7 @@ function InstallGitHubApp(props: {
         </Box>;
     case 'error':
       return <Box tabIndex={0} autoFocus onKeyDown={handleDismissKeyDown}>
-          <ErrorStep error={state.error} errorReason={state.errorReason} errorInstructions={state.errorInstructions} />
+          <ErrorStep error={state.error} errorReason={state.errorReason} errorInstructions={state.errorInstructions} manualSetupLabel={isOpenAiCodex ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupLabel : undefined} manualSetupTarget={isOpenAiCodex ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupTarget : undefined} />
         </Box>;
     case 'select-workflows':
       return <WorkflowMultiselectDialog defaultSelections={state.selectedWorkflows} onSubmit={selectedWorkflows => {

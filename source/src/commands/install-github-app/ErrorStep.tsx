@@ -6,13 +6,17 @@ interface ErrorStepProps {
   error: string | undefined;
   errorReason?: string;
   errorInstructions?: string[];
+  manualSetupLabel?: string;
+  manualSetupTarget?: string;
 }
 export function ErrorStep(t0) {
-  const $ = _c(15);
+  const $ = _c(21);
   const {
     error,
     errorReason,
-    errorInstructions
+    errorInstructions,
+    manualSetupLabel,
+    manualSetupTarget
   } = t0;
   let t1;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -45,37 +49,44 @@ export function ErrorStep(t0) {
   } else {
     t4 = $[6];
   }
+  const resolvedManualSetupLabel =
+    manualSetupLabel ?? 'For manual setup instructions, see:'
+  const resolvedManualSetupTarget =
+    manualSetupTarget ?? GITHUB_ACTION_SETUP_DOCS_URL
   let t5;
-  if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-    t5 = <Box marginTop={1}><Text dimColor={true}>For manual setup instructions, see:{" "}<Text color="claude">{GITHUB_ACTION_SETUP_DOCS_URL}</Text></Text></Box>;
-    $[7] = t5;
+  if ($[7] !== resolvedManualSetupLabel || $[8] !== resolvedManualSetupTarget) {
+    t5 = <Box marginTop={1}><Text dimColor={true}>{resolvedManualSetupLabel}{" "}<Text color="claude">{resolvedManualSetupTarget}</Text></Text></Box>;
+    $[7] = resolvedManualSetupLabel;
+    $[8] = resolvedManualSetupTarget;
+    $[9] = t5;
   } else {
-    t5 = $[7];
+    t5 = $[9];
   }
   let t6;
-  if ($[8] !== t2 || $[9] !== t3 || $[10] !== t4) {
+  if ($[10] !== t2 || $[11] !== t3 || $[12] !== t4 || $[13] !== t5) {
     t6 = <Box flexDirection="column" borderStyle="round" paddingX={1}>{t1}{t2}{t3}{t4}{t5}</Box>;
-    $[8] = t2;
-    $[9] = t3;
-    $[10] = t4;
-    $[11] = t6;
+    $[10] = t2;
+    $[11] = t3;
+    $[12] = t4;
+    $[13] = t5;
+    $[14] = t6;
   } else {
-    t6 = $[11];
+    t6 = $[14];
   }
   let t7;
-  if ($[12] === Symbol.for("react.memo_cache_sentinel")) {
+  if ($[15] === Symbol.for("react.memo_cache_sentinel")) {
     t7 = <Box marginLeft={3}><Text dimColor={true}>Press any key to exit</Text></Box>;
-    $[12] = t7;
+    $[15] = t7;
   } else {
-    t7 = $[12];
+    t7 = $[15];
   }
   let t8;
-  if ($[13] !== t6) {
+  if ($[16] !== t6) {
     t8 = <>{t6}{t7}</>;
-    $[13] = t6;
-    $[14] = t8;
+    $[16] = t6;
+    $[17] = t8;
   } else {
-    t8 = $[14];
+    t8 = $[17];
   }
   return t8;
 }

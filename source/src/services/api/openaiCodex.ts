@@ -24,6 +24,7 @@ import type { ThinkingConfig } from '../../utils/thinking.js'
 import { resolveAppliedEffort } from '../../utils/effort.js'
 import type { Tools } from '../../Tool.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
+import { formatDuration } from '../../utils/format.js'
 import type { Options } from './claude.js'
 
 const DEFAULT_CHATGPT_CODEX_BASE_URL =
@@ -140,6 +141,16 @@ type ChatgptSseEvent = {
   response?: unknown
 }
 
+type OpenAiCodexHttpErrorBody = {
+  error?: {
+    type?: string
+    message?: string
+    plan_type?: string | null
+    resets_at?: number | string | null
+    resets_in_seconds?: number | null
+  }
+}
+
 type SyntheticStreamEnvelope = {
   messageId: string
   emittedMessageStart: boolean
@@ -175,6 +186,74 @@ const ZERO_USAGE = {
   inference_geo: null,
   iterations: null,
   speed: null,
+}
+
+function parseOpenAiCodexHttpErrorBody(
+  body: string,
+): OpenAiCodexHttpErrorBody | null {
+  if (!body) {
+    return null
+  }
+
+  try {
+    return JSON.parse(body) as OpenAiCodexHttpErrorBody
+  } catch {
+    return null
+  }
+}
+
+function capitalizePlanType(planType: string | null | undefined): string | null {
+  if (!planType) {
+    return null
+  }
+
+  return planType
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map(part => part[0]!.toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function formatOpenAiCodexHttpError(params: {
+  status: number
+  statusText: string
+  body: string
+}): string {
+  const parsed = parseOpenAiCodexHttpErrorBody(params.body)
+  const error = parsed?.error
+
+  if (params.status === 429 && error?.type === 'usage_limit_reached') {
+    const planLabel = capitalizePlanType(error.plan_type)
+    const resetIn =
+      typeof error.resets_in_seconds === 'number' && error.resets_in_seconds > 0
+        ? formatDuration(error.resets_in_seconds * 1000, {
+            hideTrailingZeros: true,
+            mostSignificantOnly: false,
+          })
+        : null
+    const resetAt =
+      error.resets_at !== null && error.resets_at !== undefined
+        ? Number(error.resets_at)
+        : null
+    const absoluteReset =
+      resetAt && Number.isFinite(resetAt)
+        ? new Date(resetAt * 1000).toLocaleString()
+        : null
+
+    const parts = [
+      `${API_ERROR_MESSAGE_PREFIX}: OpenAI/Codex usage limit reached${planLabel ? ` for your ${planLabel} plan` : ''}.`,
+      resetIn ? `Try again in about ${resetIn}.` : null,
+      absoluteReset ? `Resets at ${absoluteReset}.` : null,
+    ].filter(Boolean)
+
+    return parts.join(' ')
+  }
+
+  if (typeof error?.message === 'string' && error.message.trim().length > 0) {
+    return `${API_ERROR_MESSAGE_PREFIX}: ${params.status} ${params.statusText} · ${error.message.trim()}`
+  }
+
+  return `${API_ERROR_MESSAGE_PREFIX}: ${params.status} ${params.statusText}${params.body ? ` · ${params.body}` : ''}`
 }
 
 function resolveChatgptCodexBaseUrl(): string {
@@ -948,7 +1027,11 @@ async function collectChatgptCodexText(params: {
   if (!response.ok) {
     const body = await response.text()
     throw new Error(
-      `${API_ERROR_MESSAGE_PREFIX}: ${response.status} ${response.statusText}${body ? ` · ${body}` : ''}`,
+      formatOpenAiCodexHttpError({
+        status: response.status,
+        statusText: response.statusText,
+        body,
+      }),
     )
   }
 
@@ -1190,7 +1273,11 @@ export async function* queryOpenAiCodexWithStreaming(params: {
     if (!response.ok) {
       const body = await response.text()
       throw new Error(
-        `${API_ERROR_MESSAGE_PREFIX}: ${response.status} ${response.statusText}${body ? ` · ${body}` : ''}`,
+        formatOpenAiCodexHttpError({
+          status: response.status,
+          statusText: response.statusText,
+          body,
+        }),
       )
     }
 
