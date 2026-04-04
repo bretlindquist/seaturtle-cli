@@ -195,6 +195,7 @@ export type GlobalConfig = {
   doctorShownAtSession?: number
   userID?: string
   theme: ThemeSetting
+  preferredMainProvider?: 'anthropic' | 'openai-codex'
   hasCompletedOnboarding?: boolean
   // Tracks the last version that reset onboarding, used with MIN_VERSION_REQUIRING_ONBOARDING_RESET
   lastOnboardingVersion?: string
@@ -588,6 +589,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     installMethod: undefined,
     autoUpdates: undefined,
     theme: 'dark',
+    preferredMainProvider: 'anthropic',
     preferredNotifChannel: 'auto',
     verbose: false,
     editorMode: 'normal',

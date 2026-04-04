@@ -1,12 +1,22 @@
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/index.js'
+import { getGlobalConfig } from '../config.js'
 import { isEnvTruthy } from '../envUtils.js'
 
 export type APIProvider = 'firstParty' | 'bedrock' | 'vertex' | 'foundry'
 
+function getConfiguredMainProvider(): 'anthropic' | 'openai-codex' | null {
+  try {
+    return getGlobalConfig().preferredMainProvider ?? null
+  } catch {
+    return null
+  }
+}
+
 export function shouldUseOpenAiCodexProvider(): boolean {
   return (
     isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX) ||
-    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'openai-codex'
+    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'openai-codex' ||
+    getConfiguredMainProvider() === 'openai-codex'
   )
 }
 
