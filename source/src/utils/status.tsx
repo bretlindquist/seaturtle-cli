@@ -4,6 +4,8 @@ import * as React from 'react';
 import { color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
+import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
+import { getTelegramTranscriptionConfig } from '../services/telegram/transcription.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
 import { getDoctorDiagnostic } from './doctorDiagnostic.js';
@@ -16,7 +18,6 @@ import { getAPIProvider } from './model/providers.js';
 import { getMTLSConfig } from './mtls.js';
 import { checkInstall } from './nativeInstaller/index.js';
 import { getProxyUrl } from './proxy.js';
-import { SandboxManager } from './sandbox/sandbox-adapter.js';
 import { getSettingsWithAllErrors } from './settings/allErrors.js';
 import { getEnabledSettingSources, getSettingSourceDisplayNameCapitalized } from './settings/constants.js';
 import { getManagedFileSettingsPresence, getPolicySettingsOrigin, getSettingsForSource } from './settings/settings.js';
@@ -27,14 +28,7 @@ export type Property = {
 };
 export type Diagnostic = React.ReactNode;
 export function buildSandboxProperties(): Property[] {
-  if ("external" !== 'ant') {
-    return [];
-  }
-  const isSandboxed = SandboxManager.isSandboxingEnabled();
-  return [{
-    label: 'Bash Sandbox',
-    value: isSandboxed ? 'Enabled' : 'Disabled'
-  }];
+  return [];
 }
 export function buildIDEProperties(mcpClients: MCPServerConnection[], ideInstallationStatus: IDEExtensionInstallationStatus | null = null, theme: ThemeName): Property[] {
   const ideClient = mcpClients?.find(client => client.name === 'ide');
@@ -114,6 +108,25 @@ export function buildMcpProperties(clients: MCPServerConnection[] = [], theme: T
     value: `${parts.join(', ')} ${color('inactive', theme)('· /mcp')}`
   }];
 }
+export function buildTelegramProperties(theme: ThemeName): Property[] {
+  const snapshot = getTelegramConfigSnapshot();
+  const transcription = getTelegramTranscriptionConfig();
+  if (!snapshot.botTokenConfigured && snapshot.allowedChatIdsCount === 0) {
+    return [];
+  }
+  const transportValue = snapshot.ready ? color('success', theme)(`Enabled · ${String(snapshot.allowedChatIdsCount)} allowlisted chat${snapshot.allowedChatIdsCount === 1 ? '' : 's'}`) : color('warning', theme)('Configured but incomplete');
+  const voiceValue = transcription ? color('success', theme)(`Enabled · ${transcription.model}`) : color('inactive', theme)('Disabled');
+  return [{
+    label: 'Telegram',
+    value: transportValue
+  }, {
+    label: 'Telegram polling',
+    value: `${String(snapshot.pollTimeoutSeconds)}s long poll`
+  }, {
+    label: 'Telegram voice',
+    value: voiceValue
+  }];
+}
 export async function buildMemoryDiagnostics(): Promise<Diagnostic[]> {
   const files = await getMemoryFiles();
   const largeFiles = getLargeMemoryFiles(files);
@@ -180,6 +193,13 @@ export async function buildInstallationDiagnostics(): Promise<Diagnostic[]> {
 export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]> {
   const diagnostic = await getDoctorDiagnostic();
   const items: Diagnostic[] = [];
+  const telegramSnapshot = getTelegramConfigSnapshot();
+  if (telegramSnapshot.botTokenConfigured && telegramSnapshot.allowedChatIdsCount === 0) {
+    items.push('Telegram bot token is configured, but no allowlisted chat IDs are set.');
+  }
+  if (!telegramSnapshot.botTokenConfigured && telegramSnapshot.allowedChatIdsCount > 0) {
+    items.push('Telegram allowlisted chat IDs are configured, but the bot token is missing.');
+  }
   const {
     errors: validationErrors
   } = getSettingsWithAllErrors();

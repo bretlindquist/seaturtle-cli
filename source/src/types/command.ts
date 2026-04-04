@@ -175,6 +175,8 @@ export type CommandAvailability =
   | 'claude-ai'
   // Console API key user (direct api.anthropic.com, not via claude.ai OAuth)
   | 'console'
+  // OpenAI Codex OAuth user (ChatGPT-backed Codex provider)
+  | 'openai-codex'
 
 export type CommandBase = {
   availability?: CommandAvailability[]

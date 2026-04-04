@@ -11,6 +11,7 @@ import { getAnthropicApiKey, isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { openBrowser } from '../../utils/browser.js';
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js';
 import { getGithubRepo } from '../../utils/git.js';
+import { shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
 import { plural } from '../../utils/stringUtils.js';
 import { ApiKeyStep } from './ApiKeyStep.js';
 import { CheckExistingSecretStep } from './CheckExistingSecretStep.js';
@@ -46,6 +47,7 @@ const INITIAL_STATE: State = {
 function InstallGitHubApp(props: {
   onDone: (message: string) => void;
 }): React.ReactNode {
+  const isOpenAiCodex = shouldUseOpenAiCodexProvider();
   const [existingApiKey] = useState(() => getAnthropicApiKey());
   const [state, setState] = useState({
     ...INITIAL_STATE,
@@ -56,6 +58,18 @@ function InstallGitHubApp(props: {
   React.useEffect(() => {
     logEvent('tengu_install_github_app_started', {});
   }, []);
+  React.useEffect(() => {
+    if (!isOpenAiCodex || state.step === 'error') {
+      return;
+    }
+    setState(prev => ({
+      ...prev,
+      step: 'error',
+      error: 'GitHub Actions setup is not wired to the OpenAI/Codex provider yet.',
+      errorReason: 'Anthropic-only workflow setup',
+      errorInstructions: ['This setup flow currently provisions Anthropic-specific GitHub Actions secrets and workflow templates.', 'Use Anthropic auth for this command today, or set up your repository workflows manually while the OpenAI/Codex GitHub path is still gated.']
+    }));
+  }, [isOpenAiCodex, state.step]);
   const checkGitHubCLI = useCallback(async () => {
     const warnings: Warning[] = [];
 

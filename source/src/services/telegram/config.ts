@@ -4,6 +4,13 @@ export type TelegramConfig = {
   pollTimeoutSeconds: number
 }
 
+export type TelegramConfigSnapshot = {
+  botTokenConfigured: boolean
+  allowedChatIdsCount: number
+  pollTimeoutSeconds: number
+  ready: boolean
+}
+
 const DEFAULT_POLL_TIMEOUT_SECONDS = 20
 
 function parseAllowedChatIds(raw: string | undefined): Set<string> {
@@ -20,29 +27,38 @@ function parseAllowedChatIds(raw: string | undefined): Set<string> {
 }
 
 export function getTelegramConfig(): TelegramConfig | null {
-  const botToken = process.env.CLAUDE_CODE_TELEGRAM_BOT_TOKEN?.trim()
-  if (!botToken) {
+  const snapshot = getTelegramConfigSnapshot()
+  if (!snapshot.ready) {
     return null
   }
 
+  const botToken = process.env.CLAUDE_CODE_TELEGRAM_BOT_TOKEN!.trim()
+  return {
+    botToken,
+    allowedChatIds: parseAllowedChatIds(
+      process.env.CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS,
+    ),
+    pollTimeoutSeconds: snapshot.pollTimeoutSeconds,
+  }
+}
+
+export function getTelegramConfigSnapshot(): TelegramConfigSnapshot {
+  const botToken = process.env.CLAUDE_CODE_TELEGRAM_BOT_TOKEN?.trim()
   const allowedChatIds = parseAllowedChatIds(
     process.env.CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS,
   )
-  if (allowedChatIds.size === 0) {
-    return null
-  }
-
   const parsedTimeout = Number.parseInt(
     process.env.CLAUDE_CODE_TELEGRAM_POLL_TIMEOUT_SEC ?? '',
     10,
   )
 
   return {
-    botToken,
-    allowedChatIds,
+    botTokenConfigured: Boolean(botToken),
+    allowedChatIdsCount: allowedChatIds.size,
     pollTimeoutSeconds:
       Number.isFinite(parsedTimeout) && parsedTimeout > 0
         ? parsedTimeout
         : DEFAULT_POLL_TIMEOUT_SECONDS,
+    ready: Boolean(botToken) && allowedChatIds.size > 0,
   }
 }
