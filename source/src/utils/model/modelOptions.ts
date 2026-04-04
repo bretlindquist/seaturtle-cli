@@ -14,7 +14,7 @@ import {
 } from '../modelCost.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
-import { getAPIProvider } from './providers.js'
+import { getAPIProvider, shouldUseOpenAiCodexProvider } from './providers.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import {
   getCanonicalName,
@@ -30,6 +30,7 @@ import {
   renderDefaultModelSetting,
   type ModelSetting,
 } from './model.js'
+import { getOpenAiCodexModelDefinitions } from '../../services/api/openaiCodex.js'
 import { has1mContext } from '../context.js'
 import { getGlobalConfig } from '../config.js'
 
@@ -43,6 +44,15 @@ export type ModelOption = {
 }
 
 export function getDefaultOptionForUser(fastMode = false): ModelOption {
+  if (shouldUseOpenAiCodexProvider()) {
+    return {
+      value: null,
+      label: 'Default (recommended)',
+      description: 'Use the default OpenAI/Codex model (currently GPT-5.4)',
+      descriptionForModel: 'Default OpenAI/Codex model (currently GPT-5.4)',
+    }
+  }
+
   if (process.env.USER_TYPE === 'ant') {
     const currentModel = renderDefaultModelSetting(
       getDefaultMainLoopModelSetting(),
@@ -71,6 +81,15 @@ export function getDefaultOptionForUser(fastMode = false): ModelOption {
     label: 'Default (recommended)',
     description: `Use the default model (currently ${renderDefaultModelSetting(getDefaultMainLoopModelSetting())})${is3P ? '' : ` · ${formatModelPricing(COST_TIER_3_15)}`}`,
   }
+}
+
+function getOpenAiCodexOptions(): ModelOption[] {
+  return getOpenAiCodexModelDefinitions().map(model => ({
+    value: model.value,
+    label: model.label,
+    description: model.description,
+    descriptionForModel: model.descriptionForModel,
+  }))
 }
 
 function getCustomSonnetOption(): ModelOption | undefined {
@@ -269,6 +288,10 @@ function getOpusPlanOption(): ModelOption {
 // @[MODEL LAUNCH]: Update the model picker lists below to include/reorder options for the new model.
 // Each user tier (ant, Max/Team Premium, Pro/Team Standard/Enterprise, PAYG 1P, PAYG 3P) has its own list.
 function getModelOptionsBase(fastMode = false): ModelOption[] {
+  if (shouldUseOpenAiCodexProvider()) {
+    return [getDefaultOptionForUser(), ...getOpenAiCodexOptions()]
+  }
+
   if (process.env.USER_TYPE === 'ant') {
     // Build options from antModels config
     const antModelOptions: ModelOption[] = getAntModels().map(m => ({
@@ -460,6 +483,10 @@ function getKnownModelOption(model: string): ModelOption | null {
 
 export function getModelOptions(fastMode = false): ModelOption[] {
   const options = getModelOptionsBase(fastMode)
+
+  if (shouldUseOpenAiCodexProvider()) {
+    return filterModelOptionsByAllowlist(options)
+  }
 
   // Add the custom model from the ANTHROPIC_CUSTOM_MODEL_OPTION env var
   const envCustomModel = process.env.ANTHROPIC_CUSTOM_MODEL_OPTION

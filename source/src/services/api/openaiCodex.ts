@@ -21,17 +21,87 @@ import {
 } from '../../utils/messages.js'
 import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
+import { resolveAppliedEffort } from '../../utils/effort.js'
 import type { Tools } from '../../Tool.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import type { Options } from './claude.js'
 
 const DEFAULT_CHATGPT_CODEX_BASE_URL =
   'https://chatgpt.com/backend-api/codex'
-const KNOWN_CHATGPT_CODEX_MODELS = new Set(['gpt-5.4'])
+
+export type OpenAiCodexModelDefinition = {
+  value: string
+  label: string
+  description: string
+  descriptionForModel: string
+}
+
+export const OPENAI_CODEX_MODEL_DEFINITIONS: readonly OpenAiCodexModelDefinition[] =
+  [
+    {
+      value: 'gpt-5.4',
+      label: 'GPT-5.4',
+      description: 'Latest frontier agentic coding model',
+      descriptionForModel: 'GPT-5.4 - latest frontier agentic coding model',
+    },
+    {
+      value: 'gpt-5.4-mini',
+      label: 'GPT-5.4 Mini',
+      description: 'Smaller frontier agentic coding model',
+      descriptionForModel:
+        'GPT-5.4 Mini - smaller frontier agentic coding model',
+    },
+    {
+      value: 'gpt-5.3-codex',
+      label: 'GPT-5.3 Codex',
+      description: 'Frontier Codex-optimized agentic coding model',
+      descriptionForModel:
+        'GPT-5.3 Codex - frontier Codex-optimized agentic coding model',
+    },
+    {
+      value: 'gpt-5.2-codex',
+      label: 'GPT-5.2 Codex',
+      description: 'Frontier agentic coding model',
+      descriptionForModel: 'GPT-5.2 Codex - frontier agentic coding model',
+    },
+    {
+      value: 'gpt-5.2',
+      label: 'GPT-5.2',
+      description: 'Optimized for professional work and long-running agents',
+      descriptionForModel:
+        'GPT-5.2 - optimized for professional work and long-running agents',
+    },
+    {
+      value: 'gpt-5.1-codex-max',
+      label: 'GPT-5.1 Codex Max',
+      description: 'Codex-optimized model for deep and fast reasoning',
+      descriptionForModel:
+        'GPT-5.1 Codex Max - Codex-optimized model for deep and fast reasoning',
+    },
+    {
+      value: 'gpt-5.1-codex-mini',
+      label: 'GPT-5.1 Codex Mini',
+      description: 'Optimized for codex. Cheaper, faster, but less capable',
+      descriptionForModel:
+        'GPT-5.1 Codex Mini - optimized for codex. Cheaper, faster, but less capable',
+    },
+  ] as const
+
+const KNOWN_CHATGPT_CODEX_MODELS = new Set(
+  OPENAI_CODEX_MODEL_DEFINITIONS.map(model => model.value),
+)
+
+export function getOpenAiCodexModelDefinitions(): readonly OpenAiCodexModelDefinition[] {
+  return OPENAI_CODEX_MODEL_DEFINITIONS
+}
 
 type ChatgptCodexAuth = {
   accessToken: string
   accountId: string
+}
+
+type OpenAiCodexReasoningPayload = {
+  effort: 'low' | 'medium' | 'high' | 'xhigh'
 }
 
 type OpenAiCodexTextPart = {
@@ -329,6 +399,19 @@ function buildInstructions(systemPrompt: SystemPrompt): string {
 
 function responsesEndpoint(baseUrl: string): string {
   return baseUrl.endsWith('/responses') ? baseUrl : `${baseUrl}/responses`
+}
+
+function buildOpenAiCodexReasoningPayload(options: Options):
+  | OpenAiCodexReasoningPayload
+  | undefined {
+  const resolvedEffort = resolveAppliedEffort(options.model, options.effortValue)
+  if (resolvedEffort === undefined || typeof resolvedEffort !== 'string') {
+    return undefined
+  }
+
+  return {
+    effort: resolvedEffort === 'max' ? 'xhigh' : resolvedEffort,
+  }
 }
 
 function parseSsePayload(frame: string): string | null {
@@ -836,6 +919,7 @@ async function collectChatgptCodexText(params: {
   const tools = await buildOpenAiCodexTools({
     tools: params.tools,
   })
+  const reasoning = buildOpenAiCodexReasoningPayload(params.options)
 
   const response = await fetch(responsesEndpoint(params.baseUrl), {
     method: 'POST',
@@ -853,7 +937,7 @@ async function collectChatgptCodexText(params: {
       tools,
       tool_choice: 'auto',
       parallel_tool_calls: false,
-      reasoning: null,
+      ...(reasoning ? { reasoning } : {}),
       store: false,
       stream: true,
       include: ['reasoning.encrypted_content'],
@@ -971,7 +1055,7 @@ async function collectChatgptCodexText(params: {
 export function validateOpenAiCodexModel(model: string): string | null {
   return KNOWN_CHATGPT_CODEX_MODELS.has(model)
     ? null
-    : `model \`${model}\` is not available through ChatGPT-backed Codex OAuth yet. Start with \`gpt-5.4\` for the first native provider proof.`
+    : `model \`${model}\` is not available through ChatGPT-backed Codex OAuth in this build. Supported models: ${OPENAI_CODEX_MODEL_DEFINITIONS.map(item => `\`${item.value}\``).join(', ')}.`
 }
 
 async function runOpenAiCodexPlainText(params: {
@@ -1076,6 +1160,7 @@ export async function* queryOpenAiCodexWithStreaming(params: {
   const tools = await buildOpenAiCodexTools({
     tools: params.tools,
   })
+  const reasoning = buildOpenAiCodexReasoningPayload(params.options)
 
   try {
     const response = await fetch(responsesEndpoint(resolveChatgptCodexBaseUrl()), {
@@ -1094,7 +1179,7 @@ export async function* queryOpenAiCodexWithStreaming(params: {
         tools,
         tool_choice: 'auto',
         parallel_tool_calls: false,
-        reasoning: null,
+        ...(reasoning ? { reasoning } : {}),
         store: false,
         stream: true,
         include: ['reasoning.encrypted_content'],

@@ -84,6 +84,7 @@ export function DiscoverPlugins({
   const {
     columns: terminalWidth
   } = useTerminalSize();
+  const pluginDescriptionWidth = Math.max(40, terminalWidth - 10);
 
   // Filter plugins based on search query
   const filteredPlugins = useMemo(() => {
@@ -627,7 +628,7 @@ export function DiscoverPlugins({
             </Box>
             {plugin_5.entry.description && <Box marginLeft={4}>
                 <Text dimColor>
-                  {truncateToWidth(plugin_5.entry.description, 60)}
+                  {truncateToWidth(plugin_5.entry.description, pluginDescriptionWidth)}
                 </Text>
               </Box>}
           </Box>;

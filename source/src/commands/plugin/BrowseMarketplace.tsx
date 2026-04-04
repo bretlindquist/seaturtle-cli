@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useEffect, useState } from 'react';
 import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutHint.js';
 import { Byline } from '../../components/design-system/Byline.js';
+import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { Box, Text } from '../../ink.js';
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js';
 import type { LoadedPlugin } from '../../types/plugin.js';
@@ -56,6 +57,10 @@ export function BrowseMarketplace({
   targetMarketplace,
   targetPlugin
 }: Props): React.ReactNode {
+  const {
+    columns: terminalWidth
+  } = useTerminalSize();
+  const pluginDescriptionWidth = Math.max(40, terminalWidth - 16);
   // View state
   const [viewState, setViewState] = useState<ViewState>('marketplace-list');
   const [selectedMarketplace, setSelectedMarketplace] = useState<string | null>(null);
@@ -777,7 +782,7 @@ export function BrowseMarketplace({
             </Box>
             {plugin_6.entry.description && <Box marginLeft={4}>
                 <Text dimColor>
-                  {truncateToWidth(plugin_6.entry.description, 60)}
+                  {truncateToWidth(plugin_6.entry.description, pluginDescriptionWidth)}
                 </Text>
                 {plugin_6.entry.version && <Text dimColor> · v{plugin_6.entry.version}</Text>}
               </Box>}

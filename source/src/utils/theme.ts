@@ -91,6 +91,7 @@ export type Theme = {
 export const THEME_NAMES = [
   'dark',
   'light',
+  'neonbbs',
   'light-daltonized',
   'dark-daltonized',
   'light-ansi',
@@ -352,6 +353,79 @@ const darkAnsiTheme: Theme = {
   rainbow_violet_shimmer: 'ansi:magentaBright',
 }
 
+const neonBbsTheme: Theme = {
+  ...darkAnsiTheme,
+  autoAccept: 'rgb(255,0,204)',
+  bashBorder: 'rgb(0,255,153)',
+  claude: 'rgb(0,255,255)',
+  claudeShimmer: 'rgb(120,255,255)',
+  claudeBlue_FOR_SYSTEM_SPINNER: 'rgb(0,255,255)',
+  claudeBlueShimmer_FOR_SYSTEM_SPINNER: 'rgb(120,255,255)',
+  permission: 'rgb(255,255,0)',
+  permissionShimmer: 'rgb(255,255,140)',
+  planMode: 'rgb(255,0,153)',
+  ide: 'rgb(0,204,255)',
+  promptBorder: 'rgb(0,255,153)',
+  promptBorderShimmer: 'rgb(120,255,200)',
+  text: 'rgb(204,255,204)',
+  inverseText: 'rgb(0,0,0)',
+  inactive: 'rgb(90,160,120)',
+  inactiveShimmer: 'rgb(130,220,170)',
+  subtle: 'rgb(60,120,95)',
+  suggestion: 'rgb(0,255,255)',
+  remember: 'rgb(255,0,204)',
+  background: 'rgb(0,255,153)',
+  success: 'rgb(0,255,153)',
+  error: 'rgb(255,90,150)',
+  warning: 'rgb(255,255,0)',
+  merged: 'rgb(255,0,204)',
+  warningShimmer: 'rgb(255,255,140)',
+  diffAdded: 'rgb(0,120,70)',
+  diffRemoved: 'rgb(120,20,70)',
+  diffAddedDimmed: 'rgb(0,80,48)',
+  diffRemovedDimmed: 'rgb(80,15,50)',
+  diffAddedWord: 'rgb(0,255,153)',
+  diffRemovedWord: 'rgb(255,90,150)',
+  red_FOR_SUBAGENTS_ONLY: 'rgb(255,90,150)',
+  blue_FOR_SUBAGENTS_ONLY: 'rgb(0,180,255)',
+  green_FOR_SUBAGENTS_ONLY: 'rgb(0,255,153)',
+  yellow_FOR_SUBAGENTS_ONLY: 'rgb(255,255,0)',
+  purple_FOR_SUBAGENTS_ONLY: 'rgb(200,120,255)',
+  orange_FOR_SUBAGENTS_ONLY: 'rgb(255,170,0)',
+  pink_FOR_SUBAGENTS_ONLY: 'rgb(255,0,204)',
+  cyan_FOR_SUBAGENTS_ONLY: 'rgb(0,255,255)',
+  professionalBlue: 'rgb(0,180,255)',
+  chromeYellow: 'rgb(255,255,0)',
+  clawd_body: 'rgb(0,255,255)',
+  clawd_background: 'rgb(0,0,0)',
+  userMessageBackground: 'rgb(8, 20, 12)',
+  userMessageBackgroundHover: 'rgb(14, 30, 18)',
+  messageActionsBackground: 'rgb(20, 28, 36)',
+  selectionBg: 'rgb(0, 92, 68)',
+  bashMessageBackgroundColor: 'rgb(12, 24, 16)',
+  memoryBackgroundColor: 'rgb(10, 22, 24)',
+  rate_limit_fill: 'rgb(0,255,255)',
+  rate_limit_empty: 'rgb(0,70,70)',
+  fastMode: 'rgb(255,170,0)',
+  fastModeShimmer: 'rgb(255,210,90)',
+  briefLabelYou: 'rgb(255,255,0)',
+  briefLabelClaude: 'rgb(0,255,255)',
+  rainbow_red: 'rgb(255,90,150)',
+  rainbow_orange: 'rgb(255,170,0)',
+  rainbow_yellow: 'rgb(255,255,0)',
+  rainbow_green: 'rgb(0,255,153)',
+  rainbow_blue: 'rgb(0,180,255)',
+  rainbow_indigo: 'rgb(140,120,255)',
+  rainbow_violet: 'rgb(255,0,204)',
+  rainbow_red_shimmer: 'rgb(255,150,190)',
+  rainbow_orange_shimmer: 'rgb(255,210,100)',
+  rainbow_yellow_shimmer: 'rgb(255,255,150)',
+  rainbow_green_shimmer: 'rgb(120,255,210)',
+  rainbow_blue_shimmer: 'rgb(120,220,255)',
+  rainbow_indigo_shimmer: 'rgb(190,170,255)',
+  rainbow_violet_shimmer: 'rgb(255,120,224)',
+}
+
 /**
  * Light daltonized theme (color-blind friendly) using explicit RGB values
  * to avoid inconsistencies from users' custom terminal ANSI color definitions
@@ -599,6 +673,8 @@ export function getTheme(themeName: ThemeName): Theme {
   switch (themeName) {
     case 'light':
       return lightTheme
+    case 'neonbbs':
+      return neonBbsTheme
     case 'light-ansi':
       return lightAnsiTheme
     case 'dark-ansi':

@@ -327,28 +327,27 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Main model runtime',
     value: runtimeSnapshot.execution.displayName
   });
+  const codexAuthSourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'Provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'Not configured';
+  const codexStatusLabel = runtimeSnapshot.execution.family === 'openai' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'openai' ? 'Preferred but not active' : runtimeSnapshot.openAiCodexAuthReady ? 'Available' : 'Not configured';
+  properties.push({
+    label: 'Codex status',
+    value: codexStatusLabel
+  });
+  properties.push({
+    label: 'Codex auth',
+    value: codexAuthSourceLabel
+  });
   if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
     const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
     properties.push({
       label: 'Preferred runtime',
       value: `${runtimeSnapshot.preferred.displayName} (${preferredSuffix})`
     });
-  } else if (runtimeSnapshot.openAiCodexAuthReady) {
-    const sourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'configured auth';
-    properties.push({
-      label: 'OpenAI/Codex OAuth',
-      value: `Ready via ${sourceLabel}`
-    });
-  } else {
-    properties.push({
-      label: 'OpenAI/Codex OAuth',
-      value: 'Not configured'
-    });
   }
   if (runtimeSnapshot.execution.family === 'openai') {
     properties.push({
-      label: 'Provider notes',
-      value: 'Auto-mode safety classifier, permission explainer, and Claude in Chrome lightning inference remain Anthropic-only.'
+      label: 'OpenAI/Codex gates',
+      value: ['auto-mode safety classifier', 'permission explainer', 'Claude in Chrome lightning']
     });
   }
   const proxyUrl = getProxyUrl();

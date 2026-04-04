@@ -3,7 +3,7 @@ import { isUltrathinkEnabled } from './thinking.js'
 import { getInitialSettings } from './settings/settings.js'
 import { isProSubscriber, isMaxSubscriber, isTeamSubscriber } from './auth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
-import { getAPIProvider } from './model/providers.js'
+import { getAPIProvider, shouldUseOpenAiCodexProvider } from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { isEnvTruthy } from './envUtils.js'
 import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
@@ -19,8 +19,39 @@ export const EFFORT_LEVELS = [
 
 export type EffortValue = EffortLevel | number
 
+const OPENAI_CODEX_REASONING_MODELS = new Set([
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.3-codex',
+  'gpt-5.2-codex',
+  'gpt-5.2',
+  'gpt-5.1-codex-max',
+  'gpt-5.1-codex-mini',
+])
+
+const OPENAI_CODEX_XHIGH_MODELS = new Set([
+  'gpt-5.4',
+  'gpt-5.4-mini',
+  'gpt-5.3-codex',
+  'gpt-5.2-codex',
+  'gpt-5.2',
+  'gpt-5.1-codex-max',
+])
+
+function normalizeModelForOpenAiCodex(model: string): string {
+  return model.trim().toLowerCase()
+}
+
+export function isOpenAiCodexReasoningModel(model: string): boolean {
+  return OPENAI_CODEX_REASONING_MODELS.has(normalizeModelForOpenAiCodex(model))
+}
+
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports the effort parameter.
 export function modelSupportsEffort(model: string): boolean {
+  if (shouldUseOpenAiCodexProvider()) {
+    return isOpenAiCodexReasoningModel(model)
+  }
+
   const m = model.toLowerCase()
   if (isEnvTruthy(process.env.CLAUDE_CODE_ALWAYS_ENABLE_EFFORT)) {
     return true
@@ -51,6 +82,10 @@ export function modelSupportsEffort(model: string): boolean {
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports 'max' effort.
 // Per API docs, 'max' is Opus 4.6 only for public models — other models return an error.
 export function modelSupportsMaxEffort(model: string): boolean {
+  if (shouldUseOpenAiCodexProvider()) {
+    return OPENAI_CODEX_XHIGH_MODELS.has(normalizeModelForOpenAiCodex(model))
+  }
+
   const supported3P = get3PModelCapabilityOverride(model, 'max_effort')
   if (supported3P !== undefined) {
     return supported3P
@@ -76,6 +111,13 @@ export function parseEffortValue(value: unknown): EffortValue | undefined {
     return value
   }
   const str = String(value).toLowerCase()
+  if (
+    ['xhigh', 'x-high', 'x_high', 'extra high', 'extra-high', 'extra_high'].includes(
+      str,
+    )
+  ) {
+    return 'max'
+  }
   if (isEffortLevel(str)) {
     return str
   }
@@ -224,13 +266,21 @@ export function convertEffortValueToLevel(value: EffortValue): EffortLevel {
 export function getEffortLevelDescription(level: EffortLevel): string {
   switch (level) {
     case 'low':
-      return 'Quick, straightforward implementation with minimal overhead'
+      return shouldUseOpenAiCodexProvider()
+        ? 'Fast responses with lighter reasoning'
+        : 'Quick, straightforward implementation with minimal overhead'
     case 'medium':
-      return 'Balanced approach with standard implementation and testing'
+      return shouldUseOpenAiCodexProvider()
+        ? 'Balances speed and reasoning depth for everyday tasks'
+        : 'Balanced approach with standard implementation and testing'
     case 'high':
-      return 'Comprehensive implementation with extensive testing and documentation'
+      return shouldUseOpenAiCodexProvider()
+        ? 'Greater reasoning depth for complex problems'
+        : 'Comprehensive implementation with extensive testing and documentation'
     case 'max':
-      return 'Maximum capability with deepest reasoning (Opus 4.6 only)'
+      return shouldUseOpenAiCodexProvider()
+        ? 'Extra high reasoning depth for complex problems'
+        : 'Maximum capability with deepest reasoning (currently Anthropic Opus 4.6 only in this build)'
   }
 }
 
@@ -279,6 +329,10 @@ export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
 export function getDefaultEffortForModel(
   model: string,
 ): EffortValue | undefined {
+  if (shouldUseOpenAiCodexProvider() && isOpenAiCodexReasoningModel(model)) {
+    return 'medium'
+  }
+
   if (process.env.USER_TYPE === 'ant') {
     const config = getAntModelOverrideConfig()
     const isDefaultModel =

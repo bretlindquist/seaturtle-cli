@@ -101,7 +101,11 @@ export function SkillsMenu(t0) {
   if (skills.length === 0) {
     let t3;
     if ($[6] === Symbol.for("react.memo_cache_sentinel")) {
-      t3 = <Text dimColor={true}>Create skills in .claude/skills/ or ~/.claude/skills/</Text>;
+      t3 = <Box flexDirection="column">
+          <Text dimColor={true}>No skills are installed yet. That is normal on a new install.</Text>
+          <Text dimColor={true}>Create skills in .claude/skills/ or ~/.claude/skills/ to add your own.</Text>
+          <Text dimColor={true}>Plugin and MCP skills will appear here automatically once they are installed or connected.</Text>
+        </Box>;
       $[6] = t3;
     } else {
       t3 = $[6];
