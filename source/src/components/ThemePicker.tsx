@@ -114,6 +114,9 @@ export function ThemePicker(t0) {
       label: "Auto (match terminal)",
       value: "auto" as const
     }] : []), {
+      label: "Lolcat",
+      value: "lolcat"
+    }, {
       label: "Neon BBS",
       value: "neonbbs"
     }, {

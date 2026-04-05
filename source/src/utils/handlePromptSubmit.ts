@@ -25,6 +25,7 @@ import type { EffortValue } from './effort.js'
 import type { FileHistoryState } from './fileHistory.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './fileHistory.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
+import { stopTransientLolcatAnimation } from '../services/lolcat.js'
 import { enqueue } from './messageQueueManager.js'
 import { resolveSkillModelOverride } from './model/model.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
@@ -155,6 +156,7 @@ export async function handlePromptSubmit(
   // Queue processor path: commands are pre-validated and ready to execute.
   // Skip all input validation, reference parsing, and queuing logic.
   if (queuedCommands?.length) {
+    stopTransientLolcatAnimation()
     startQueryProfile()
     await executeUserInput({
       queuedCommands,
@@ -196,6 +198,10 @@ export async function handlePromptSubmit(
   const hasImages = Object.values(pastedContents).some(isValidImagePaste)
   if (input.trim() === '') {
     return
+  }
+
+  if (!input.trim().startsWith('/lolcat')) {
+    stopTransientLolcatAnimation()
   }
 
   // Handle exit commands by triggering the exit command instead of direct process.exit

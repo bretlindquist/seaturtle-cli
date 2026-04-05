@@ -207,10 +207,14 @@ Keywords:
 
 - theme
 - neonbbs
+- lolcat
+- rainbow
+- animated rainbow
 
 Next step:
 
 - Use `/theme` and choose `neonbbs`
+- Use `/lolcat` to turn the whole shell rainbow, including the animated variants
 
 ## Skills / Plugins / MCP / Hooks
 

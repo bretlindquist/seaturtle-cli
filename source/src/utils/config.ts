@@ -228,6 +228,11 @@ export type GlobalConfig = {
   doctorShownAtSession?: number
   userID?: string
   theme: ThemeSetting
+  lolcat?: {
+    mode?: 'off' | 'static' | 'animated'
+    persistAnimation?: boolean
+    previousTheme?: ThemeSetting
+  }
   preferredMainProvider?: 'anthropic' | 'openai-codex'
   telegramProfiles?: Record<string, TelegramBotProfileMeta>
   /**

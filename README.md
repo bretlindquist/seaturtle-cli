@@ -37,6 +37,7 @@ layer.
 - Telegram pairing and project binding from inside the app
 - Telegram text, photos, documents, and voice-note transcription
 - per-project reminders with `/remindme` / `/rm`
+- rainbow theme control with `/lolcat`, including animated and persistent modes
 
 ### Intentionally Gated Or Still Anthropic-Bound
 
@@ -97,6 +98,7 @@ Inside CT, the next-step commands to know first are:
 - `/status`
 - `/telegram`
 - `/remindme`
+- `/lolcat`
 
 ## Installation And Prerequisites
 
