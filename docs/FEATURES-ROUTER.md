@@ -7,6 +7,7 @@ Use it when the user asks natural-language questions like:
 - how do I set up Telegram?
 - how do I use OpenAI OAuth here?
 - how does CT identity work in this project?
+- how do I make CT remind me about something after replies?
 - how do I switch models?
 - why is GitHub Actions gated?
 - how do I test Telegram?
@@ -178,6 +179,28 @@ Next steps:
 - In the prompt input, use `Tab` to queue a message
 - use the queue UI to edit, remove, or clear queued prompts
 
+## Reminder / remindme
+
+Keywords:
+
+- remindme
+- reminder
+- rm
+- rmc
+- don't forget
+
+Next steps:
+
+- Use `/rm <what to remember>` to set a short reminder for this project
+- Use `/remindme` to review or clear the current reminder
+- Use `/rmc` to clear it directly
+
+Important truth:
+
+- the reminder is project-local and private
+- CT shows it after replies in this project
+- `/remindme` is the visible menu entry; `/rm` and `/rmc` are the fast shortcuts
+
 ## Theme
 
 Keywords:
@@ -225,4 +248,5 @@ Examples:
 - “Run `/telegram`. It handles pairing, binding, test, and diagnostics for the current project.”
 - “Run `ct`. It launches this fork on the OpenAI/Codex path without the raw env-prefixed node command.”
 - “Run `/model`. It shows the supported OpenAI/Codex models for this fork.”
+- “Run `/rm <what to remember>`. CT will show that reminder after replies in this project.”
 - “Run `/install-github-app`. If the OpenAI path is gated, the command will explain the current CI limitation.”

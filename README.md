@@ -56,6 +56,12 @@ to tune them through a short in-app picker flow.
 Use `/ct` any time to retune CT, edit the private `.ct` files, or manage
 global SeaTurtle defaults for future projects.
 
+CT also supports a private per-project reminder:
+
+- use `/rm <what to remember>` to save it quickly
+- use `/remindme` to review or clear it
+- CT shows it after replies so you do not lose track of the important thing
+
 Branding and compatibility boundaries live in
 [`docs/BRANDING.md`](./docs/BRANDING.md).
 

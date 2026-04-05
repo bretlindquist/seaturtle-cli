@@ -125,6 +125,10 @@ export type ProjectConfig = {
   exampleFiles?: string[]
   exampleFilesGeneratedAt?: number
   telegram?: TelegramProjectBinding
+  remindMe?: {
+    text?: string
+    updatedAt?: number
+  }
   ctIdentityBootstrap?: {
     hasCompletedSetup?: boolean
     seenCount?: number
