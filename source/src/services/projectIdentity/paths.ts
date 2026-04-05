@@ -11,6 +11,7 @@ export const CT_SESSION_FILENAME = 'session.md'
 export const CT_STATE_DIRNAME = 'state'
 export const CT_ARCHIVES_FILENAME = 'archives.json'
 export const CT_GAME_STATE_FILENAME = 'game-state.json'
+export const CT_AUTOWORK_STATE_FILENAME = 'autowork-state.json'
 
 export function getCtProjectRoot(): string {
   return findCanonicalGitRoot(getOriginalCwd()) ?? resolve(getOriginalCwd())
@@ -46,6 +47,12 @@ export function getCtArchivesPath(root: string = getCtProjectRoot()): string {
 
 export function getCtGameStatePath(root: string = getCtProjectRoot()): string {
   return join(getCtProjectDir(root), CT_GAME_STATE_FILENAME)
+}
+
+export function getCtAutoworkStatePath(
+  root: string = getCtProjectRoot(),
+): string {
+  return join(getCtProjectDir(root), CT_AUTOWORK_STATE_FILENAME)
 }
 
 export function getCtCompatBridgePath(root: string = getCtProjectRoot()): string {
