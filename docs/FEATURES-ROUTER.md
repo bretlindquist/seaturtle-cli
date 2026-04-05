@@ -9,6 +9,8 @@ Use it when the user asks natural-language questions like:
 - how do I switch models?
 - why is GitHub Actions gated?
 - how do I test Telegram?
+- why does CT still use CLAUDE env vars?
+- should I run ct or node dist/cli.js?
 
 Prefer the command first, then the deeper doc if needed.
 
@@ -47,6 +49,35 @@ Important truth:
 - OpenAI/Codex local runtime works in this fork
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs
+
+## Branding / CT / seaturtle / compatibility
+
+Keywords:
+
+- ct
+- seaturtle
+- branding
+- compatibility
+- CLAUDE_CODE_USE_OPENAI_CODEX
+- CLAUDE_CODE_TELEGRAM
+- ~/.claude
+- node dist/cli.js
+
+Next steps:
+
+- Use `ct` for the standard branded entrypoint
+- Use `seaturtle` if you want the alias wrapper
+- Use `node dist/cli.js` only when you intentionally want the underlying runtime entrypoint
+
+Deep doc:
+
+- [`docs/BRANDING.md`](./BRANDING.md)
+
+Important truth:
+
+- this fork brands the wrapper and user-facing UX as CT
+- compatibility-sensitive env vars, paths, and internal identifiers remain unchanged on purpose
+- this repo is based on a source-build base, not a clean-room rewrite
 
 ## Telegram
 

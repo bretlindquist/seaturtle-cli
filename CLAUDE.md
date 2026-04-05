@@ -7,6 +7,7 @@ This fork has custom feature behavior beyond upstream Claude Code, especially:
 - provider-aware login, logout, model, and effort behavior
 - Telegram setup, pairing, multi-bot inventory, project binding, test, and doctor flows
 - provider-aware GitHub Actions gating
+- CT branding with explicit compatibility boundaries for `CLAUDE_*` env vars and `~/.claude`
 
 For repo-specific feature questions, check:
 

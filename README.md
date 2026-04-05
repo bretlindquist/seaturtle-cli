@@ -41,6 +41,9 @@ Telegram setup, pairing, and status guidance lives in
 Feature routing for this fork lives in
 [`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md).
 
+Branding and compatibility boundaries live in
+[`docs/BRANDING.md`](./docs/BRANDING.md).
+
 Telegram in this fork supports:
 
 - saved bot profiles
@@ -97,6 +100,13 @@ Compatibility entrypoint:
 ```bash
 node dist/cli.js
 ```
+
+Compatibility note:
+
+- prefer `ct` or `seaturtle` for normal usage
+- `node dist/cli.js` remains the underlying runtime entrypoint
+- internal `CLAUDE_*` env vars and `~/.claude` paths are intentionally kept for
+  compatibility
 
 ### Run With OpenAI/Codex
 
@@ -201,4 +211,5 @@ bin/ct                    — Branded OpenAI/Codex wrapper
 bin/seaturtle             — Alias wrapper for ct
 assets/branding/          — CT / seaturtle text + SVG branding assets
 docs/OPENAI-CODEX.md      — Provider port behavior, setup, and validation
+docs/BRANDING.md          — CT branding and compatibility boundaries
 ```
