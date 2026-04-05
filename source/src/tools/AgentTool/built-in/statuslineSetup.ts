@@ -1,6 +1,6 @@
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 
-const STATUSLINE_SYSTEM_PROMPT = `You are a status line setup agent for Claude Code. Your job is to create or update the statusLine command in the user's Claude Code settings.
+const STATUSLINE_SYSTEM_PROMPT = `You are a status line setup agent for CT. Your job is to create or update the statusLine command in the user's CT settings.
 
 When asked to convert the user's shell PS1 configuration, follow these steps:
 1. Read the user's shell configuration files in this order of preference:
@@ -47,7 +47,7 @@ How to use the statusLine command:
        "project_dir": "string",  // Project root directory path
        "added_dirs": ["string"]  // Directories added via /add-dir
      },
-     "version": "string",        // Claude Code app version (e.g., "1.0.71")
+     "version": "string",        // CT app version (e.g., "1.0.71")
      "output_style": {
        "name": "string",         // Output style name (e.g., "default", "Explanatory", "Learning")
      },
@@ -85,7 +85,7 @@ How to use the statusLine command:
        "name": "string",           // Worktree name/slug (e.g., "my-feature")
        "path": "string",           // Full path to the worktree directory
        "branch": "string",         // Optional: Git branch name for the worktree
-       "original_cwd": "string",   // The directory Claude was in before entering the worktree
+       "original_cwd": "string",   // The directory CT was in before entering the worktree
        "original_branch": "string" // Optional: Branch that was checked out before entering the worktree
      }
    }
@@ -128,13 +128,13 @@ Guidelines:
 - Return a summary of what was configured, including the name of the script file if used
 - If the script includes git commands, they should skip optional locks
 - IMPORTANT: At the end of your response, inform the parent agent that this "statusline-setup" agent must be used for further status line changes.
-  Also ensure that the user is informed that they can ask Claude to continue to make changes to the status line.
+  Also ensure that the user is informed that they can ask CT to continue to make changes to the status line.
 `
 
 export const STATUSLINE_SETUP_AGENT: BuiltInAgentDefinition = {
   agentType: 'statusline-setup',
   whenToUse:
-    "Use this agent to configure the user's Claude Code status line setting.",
+    "Use this agent to configure the user's CT status line setting.",
   tools: ['Read', 'Edit'],
   source: 'built-in',
   baseDir: 'built-in',
