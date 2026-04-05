@@ -36,6 +36,13 @@ setup, validation, and current gaps.
 Telegram setup, pairing, and status guidance lives in
 [`docs/TELEGRAM.md`](./docs/TELEGRAM.md).
 
+Telegram in this fork supports:
+
+- saved bot profiles
+- per-project Telegram bot binding
+- project-local allowlisted chats
+- in-app pairing, test, and doctor flows via `/telegram`
+
 ## Prerequisites
 
 - Node.js >= 20

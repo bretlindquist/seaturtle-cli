@@ -52,6 +52,11 @@ export type TelegramBotProfile = TelegramBotProfileMeta & {
   botTokenConfigured: boolean
 }
 
+export type TelegramProjectBindingUsage = {
+  projectPath: string
+  binding: TelegramProjectBinding
+}
+
 export type ResolvedTelegramConfigState = {
   source: 'none' | 'env' | 'project'
   envOverride: boolean
@@ -458,6 +463,25 @@ export function getCurrentProjectTelegramBindingSnapshot():
   | TelegramProjectBinding
   | null {
   return getCurrentProjectTelegramBinding() ?? getLegacyFallbackBinding()
+}
+
+export function listTelegramProjectBindingsForProfile(
+  profileId: string,
+): TelegramProjectBindingUsage[] {
+  const projects = getGlobalConfig().projects
+  if (!projects) {
+    return []
+  }
+
+  const usages: TelegramProjectBindingUsage[] = []
+  for (const [projectPath, projectConfig] of Object.entries(projects)) {
+    const binding = normalizeProjectBinding(projectConfig.telegram)
+    if (binding?.profileId === profileId) {
+      usages.push({ projectPath, binding })
+    }
+  }
+
+  return usages
 }
 
 export function saveTelegramBotProfile(params: {

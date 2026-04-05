@@ -19,6 +19,14 @@ Not yet supported:
 Telegram can now be paired from inside the app with `/telegram`, or configured
 with environment variables.
 
+Current product contract:
+
+- Telegram bot profiles are saved globally on the machine
+- Telegram bot bindings and allowlisted chats are project-local
+- one running app session/process uses one active Telegram bot
+- different projects can bind different saved bots
+- simultaneous multi-project bots should use separate app instances
+
 ## In-App Pairing
 
 1. Create a Telegram bot with BotFather.
@@ -27,9 +35,19 @@ with environment variables.
 4. Paste the bot token.
 5. Send the bot a message from the Telegram chat you want to pair.
 6. Choose the discovered chat.
+7. The bot is saved as a reusable profile and bound to the current project.
 
-The bot token is stored in secure storage. Allowlisted chat IDs and pairing
-metadata are stored in app config.
+The bot token is stored in secure storage. Bot profile metadata is stored in
+global app config. Allowlisted chat IDs and the active binding are stored in
+project config.
+
+After pairing, `/telegram` can also:
+
+- bind a different saved bot to the current project
+- add or remove allowlisted chats for the current project
+- choose the default chat for operator actions
+- send a Telegram test message
+- run Telegram doctor diagnostics
 
 Environment variables still work and override in-app pairing when present.
 
@@ -113,11 +131,25 @@ transcription and the app will explain the missing requirement.
 Telegram is intentionally allowlist-based.
 
 - the bot token alone is not enough
-- only chat IDs in `CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS` are accepted
+- only chat IDs in the active project binding or
+  `CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS` env override are accepted
 
 This prevents a bot from being reachable by arbitrary chats once a token is set.
 
+## Multi-Bot And Project Binding
+
+This fork now supports multiple saved Telegram bot profiles.
+
+- pair a bot once, save it as a reusable profile
+- bind that profile to the current project
+- manage allowlisted chats per project
+- keep project memory and Telegram routing aligned by cwd / git root
+
+Environment variables still override in-app bot profiles and project bindings
+when present.
+
 ## Current Direction
 
-Current Telegram pairing supports one primary allowlisted chat in-app. A later
-follow-up can expand that into richer multi-chat management and outbound voice.
+Current Telegram supports multi-bot inventory, per-project binding, and
+project-local multi-chat management. Likely follow-up work includes richer
+activity views, export/import helpers, and outbound voice.
