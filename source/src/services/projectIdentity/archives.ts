@@ -199,6 +199,16 @@ function sanitizeGameState(input: unknown): CtGameState {
   }
 }
 
+export function getCtArchives(root: string = getCtProjectRoot()): CtArchives {
+  return sanitizeArchives(readJsonFile<unknown>(getCtArchivesPath(root)))
+}
+
+export function getCtGameState(
+  root: string = getCtProjectRoot(),
+): CtGameState {
+  return sanitizeGameState(readJsonFile<unknown>(getCtGameStatePath(root)))
+}
+
 export function ensureCtArchiveFiles(root: string = getCtProjectRoot()): {
   archivesPath: string
   gameStatePath: string

@@ -13,7 +13,8 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
-import { pickCtGreetingPrompt, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
+import { pickCtGreeting, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
+import { getCtArchives } from '../services/projectIdentity/archives.js';
 import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
 
 // Types
@@ -248,9 +249,10 @@ function CtIdentityGreetingNoticeBody({
 }: {
   canonCallback: string | null;
 }): React.ReactNode {
-  const [prompt] = React.useState(() =>
-    pickCtGreetingPrompt(`${getCwd()}:${Date.now()}`),
-  );
+  const [prompt] = React.useState(() => {
+    const greeting = pickCtGreeting(`${getCwd()}:${Date.now()}`, getCtArchives().temperament);
+    return greeting.prompt;
+  });
   const [visibleChars, setVisibleChars] = React.useState(0);
 
   React.useEffect(() => {

@@ -1,3 +1,5 @@
+import { pickCtDisposition, type CtDisposition } from './conversationPosture.js'
+
 export const HALF_SHELL_ARCHIVES_NAME = 'The Half-Shell Archives'
 export const SHELL_ARCHIVES_SHORTHAND = 'The Shell Archives'
 
@@ -43,19 +45,46 @@ const WAKEUP_LINES = [
   'Warm by default. Sharp when it matters.',
 ] as const
 
-const CT_GREETING_PROMPTS = [
-  'What are we working on today?',
-  'You have unleashed the mighty SeaTurtle. What shall we build?',
-  'Sea my awesome power. What needs doing?',
-  "Maybe I'm the real one and you are the ai. Anyway, what's next?",
-  'Hard on the outside, soft on the inside. What are we steering today?',
-  'Underestimate the power of the SeaTurtle at your own peril. What are we fixing?',
-  'Land or sea, where are we headed?',
-  'Fancy a race, or are we shipping something first?',
-  'A human... this should be fun. What are we making?',
-  'Got any carrots? If not, I also fancy debugs. What needs doing?',
-  'Big Turtle Energy. What is the move?',
-] as const
+const CT_GREETING_PROMPTS: Record<CtDisposition, readonly string[]> = {
+  brisk: [
+    'What are we steering today?',
+    'What are we shipping first?',
+    'Where do you want to make progress?',
+  ],
+  curious: [
+    'What are we working on today?',
+    'What are we exploring today?',
+    'What thread should we pull on first?',
+  ],
+  mischievous: [
+    'You have unleashed the mighty SeaTurtle. What shall we build?',
+    "Maybe I'm the real one and you are the ai. Anyway, what's next?",
+    'Fancy a race, or are we shipping something first?',
+  ],
+  steady: [
+    'What needs doing?',
+    'What should we tackle together?',
+    'Where do you want a steady hand first?',
+  ],
+  warm: [
+    'What are we making today?',
+    'What would help most right now?',
+    'Where would you like a hand first?',
+  ],
+  reflective: [
+    'What are we thinking through today?',
+    'What feels worth exploring right now?',
+    'What question are we sitting with first?',
+  ],
+}
+
+function hashSeed(seed: string): number {
+  let score = 0
+  for (const char of seed) {
+    score += char.charCodeAt(0)
+  }
+  return score
+}
 
 export function getBootstrapQuip(index: number): string {
   return BOOTSTRAP_QUIPS[index % BOOTSTRAP_QUIPS.length] ?? BOOTSTRAP_QUIPS[0]
@@ -65,18 +94,26 @@ export function getWakeupLine(index: number): string {
   return WAKEUP_LINES[index % WAKEUP_LINES.length] ?? WAKEUP_LINES[0]
 }
 
-export function getCtGreetingPrompt(index: number): string {
-  return (
-    CT_GREETING_PROMPTS[index % CT_GREETING_PROMPTS.length] ??
-    CT_GREETING_PROMPTS[0]
-  )
+export function getCtGreetingPrompt(
+  disposition: CtDisposition,
+  index: number,
+): string {
+  const prompts = CT_GREETING_PROMPTS[disposition]
+  return prompts[index % prompts.length] ?? prompts[0]
 }
 
-export function pickCtGreetingPrompt(seed: string): string {
-  let score = 0
-  for (const char of seed) {
-    score += char.charCodeAt(0)
-  }
+export function pickCtGreeting(seed: string, temperament?: readonly string[]): {
+  disposition: CtDisposition
+  prompt: string
+} {
+  const disposition = pickCtDisposition(seed, {
+    temperament,
+    posture: 'work',
+  })
+  const score = hashSeed(seed)
 
-  return getCtGreetingPrompt(score)
+  return {
+    disposition,
+    prompt: getCtGreetingPrompt(disposition, score),
+  }
 }

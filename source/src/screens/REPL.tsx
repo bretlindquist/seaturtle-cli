@@ -27,6 +27,7 @@ import { useNotifications } from '../context/notifications.js';
 import { formatProjectReminderNoticeText, getProjectReminder } from '../services/remindme.js';
 import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
+import { getCtConversationPostureResult } from '../services/projectIdentity/conversationPosture.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
@@ -238,6 +239,26 @@ import { useOfficialMarketplaceNotification } from 'src/hooks/useOfficialMarketp
 import { usePromptsFromClaudeInChrome } from 'src/hooks/usePromptsFromClaudeInChrome.js';
 import { getTipToShowOnSpinner, recordShownTip } from 'src/services/tips/tipScheduler.js';
 import type { Theme } from 'src/utils/theme.js';
+
+function isTaskLikeUserMessage(text: string): boolean {
+  return (
+    text.startsWith(`<${LOCAL_COMMAND_STDOUT_TAG}>`) ||
+    text.startsWith(`<${COMMAND_MESSAGE_TAG}>`) ||
+    text.startsWith(`<${COMMAND_NAME_TAG}>`) ||
+    text.startsWith(`<${BASH_INPUT_TAG}>`)
+  )
+}
+
+function getRecentUserPromptTexts(messages: MessageType[]): string[] {
+  return messages
+    .filter(
+      (message): message is UserMessage => message.type === 'user' && !message.isMeta,
+    )
+    .map(message => getContentText(message.message.content))
+    .filter((value): value is string => value !== null)
+    .filter(value => !isTaskLikeUserMessage(value))
+    .slice(-3)
+}
 import { checkAndDisableBypassPermissionsIfNeeded, checkAndDisableAutoModeIfNeeded, useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from 'src/cli/structuredIO.js';
@@ -2660,7 +2681,7 @@ export function REPL({
       });
     }, onStreamingText);
   }, [setMessages, setResponseLength, setStreamMode, setStreamingToolUses, setStreamingThinking, onStreamingText]);
-  const onQueryImpl = useCallback(async (messagesIncludingNewMessages: MessageType[], newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, effort?: EffortValue) => {
+  const onQueryImpl = useCallback(async (messagesIncludingNewMessages: MessageType[], newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, input?: string, effort?: EffortValue) => {
     // Prepare IDE integration for new prompt. Read mcpClients fresh from
     // store — useManageMCPConnections may have populated it since the
     // render that captured this closure (same pattern as computeTools).
@@ -2780,12 +2801,18 @@ export function REPL({
       } : {})
     };
     queryCheckpoint('query_context_loading_end');
+    const conversationPosture = getCtConversationPostureResult({
+      currentInput: input ?? '',
+      recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
+      seed: `${getCwd()}:${input ?? ''}:${messagesIncludingNewMessages.length}`,
+    });
+    const effectiveAppendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${conversationPosture.addendum}` : conversationPosture.addendum;
     const systemPrompt = buildEffectiveSystemPrompt({
       mainThreadAgentDefinition,
       toolUseContext,
       customSystemPrompt,
       defaultSystemPrompt,
-      appendSystemPrompt
+      appendSystemPrompt: effectiveAppendSystemPrompt
     });
     toolUseContext.renderedSystemPrompt = systemPrompt;
     queryCheckpoint('query_query_start');
@@ -2927,7 +2954,7 @@ export function REPL({
           return;
         }
       }
-      await onQueryImpl(latestMessages, newMessages, abortController, shouldQuery, additionalAllowedTools, mainLoopModelParam, effort);
+      await onQueryImpl(latestMessages, newMessages, abortController, shouldQuery, additionalAllowedTools, mainLoopModelParam, input, effort);
     } finally {
       // queryGuard.end() atomically checks generation and transitions
       // running→idle. Returns false if a newer query owns the guard
