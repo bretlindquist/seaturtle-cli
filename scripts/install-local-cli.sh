@@ -2,9 +2,27 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-prefix="${HOME}/.local/bin"
+prefix=""
 should_build=0
 install_default_claude=0
+prefix_explicit=0
+
+choose_default_prefix() {
+  local path_entry
+  local fallback="${HOME}/.local/bin"
+
+  for path_entry in ${(s/:/)PATH}; do
+    [[ -z "$path_entry" ]] && continue
+    if [[ "$path_entry" == "$HOME"/* || "$path_entry" == "$HOME/.local/bin" ]]; then
+      if [[ -d "$path_entry" && -w "$path_entry" ]]; then
+        printf '%s\n' "$path_entry"
+        return 0
+      fi
+    fi
+  done
+
+  printf '%s\n' "$fallback"
+}
 
 usage() {
   cat <<'EOF'
@@ -31,6 +49,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --prefix)
       prefix="${2:?missing value for --prefix}"
+      prefix_explicit=1
       shift 2
       ;;
     --as-default-claude)
@@ -51,6 +70,10 @@ done
 
 cd "$repo_root"
 
+if (( ! prefix_explicit )); then
+  prefix="$(choose_default_prefix)"
+fi
+
 if (( should_build )); then
   echo "Building local CLI..."
   node scripts/build-cli.mjs --no-minify
@@ -66,29 +89,64 @@ if (( install_default_claude )); then
   ln -sf "$repo_root/bin/ct" "$prefix/claude"
 fi
 
+installed_ct="$prefix/ct"
+installed_seaturtle="$prefix/seaturtle"
+installed_ct_dev="$prefix/ct-dev"
+
+if [[ ! -L "$installed_ct" || ! -L "$installed_seaturtle" || ! -L "$installed_ct_dev" ]]; then
+  echo "Install failed: expected wrapper symlinks were not created in $prefix" >&2
+  exit 1
+fi
+
+ct_on_path=""
+if command -v ct >/dev/null 2>&1; then
+  ct_on_path="$(command -v ct)"
+fi
+
 cat <<EOF
-Installed local wrappers into:
+CT wrappers installed.
+
+Step 1: Local commands were linked into:
   $prefix
 
-Available commands:
-  ct
-  seaturtle
-  ct-dev
+Step 2: Available commands:
+  ct         Start CT with OpenAI/Codex enabled
+  seaturtle  Same as ct, alternate branded entrypoint
+  ct-dev     Run the repo-local development wrapper
 EOF
 
 if (( install_default_claude )); then
   cat <<EOF
-  claude
+  claude     Compatibility alias to ct
+EOF
+fi
+
+if [[ -n "$ct_on_path" ]]; then
+  cat <<EOF
+
+Step 3: ct is available on your PATH now:
+  $ct_on_path
+EOF
+else
+  cat <<EOF
+
+Step 3: Your current shell does not see `ct` on PATH yet.
+
+If "$prefix" is not on your PATH yet, add:
+  export PATH="$prefix:\$PATH"
+
+If you already have "$prefix" on PATH, refresh zsh's command cache:
+  rehash
 EOF
 fi
 
 cat <<EOF
 
-If "$prefix" is not on your PATH yet, add:
-  export PATH="$prefix:\$PATH"
-
-Next steps:
+Step 4: Start CT:
   ct
-  /login
-  /telegram
+
+Step 5: Inside CT, pick the next setup step you need:
+  /login      Connect Anthropic or OpenAI/Codex auth
+  /telegram   Pair a Telegram bot for this project
+  /status     Check runtime, auth, and Telegram readiness
 EOF
