@@ -208,8 +208,8 @@ function main() {
 
     const changed = reconcileBuildErrors(buildResult.stderr);
     if (!changed) {
-      process.stdout.write(buildResult.stdout);
-      process.stderr.write(buildResult.stderr);
+      if (buildResult.stdout) process.stdout.write(buildResult.stdout);
+      if (buildResult.stderr) process.stderr.write(buildResult.stderr);
       process.exit(buildResult.status ?? 1);
     }
   }
@@ -296,11 +296,15 @@ function prepareWorkspace(overlayPackages) {
 function ensureOverlayDependencies(packageNames) {
   const stamp = readJsonIfExists(overlayStampPath);
   const desiredKey = JSON.stringify(packageNames);
+  const installedPackages = parseOverlayPackagesKey(stamp?.packagesKey);
   const allPresent = packageNames.every(packageName =>
     isDirectory(packageRootPath(path.join(workspaceRoot, 'node_modules'), packageName)),
   );
+  const stampSatisfiesDesired =
+    installedPackages !== null &&
+    packageNames.every(packageName => installedPackages.has(packageName));
 
-  if (stamp?.packagesKey === desiredKey && allPresent) {
+  if ((stamp?.packagesKey === desiredKey || stampSatisfiesDesired) && allPresent) {
     return;
   }
 
@@ -337,6 +341,23 @@ function ensureOverlayDependencies(packageNames) {
     JSON.stringify({ packagesKey: desiredKey }, null, 2) + '\n',
     'utf8',
   );
+}
+
+function parseOverlayPackagesKey(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed) || !parsed.every(item => typeof item === 'string')) {
+      return null;
+    }
+
+    return new Set(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function generateWorkspaceAugmentations() {
@@ -645,7 +666,7 @@ function runBunBuild() {
     bunArgs.push('--minify');
   }
 
-  return spawnSync('bun', bunArgs, {
+  return spawnSync(resolveBunExecutable(), bunArgs, {
     cwd: workspaceRoot,
     encoding: 'utf8',
     env: {
@@ -655,6 +676,31 @@ function runBunBuild() {
     },
     maxBuffer: 256 * 1024 * 1024,
   });
+}
+
+function resolveBunExecutable() {
+  const candidates = [];
+  if (process.env.BUN_INSTALL) {
+    candidates.push(path.join(process.env.BUN_INSTALL, 'bin', 'bun'));
+  }
+  if (process.env.HOME) {
+    candidates.push(path.join(process.env.HOME, '.bun', 'bin', 'bun'));
+  }
+
+  for (const entry of (process.env.PATH ?? '').split(':').filter(Boolean)) {
+    candidates.push(path.join(entry, 'bun'));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return 'bun';
 }
 
 function finalizeBuild() {
@@ -706,9 +752,10 @@ function finalizeBuild() {
 
 
 function reconcileBuildErrors(stderrText) {
+  const stderr = typeof stderrText === 'string' ? stderrText : '';
   let changed = false;
 
-  for (const match of stderrText.matchAll(
+  for (const match of stderr.matchAll(
     /error: Could not resolve: "([^"]+)"[\s\S]*?\n\s+at ([^\n:]+):\d+:\d+/g,
   )) {
     const specifier = match[1];
@@ -741,7 +788,7 @@ function reconcileBuildErrors(stderrText) {
     }
   }
 
-  for (const match of stderrText.matchAll(
+  for (const match of stderr.matchAll(
     /error: No matching export in "([^"]+)" for import "([^"]+)"/g,
   )) {
     const targetPath = resolveBuildPath(match[1]);
