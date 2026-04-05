@@ -287,12 +287,14 @@ Current contract:
 Current subcommands:
 
 - `/autowork`
+- `/autowork safe`
 - `/autowork dangerous`
 - `/autowork run`
 - `/autowork step`
 - `/autowork status`
 - `/autowork doctor`
 - `/swim`
+- `/swim safe`
 - `/swim dangerous`
 - `/swim run`
 - `/swim step`

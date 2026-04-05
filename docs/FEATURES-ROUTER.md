@@ -133,6 +133,7 @@ Next steps:
 
 - Use `/autowork` for the operator-forward entrypoint
 - Use `/swim` for the more whimsical alias with the same guarantees
+- Use `/autowork safe` or `/swim safe` to restore the recommended checkpoint policy
 - Use `/autowork dangerous` or `/swim dangerous` only when you deliberately want the dangerous-mode policy
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk

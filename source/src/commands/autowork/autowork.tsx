@@ -31,7 +31,14 @@ type OnDone = (
   },
 ) => void
 
-type ShellAction = 'run' | 'step' | 'dangerous' | 'status' | 'doctor' | 'back'
+type ShellAction =
+  | 'run'
+  | 'step'
+  | 'safe'
+  | 'dangerous'
+  | 'status'
+  | 'doctor'
+  | 'back'
 
 function titleCaseRunMode(runMode: AutoworkRunMode): string {
   return runMode === 'dangerous' ? 'dangerous' : 'safe'
@@ -238,6 +245,25 @@ async function setAutoworkRunMode(
   )
 
   const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+  if (runMode === 'safe') {
+    const heading =
+      entryPoint === 'swim' ? 'Swim safe mode restored.' : 'Autowork safe mode restored.'
+
+    return {
+      ok: true,
+      message: [
+        heading,
+        '',
+        'Safe mode is the recommended default.',
+        'It carries the approved tracked plan to completion, one guarded chunk at a time, and stops cleanly on checkpoint failure.',
+        '',
+        `Current state: ${baseName} is now marked safe.`,
+        `Use ${baseName} run to carry the approved plan to completion.`,
+        `Use ${baseName} step when you want only one guarded chunk.`,
+      ].join('\n'),
+    }
+  }
+
   const quip = getAutoworkDangerousQuip(
     entryPoint,
     `${context.planPath}:dangerous:${context.state.runCount}`,
@@ -332,6 +358,11 @@ function AutoworkMenu({
               description: 'Execute one chunk, verify it, then stop instead of continuing the plan',
             },
             {
+              label: 'Safe mode',
+              value: 'safe' as const,
+              description: 'Restore the recommended checkpoint policy for this project state',
+            },
+            {
               label: 'Dangerous mode',
               value: 'dangerous' as const,
               description: 'Heavily discouraged. Relax selected checkpoint failures into recorded debt instead of safe-mode stops.',
@@ -380,8 +411,11 @@ function AutoworkMenu({
               return
             }
 
-            if (value === 'dangerous') {
-              const changed = await setAutoworkRunMode(entryPoint, 'dangerous')
+            if (value === 'safe' || value === 'dangerous') {
+              const changed = await setAutoworkRunMode(
+                entryPoint,
+                value === 'safe' ? 'safe' : 'dangerous',
+              )
               onDone(changed.message, { display: 'system' })
               return
             }
@@ -422,6 +456,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           '',
           'Available now:',
           `- ${baseName}`,
+          `- ${baseName} safe`,
           `- ${baseName} dangerous`,
           `- ${baseName} run`,
           `- ${baseName} step`,
@@ -435,6 +470,12 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         ].join('\n'),
         { display: 'system' },
       )
+      return null
+    }
+
+    if (trimmedArgs === 'safe') {
+      const changed = await setAutoworkRunMode(entryPoint, 'safe')
+      onDone(changed.message, { display: 'system' })
       return null
     }
 
@@ -509,6 +550,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `Unknown ${titleForEntryPoint(entryPoint).toLowerCase()} option.`,
         '',
         `Use /${entryPoint} for the menu, or one of:`,
+        `- /${entryPoint} safe`,
         `- /${entryPoint} dangerous`,
         `- /${entryPoint} run`,
         `- /${entryPoint} step`,
