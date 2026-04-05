@@ -21,6 +21,7 @@ import ct from './commands/ct/index.js'
 import diff from './commands/diff/index.js'
 import ctx_viz from './commands/ctx_viz/index.js'
 import doctor from './commands/doctor/index.js'
+import autowork from './commands/autowork/index.js'
 import memory from './commands/memory/index.js'
 import help from './commands/help/index.js'
 import ide from './commands/ide/index.js'
@@ -47,6 +48,7 @@ import session from './commands/session/index.js'
 import share from './commands/share/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
+import swim from './commands/swim/index.js'
 import tasks from './commands/tasks/index.js'
 import teleport from './commands/teleport/index.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -269,6 +271,7 @@ const COMMANDS = memoize((): Command[] => [
   addDir,
   advisor,
   agents,
+  autowork,
   branch,
   btw,
   chrome,
@@ -316,6 +319,7 @@ const COMMANDS = memoize((): Command[] => [
   status,
   statusline,
   stickers,
+  swim,
   tag,
   theme,
   feedback,
