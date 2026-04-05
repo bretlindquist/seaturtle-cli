@@ -142,6 +142,26 @@ function findMissingIgnoreEntries(repoRoot: string): string[] {
   return REQUIRED_GITIGNORE_ENTRIES.filter(entry => !lines.has(entry))
 }
 
+export type AutoworkHygieneStatus = {
+  ok: boolean
+  missingIgnoreEntries: string[]
+  forbiddenTrackedFiles: string[]
+}
+
+export async function assessAutoworkHygiene(
+  repoRoot: string,
+): Promise<AutoworkHygieneStatus> {
+  const missingIgnoreEntries = findMissingIgnoreEntries(repoRoot)
+  const forbiddenTrackedFiles = await getTrackedForbiddenFiles(repoRoot)
+
+  return {
+    ok:
+      missingIgnoreEntries.length === 0 && forbiddenTrackedFiles.length === 0,
+    missingIgnoreEntries,
+    forbiddenTrackedFiles,
+  }
+}
+
 export async function assessAutoworkEligibility(
   planPath: string,
 ): Promise<AutoworkEligibilityResult> {
@@ -218,12 +238,12 @@ export async function assessAutoworkEligibility(
     summary: `Plan file exists: ${resolvedPlanPath}`,
   })
 
-  const missingIgnoreEntries = findMissingIgnoreEntries(repoRoot)
-  if (missingIgnoreEntries.length > 0) {
+  const hygiene = await assessAutoworkHygiene(repoRoot)
+  if (hygiene.missingIgnoreEntries.length > 0) {
     checks.push({
       name: 'ignore-hygiene',
       ok: false,
-      summary: `Missing .gitignore entries: ${missingIgnoreEntries.join(', ')}`,
+      summary: `Missing .gitignore entries: ${hygiene.missingIgnoreEntries.join(', ')}`,
     })
     return fail(
       'ignore_hygiene_failed',
@@ -241,12 +261,11 @@ export async function assessAutoworkEligibility(
     summary: '.gitignore includes the required local-secret guardrails.',
   })
 
-  const forbiddenTrackedFiles = await getTrackedForbiddenFiles(repoRoot)
-  if (forbiddenTrackedFiles.length > 0) {
+  if (hygiene.forbiddenTrackedFiles.length > 0) {
     checks.push({
       name: 'forbidden-tracked-files',
       ok: false,
-      summary: `Tracked local-secret paths found: ${forbiddenTrackedFiles.join(', ')}`,
+      summary: `Tracked local-secret paths found: ${hygiene.forbiddenTrackedFiles.join(', ')}`,
     })
     return fail(
       'forbidden_tracked_files',
@@ -326,4 +345,3 @@ export async function assessAutoworkEligibility(
     },
   }
 }
-
