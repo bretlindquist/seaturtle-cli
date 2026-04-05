@@ -118,7 +118,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Retune CT for this project"
-        subtitle="This rewrites `.ct/identity.md` and `.ct/soul.md` with the picker choices."
+        subtitle="This rewrites the private `.ct/identity.md` and `.ct/soul.md` files that shape CT in this project."
         onCancel={() => setScreen('overview')}
       >
         <CtIdentityBootstrapDialog
@@ -136,7 +136,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Reset this project to active defaults?"
-        subtitle="This will rewrite `.ct/identity.md` and `.ct/soul.md`. `.ct/session.md` is left alone."
+        subtitle="This restores the private CT identity and soul for this project to the active SeaTurtle defaults. `.ct/session.md` is left alone."
         onCancel={() => setScreen('overview')}
       >
         <Select
@@ -162,7 +162,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             clearMemoryFileCaches()
             markCtIdentityBootstrapComplete('defaulted')
             onExit(
-              'Reset this project to the active CT defaults.\n\nNext: edit `.ct/session.md` if you want to steer today’s work, or use /ct to retune CT for this project.',
+              'Reset this project to the active SeaTurtle CT defaults.\n\nNext: edit `.ct/session.md` if you want to steer today’s work, or use /ct to retune CT for this project.',
               { display: 'system' },
             )
           }}
@@ -176,7 +176,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Reset global CT defaults?"
-        subtitle="This removes `~/.ct/defaults/identity.md` and `~/.ct/defaults/soul.md` if they exist."
+        subtitle="This removes your custom global CT identity and soul defaults if they exist."
         onCancel={() => setScreen('overview')}
       >
         <Select
@@ -200,7 +200,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
             resetCtGlobalDefaultsToShipped()
             onExit(
-              'Reset global CT defaults to the built-in SeaTurtle starter.\n\nNext: new projects will use the built-in defaults. If you want this project to match too, use /ct and choose “Reset this project to active defaults.”',
+              'Reset global CT defaults to the built-in SeaTurtle starter kit.\n\nNext: new projects will use the built-in defaults. If you want this project to match too, use /ct and choose “Reset this project to active defaults.”',
               { display: 'system' },
             )
           }}
@@ -212,8 +212,8 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
   return (
     <Dialog
-      title="CT private project layer"
-      subtitle="Edit the private `.ct/` files for this project, retune CT, or manage global defaults."
+      title="CT private identity layer"
+      subtitle="Shape CT’s private identity, soul, and session for this project, or manage the default SeaTurtle starter kit."
       onCancel={() => onExit('CT menu dismissed', { display: 'system' })}
     >
       <Box flexDirection="column" gap={1}>
@@ -227,12 +227,12 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             {
               label: 'Edit project identity',
               value: 'edit-identity' as const,
-              description: 'Tune CT’s role and interaction posture for this project',
+              description: 'Shape how CT behaves and thinks in this project',
             },
             {
               label: 'Edit project soul',
               value: 'edit-soul' as const,
-              description: 'Adjust warmth, curiosity, and overall CT tone',
+              description: 'Adjust warmth, curiosity, playfulness, and overall CT tone',
             },
             {
               label: 'Edit current session note',
@@ -242,7 +242,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             {
               label: 'Retune CT for this project',
               value: 'retune' as const,
-              description: 'Use the short picker again and rewrite identity + soul',
+              description: 'Use the short conversational picker again and rewrite identity + soul',
             },
             {
               label: 'Reset this project to active defaults',
@@ -252,15 +252,15 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             {
               label: 'Edit global identity default',
               value: 'edit-global-identity' as const,
-              description: 'New projects will inherit this CT identity',
+              description: 'Future projects will inherit this CT identity',
             },
             {
               label: 'Edit global soul default',
               value: 'edit-global-soul' as const,
-              description: 'New projects will inherit this CT tone and values layer',
+              description: 'Future projects will inherit this CT tone and values layer',
             },
             {
-              label: 'Reset global defaults to SeaTurtle starter',
+              label: 'Reset global defaults to SeaTurtle starter kit',
               value: 'reset-global' as const,
               description: 'Remove custom global defaults and go back to the shipped baseline',
             },
