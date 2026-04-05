@@ -266,7 +266,7 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const t16 = headerText ?? (shouldUseOpenAiCodexProvider() ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future Claude Code sessions." : "Switch between the models currently supported by this build. Applies to this session and future Claude Code sessions. For other/previous model names, specify with --model.");
+  const t16 = headerText ?? (shouldUseOpenAiCodexProvider() ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future CT sessions." : "Switch between the models currently supported by this build. Applies to this session and future CT sessions. For other/previous model names, specify with --model.");
   let t17;
   if ($[42] !== t16) {
     t17 = <Text dimColor={true}>{t16}</Text>;
