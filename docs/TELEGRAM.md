@@ -49,6 +49,12 @@ After pairing, `/telegram` can also:
 - send a Telegram test message
 - run Telegram doctor diagnostics
 
+For a concise in-app summary, run:
+
+```text
+/telegram help
+```
+
 Environment variables still work and override in-app pairing when present.
 
 ## Environment Variable Setup

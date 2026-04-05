@@ -36,12 +36,21 @@ setup, validation, and current gaps.
 Telegram setup, pairing, and status guidance lives in
 [`docs/TELEGRAM.md`](./docs/TELEGRAM.md).
 
+Feature routing for this fork lives in
+[`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md).
+
 Telegram in this fork supports:
 
 - saved bot profiles
 - per-project Telegram bot binding
 - project-local allowlisted chats
 - in-app pairing, test, and doctor flows via `/telegram`
+
+If a user asks how to use a custom feature in this fork, the intended flow is:
+
+- command first
+- short next-step explanation
+- deeper doc only if needed
 
 ## Prerequisites
 
