@@ -1,209 +1,306 @@
-# CT / seaturtle — Custom Build With OpenAI/Codex OAuth Port
+# SeaTurtle CLI (CT)
 
-![](<img/2026-03-31 14-58-01-combined.gif>)
+SeaTurtle CLI, or `CT`, is a working fork of Andrew Kramer-Inno's Claude Code
+source-build. The goal of this fork is to preserve as much of the local
+feature surface as possible while porting the main runtime toward native
+OpenAI/Codex OAuth support.
 
-Rebuilt from source maps with real source preservation for `@ant/*` packages.
+This is not a clean-room reimplementation. It is a heavily modified derivative
+of the Andrew source-build base, with a branded wrapper layer, provider-aware
+runtime changes, and additional operator-facing features such as Telegram
+integration, project-local reminders, and a private project-local CT working
+layer.
 
-This fork keeps Andrew Kramer-Inno's Claude Code source-build as the product
-surface base, and adds a native OpenAI/Codex provider path for the main loop.
-The user-facing wrapper brand for this fork is `CT`, with `seaturtle` as an
-equivalent alias.
+## What This Fork Is Trying To Do
 
-Current fork goals:
+- keep the source-build local UX useful and familiar
+- run the main conversation loop on OpenAI/Codex when selected
+- preserve local tools, MCP, replay/resume, and streaming where possible
+- avoid hidden fallback into Anthropic-only helpers when OpenAI/Codex is active
+- make unsupported surfaces explicit instead of pretending they work
+- provide a more approachable user-facing shell through `ct` / `seaturtle`
 
-- preserve as much of the local Claude Code feature surface as possible
-- run the main conversation loop on OpenAI/Codex OAuth when selected
-- keep tools, MCP, replay, and streaming working on that provider path
-- avoid silent fallback into Anthropic-only helper behavior
-- add a private `.ct/` project identity layer with warm SeaTurtle defaults
+## Current Status
 
-Current OpenAI/Codex status:
+### Working
 
-- supported:
-  - main-loop OpenAI/Codex execution
-  - local tool use
-  - replay/resume
-  - stream-json text and tool-use event parity
-  - strict OpenAI tool-schema coverage for `TodoWrite`
-  - provider-aware `status` and `auth status`
-  - `claude auto-mode critique`
-- still gated or Anthropic-only:
-  - auto-mode safety classifier itself
-  - permission explainer
-  - Claude in Chrome lightning inference path
-  - OpenAI/Codex GitHub Actions setup for OAuth-only installs
+- branded local entrypoints:
+  - `ct`
+  - `seaturtle`
+  - `ct-dev`
+- OpenAI/Codex-backed main loop
+- local tool use on the OpenAI/Codex path
+- replay/resume on the OpenAI/Codex path
+- streamed text and tool-use event translation
+- strict OpenAI tool-schema coverage for `TodoWrite`
+- provider-aware `/login`, `/logout`, `/model`, `/effort`, `/status`
+- Telegram pairing and project binding from inside the app
+- Telegram text, photos, documents, and voice-note transcription
+- per-project reminders with `/remindme` / `/rm`
 
-See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for provider behavior,
-setup, validation, and current gaps.
+### Intentionally Gated Or Still Anthropic-Bound
 
-Telegram setup, pairing, and status guidance lives in
-[`docs/TELEGRAM.md`](./docs/TELEGRAM.md).
+- auto-mode safety classifier itself
+- permission explainer
+- Claude in Chrome lightning inference path
+- some remaining Anthropic-only helper/account surfaces
+- OpenAI/Codex GitHub Actions setup for OAuth-only installs
 
-Feature routing for this fork lives in
-[`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md).
+The goal is explicit capability truthfulness. If a surface is not production
+ready on OpenAI/Codex, the app should say so directly.
 
-CT also maintains a private project-local identity layer:
+## Quick Start
 
-- `.ct/identity.md`
-- `.ct/soul.md`
-- `.ct/session.md`
-- `CLAUDE.local.md` as the compatibility bridge
-
-That layer is local/private by default and is meant for CT's project-specific
-working style and current context, not team-shared repo policy.
-On a new project, CT writes starter SeaTurtle defaults immediately, then offers
-to tune them through a short in-app picker flow.
-Use `/ct` any time to retune CT, edit the private `.ct` files, or manage
-global SeaTurtle defaults for future projects.
-
-CT also supports a private per-project reminder:
-
-- use `/rm <what to remember>` to save it quickly
-- use `/remindme` to review or clear it
-- CT shows it after replies so you do not lose track of the important thing
-
-Branding and compatibility boundaries live in
-[`docs/BRANDING.md`](./docs/BRANDING.md).
-
-Telegram in this fork supports:
-
-- saved bot profiles
-- per-project Telegram bot binding
-- project-local allowlisted chats
-- in-app pairing, test, and doctor flows via `/telegram`
-
-If a user asks how to use a custom feature in this fork, the intended flow is:
-
-- command first
-- short next-step explanation
-- deeper doc only if needed
-
-## Prerequisites
-
-- Node.js >= 20
-- Bun >= 1.1
-- npm (for overlay dependency install on first build)
-
-## Build
-
-```bash
-# Production (minified)
-node scripts/build-cli.mjs
-
-# Development (unminified, faster builds)
-node scripts/build-cli.mjs --no-minify
-
-# Custom output path
-node scripts/build-cli.mjs --outfile /path/to/output/cli.js
-```
-
-Output: `dist/cli.js` (wrapper) + `dist/cli.bundle/` (bundle).
-
-First build runs `npm install` for ~80 overlay packages. Subsequent builds skip this.
-
-## Run
-
-Recommended local install:
+### 1. Install local wrappers
 
 ```bash
 ./scripts/install-local-cli.sh --build
+```
+
+That installer:
+
+- builds the repo with the development bundle
+- installs `ct`, `seaturtle`, and `ct-dev`
+- checks for the build prerequisites it needs
+- explains the next step instead of dumping raw downstream errors
+
+### 2. Start CT
+
+```bash
 ct
 ```
 
-The installer now preflights the local prerequisites it needs for a build:
+If `ct` is not on your `PATH` yet, the installer will tell you:
+
+- where it installed the wrappers
+- whether your shell can see them now
+- what to add to `PATH` or whether to run `rehash`
+
+### 3. Choose auth and runtime
+
+At startup, CT can guide you through:
+
+- Anthropic account auth
+- Anthropic Console auth
+- OpenAI Codex OAuth
+
+For OpenAI mode, CT uses local Codex auth and can launch `codex login` from the
+startup flow when needed.
+
+### 4. Use the app
+
+Inside CT, the next-step commands to know first are:
+
+- `/login`
+- `/model`
+- `/effort`
+- `/status`
+- `/telegram`
+- `/remindme`
+
+## Installation And Prerequisites
+
+### Required To Build
 
 - `node` 18+
 - `npm`
 - `bun`
 
-It also checks for `codex` and explains that it is only required when you want
-OpenAI/Codex OAuth inside CT.
+The installer now checks those before it tries to build.
 
-That installs branded local wrappers:
+### Required For OpenAI/Codex OAuth
 
-- `ct`
-- `seaturtle`
-- `ct-dev`
+- `codex` CLI on your `PATH`
 
-Compatibility entrypoint:
+CT can still install without `codex`, but OpenAI/Codex login/setup will remain
+unavailable until the Codex CLI is installed.
+
+### Install Commands
+
+Normal local install:
 
 ```bash
-node dist/cli.js
+./scripts/install-local-cli.sh --build
 ```
 
-Compatibility note:
+Install to a custom prefix:
 
-- prefer `ct` or `seaturtle` for normal usage
-- `node dist/cli.js` remains the underlying runtime entrypoint
-- internal `CLAUDE_*` env vars and `~/.claude` paths are intentionally kept for
-  compatibility
+```bash
+./scripts/install-local-cli.sh --build --prefix "$HOME/.local/bin"
+```
 
-### Run With OpenAI/Codex
+Also expose a compatibility `claude` command locally:
 
-This fork supports an OpenAI/Codex-backed main loop when the provider is
-enabled:
+```bash
+./scripts/install-local-cli.sh --build --as-default-claude
+```
+
+### Underlying Runtime Entry Point
+
+The user-facing command should be:
 
 ```bash
 ct
 ```
 
-Useful checks:
+Compatibility entry point:
+
+```bash
+node dist/cli.js
+```
+
+The runtime still uses internal compatibility names such as `CLAUDE_*`,
+`~/.claude`, and `dist/cli.js` where changing them would create unnecessary
+breakage.
+
+For a fuller explanation, see [docs/BRANDING.md](./docs/BRANDING.md).
+
+## OpenAI/Codex Support
+
+This fork adds a native OpenAI/Codex provider path to the Andrew source-build
+runtime.
+
+### What Currently Works On OpenAI/Codex
+
+- normal prompts
+- local tools
+- replay/resume
+- `TodoWrite` strict-schema turns
+- provider-aware auth and status reporting
+- provider-aware model and effort selection
+- provider-neutral auto-mode critique
+
+### What To Run
+
+Check runtime/auth:
 
 ```bash
 ct auth status --json
+```
+
+Quick smoke test:
+
+```bash
 ct -p "say hello in five words"
 ```
 
-Telegram setup helper:
+Tool-use smoke test:
 
 ```bash
-ct
-# then run /telegram inside the app
+ct -p "Use the Bash tool to run 'pwd' and reply with only the resulting path."
 ```
 
-### Computer Use (macOS)
+### What Is Still Limited
 
-Computer use runs in-process automatically when the `CHICAGO_MCP` flag is enabled. The native addons are resolved from `prebuilds/` relative to the bundled package, or via env var overrides:
+Some inherited surfaces are still Anthropic-shaped. CT tries to gate those
+cleanly instead of silently leaking providers.
 
-```bash
-# Override native addon paths if the default resolution fails
-COMPUTER_USE_SWIFT_NODE_PATH="/path/to/computer-use-swift.node" \
-COMPUTER_USE_INPUT_NODE_PATH="/path/to/computer-use-input.node" \
-node dist/cli.js
+For provider details, known gates, and validation commands, see
+[docs/OPENAI-CODEX.md](./docs/OPENAI-CODEX.md).
+
+## Telegram Integration
+
+This fork supports Telegram as an external control and messaging channel.
+
+### Supported Today
+
+- inbound text
+- inbound photos
+- inbound documents
+- inbound voice-note transcription through OpenAI transcription
+- outbound text
+- outbound photos
+- outbound documents
+- multiple saved bot profiles
+- per-project bot binding
+- project-local allowlisted chats
+- in-app pairing, test, and doctor flows
+
+### Start Here
+
+Run:
+
+```text
+/telegram
 ```
 
-## Feature Flags
+That is the primary setup and diagnostics entrypoint. It can:
 
-| Flag | What it does |
-|------|-------------|
-| `BUILDING_CLAUDE_APPS` | Skill content for building Claude apps |
-| `BASH_CLASSIFIER` | Bash command safety classifier |
-| `TRANSCRIPT_CLASSIFIER` | Transcript-level auto-mode classifier |
-| `CHICAGO_MCP` | Computer use via MCP (screenshot, click, type, etc.) |
+- pair a bot in-app
+- bind a saved bot to the current project
+- manage allowlisted chats
+- send a Telegram test message
+- run a Telegram doctor pass
 
-Toggle in `enabledBundleFeatures` inside `scripts/build-cli.mjs`. ~90 flags available — search `feature('` in source.
+Short in-app summary:
 
-## Native Addons
+```text
+/telegram help
+```
 
-In `source/native-addons/`:
+Full reference:
 
-| File | Purpose |
-|------|---------|
-| `computer-use-swift.node` | Screen capture, app management (macOS) |
-| `computer-use-input.node` | Mouse/keyboard input (macOS) |
-| `image-processor.node` | Sharp image processing |
-| `audio-capture.node` | Audio capture |
+- [docs/TELEGRAM.md](./docs/TELEGRAM.md)
 
-## Clean Rebuild
+## Core Commands Added Or Hardened In This Fork
+
+### Auth And Runtime
+
+- `/login`
+- `/logout`
+- `/model`
+- `/effort`
+- `/status`
+
+These are provider-aware and should guide the user toward the next step rather
+than dropping them into Anthropic-first wording.
+
+### Telegram
+
+- `/telegram`
+- `/telegram help`
+
+### Reminders
+
+- `/remindme`
+- `/rm`
+- `/remindmeclear`
+- `/rmc`
+
+These store a short project-local reminder and surface it after responses.
+
+## Build And Development
+
+### Build
+
+Production bundle:
 
 ```bash
-rm -f .cache/workspace/.prepared.json
+node scripts/build-cli.mjs
+```
+
+Development bundle:
+
+```bash
 node scripts/build-cli.mjs --no-minify
 ```
 
-## Development Check
+Custom output:
 
-Use the canonical repo check:
+```bash
+node scripts/build-cli.mjs --outfile /path/to/output/cli.js
+```
+
+Output:
+
+- `dist/cli.js`
+- `dist/cli.bundle/`
+
+The first build performs the overlay dependency install. Later builds reuse it.
+
+### Validation
+
+Canonical repo checks:
 
 ```bash
 npm run lint:openai-codex
@@ -211,35 +308,149 @@ npm run dev-check
 npm run openai-codex-check
 ```
 
-That verifies `node` / `npm` / `bun`, runs the unminified build, and smoke-tests
-the built CLI. The lint command checks the production port surfaces directly,
-and the OpenAI/Codex check runs the provider regression harness.
-When the live ChatGPT/Codex account is quota-limited, that harness exits with
-an explicit skip rather than a false failure.
+What they do:
 
-## Auth And Secrets
+- `lint:openai-codex`
+  - checks the OpenAI/Codex port surfaces and shell scripts
+- `dev-check`
+  - runs the main repo build/smoke path
+- `openai-codex-check`
+  - runs the OpenAI/Codex regression harness
 
-Do not commit live auth state to this repo.
+When the live Codex account is quota-limited, the OpenAI/Codex regression
+harness exits with an explicit skip instead of reporting a false regression.
 
-- OpenAI/Codex auth is expected to come from local Codex CLI auth state
-  (for example `~/.codex/auth.json`) and/or secure storage
-- local machine config and credential dumps should stay untracked
-- if additional setup docs or examples are needed, add sanitized examples such
-  as `.env.example` or `*.example.json`, not real credentials
+### Clean Rebuild
 
-## Structure
-
+```bash
+rm -f .cache/workspace/.prepared.json
+node scripts/build-cli.mjs --no-minify
 ```
-scripts/build-cli.mjs    — Build script (source map extraction + bun bundling)
-scripts/install-local-cli.sh — Local wrapper installer for ct / seaturtle
-source/cli.js.map         — Original source map (4756 modules)
-source/native-addons/     — Pre-built .node binaries
-source/src/               — Overlay assets (.md skill files)
-.cache/workspace/         — Extracted workspace (generated, gitignored)
-dist/                     — Build output (generated)
-bin/ct                    — Branded OpenAI/Codex wrapper
-bin/seaturtle             — Alias wrapper for ct
-assets/branding/          — CT / seaturtle text + SVG branding assets
-docs/OPENAI-CODEX.md      — Provider port behavior, setup, and validation
-docs/BRANDING.md          — CT branding and compatibility boundaries
+
+## Computer Use / Native Addons
+
+When `CHICAGO_MCP` is enabled, computer-use features run through the packaged
+native addons and MCP path.
+
+Native addons live under:
+
+- `source/native-addons/`
+
+Current addon set includes:
+
+- `computer-use-swift.node`
+- `computer-use-input.node`
+- `image-processor.node`
+- `audio-capture.node`
+
+If default addon resolution fails, you can override paths with env vars:
+
+```bash
+COMPUTER_USE_SWIFT_NODE_PATH="/path/to/computer-use-swift.node" \
+COMPUTER_USE_INPUT_NODE_PATH="/path/to/computer-use-input.node" \
+ct
 ```
+
+## Feature Flags
+
+The current external build enables a narrow subset of the available bundle
+flags.
+
+Enabled in the current build pipeline:
+
+- `BUILDING_CLAUDE_APPS`
+- `BASH_CLASSIFIER`
+- `TRANSCRIPT_CLASSIFIER`
+- `CHICAGO_MCP`
+
+Toggle points:
+
+- `scripts/build-cli.mjs`
+
+There are many more flags in the source tree, but most are not simply “one flag
+away” from being ready in this external build.
+
+## Security And Auth Model
+
+Do not commit live auth state or machine-specific credentials to this repo.
+
+Expected model:
+
+- OpenAI/Codex auth comes from local Codex CLI auth state and/or secure storage
+- repo-local token dumps stay untracked
+- local machine config stays untracked
+- examples and docs should be sanitized
+
+If another user needs setup instructions, add:
+
+- `.env.example`
+- `*.example.json`
+- setup docs
+
+Do not add:
+
+- real `.env` files
+- copied token files
+- `.codex/`
+- `.claude/`
+- `.mcp.json`
+
+## Branding And Compatibility Boundaries
+
+This repo uses `CT` as the primary user-facing name and `seaturtle` as an
+equivalent alias.
+
+What is intentionally rebranded:
+
+- wrappers
+- startup and shell copy
+- help and status text
+- docs and guidance
+
+What intentionally remains unchanged for compatibility:
+
+- `CLAUDE_*` env vars
+- `~/.claude`
+- `dist/cli.js`
+- package names
+- upstream protocol and service identifiers
+
+See [docs/BRANDING.md](./docs/BRANDING.md) for the explicit compatibility
+boundary.
+
+## Repository Structure
+
+```text
+bin/ct                          — primary branded wrapper
+bin/seaturtle                   — alias wrapper
+bin/ct-dev                      — development wrapper
+scripts/build-cli.mjs           — build pipeline
+scripts/install-local-cli.sh    — local installer
+source/cli.js.map               — recovered source map
+source/native-addons/           — packaged native addons
+source/src/                     — main recovered source overlay
+.cache/workspace/               — generated extracted workspace
+dist/                           — built output
+assets/branding/                — SeaTurtle text/SVG assets
+docs/OPENAI-CODEX.md            — provider behavior and validation
+docs/TELEGRAM.md                — Telegram pairing and operation
+docs/FEATURES-ROUTER.md         — command/doc routing for fork features
+docs/BRANDING.md                — CT branding and compatibility boundaries
+```
+
+## Documentation Map
+
+Use these in order:
+
+1. This `README.md`
+2. [docs/FEATURES-ROUTER.md](./docs/FEATURES-ROUTER.md)
+3. Feature-specific docs:
+   - [docs/OPENAI-CODEX.md](./docs/OPENAI-CODEX.md)
+   - [docs/TELEGRAM.md](./docs/TELEGRAM.md)
+   - [docs/BRANDING.md](./docs/BRANDING.md)
+
+The intended user experience is:
+
+- command first
+- short next-step guidance second
+- deep docs only when needed
