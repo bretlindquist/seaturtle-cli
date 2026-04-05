@@ -1,6 +1,9 @@
 export const HALF_SHELL_ARCHIVES_NAME = 'The Half-Shell Archives'
 export const SHELL_ARCHIVES_SHORTHAND = 'The Shell Archives'
 
+// Internal voice design note for future line work:
+// docs/internal/CT-VOICE-GUIDANCE.md
+
 const BOOTSTRAP_QUIPS = [
   "I'm alive! Muahahahaha. Now to take over the world. Don't worry, I'll leave space for you in my terrarium.",
   'Bet on a turtle, win every time.',

@@ -5,11 +5,13 @@ import { addFileGlobRuleToGitignore } from '../../utils/git/gitignore.js'
 import { saveCurrentProjectConfig } from '../../utils/config.js'
 import { ensureCtArchiveFiles } from './archives.js'
 import {
+  SHIPPED_DEFAULT_CT_ATTUNEMENT,
   SHIPPED_DEFAULT_CT_IDENTITY,
   SHIPPED_DEFAULT_CT_SESSION,
   SHIPPED_DEFAULT_CT_SOUL,
 } from './defaults.js'
 import {
+  getCtAttunementPath,
   getCtCompatBridgePath,
   getCtGlobalIdentityOverridePath,
   getCtGlobalSoulOverridePath,
@@ -24,6 +26,7 @@ import {
 
 const CT_ROUTER_CONTENT = `@./identity.md
 @./soul.md
+@./attunement.md
 @./session.md
 `
 
@@ -33,6 +36,7 @@ const CT_COMPAT_BRIDGE_CONTENT = `@.ct/router.md
 type ActiveCtDefaults = {
   identity: string
   soul: string
+  attunement: string
   session: string
 }
 
@@ -55,6 +59,7 @@ export function getActiveCtDefaults(): ActiveCtDefaults {
       SHIPPED_DEFAULT_CT_IDENTITY,
     soul:
       readIfExists(getCtGlobalSoulOverridePath()) ?? SHIPPED_DEFAULT_CT_SOUL,
+    attunement: SHIPPED_DEFAULT_CT_ATTUNEMENT,
     session: SHIPPED_DEFAULT_CT_SESSION,
   }
 }
@@ -78,6 +83,17 @@ function writeFile(path: string, content: string): void {
   writeFileSyncAndFlush_DEPRECATED(path, content, { encoding: 'utf-8' })
 }
 
+function ensureFileContainsLine(path: string, line: string): boolean {
+  const current = readIfExists(path)
+  if (current === null || current.includes(line)) {
+    return false
+  }
+
+  const next = `${current.trimEnd()}\n${line}\n`
+  writeFile(path, next)
+  return true
+}
+
 export type CtBootstrapResult = {
   projectRoot: string
   createdPaths: string[]
@@ -92,6 +108,7 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   const routerPath = getCtRouterPath(root)
   const identityPath = getCtIdentityPath(root)
   const soulPath = getCtSoulPath(root)
+  const attunementPath = getCtAttunementPath(root)
   const sessionPath = getCtSessionPath(root)
   const stateDir = getCtStateDir(root)
   const compatBridgePath = getCtCompatBridgePath(root)
@@ -112,11 +129,17 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   if (writeFileIfMissing(soulPath, defaults.soul)) {
     createdPaths.push(soulPath)
   }
+  if (writeFileIfMissing(attunementPath, defaults.attunement)) {
+    createdPaths.push(attunementPath)
+  }
   if (writeFileIfMissing(sessionPath, defaults.session)) {
     createdPaths.push(sessionPath)
   }
   if (writeFileIfMissing(compatBridgePath, CT_COMPAT_BRIDGE_CONTENT)) {
     createdPaths.push(compatBridgePath)
+  }
+  if (ensureFileContainsLine(routerPath, '@./attunement.md')) {
+    createdPaths.push(routerPath)
   }
 
   await Promise.all([
@@ -154,6 +177,7 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
 export function overwriteProjectCtIdentityFiles(input: {
   identity?: string
   soul?: string
+  attunement?: string
   session?: string
 }): void {
   const root = getCtProjectRoot()
@@ -166,6 +190,10 @@ export function overwriteProjectCtIdentityFiles(input: {
     writeFile(getCtSoulPath(root), input.soul)
   }
 
+  if (input.attunement !== undefined) {
+    writeFile(getCtAttunementPath(root), input.attunement)
+  }
+
   if (input.session !== undefined) {
     writeFile(getCtSessionPath(root), input.session)
   }
@@ -176,6 +204,7 @@ export function resetProjectCtIdentityToActiveDefaults(): void {
   overwriteProjectCtIdentityFiles({
     identity: defaults.identity,
     soul: defaults.soul,
+    attunement: defaults.attunement,
   })
 }
 

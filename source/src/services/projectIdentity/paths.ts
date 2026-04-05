@@ -7,6 +7,7 @@ export const CT_DIRNAME = '.ct'
 export const CT_ROUTER_FILENAME = 'router.md'
 export const CT_IDENTITY_FILENAME = 'identity.md'
 export const CT_SOUL_FILENAME = 'soul.md'
+export const CT_ATTUNEMENT_FILENAME = 'attunement.md'
 export const CT_SESSION_FILENAME = 'session.md'
 export const CT_STATE_DIRNAME = 'state'
 export const CT_ARCHIVES_FILENAME = 'archives.json'
@@ -35,6 +36,10 @@ export function getCtSoulPath(root: string = getCtProjectRoot()): string {
 
 export function getCtSessionPath(root: string = getCtProjectRoot()): string {
   return join(getCtProjectDir(root), CT_SESSION_FILENAME)
+}
+
+export function getCtAttunementPath(root: string = getCtProjectRoot()): string {
+  return join(getCtProjectDir(root), CT_ATTUNEMENT_FILENAME)
 }
 
 export function getCtStateDir(root: string = getCtProjectRoot()): string {

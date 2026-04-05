@@ -1,3 +1,5 @@
+// Keep autowork/swim launch voice distinct from ordinary CT banter.
+// Internal note: docs/internal/CT-VOICE-GUIDANCE.md
 const AUTOWORK_QUIPS = [
   "Built for speed but the roads can't hold me. Let's do this.",
   'Hold on to your butts. Engaging hyperdrive.',
