@@ -275,7 +275,7 @@ function prepareWorkspace(overlayPackages) {
   generatePackageSubpathShims(keepPaths);
   ensureSharpPackageJson(keepPaths);
 
-  pruneMissingFiles(workspaceRoot, keepPaths, overlaySet);
+  pruneMissingFiles(workspaceRoot, keepPaths);
 
   fs.writeFileSync(
     markerPath,
@@ -1019,7 +1019,7 @@ function renderStubExpression(exportName, basename) {
   if (exportName === 'BROWSER_TOOLS') {
     return '[]';
   }
-  if (/_NAME$/.test(exportName)) {
+  if (exportName.endsWith('_NAME')) {
     return JSON.stringify(basename);
   }
   if (/(Dialog|Message|Callout|Panel|View|Layout|Wrapper|Chooser|Wizard|Provider|Box|Text|App)$/.test(exportName)) {
@@ -1387,7 +1387,7 @@ function walkFiles(root) {
   return files;
 }
 
-function pruneMissingFiles(root, keepPaths, overlayPackages) {
+function pruneMissingFiles(root, keepPaths) {
   if (!isDirectory(root)) {
     return;
   }
@@ -1402,7 +1402,7 @@ function pruneMissingFiles(root, keepPaths, overlayPackages) {
     }
 
     if (entry.isDirectory()) {
-      pruneMissingFiles(fullPath, keepPaths, overlayPackages);
+      pruneMissingFiles(fullPath, keepPaths);
       if (fs.readdirSync(fullPath).length === 0) {
         fs.rmdirSync(fullPath);
       }
