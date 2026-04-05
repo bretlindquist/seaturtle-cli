@@ -19,6 +19,7 @@ import {
   verifyAutoworkPostCommitCleanTree,
   verifyAutoworkPreChunkGitState,
 } from './gitChecks.js'
+import { sendAutoworkTelegramStopNotice } from './telegramAlerts.js'
 import {
   readAutoworkState,
   type AutoworkMode,
@@ -292,6 +293,14 @@ function persistAutoworkStop(
     return
   }
 
+  const shouldNotify =
+    !context.state.stopReason ||
+    context.state.stopReason.code !== code ||
+    context.state.stopReason.message !== message ||
+    context.state.stopReason.chunkId !== chunkId
+
+  const telegramEscalationEnabled = context.state.telegramEscalationEnabled
+
   updateAutoworkState(
     current => ({
       ...current,
@@ -307,6 +316,17 @@ function persistAutoworkStop(
     }),
     context.repoRoot,
   )
+
+  if (shouldNotify) {
+    void sendAutoworkTelegramStopNotice({
+      repoRoot: context.repoRoot,
+      telegramEscalationEnabled,
+      code,
+      message,
+      failedCheck,
+      chunkId,
+    })
+  }
 }
 
 export async function inspectAndSelectAutoworkMode(
