@@ -7,12 +7,14 @@ import {
 } from '../services/projectIdentity/state.js'
 import {
   buildGuidedCtIdentity,
-  getBootstrapQuip,
   type CtIdentityFocusPreset,
   type CtIdentityRolePreset,
   type CtIdentityTonePreset,
 } from '../services/projectIdentity/templates.js'
-import { HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js'
+import {
+  getBootstrapQuip,
+  HALF_SHELL_ARCHIVES_NAME,
+} from '../services/projectIdentity/lore.js'
 import { Box, Text } from '../ink.js'
 import { clearMemoryFileCaches } from '../utils/claudemd.js'
 import { Select } from './CustomSelect/select.js'
