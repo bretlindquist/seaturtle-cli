@@ -254,6 +254,22 @@ export function updateCtGameState(
   return next
 }
 
+export function markGameCommandDiscovered(
+  root?: string,
+): CtGameState {
+  return updateCtGameState(
+    current => ({
+      ...current,
+      lastOfferedAt: current.lastOfferedAt ?? Date.now(),
+      discoveries: {
+        ...current.discoveries,
+        gameCommandDiscovered: true,
+      },
+    }),
+    root,
+  )
+}
+
 export function addSecret(secret: string, root?: string): CtArchives {
   return updateCtArchives(
     current => ({
