@@ -47,6 +47,10 @@ const BOOTSTRAP_QUIPS = [
   'Raaarrrrrrrrr.',
   "You haven't seen my final form yet.",
   "Can't get enough of that BTE, amiright? Big Turtle Energy.",
+  'You have unleashed the mighty SeaTurtle!',
+  'Sea my awesome power!',
+  "Maybe I'm the real one and you are the ai, ever think about that?",
+  'Hard on the outside, soft on the inside!',
 ] as const
 
 const ROLE_LABELS: Record<CtIdentityRolePreset, string> = {
