@@ -3,6 +3,7 @@ import { writeFileSyncAndFlush_DEPRECATED } from '../../utils/file.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { addFileGlobRuleToGitignore } from '../../utils/git/gitignore.js'
 import { saveCurrentProjectConfig } from '../../utils/config.js'
+import { ensureCtArchiveFiles } from './archives.js'
 import {
   SHIPPED_DEFAULT_CT_IDENTITY,
   SHIPPED_DEFAULT_CT_SESSION,
@@ -100,6 +101,8 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   fs.mkdirSync(stateDir)
 
   const createdPaths: string[] = []
+  const archiveBootstrap = ensureCtArchiveFiles(root)
+  createdPaths.push(...archiveBootstrap.createdPaths)
   if (writeFileIfMissing(routerPath, CT_ROUTER_CONTENT)) {
     createdPaths.push(routerPath)
   }
