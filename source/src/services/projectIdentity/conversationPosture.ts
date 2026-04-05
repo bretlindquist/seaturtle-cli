@@ -19,6 +19,7 @@ export type CtConversationPostureResult = {
 const DEFAULT_CT_TEMPERAMENT = ['brisk', 'mischievous', 'curious'] as const
 
 const COMPANION_MARKERS = [
+  'just chatting',
   'just chat',
   'just talking',
   'can we talk',
@@ -37,6 +38,9 @@ const COMPANION_MARKERS = [
   'i wonder',
   'curious about',
   'explore this with me',
+  'tell me more',
+  'let us wander',
+  'go on a tangent',
 ] as const
 
 const SUPPORTIVE_MARKERS = [
@@ -98,6 +102,19 @@ const WORK_MARKERS = [
   'validation',
   'script',
   'worktree',
+  'help me',
+  'can you',
+  'please',
+  'need you to',
+  'i want you to',
+  'make',
+  'add',
+  'remove',
+  'change',
+  'update',
+  'wire',
+  'ship',
+  'continue',
 ] as const
 
 function hashSeed(seed: string): number {
@@ -183,6 +200,42 @@ function looksLikeWorkInput(text: string): boolean {
   )
 }
 
+function looksLikeExplicitConversationTurn(text: string): boolean {
+  if (!text || looksLikeWorkInput(text)) {
+    return false
+  }
+
+  return (
+    includesAny(text, COMPANION_MARKERS) ||
+    currentLooksPhilosophicalQuestion(text) ||
+    text.startsWith('i have been thinking about ') ||
+    text.startsWith('i keep wondering ') ||
+    text.startsWith('sometimes i think ')
+  )
+}
+
+function currentLooksPhilosophicalQuestion(text: string): boolean {
+  return (
+    text.endsWith('?') &&
+    (text.includes('life') ||
+      text.includes('world') ||
+      text.includes('people') ||
+      text.includes('consciousness') ||
+      text.includes('philosophy') ||
+      text.includes('meaning') ||
+      text.includes('beauty') ||
+      text.includes('existence'))
+  )
+}
+
+function currentLooksSupportiveConversationTurn(text: string): boolean {
+  if (!text || looksLikeWorkInput(text)) {
+    return false
+  }
+
+  return includesAny(text, SUPPORTIVE_MARKERS)
+}
+
 export function classifyCtConversationPosture(input: {
   currentInput: string
   recentUserMessages?: readonly string[]
@@ -197,33 +250,32 @@ export function classifyCtConversationPosture(input: {
     return 'work'
   }
 
+  if (looksLikeWorkInput(current)) {
+    return 'work'
+  }
+
   if (
-    includesAny(current, SUPPORTIVE_MARKERS) ||
-    countMatches(recent, SUPPORTIVE_MARKERS) >= 2
+    currentLooksSupportiveConversationTurn(current) ||
+    currentLooksSupportiveConversationTurn(recent.at(-1) ?? '') &&
+      countMatches(recent, WORK_MARKERS) === 0
   ) {
     return 'supportive'
   }
 
-  const explicitCompanion =
-    includesAny(current, COMPANION_MARKERS) ||
-    current.endsWith('?') &&
-      !looksLikeWorkInput(current) &&
-      (current.includes('life') ||
-        current.includes('world') ||
-        current.includes('people') ||
-        current.includes('consciousness') ||
-        current.includes('philosophy'))
-
-  if (explicitCompanion) {
+  if (looksLikeExplicitConversationTurn(current)) {
     return 'companion'
   }
 
   if (
     !looksLikeWorkInput(current) &&
     recent.length >= 2 &&
-    countMatches(recent, WORK_MARKERS) === 0
+    countMatches(recent, WORK_MARKERS) === 0 &&
+    (countMatches(recent, COMPANION_MARKERS) >= 1 ||
+      countMatches(recent, SUPPORTIVE_MARKERS) >= 1)
   ) {
-    return 'companion'
+    return countMatches(recent, SUPPORTIVE_MARKERS) > 0
+      ? 'supportive'
+      : 'companion'
   }
 
   return 'work'
