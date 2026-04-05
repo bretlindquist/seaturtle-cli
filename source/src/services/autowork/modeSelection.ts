@@ -44,6 +44,39 @@ function hasPlanShapingStatuses(chunks: AutoworkPlanChunk[]): boolean {
   )
 }
 
+function getEffectivePendingChunkIds(
+  chunks: AutoworkPlanChunk[],
+  state: AutoworkState,
+): string[] {
+  const completedChunkIds = new Set(state.completedChunkIds)
+  const failedChunkIds = new Set(state.failedChunkIds)
+
+  return getPendingChunkIds(chunks).filter(
+    chunkId => !completedChunkIds.has(chunkId) && !failedChunkIds.has(chunkId),
+  )
+}
+
+function hasEffectiveSuccessfulChunks(
+  chunks: AutoworkPlanChunk[],
+  state: AutoworkState,
+): boolean {
+  return state.completedChunkIds.length > 0 || hasSuccessfulChunks(chunks)
+}
+
+function allChunksHandledSuccessfully(
+  chunks: AutoworkPlanChunk[],
+  state: AutoworkState,
+): boolean {
+  return (
+    chunks.length > 0 &&
+    chunks.every(
+      chunk =>
+        SUCCESSFUL_CHUNK_STATUSES.has(chunk.status) ||
+        state.completedChunkIds.includes(chunk.id),
+    )
+  )
+}
+
 function shouldUseResearchMode(
   state: AutoworkState,
   chunks: AutoworkPlanChunk[],
@@ -90,7 +123,7 @@ export function selectAutoworkMode(
     }
   }
 
-  const pendingChunkIds = getPendingChunkIds(parsedPlan.chunks)
+  const pendingChunkIds = getEffectivePendingChunkIds(parsedPlan.chunks, state)
 
   if (shouldUseResearchMode(state, parsedPlan.chunks)) {
     return {
@@ -108,7 +141,7 @@ export function selectAutoworkMode(
     }
   }
 
-  if (allChunksSuccessful(parsedPlan.chunks)) {
+  if (allChunksHandledSuccessfully(parsedPlan.chunks, state)) {
     if (state.currentMode === 'audit-and-polish' && state.lastFinishedAt !== null) {
       return {
         mode: 'idle',
@@ -124,7 +157,10 @@ export function selectAutoworkMode(
     }
   }
 
-  if (hasPlanShapingStatuses(parsedPlan.chunks) || hasSuccessfulChunks(parsedPlan.chunks)) {
+  if (
+    hasPlanShapingStatuses(parsedPlan.chunks) ||
+    hasEffectiveSuccessfulChunks(parsedPlan.chunks, state)
+  ) {
     return {
       mode: 'plan-hardening',
       reason: 'The plan contains non-pending unfinished chunk states and needs to be reshaped before more execution.',
@@ -138,4 +174,3 @@ export function selectAutoworkMode(
     nextPendingChunkId: null,
   }
 }
-

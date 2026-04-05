@@ -6,7 +6,9 @@ import { COMMON_HELP_ARGS } from '../../constants/xml.js'
 import { Box, Text } from '../../ink.js'
 import {
   inspectAndSelectAutoworkMode,
+  prepareAutoworkSafeExecution,
   type AutoworkStartupContext,
+  verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
 import { getAutoworkLaunchQuip } from '../../services/autowork/quips.js'
 import { resolveActiveAutoworkPlanFile } from '../../services/autowork/planResolution.js'
@@ -21,7 +23,7 @@ type OnDone = (
   },
 ) => void
 
-type ShellAction = 'status' | 'doctor' | 'back'
+type ShellAction = 'run' | 'status' | 'doctor' | 'back'
 
 function formatChecks(
   context: AutoworkStartupContext,
@@ -57,8 +59,10 @@ function formatStatusSummary(
     ...formatChecks(context, false),
     '',
     context.mode === 'execution'
-      ? 'Next: the one-chunk safe execution loop is the next autowork implementation chunk.'
-      : `Next: use /${entryPoint} doctor for the fuller checkpoint breakdown.`,
+      ? `Next: use /${entryPoint} run to execute ${context.nextPendingChunkId ?? 'the next chunk'}.`
+      : context.mode === 'verification'
+        ? `Next: use /${entryPoint} verify to enforce the checkpoint for ${context.state.currentChunkId ?? 'the active chunk'}.`
+        : `Next: use /${entryPoint} doctor for the fuller checkpoint breakdown.`,
   ].join('\n')
 }
 
@@ -137,6 +141,66 @@ async function getAutoworkContext(
   }
 }
 
+async function runAutowork(
+  entryPoint: EntryPoint,
+): Promise<
+  | {
+      ok: true
+      message: string
+      shouldQuery: true
+      metaMessages: string[]
+      nextInput: string
+    }
+  | { ok: false; message: string }
+> {
+  const resolved = await resolveActiveAutoworkPlanFile()
+  if (!resolved.ok) {
+    const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+    return {
+      ok: false,
+      message: [
+        resolved.message,
+        '',
+        `Then rerun ${baseName} run after the tracked plan is ready.`,
+      ].join('\n'),
+    }
+  }
+
+  const launch = await prepareAutoworkSafeExecution(resolved.planPath, entryPoint)
+  if (!launch.ok) {
+    return { ok: false, message: launch.message }
+  }
+
+  const quip = getAutoworkLaunchQuip(entryPoint, launch.chunkId)
+
+  return {
+    ok: true,
+    message: [quip, '', launch.visibleMessage].join('\n'),
+    shouldQuery: true,
+    metaMessages: launch.metaMessages,
+    nextInput: launch.nextInput,
+  }
+}
+
+async function verifyAutowork(
+  entryPoint: EntryPoint,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const resolved = await resolveActiveAutoworkPlanFile()
+  if (!resolved.ok) {
+    const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+    return {
+      ok: false,
+      message: [
+        resolved.message,
+        '',
+        `Then rerun ${baseName} verify after the tracked plan is ready.`,
+      ].join('\n'),
+    }
+  }
+
+  return verifyAutoworkSafeExecution(resolved.planPath)
+}
+
 function titleForEntryPoint(entryPoint: EntryPoint): string {
   return entryPoint === 'swim' ? 'Swim mode' : 'Autowork'
 }
@@ -173,6 +237,11 @@ function AutoworkMenu({
         <Select
           options={[
             {
+              label: 'Run one chunk',
+              value: 'run' as const,
+              description: 'Launch exactly one chunk, then queue automatic checkpoint verification',
+            },
+            {
               label: 'Status snapshot',
               value: 'status' as const,
               description: 'See the selected mode, next chunk, and readiness summary',
@@ -192,6 +261,23 @@ function AutoworkMenu({
             if (value === 'back') {
               onDone(`${titleForEntryPoint(entryPoint)} dismissed`, {
                 display: 'system',
+              })
+              return
+            }
+
+            if (value === 'run') {
+              const execution = await runAutowork(entryPoint)
+              if (!execution.ok) {
+                onDone(execution.message, { display: 'system' })
+                return
+              }
+
+              onDone(execution.message, {
+                display: 'system',
+                shouldQuery: execution.shouldQuery,
+                metaMessages: execution.metaMessages,
+                nextInput: execution.nextInput,
+                submitNextInput: true,
               })
               return
             }
@@ -232,13 +318,35 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           '',
           'Available now:',
           `- ${baseName}`,
+          `- ${baseName} run`,
           `- ${baseName} status`,
           `- ${baseName} doctor`,
+          `- ${baseName} verify`,
           '',
           'Safe autowork uses more context, tokens, time, and risk than normal interactive work. Each chunk is expected to validate and commit before progression continues.',
         ].join('\n'),
         { display: 'system' },
       )
+      return null
+    }
+
+    if (trimmedArgs === 'run') {
+      const execution = await runAutowork(entryPoint)
+      onDone(execution.message, execution.ok
+        ? {
+            display: 'system',
+            shouldQuery: execution.shouldQuery,
+            metaMessages: execution.metaMessages,
+            nextInput: execution.nextInput,
+            submitNextInput: true,
+          }
+        : { display: 'system' })
+      return null
+    }
+
+    if (trimmedArgs === 'verify') {
+      const verification = await verifyAutowork(entryPoint)
+      onDone(verification.message, { display: 'system' })
       return null
     }
 
@@ -267,8 +375,10 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `Unknown ${titleForEntryPoint(entryPoint).toLowerCase()} option.`,
         '',
         `Use /${entryPoint} for the menu, or one of:`,
+        `- /${entryPoint} run`,
         `- /${entryPoint} status`,
         `- /${entryPoint} doctor`,
+        `- /${entryPoint} verify`,
       ].join('\n'),
       { display: 'system' },
     )

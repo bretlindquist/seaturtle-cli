@@ -1,4 +1,5 @@
-import { dirname, resolve } from 'path'
+import { basename, dirname, resolve } from 'path'
+import { getFsImplementation } from '../../utils/fsOperations.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
 import {
@@ -9,14 +10,28 @@ import {
 import { selectAutoworkMode } from './modeSelection.js'
 import {
   parseAutoworkPlanFile,
+  type AutoworkPlanChunk,
   type AutoworkPlanParseResult,
 } from './planParser.js'
+import {
+  captureAutoworkGitSnapshot,
+  verifyAutoworkPostChunkCommit,
+  verifyAutoworkPostCommitCleanTree,
+  verifyAutoworkPreChunkGitState,
+} from './gitChecks.js'
 import {
   readAutoworkState,
   type AutoworkMode,
   type AutoworkStartupInspection,
   type AutoworkState,
+  type AutoworkValidationResult,
+  updateAutoworkState,
 } from './state.js'
+import { resolveAutoworkValidationPlan } from './validation.js'
+
+const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
+
+export type AutoworkEntryPoint = 'autowork' | 'swim'
 
 async function getGitStatusShortLines(repoRoot: string): Promise<string[]> {
   const { stdout } = await execFileNoThrowWithCwd(
@@ -76,6 +91,222 @@ export type AutoworkStartupContext = {
   mode: AutoworkMode
   modeReason: string
   nextPendingChunkId: string | null
+}
+
+export type AutoworkSafeExecutionLaunch =
+  | {
+      ok: true
+      repoRoot: string
+      planPath: string
+      chunkId: string
+      visibleMessage: string
+      metaMessages: string[]
+      nextInput: string
+    }
+  | {
+      ok: false
+      message: string
+    }
+
+export type AutoworkVerificationResult =
+  | {
+      ok: true
+      message: string
+      chunkId: string
+      commitSha: string
+      nextPendingChunkId: string | null
+    }
+  | {
+      ok: false
+      message: string
+    }
+
+function getEffectivePendingChunks(
+  context: AutoworkStartupContext,
+): AutoworkPlanChunk[] {
+  if (!context.parsedPlan.ok) {
+    return []
+  }
+
+  const completedChunkIds = new Set(context.state.completedChunkIds)
+  const failedChunkIds = new Set(context.state.failedChunkIds)
+
+  return context.parsedPlan.chunks.filter(
+    chunk =>
+      chunk.status === 'pending' &&
+      !completedChunkIds.has(chunk.id) &&
+      !failedChunkIds.has(chunk.id),
+  )
+}
+
+function getActiveChunk(
+  context: AutoworkStartupContext,
+): AutoworkPlanChunk | null {
+  if (!context.parsedPlan.ok || !context.state.currentChunkId) {
+    return null
+  }
+
+  return (
+    context.parsedPlan.chunks.find(
+      chunk => chunk.id === context.state.currentChunkId,
+    ) ?? null
+  )
+}
+
+function getProjectName(repoRoot: string): string {
+  return basename(repoRoot) || 'the project'
+}
+
+function normalizeSummary(value: string): string {
+  return value.replace(/\s+/g, ' ').trim()
+}
+
+function getBunAwareEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env }
+  const home = env.HOME
+  if (!home) {
+    return env
+  }
+
+  const bunBinPath = resolve(home, '.bun', 'bin')
+  if (!getFsImplementation().existsSync(bunBinPath)) {
+    return env
+  }
+
+  const pathEntries = (env.PATH ?? '').split(':').filter(Boolean)
+  if (!pathEntries.includes(bunBinPath)) {
+    env.PATH = [bunBinPath, ...pathEntries].join(':')
+  }
+
+  return env
+}
+
+async function runAutoworkShellCommand(
+  command: string,
+  repoRoot: string,
+): Promise<AutoworkValidationResult & { stdout: string; stderr: string }> {
+  const { stdout, stderr, code, error } = await execFileNoThrowWithCwd(
+    'zsh',
+    ['-lc', command],
+    {
+      cwd: repoRoot,
+      env: getBunAwareEnv(),
+      timeout: AUTOWORK_BASH_TIMEOUT_MS,
+      preserveOutputOnError: true,
+    },
+  )
+
+  const summarySource = [stderr.trim(), stdout.trim(), error ?? '']
+    .filter(Boolean)
+    .join('\n')
+
+  return {
+    command,
+    ok: code === 0,
+    summary: normalizeSummary(summarySource).slice(0, 500) || undefined,
+    checkedAt: Date.now(),
+    stdout,
+    stderr,
+  }
+}
+
+function formatValidationLines(results: AutoworkValidationResult[]): string[] {
+  return results.map(result =>
+    result.summary
+      ? `- ${result.command}: ${result.ok ? 'ok' : 'failed'} - ${result.summary}`
+      : `- ${result.command}: ${result.ok ? 'ok' : 'failed'}`,
+  )
+}
+
+function buildAutoworkExecutionPrompt(
+  entryPoint: AutoworkEntryPoint,
+  repoRoot: string,
+  planPath: string,
+  chunk: AutoworkPlanChunk,
+): string {
+  const validationPlan = resolveAutoworkValidationPlan(chunk)
+  const validationLines =
+    validationPlan.commands.length > 0
+      ? validationPlan.commands.map(
+          command => `- ${command.command}: ${command.reason}`,
+        )
+      : ['- No build validation is required for this chunk.']
+
+  const projectName = getProjectName(repoRoot)
+
+  return [
+    '<system-reminder>',
+    `CT ${entryPoint} safe mode is active for ${projectName}.`,
+    'Execute exactly one chunk and stop.',
+    '',
+    `Plan file: ${planPath}`,
+    `Chunk: ${chunk.id}`,
+    `Purpose: ${chunk.purpose}`,
+    `Files/areas: ${chunk.files.join(', ') || 'none listed'}`,
+    `Dependencies: ${chunk.dependencies.join(', ') || 'none listed'}`,
+    `Risks: ${chunk.risks.join(', ') || 'none listed'}`,
+    `Done: ${chunk.done}`,
+    '',
+    'Required workflow:',
+    `1. Work only on chunk ${chunk.id}. Do not begin another chunk.`,
+    '2. Inspect actual repo state before edits. Do not invent state.',
+    '3. Keep edits surgical and reversible.',
+    '4. Avoid research unless a real repo-local unknown blocks correctness.',
+    '5. Run the required validation commands before finishing.',
+    '6. Create one precise commit for this chunk before finishing.',
+    '7. Leave the working tree clean after the commit.',
+    '8. In the final response, report validation results, commit SHA, and whether the tree is clean.',
+    '',
+    'Validation commands for this chunk:',
+    ...validationLines,
+    '',
+    `The queued /${entryPoint} verify command will run after your response and enforce the checkpoint.`,
+    '</system-reminder>',
+  ].join('\n')
+}
+
+function buildStopMessage(
+  code: string,
+  message: string,
+  chunkId?: string,
+): string {
+  return [
+    'Autowork stopped.',
+    '',
+    `Reason: ${message}`,
+    `Code: ${code}`,
+    chunkId ? `Chunk: ${chunkId}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
+function persistAutoworkStop(
+  context: AutoworkStartupContext,
+  code: string,
+  message: string,
+  failedCheck?: string,
+  chunkId?: string,
+): void {
+  if (!context.repoRoot) {
+    return
+  }
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      currentMode: 'verification',
+      stopReason: {
+        code,
+        message,
+        failedCheck,
+        chunkId,
+        capturedAt: Date.now(),
+      },
+      lastFinishedAt: Date.now(),
+    }),
+    context.repoRoot,
+  )
 }
 
 export async function inspectAndSelectAutoworkMode(
@@ -157,5 +388,262 @@ export async function inspectAndSelectAutoworkMode(
     mode: decision.mode,
     modeReason: decision.reason,
     nextPendingChunkId: decision.nextPendingChunkId,
+  }
+}
+
+export async function prepareAutoworkSafeExecution(
+  planPath: string,
+  entryPoint: AutoworkEntryPoint,
+): Promise<AutoworkSafeExecutionLaunch> {
+  const context = await inspectAndSelectAutoworkMode(planPath)
+  if (!context.repoRoot) {
+    return { ok: false, message: 'Autowork requires a git repository.' }
+  }
+
+  if (!context.eligibility.ok) {
+    persistAutoworkStop(
+      context,
+      context.eligibility.code,
+      context.eligibility.message,
+      context.eligibility.failedCheck,
+    )
+    return { ok: false, message: context.eligibility.message }
+  }
+
+  if (context.mode !== 'execution') {
+    return { ok: false, message: context.modeReason }
+  }
+
+  const nextChunk = getEffectivePendingChunks(context)[0]
+  if (!nextChunk) {
+    return { ok: false, message: 'Autowork could not find a pending chunk to run.' }
+  }
+
+  const gitCheck = await verifyAutoworkPreChunkGitState(context.repoRoot)
+  if (!gitCheck.ok || !gitCheck.snapshot.headSha) {
+    const message = gitCheck.message
+    persistAutoworkStop(context, gitCheck.code, message, 'clean-tree', nextChunk.id)
+    return { ok: false, message }
+  }
+
+  const prompt = buildAutoworkExecutionPrompt(
+    entryPoint,
+    context.repoRoot,
+    context.planPath,
+    nextChunk,
+  )
+  const nextRunCount = context.state.runCount + 1
+  const visibleMessage = [
+    '',
+    `Launching ${nextChunk.id}.`,
+    `Plan: ${context.planPath}`,
+    `Queued next step: /${entryPoint} verify`,
+  ].join('\n')
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      sourcePlanPath: context.planPath,
+      sourcePlanRevision: gitCheck.snapshot.headSha,
+      currentChunkId: nextChunk.id,
+      currentMode: 'execution',
+      lastStartupInspection: context.inspection,
+      lastValidationResult: null,
+      lastCommitSha: gitCheck.snapshot.headSha,
+      rollbackRef: nextChunk.risks.length > 0 ? gitCheck.snapshot.headSha : null,
+      stopReason: null,
+      lastStartedAt: Date.now(),
+      implementedButUnverified: true,
+      runCount: nextRunCount,
+    }),
+    context.repoRoot,
+  )
+
+  return {
+    ok: true,
+    repoRoot: context.repoRoot,
+    planPath: context.planPath,
+    chunkId: nextChunk.id,
+    visibleMessage,
+    metaMessages: [prompt],
+    nextInput: `/${entryPoint} verify`,
+  }
+}
+
+export async function verifyAutoworkSafeExecution(
+  planPath: string,
+): Promise<AutoworkVerificationResult> {
+  const context = await inspectAndSelectAutoworkMode(planPath)
+  if (!context.repoRoot) {
+    return { ok: false, message: 'Autowork requires a git repository.' }
+  }
+
+  const activeChunk = getActiveChunk(context)
+  if (!activeChunk || !context.state.implementedButUnverified) {
+    return {
+      ok: false,
+      message: 'No active autowork chunk is waiting for verification.',
+    }
+  }
+
+  const validationPlan = resolveAutoworkValidationPlan(activeChunk)
+  const validationResults: AutoworkValidationResult[] = []
+
+  for (const command of validationPlan.commands) {
+    const result = await runAutoworkShellCommand(command.command, context.repoRoot)
+    validationResults.push(result)
+
+    if (!result.ok) {
+      updateAutoworkState(
+        current => ({
+          ...current,
+          currentMode: 'verification',
+          lastValidationResult: result,
+          stopReason: {
+            code: 'validation_failed',
+            message: `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
+            failedCheck: 'validation',
+            chunkId: activeChunk.id,
+            capturedAt: Date.now(),
+          },
+          lastFinishedAt: Date.now(),
+          implementedButUnverified: true,
+        }),
+        context.repoRoot,
+      )
+
+      return {
+        ok: false,
+        message: [
+          buildStopMessage(
+            'validation_failed',
+            `Validation failed for ${activeChunk.id}.`,
+            activeChunk.id,
+          ),
+          '',
+          'Validation results:',
+          ...formatValidationLines(validationResults),
+        ].join('\n'),
+      }
+    }
+  }
+
+  const finalValidationResult =
+    validationResults.at(-1) ?? {
+      command: 'docs-only',
+      ok: true,
+      summary: 'No validation command was required for this chunk.',
+      checkedAt: Date.now(),
+    }
+
+  const beforeHeadSha =
+    context.state.lastCommitSha ?? context.state.sourcePlanRevision
+  if (!beforeHeadSha) {
+    persistAutoworkStop(
+      context,
+      'missing_pre_chunk_head',
+      'Autowork could not determine the pre-chunk HEAD commit.',
+      'commit-gate',
+      activeChunk.id,
+    )
+    return {
+      ok: false,
+      message: buildStopMessage(
+        'missing_pre_chunk_head',
+        'Autowork could not determine the pre-chunk HEAD commit.',
+        activeChunk.id,
+      ),
+    }
+  }
+
+  const postCommit = await verifyAutoworkPostChunkCommit(
+    context.repoRoot,
+    beforeHeadSha,
+  )
+  if (!postCommit.ok || !postCommit.snapshot.headSha) {
+    persistAutoworkStop(
+      context,
+      postCommit.code,
+      postCommit.message,
+      'commit-gate',
+      activeChunk.id,
+    )
+    return {
+      ok: false,
+      message: buildStopMessage(postCommit.code, postCommit.message, activeChunk.id),
+    }
+  }
+
+  const postClean = await verifyAutoworkPostCommitCleanTree(
+    context.repoRoot,
+    postCommit.snapshot.headSha,
+  )
+  if (!postClean.ok) {
+    persistAutoworkStop(
+      context,
+      postClean.code,
+      postClean.message,
+      'clean-tree',
+      activeChunk.id,
+    )
+    return {
+      ok: false,
+      message: buildStopMessage(postClean.code, postClean.message, activeChunk.id),
+    }
+  }
+
+  const completedChunkIds = Array.from(
+    new Set([...context.state.completedChunkIds, activeChunk.id]),
+  )
+  const failedChunkIds = context.state.failedChunkIds.filter(
+    chunkId => chunkId !== activeChunk.id,
+  )
+  const nextPendingChunkId =
+    context.parsedPlan.ok
+      ? context.parsedPlan.chunks
+          .filter(chunk => chunk.status === 'pending')
+          .map(chunk => chunk.id)
+          .filter(
+            chunkId =>
+              !completedChunkIds.includes(chunkId) &&
+              !failedChunkIds.includes(chunkId),
+          )[0] ?? null
+      : null
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      sourcePlanPath: context.planPath,
+      sourcePlanRevision: postCommit.snapshot.headSha,
+      currentChunkId: null,
+      completedChunkIds,
+      failedChunkIds,
+      currentMode: nextPendingChunkId ? 'execution' : 'idle',
+      lastStartupInspection: context.inspection,
+      lastValidationResult: finalValidationResult,
+      lastCommitSha: postCommit.snapshot.headSha,
+      rollbackRef: null,
+      stopReason: null,
+      lastFinishedAt: Date.now(),
+      implementedButUnverified: false,
+    }),
+    context.repoRoot,
+  )
+
+  return {
+    ok: true,
+    chunkId: activeChunk.id,
+    commitSha: postCommit.snapshot.headSha,
+    nextPendingChunkId,
+    message: [
+      `Chunk ${activeChunk.id} verified.`,
+      '',
+      'Validation results:',
+      ...formatValidationLines(validationResults.length > 0 ? validationResults : [finalValidationResult]),
+      '',
+      `Commit: ${postCommit.snapshot.headSha}`,
+      'Tree: clean',
+      `Next chunk: ${nextPendingChunkId ?? 'none'}`,
+    ].join('\n'),
   }
 }
