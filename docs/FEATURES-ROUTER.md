@@ -154,12 +154,15 @@ Important truth:
 - dangerous mode can continue with recorded checkpoint debt for selected validation and git-check failures
 - Telegram can also send a dangerous-mode debt notice after a degraded continuation
 
-## CT identity / soul / local project memory
+## CT identity / soul / relationship stack
 
 Keywords:
 
 - ct identity
 - soul
+- role
+- user
+- bootstrap
 - seaturtle
 - local memory
 - private memory
@@ -171,14 +174,18 @@ Next steps:
 
 - On a new project, follow the short startup picker if CT offers to tune the private SeaTurtle defaults
 - Run `/ct` if you want the simplest way to retune CT, edit `.ct` files, or manage defaults
-- Edit `.ct/identity.md` to tune CT's role and interaction style for this project
-- Edit `.ct/soul.md` to tune warmth, curiosity, and tone
+- Edit `.ct/soul.md` to tune the deeper SeaTurtle worldview, warmth, and values layer
+- Edit `.ct/identity.md` to tune CT's native character and interaction style for this project
+- Edit `.ct/role.md` to tune how exploratory, operational, or exacting CT should be here
+- Edit `.ct/user.md` to keep lightweight private notes about how to collaborate well with the user
+- Edit `.ct/bootstrap.md` to shape the first-run or retune conversation ritual
 - Edit `.ct/session.md` for what matters right now
 - Leave `CLAUDE.md` for team-shared repo guidance
 
 Important truth:
 
 - `.ct/` is the private CT layer for this project
+- the hidden CT stack is layered: soul → identity → role → user → attunement → session
 - `CLAUDE.local.md` is the compatibility bridge into the existing memory loader
 - defaults are created automatically on first load
 - CT uses playful SeaTurtle starter defaults until you replace them

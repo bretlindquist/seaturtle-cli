@@ -11,6 +11,10 @@ runtime changes, and additional operator-facing features such as Telegram
 integration, project-local reminders, and a private project-local CT working
 layer.
 
+That private CT layer is no longer just a couple of theme files. It is a small
+relationship stack under `.ct/` that lets SeaTurtle carry a project-local soul,
+identity, role, user context, bootstrap ritual, and current session note.
+
 ## What This Fork Is Trying To Do
 
 - keep the source-build local UX useful and familiar
@@ -103,6 +107,38 @@ Inside CT, the next-step commands to know first are:
 - `/remindme`
 - `/lolcat`
 - `/haiku`
+- `/ct`
+
+### CT Private Layer
+
+On first load, CT creates a private `.ct/` layer for the repo.
+
+Key files:
+
+- `.ct/soul.md`
+- `.ct/identity.md`
+- `.ct/role.md`
+- `.ct/user.md`
+- `.ct/bootstrap.md`
+- `.ct/attunement.md`
+- `.ct/session.md`
+
+The hidden stack is intentionally layered:
+
+1. soul
+2. identity
+3. role
+4. user
+5. attunement
+6. session
+
+Then the turn-level posture layer is applied lightly on top.
+
+Use `/ct` to:
+
+- retune CT conversationally for the current project
+- edit any of the private `.ct` files directly
+- manage the global SeaTurtle starter defaults for future projects
 
 ## Installation And Prerequisites
 
