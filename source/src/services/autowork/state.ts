@@ -38,6 +38,14 @@ export type AutoworkValidationResult = {
   checkedAt: number
 }
 
+export type AutoworkContinuationDebt = {
+  code: string
+  message: string
+  failedCheck?: string
+  chunkId?: string
+  capturedAt: number
+}
+
 export type AutoworkStopReason = {
   code: string
   message: string
@@ -59,6 +67,7 @@ export type AutoworkState = {
   lastCommitSha: string | null
   rollbackRef: string | null
   runMode: AutoworkRunMode
+  continuationDebt: AutoworkContinuationDebt[]
   stopReason: AutoworkStopReason | null
   lastStartedAt: number | null
   lastFinishedAt: number | null
@@ -81,6 +90,7 @@ function createDefaultAutoworkState(): AutoworkState {
     lastCommitSha: null,
     rollbackRef: null,
     runMode: 'safe',
+    continuationDebt: [],
     stopReason: null,
     lastStartedAt: null,
     lastFinishedAt: null,
@@ -190,6 +200,37 @@ function sanitizeStopReason(input: unknown): AutoworkStopReason | null {
   }
 }
 
+function sanitizeContinuationDebt(
+  input: unknown,
+): AutoworkContinuationDebt[] {
+  if (!Array.isArray(input)) {
+    return []
+  }
+
+  return input
+    .map(value => {
+      if (!value || typeof value !== 'object') {
+        return null
+      }
+
+      const debt = value as Partial<AutoworkContinuationDebt>
+      if (typeof debt.code !== 'string' || typeof debt.message !== 'string') {
+        return null
+      }
+
+      return {
+        code: debt.code.trim(),
+        message: debt.message.trim(),
+        failedCheck:
+          typeof debt.failedCheck === 'string' ? debt.failedCheck : undefined,
+        chunkId: typeof debt.chunkId === 'string' ? debt.chunkId : undefined,
+        capturedAt:
+          typeof debt.capturedAt === 'number' ? debt.capturedAt : Date.now(),
+      }
+    })
+    .filter((value): value is AutoworkContinuationDebt => value !== null)
+}
+
 function sanitizeAutoworkMode(value: unknown): AutoworkMode {
   switch (value) {
     case 'discovery':
@@ -236,6 +277,7 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
     rollbackRef:
       typeof value.rollbackRef === 'string' ? value.rollbackRef : null,
     runMode: sanitizeRunMode(value.runMode),
+    continuationDebt: sanitizeContinuationDebt(value.continuationDebt),
     stopReason: sanitizeStopReason(value.stopReason),
     lastStartedAt:
       typeof value.lastStartedAt === 'number' ? value.lastStartedAt : null,

@@ -14,7 +14,6 @@ import {
   type AutoworkPlanParseResult,
 } from './planParser.js'
 import {
-  captureAutoworkGitSnapshot,
   verifyAutoworkPostChunkCommit,
   verifyAutoworkPostCommitCleanTree,
   verifyAutoworkPreChunkGitState,
@@ -23,11 +22,13 @@ import { sendAutoworkTelegramStopNotice } from './telegramAlerts.js'
 import {
   readAutoworkState,
   type AutoworkMode,
+  type AutoworkContinuationDebt,
   type AutoworkStartupInspection,
   type AutoworkState,
   type AutoworkValidationResult,
   updateAutoworkState,
 } from './state.js'
+import { getAutoworkRunPolicy, type AutoworkRunPolicy } from './policy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
 
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
@@ -86,6 +87,7 @@ export type AutoworkStartupContext = {
   repoRoot: string | null
   planPath: string
   state: AutoworkState
+  runPolicy: AutoworkRunPolicy
   inspection: AutoworkStartupInspection
   parsedPlan: AutoworkPlanParseResult
   eligibility: AutoworkEligibilityResult
@@ -121,6 +123,21 @@ export type AutoworkVerificationResult =
       ok: false
       message: string
     }
+
+function createAutoworkContinuationDebt(
+  code: string,
+  message: string,
+  failedCheck?: string,
+  chunkId?: string,
+): AutoworkContinuationDebt {
+  return {
+    code,
+    message,
+    failedCheck,
+    chunkId,
+    capturedAt: Date.now(),
+  }
+}
 
 function getEffectivePendingChunks(
   context: AutoworkStartupContext,
@@ -402,6 +419,7 @@ export async function inspectAndSelectAutoworkMode(
     repoRoot,
     planPath: resolvedPlanPath,
     state,
+    runPolicy: getAutoworkRunPolicy(state.runMode),
     inspection,
     parsedPlan,
     eligibility,
@@ -471,6 +489,7 @@ export async function prepareAutoworkSafeExecution(
       lastValidationResult: null,
       lastCommitSha: gitCheck.snapshot.headSha,
       rollbackRef: nextChunk.risks.length > 0 ? gitCheck.snapshot.headSha : null,
+      continuationDebt: [],
       stopReason: null,
       lastStartedAt: Date.now(),
       implementedButUnverified: true,
@@ -519,6 +538,21 @@ export async function verifyAutoworkSafeExecution(
           ...current,
           currentMode: 'verification',
           lastValidationResult: result,
+          continuationDebt: [
+            ...current.continuationDebt.filter(
+              debt =>
+                debt.code !== 'validation_failed' ||
+                debt.chunkId !== activeChunk.id ||
+                debt.message !==
+                  `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
+            ),
+            createAutoworkContinuationDebt(
+              'validation_failed',
+              `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
+              'validation',
+              activeChunk.id,
+            ),
+          ],
           stopReason: {
             code: 'validation_failed',
             message: `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
@@ -643,6 +677,7 @@ export async function verifyAutoworkSafeExecution(
       lastValidationResult: finalValidationResult,
       lastCommitSha: postCommit.snapshot.headSha,
       rollbackRef: null,
+      continuationDebt: [],
       stopReason: null,
       lastFinishedAt: Date.now(),
       implementedButUnverified: false,
