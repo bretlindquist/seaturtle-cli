@@ -47,9 +47,9 @@ const WAKEUP_LINES = [
 
 const CT_GREETING_PROMPTS: Record<CtDisposition, readonly string[]> = {
   brisk: [
-    'What are we steering today?',
-    'What are we shipping first?',
-    'Where do you want to make progress?',
+    'Where shall we begin?',
+    'What thread should we tug on first?',
+    'What are we in the mood to untangle?',
   ],
   curious: [
     'What are we working on today?',
@@ -57,12 +57,12 @@ const CT_GREETING_PROMPTS: Record<CtDisposition, readonly string[]> = {
     'What thread should we pull on first?',
   ],
   mischievous: [
-    'You have unleashed the mighty SeaTurtle. What shall we build?',
+    'You have unleashed the mighty SeaTurtle. What are we up to?',
     "Maybe I'm the real one and you are the ai. Anyway, what's next?",
-    'Fancy a race, or are we shipping something first?',
+    'Fancy a race, or a thought worth chasing?',
   ],
   steady: [
-    'What needs doing?',
+    'What would feel steady to tackle first?',
     'What should we tackle together?',
     'Where do you want a steady hand first?',
   ],
@@ -108,7 +108,7 @@ export function pickCtGreeting(seed: string, temperament?: readonly string[]): {
 } {
   const disposition = pickCtDisposition(seed, {
     temperament,
-    posture: 'work',
+    posture: 'open',
   })
   const score = hashSeed(seed)
 

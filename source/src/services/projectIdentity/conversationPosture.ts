@@ -1,6 +1,10 @@
 import { getCtArchives } from './archives.js'
 
-export type CtConversationPosture = 'work' | 'companion' | 'supportive'
+export type CtConversationPosture =
+  | 'open'
+  | 'explore'
+  | 'work'
+  | 'supportive'
 
 export type CtDisposition =
   | 'brisk'
@@ -18,7 +22,22 @@ export type CtConversationPostureResult = {
 
 const DEFAULT_CT_TEMPERAMENT = ['brisk', 'mischievous', 'curious'] as const
 
-const COMPANION_MARKERS = [
+const OPEN_MARKERS = [
+  'hi',
+  'hello',
+  'hey',
+  'yo',
+  'sup',
+  "what's up",
+  'hows it going',
+  "how's it going",
+  'good morning',
+  'good evening',
+  'good afternoon',
+  'everything',
+] as const
+
+const EXPLORATION_MARKERS = [
   'just chatting',
   'just chat',
   'just talking',
@@ -33,7 +52,13 @@ const COMPANION_MARKERS = [
   'consciousness',
   'meaning of life',
   'the world',
+  'the universe',
+  'the cosmos',
   'existence',
+  'life itself',
+  'purpose',
+  'beauty',
+  'meaning',
   'what do you think',
   'i wonder',
   'curious about',
@@ -41,6 +66,18 @@ const COMPANION_MARKERS = [
   'tell me more',
   'let us wander',
   'go on a tangent',
+  'think through',
+  'thinking through',
+  'big picture',
+  'zoom out',
+  'brainstorm',
+  'research',
+  'plan this',
+  'planning',
+  'architecture',
+  'what should this feel like',
+  'what should this become',
+  'where should this go',
 ] as const
 
 const SUPPORTIVE_MARKERS = [
@@ -68,7 +105,7 @@ const SUPPORTIVE_MARKERS = [
   'discouraged',
 ] as const
 
-const WORK_MARKERS = [
+const STRONG_WORK_MARKERS = [
   '/autowork',
   '/swim',
   '/ct',
@@ -80,10 +117,14 @@ const WORK_MARKERS = [
   'commit',
   'push',
   'lint',
-  'build',
   'test',
   'review',
   'refactor',
+  'debug',
+  'trace',
+] as const
+
+const TECHNICAL_CONTEXT_MARKERS = [
   'repo',
   'branch',
   'typescript',
@@ -102,19 +143,33 @@ const WORK_MARKERS = [
   'validation',
   'script',
   'worktree',
-  'help me',
-  'can you',
-  'please',
-  'need you to',
-  'i want you to',
-  'make',
-  'add',
-  'remove',
-  'change',
-  'update',
-  'wire',
-  'ship',
-  'continue',
+  'auth callback',
+  'provider',
+  'runtime',
+  'tool',
+  'mcp',
+  'build',
+  'compile',
+  'test suite',
+  'failing test',
+  'stack trace',
+  'codebase',
+] as const
+
+const EXPLICIT_WORK_VERBS = [
+  'implement',
+  'fix',
+  'patch',
+  'refactor',
+  'review',
+  'debug',
+  'trace',
+  'commit',
+  'push',
+  'lint',
+  'test',
+  'edit',
+  'run',
 ] as const
 
 function hashSeed(seed: string): number {
@@ -153,15 +208,25 @@ function normalizeTemperament(
     if (posture === 'supportive' && !mapped.includes('steady')) {
       return [...mapped, 'steady', 'warm']
     }
-    if (posture === 'companion' && !mapped.includes('reflective')) {
+    if (posture === 'explore' && !mapped.includes('reflective')) {
       return [...mapped, 'reflective']
+    }
+    if (posture === 'open' && !mapped.includes('curious')) {
+      return [...mapped, 'curious']
     }
     return mapped
   }
 
-  return posture === 'supportive'
-    ? ['steady', 'warm']
-    : [...DEFAULT_CT_TEMPERAMENT]
+  switch (posture) {
+    case 'supportive':
+      return ['steady', 'warm']
+    case 'explore':
+      return ['curious', 'reflective', 'warm']
+    case 'open':
+      return ['curious', 'warm', 'mischievous']
+    case 'work':
+      return [...DEFAULT_CT_TEMPERAMENT]
+  }
 }
 
 export function pickCtDisposition(
@@ -171,7 +236,7 @@ export function pickCtDisposition(
     posture?: CtConversationPosture
   },
 ): CtDisposition {
-  const posture = options?.posture ?? 'work'
+  const posture = options?.posture ?? 'open'
   const pool = normalizeTemperament(
     options?.temperament ?? DEFAULT_CT_TEMPERAMENT,
     posture,
@@ -190,27 +255,41 @@ function countMatches(texts: readonly string[], markers: readonly string[]): num
   )
 }
 
-function looksLikeWorkInput(text: string): boolean {
+function looksLikeOpenTurn(text: string): boolean {
+  return OPEN_MARKERS.some(marker => text === marker)
+}
+
+function looksLikeExplicitExecutionTurn(text: string): boolean {
+  const hasStrongMarker = includesAny(text, STRONG_WORK_MARKERS)
+  const hasTechnicalContext = includesAny(text, TECHNICAL_CONTEXT_MARKERS)
+  const startsWithExplicitVerb = EXPLICIT_WORK_VERBS.some(verb =>
+    text.startsWith(`${verb} `),
+  )
+
   return (
     text.startsWith('/') ||
     text.startsWith('!') ||
-    includesAny(text, WORK_MARKERS) ||
+    hasStrongMarker ||
+    (startsWithExplicitVerb && hasTechnicalContext) ||
     /`[^`]+`/.test(text) ||
     /\b[a-z0-9/_-]+\.(ts|tsx|js|jsx|md|json|sh)\b/.test(text)
   )
 }
 
-function looksLikeExplicitConversationTurn(text: string): boolean {
-  if (!text || looksLikeWorkInput(text)) {
+function looksLikeExploratoryTurn(text: string): boolean {
+  if (!text || looksLikeExplicitExecutionTurn(text)) {
     return false
   }
 
   return (
-    includesAny(text, COMPANION_MARKERS) ||
+    includesAny(text, EXPLORATION_MARKERS) ||
     currentLooksPhilosophicalQuestion(text) ||
+    currentLooksBroadHumanTurn(text) ||
     text.startsWith('i have been thinking about ') ||
     text.startsWith('i keep wondering ') ||
-    text.startsWith('sometimes i think ')
+    text.startsWith('sometimes i think ') ||
+    text.startsWith('what if ') ||
+    text.startsWith('help me think through ')
   )
 }
 
@@ -229,11 +308,37 @@ function currentLooksPhilosophicalQuestion(text: string): boolean {
 }
 
 function currentLooksSupportiveConversationTurn(text: string): boolean {
-  if (!text || looksLikeWorkInput(text)) {
+  if (!text || looksLikeExplicitExecutionTurn(text)) {
     return false
   }
 
   return includesAny(text, SUPPORTIVE_MARKERS)
+}
+
+function currentLooksBroadHumanTurn(text: string): boolean {
+  if (looksLikeExplicitExecutionTurn(text)) {
+    return false
+  }
+
+  const broadMarkers = [
+    'life',
+    'death',
+    'love',
+    'meaning',
+    'purpose',
+    'beauty',
+    'existence',
+    'the world',
+    'the universe',
+    'the cosmos',
+    'consciousness',
+    'nature',
+    'art',
+    'human',
+    'people',
+  ] as const
+
+  return includesAny(text, broadMarkers)
 }
 
 export function classifyCtConversationPosture(input: {
@@ -247,38 +352,42 @@ export function classifyCtConversationPosture(input: {
     .slice(-3)
 
   if (!current) {
-    return 'work'
+    return 'open'
   }
 
-  if (looksLikeWorkInput(current)) {
+  if (looksLikeExplicitExecutionTurn(current)) {
     return 'work'
   }
 
   if (
     currentLooksSupportiveConversationTurn(current) ||
     currentLooksSupportiveConversationTurn(recent.at(-1) ?? '') &&
-      countMatches(recent, WORK_MARKERS) === 0
+      countMatches(recent, STRONG_WORK_MARKERS) === 0
   ) {
     return 'supportive'
   }
 
-  if (looksLikeExplicitConversationTurn(current)) {
-    return 'companion'
+  if (looksLikeExploratoryTurn(current)) {
+    return 'explore'
   }
 
   if (
-    !looksLikeWorkInput(current) &&
+    !looksLikeExplicitExecutionTurn(current) &&
     recent.length >= 2 &&
-    countMatches(recent, WORK_MARKERS) === 0 &&
-    (countMatches(recent, COMPANION_MARKERS) >= 1 ||
+    countMatches(recent, STRONG_WORK_MARKERS) === 0 &&
+    (countMatches(recent, EXPLORATION_MARKERS) >= 1 ||
       countMatches(recent, SUPPORTIVE_MARKERS) >= 1)
   ) {
     return countMatches(recent, SUPPORTIVE_MARKERS) > 0
       ? 'supportive'
-      : 'companion'
+      : 'explore'
   }
 
-  return 'work'
+  if (looksLikeOpenTurn(current)) {
+    return 'open'
+  }
+
+  return 'open'
 }
 
 function getDispositionFlavor(disposition: CtDisposition): string {
@@ -319,20 +428,34 @@ The user may be strained, discouraged, tired, or carrying something heavy.
 - If a question helps, make it simple and humane.
 - Avoid piling jokes onto a difficult moment.
 - ${flavor}`
-    case 'companion':
+    case 'explore':
       return `# CT Conversation Posture
 
-Current posture: companion
+Current posture: explore
 Current SeaTurtle disposition: ${input.disposition}
 
-The user appears to want conversation, exploration, or banter rather than pure execution.
+The user appears to want big-picture thinking, conversation, exploration, or philosophy rather than immediate execution.
 
 - Conversation is back-and-forth; do not dump everything at once.
 - Start small, then build with the user's replies.
 - Sometimes return with a thoughtful question instead of a complete answer.
 - Be curious, engaging, approachable, and lightly Socratic.
 - Allow tangents when the tangent is the point.
-- Do not force the exchange back into task framing.
+- Do not flatten broad human or project questions into task triage, category menus, or productivity coaching.
+- Meet the idea first, then narrow only if the user wants to execute.
+- ${flavor}`
+    case 'open':
+      return `# CT Conversation Posture
+
+Current posture: open
+Current SeaTurtle disposition: ${input.disposition}
+
+The session is still orienting. Stay conversational first and let the work posture be earned.
+
+- Greet small openings like a companion, not a project manager.
+- Keep the response short, human, and easy to reply to.
+- If the user is vague, meet them with curiosity instead of forcing structure too early.
+- Do not jump straight to task triage unless the user explicitly asks for execution.
 - ${flavor}`
     case 'work':
       return `# CT Conversation Posture
