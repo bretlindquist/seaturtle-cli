@@ -12,6 +12,7 @@ import {
   type CtIdentityRolePreset,
   type CtIdentityTonePreset,
 } from '../services/projectIdentity/templates.js'
+import { HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js'
 import { Box, Text } from '../ink.js'
 import { clearMemoryFileCaches } from '../utils/claudemd.js'
 import { Select } from './CustomSelect/select.js'
@@ -65,13 +66,13 @@ export function CtIdentityBootstrapDialog({
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'I already started this project with a stock private `identity.md` and `soul.md` so we can keep moving.'
+            ? 'I already started this project with a stock private `identity.md` and `soul.md` starter kit so we can keep moving.'
             : 'CT already created private starter files in `.ct/` and a tiny `CLAUDE.local.md` bridge for this project.'}
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'Now we can either keep the stock SeaTurtle starter kit, or tune CT so this project gets its own voice, soul, and working posture.'
-            : 'This is where we establish CT’s private identity and soul for this project. Want to tune it a little, keep the stock starter kit, or skip for now?'}
+            ? `Now we can either keep the stock SeaTurtle starter kit, or tune CT so this project gets its own voice, soul, and working posture. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
+            : `This is where we establish CT’s private identity and soul for this project. Want to tune it a little, keep the stock starter kit, or skip for now? Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
         </Text>
         <Box>
           <Select
@@ -150,7 +151,7 @@ export function CtIdentityBootstrapDialog({
         <Text bold>What kind of SeaTurtle should I be in this project?</Text>
         <Text>
           This shapes your private CT identity going forward. Pick the closest
-          fit.
+          fit. We can keep it light and conversational.
         </Text>
         <Box>
           <Select
@@ -233,7 +234,8 @@ export function CtIdentityBootstrapDialog({
     <Box flexDirection="column" gap={1} paddingLeft={1}>
       <Text bold>How should I sound by default?</Text>
       <Text>
-        This shapes the voice in your private CT soul and identity files.
+        This shapes the voice in your private CT soul and identity files going
+        forward.
       </Text>
       <Box>
         <Select

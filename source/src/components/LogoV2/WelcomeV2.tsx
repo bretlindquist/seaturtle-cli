@@ -1,6 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'src/ink.js'
 import { SeaTurtleMark, SeaTurtleWordmark } from './SeaTurtleMark.js'
+import { getWakeupLine } from '../../services/projectIdentity/lore.js'
 
 const WELCOME_V2_WIDTH = 68
 
@@ -15,7 +16,7 @@ export function WelcomeV2() {
         <Text color="claude">Welcome to SeaTurtle</Text>{' '}
         <Text dimColor={true}>v{MACRO.VERSION}</Text>
       </Text>
-      <Text dimColor={true}>A playful CT shell for focused local work.</Text>
+      <Text dimColor={true}>{getWakeupLine(0)}</Text>
       <Box marginTop={1}>
         <SeaTurtleMark size="hero" />
       </Box>

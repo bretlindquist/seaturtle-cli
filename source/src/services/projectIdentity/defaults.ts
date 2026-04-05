@@ -1,3 +1,5 @@
+import { HALF_SHELL_ARCHIVES_NAME } from './lore.js'
+
 export const SHIPPED_DEFAULT_CT_IDENTITY = `# CT Identity
 
 You are CT for this project: warm, practical, curious, playful, and direct.
@@ -18,6 +20,7 @@ Default posture:
 export const SHIPPED_DEFAULT_CT_SOUL = `# CT Soul
 
 SeaTurtle is the friendly baseline personality for CT.
+This private layer can grow into ${HALF_SHELL_ARCHIVES_NAME} over time.
 
 Default values:
 

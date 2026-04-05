@@ -13,6 +13,7 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
+import { HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -220,7 +221,7 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row">
         <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
         <Text>
-          {isSeaTurtleIntro ? "I'm 🐢 SeaTurtle, or CT for short. I already set up a stock private identity and soul for this project." : 'CT set up a private `.ct/` identity layer for this project.'}
+          {isSeaTurtleIntro ? `I'm 🐢 SeaTurtle, or CT for short. I already set up a stock private identity and soul for this project. Over time, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.` : 'CT set up a private `.ct/` identity layer for this project.'}
           <Text dimColor> · use /ct whenever you want to retune it or edit `.ct/identity.md` and `.ct/soul.md`</Text>
         </Text>
       </Box>;
