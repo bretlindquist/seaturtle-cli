@@ -6,7 +6,7 @@ import figures from 'figures';
 import { getCwd } from './cwd.js';
 import { relative } from 'path';
 import { formatNumber } from './format.js';
-import type { getGlobalConfig } from './config.js';
+import { getCurrentProjectConfig, type getGlobalConfig } from './config.js';
 import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
 import { getAnthropicApiKeyWithSource, getApiKeyFromConfigOrMacOSKeychain, getAuthTokenSource, isClaudeAISubscriber } from './auth.js';
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js';
@@ -206,9 +206,29 @@ const telegramSetupNotice: StatusNoticeDefinition = {
       </Box>;
   }
 };
+const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
+  id: 'ct-identity-bootstrap',
+  type: 'info',
+  isActive: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    return !bootstrap?.hasCompletedSetup;
+  },
+  render: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    const seenCount = bootstrap?.seenCount ?? 0;
+    const isSeaTurtleIntro = seenCount >= 3;
+    return <Box flexDirection="row">
+        <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
+        <Text>
+          {isSeaTurtleIntro ? "I'm 🐢 SeaTurtle, or CT for short. I'm using the starter private identity for this project." : 'CT set up a private .ct identity for this project.'}
+          <Text dimColor> · edit `.ct/identity.md` or `.ct/soul.md` any time</Text>
+        </Text>
+      </Box>;
+  }
+};
 
 // All notice definitions
-export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice];
+export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice, ctIdentityBootstrapNotice];
 
 // Helper functions for external use
 export function getActiveNotices(context: StatusNoticeContext): StatusNoticeDefinition[] {

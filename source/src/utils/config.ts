@@ -125,6 +125,12 @@ export type ProjectConfig = {
   exampleFiles?: string[]
   exampleFilesGeneratedAt?: number
   telegram?: TelegramProjectBinding
+  ctIdentityBootstrap?: {
+    hasCompletedSetup?: boolean
+    seenCount?: number
+    mode?: 'defaulted' | 'guided' | 'skipped' | 'customized'
+    lastPromptedAt?: number
+  }
 
   // Trust dialog settings
   hasTrustDialogAccepted?: boolean
@@ -162,6 +168,10 @@ const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   disabledMcpjsonServers: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
+  ctIdentityBootstrap: {
+    hasCompletedSetup: false,
+    seenCount: 0,
+  },
   hasClaudeMdExternalIncludesApproved: false,
   hasClaudeMdExternalIncludesWarningShown: false,
 }

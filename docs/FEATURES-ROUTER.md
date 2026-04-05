@@ -6,6 +6,7 @@ Use it when the user asks natural-language questions like:
 
 - how do I set up Telegram?
 - how do I use OpenAI OAuth here?
+- how does CT identity work in this project?
 - how do I switch models?
 - why is GitHub Actions gated?
 - how do I test Telegram?
@@ -111,6 +112,33 @@ Important truth:
 - Telegram bot binding and allowlisted chats are project-local
 - one running app session/process uses one active Telegram bot
 - separate projects can use different saved Telegram bots
+
+## CT identity / soul / local project memory
+
+Keywords:
+
+- ct identity
+- soul
+- seaturtle
+- local memory
+- private memory
+- .ct
+- CLAUDE.local.md
+- what are we working on today
+
+Next steps:
+
+- Edit `.ct/identity.md` to tune CT's role and interaction style for this project
+- Edit `.ct/soul.md` to tune warmth, curiosity, and tone
+- Edit `.ct/session.md` for what matters right now
+- Leave `CLAUDE.md` for team-shared repo guidance
+
+Important truth:
+
+- `.ct/` is the private CT layer for this project
+- `CLAUDE.local.md` is the compatibility bridge into the existing memory loader
+- defaults are created automatically on first load
+- project-local `.ct` files are meant to be private and easy to replace
 
 ## GitHub Actions / install-github-app
 

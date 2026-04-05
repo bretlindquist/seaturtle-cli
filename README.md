@@ -15,6 +15,7 @@ Current fork goals:
 - run the main conversation loop on OpenAI/Codex OAuth when selected
 - keep tools, MCP, replay, and streaming working on that provider path
 - avoid silent fallback into Anthropic-only helper behavior
+- add a private `.ct/` project identity layer with warm SeaTurtle defaults
 
 Current OpenAI/Codex status:
 
@@ -40,6 +41,16 @@ Telegram setup, pairing, and status guidance lives in
 
 Feature routing for this fork lives in
 [`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md).
+
+CT also maintains a private project-local identity layer:
+
+- `.ct/identity.md`
+- `.ct/soul.md`
+- `.ct/session.md`
+- `CLAUDE.local.md` as the compatibility bridge
+
+That layer is local/private by default and is meant for CT's project-specific
+working style and current context, not team-shared repo policy.
 
 Branding and compatibility boundaries live in
 [`docs/BRANDING.md`](./docs/BRANDING.md).
