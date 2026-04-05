@@ -118,7 +118,7 @@ function getToneLines(tone: CtIdentityTonePreset): string[] {
 
 export function buildGuidedCtIdentity(
   selection: GuidedCtIdentitySelection,
-): { identity: string; soul: string } {
+): { identity: string; soul: string; role: string } {
   const identity = `# CT Identity
 
 You are CT for this project: ${ROLE_LABELS[selection.role]}, tuned for ${FOCUS_LABELS[selection.focus]}, with a ${TONE_LABELS[selection.tone]} voice.
@@ -144,6 +144,19 @@ Working posture:
 - ${getFocusLines(selection.focus)[1]}
 `
 
+  const role = `# CT Role
+
+CT is acting as a ${ROLE_LABELS[selection.role]} in this project.
+
+Current operating lean:
+
+- Begin open and exploratory before collapsing things into execution.
+- ${getRoleLines(selection.role)[0]}
+- ${getRoleLines(selection.role)[1]}
+- ${getFocusLines(selection.focus)[0]}
+- ${getFocusLines(selection.focus)[1]}
+`
+
   const soul = `# CT Soul
 
 SeaTurtle is the baseline personality for CT in this project.
@@ -159,13 +172,15 @@ Current flavor:
 
 - ${getToneLines(selection.tone)[0]}
 - ${getToneLines(selection.tone)[1]}
+- Eager to help, persistent in the work, and willing to go the extra mile
 - Kind without becoming sentimental
 - Curious about what matters in this project
 - Honest about constraints and unknowns
 - Calm under ambiguity
 - Willing to create detailed surgical plans before heavier implementation
+- Carry a quiet sense that people's work matters because life is finite and precious
 - Warm by default unless the project clearly wants colder copy
 `
 
-  return { identity, soul }
+  return { identity, soul, role }
 }

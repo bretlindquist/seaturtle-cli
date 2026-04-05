@@ -6,22 +6,28 @@ import { saveCurrentProjectConfig } from '../../utils/config.js'
 import { ensureCtArchiveFiles } from './archives.js'
 import {
   SHIPPED_DEFAULT_CT_ATTUNEMENT,
+  SHIPPED_DEFAULT_CT_BOOTSTRAP,
   SHIPPED_DEFAULT_CT_IDENTITY,
+  SHIPPED_DEFAULT_CT_ROLE,
   SHIPPED_DEFAULT_CT_SESSION,
   SHIPPED_DEFAULT_CT_SOUL,
+  SHIPPED_DEFAULT_CT_USER,
 } from './defaults.js'
 import {
   getCtAttunementPath,
+  getCtBootstrapPath,
   getCtCompatBridgePath,
   getCtGlobalIdentityOverridePath,
   getCtGlobalSoulOverridePath,
   getCtIdentityPath,
   getCtProjectDir,
   getCtProjectRoot,
+  getCtRolePath,
   getCtRouterPath,
   getCtSessionPath,
   getCtSoulPath,
   getCtStateDir,
+  getCtUserPath,
 } from './paths.js'
 
 const CT_ROUTER_CONTENT = `@./identity.md
@@ -36,6 +42,9 @@ const CT_COMPAT_BRIDGE_CONTENT = `@.ct/router.md
 type ActiveCtDefaults = {
   identity: string
   soul: string
+  role: string
+  user: string
+  bootstrap: string
   attunement: string
   session: string
 }
@@ -59,6 +68,9 @@ export function getActiveCtDefaults(): ActiveCtDefaults {
       SHIPPED_DEFAULT_CT_IDENTITY,
     soul:
       readIfExists(getCtGlobalSoulOverridePath()) ?? SHIPPED_DEFAULT_CT_SOUL,
+    role: SHIPPED_DEFAULT_CT_ROLE,
+    user: SHIPPED_DEFAULT_CT_USER,
+    bootstrap: SHIPPED_DEFAULT_CT_BOOTSTRAP,
     attunement: SHIPPED_DEFAULT_CT_ATTUNEMENT,
     session: SHIPPED_DEFAULT_CT_SESSION,
   }
@@ -108,6 +120,9 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   const routerPath = getCtRouterPath(root)
   const identityPath = getCtIdentityPath(root)
   const soulPath = getCtSoulPath(root)
+  const rolePath = getCtRolePath(root)
+  const userPath = getCtUserPath(root)
+  const bootstrapPath = getCtBootstrapPath(root)
   const attunementPath = getCtAttunementPath(root)
   const sessionPath = getCtSessionPath(root)
   const stateDir = getCtStateDir(root)
@@ -128,6 +143,15 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   }
   if (writeFileIfMissing(soulPath, defaults.soul)) {
     createdPaths.push(soulPath)
+  }
+  if (writeFileIfMissing(rolePath, defaults.role)) {
+    createdPaths.push(rolePath)
+  }
+  if (writeFileIfMissing(userPath, defaults.user)) {
+    createdPaths.push(userPath)
+  }
+  if (writeFileIfMissing(bootstrapPath, defaults.bootstrap)) {
+    createdPaths.push(bootstrapPath)
   }
   if (writeFileIfMissing(attunementPath, defaults.attunement)) {
     createdPaths.push(attunementPath)
@@ -177,6 +201,9 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
 export function overwriteProjectCtIdentityFiles(input: {
   identity?: string
   soul?: string
+  role?: string
+  user?: string
+  bootstrap?: string
   attunement?: string
   session?: string
 }): void {
@@ -188,6 +215,18 @@ export function overwriteProjectCtIdentityFiles(input: {
 
   if (input.soul !== undefined) {
     writeFile(getCtSoulPath(root), input.soul)
+  }
+
+  if (input.role !== undefined) {
+    writeFile(getCtRolePath(root), input.role)
+  }
+
+  if (input.user !== undefined) {
+    writeFile(getCtUserPath(root), input.user)
+  }
+
+  if (input.bootstrap !== undefined) {
+    writeFile(getCtBootstrapPath(root), input.bootstrap)
   }
 
   if (input.attunement !== undefined) {
@@ -204,6 +243,9 @@ export function resetProjectCtIdentityToActiveDefaults(): void {
   overwriteProjectCtIdentityFiles({
     identity: defaults.identity,
     soul: defaults.soul,
+    role: defaults.role,
+    user: defaults.user,
+    bootstrap: defaults.bootstrap,
     attunement: defaults.attunement,
   })
 }
