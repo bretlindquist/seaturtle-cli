@@ -118,7 +118,7 @@ export function buildTelegramProperties(theme: ThemeName): Property[] {
   const voiceValue = transcription ? color('success', theme)(`Enabled · ${transcription.model}`) : color('inactive', theme)('Disabled');
   return [{
     label: 'Telegram',
-    value: `${transportValue} ${color('inactive', theme)(snapshot.source === 'env' ? '· env' : snapshot.source === 'app' ? '· paired in app' : '')}`.trim()
+    value: `${transportValue} ${color('inactive', theme)(snapshot.source === 'env' ? '· env' : snapshot.source === 'project' ? '· project binding' : '')}`.trim()
   }, {
     label: 'Telegram polling',
     value: `${String(snapshot.pollTimeoutSeconds)}s long poll`
@@ -202,6 +202,9 @@ export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]
   }
   if (!telegramSnapshot.botTokenConfigured && telegramSnapshot.allowedChatIdsCount > 0) {
     items.push('Telegram allowlisted chat IDs are configured, but the bot token is missing. Run /telegram to repair the setup.');
+  }
+  if (telegramSnapshot.brokenReason) {
+    items.push(`Telegram is not ready: ${telegramSnapshot.brokenReason}. Run /telegram to repair the active binding.`)
   }
   if (telegramSnapshot.source === 'env' && telegramSnapshot.botTokenConfigured) {
     items.push('Telegram is currently being configured by environment variables. Run /telegram to view the active contract and pairing status.');

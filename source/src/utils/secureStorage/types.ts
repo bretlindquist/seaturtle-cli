@@ -55,10 +55,16 @@ export type ProviderAuthProfileStore = {
   defaultProfiles?: Record<string, string>
 }
 
+export type TelegramBotSecret = {
+  botToken: string
+  updatedAt: number
+}
+
 export type SecureStorageData = {
   claudeAiOauth?: ClaudeAiOAuthData
   trustedDeviceToken?: string
   providerAuthProfiles?: ProviderAuthProfileStore
+  telegramProfiles?: Record<string, TelegramBotSecret>
   telegram?: {
     botToken: string
     updatedAt: number

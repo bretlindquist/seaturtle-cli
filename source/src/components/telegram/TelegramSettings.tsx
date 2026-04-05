@@ -6,11 +6,13 @@ import TextInput from '../TextInput.js'
 import { Select } from '../CustomSelect/select.js'
 import { Dialog } from '../design-system/Dialog.js'
 import {
-  clearTelegramAppConfig,
-  clearTelegramStoredBotToken,
+  clearCurrentProjectTelegramBinding,
   getTelegramConfigSnapshot,
-  saveTelegramAppConfig,
-  saveTelegramStoredBotToken,
+  getCurrentProjectTelegramBindingSnapshot,
+  getTelegramBotProfileToken,
+  listTelegramBotProfiles,
+  saveCurrentProjectTelegramBinding,
+  saveTelegramBotProfile,
   type TelegramConfig,
 } from '../../services/telegram/config.js'
 import {
@@ -58,6 +60,32 @@ type Screen =
       state: 'pair-saving'
       identity: TelegramBotIdentity
       botToken: string
+      chat: TelegramChatCandidate
+    }
+  | { state: 'bind-select-profile' }
+  | {
+      state: 'bind-awaiting-message'
+      profileId: string
+      label: string
+      botToken: string
+    }
+  | {
+      state: 'bind-discovering'
+      profileId: string
+      label: string
+      botToken: string
+    }
+  | {
+      state: 'bind-select-chat'
+      profileId: string
+      label: string
+      botToken: string
+      candidates: TelegramChatCandidate[]
+    }
+  | {
+      state: 'bind-saving'
+      profileId: string
+      label: string
       chat: TelegramChatCandidate
     }
   | { state: 'clear-confirm' }
@@ -127,6 +155,8 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
   const [draftBotToken, setDraftBotToken] = React.useState('')
   const [cursorOffset, setCursorOffset] = React.useState(0)
   const snapshot = getTelegramConfigSnapshot()
+  const currentBinding = getCurrentProjectTelegramBindingSnapshot()
+  const profiles = listTelegramBotProfiles()
   const transcription = getTelegramTranscriptionConfig()
 
   let transportStatus = 'Not configured'
@@ -144,6 +174,11 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
     snapshot.source === 'env'
       ? 'Environment variables are overriding the in-app Telegram configuration right now.'
       : null
+  const currentBindingLabel = snapshot.botDisplayName
+    ? snapshot.botUsername
+      ? `${snapshot.botDisplayName} (@${snapshot.botUsername})`
+      : snapshot.botDisplayName
+    : snapshot.profileId || 'None'
 
   React.useEffect(() => {
     if (screen.state === 'pair-validating') {
@@ -178,7 +213,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
       }
     }
 
-    if (screen.state === 'pair-discovering') {
+    if (
+      screen.state === 'pair-discovering' ||
+      screen.state === 'bind-discovering'
+    ) {
       let cancelled = false
 
       void (async () => {
@@ -204,9 +242,20 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             return
           }
 
+          if (screen.state === 'pair-discovering') {
+            setScreen({
+              state: 'pair-select-chat',
+              identity: screen.identity,
+              botToken: screen.botToken,
+              candidates,
+            })
+            return
+          }
+
           setScreen({
-            state: 'pair-select-chat',
-            identity: screen.identity,
+            state: 'bind-select-chat',
+            profileId: screen.profileId,
+            label: screen.label,
             botToken: screen.botToken,
             candidates,
           })
@@ -228,26 +277,53 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
 
     if (screen.state === 'pair-saving') {
       try {
-        const savedSecret = saveTelegramStoredBotToken(screen.botToken)
+        const profileId = `telegram-bot-${screen.identity.id}`
+        const savedSecret = saveTelegramBotProfile({
+          profileId,
+          botToken: screen.botToken,
+          botUsername: screen.identity.username,
+          botDisplayName: screen.identity.displayName,
+        })
         if (!savedSecret.success) {
           throw new Error(savedSecret.warning || 'failed to store bot token')
         }
 
-        saveTelegramAppConfig({
+        saveCurrentProjectTelegramBinding({
+          profileId,
           allowedChatIds: [screen.chat.chatId],
-          lastPairedChatId: screen.chat.chatId,
-          botUsername: screen.identity.username,
-          botDisplayName: screen.identity.displayName,
+          defaultChatId: screen.chat.chatId,
+          lastInboundChatId: screen.chat.chatId,
         })
 
         onExit(
-          `Telegram paired for ${screen.chat.title} (${screen.chat.chatId})`,
+          `Telegram bot ${screen.identity.displayName} paired for this project via ${screen.chat.title} (${screen.chat.chatId})`,
           { display: 'system' },
         )
       } catch (error) {
         setScreen({
           state: 'error',
           message: `Telegram pairing could not be saved: ${(error as Error).message}`,
+        })
+      }
+    }
+
+    if (screen.state === 'bind-saving') {
+      try {
+        saveCurrentProjectTelegramBinding({
+          profileId: screen.profileId,
+          allowedChatIds: [screen.chat.chatId],
+          defaultChatId: screen.chat.chatId,
+          lastInboundChatId: screen.chat.chatId,
+        })
+
+        onExit(
+          `Telegram bot ${screen.label} is now bound to this project via ${screen.chat.title} (${screen.chat.chatId})`,
+          { display: 'system' },
+        )
+      } catch (error) {
+        setScreen({
+          state: 'error',
+          message: `Telegram project binding could not be saved: ${(error as Error).message}`,
         })
       }
     }
@@ -426,6 +502,177 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
     )
   }
 
+  if (screen.state === 'bind-select-profile') {
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Bind bot to project"
+        onCancel={() => setScreen({ state: 'overview' })}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>
+            Choose which saved Telegram bot should be active for the current
+            project.
+          </Text>
+          <Select
+            options={profiles.map(profile => ({
+              label: (
+                <Text>
+                  {profile.botDisplayName || profile.botUsername || profile.profileId}
+                  <Text dimColor>
+                    {' '}
+                    · {profile.botUsername ? `@${profile.botUsername}` : profile.profileId}
+                  </Text>
+                </Text>
+              ),
+              value: profile.profileId,
+            }))}
+            onChange={profileId => {
+              const profile = profiles.find(item => item.profileId === profileId)
+              if (!profile) {
+                return
+              }
+
+              const botToken = getTelegramBotProfileToken(profileId)
+              if (!botToken) {
+                setScreen({
+                  state: 'error',
+                  message:
+                    'The selected Telegram bot is missing its stored token. Re-pair the bot to repair this profile.',
+                })
+                return
+              }
+
+              const label =
+                profile.botDisplayName ||
+                profile.botUsername ||
+                profile.profileId
+
+              setScreen({
+                state: 'bind-awaiting-message',
+                profileId,
+                label,
+                botToken,
+              })
+            }}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen.state === 'bind-awaiting-message') {
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Bind bot to project"
+        onCancel={() => setScreen({ state: 'overview' })}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text>
+            Selected bot <Text bold>{screen.label}</Text> for this project.
+          </Text>
+          <Text dimColor>
+            Send that bot a message from the Telegram chat you want this
+            project to trust, then check for chats.
+          </Text>
+          <Select
+            options={[
+              {
+                label: <Text>Check for Telegram chats</Text>,
+                value: 'discover',
+              },
+              {
+                label: <Text>Back to Telegram overview</Text>,
+                value: 'back',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'discover') {
+                setScreen({
+                  state: 'bind-discovering',
+                  profileId: screen.profileId,
+                  label: screen.label,
+                  botToken: screen.botToken,
+                })
+                return
+              }
+              setScreen({ state: 'overview' })
+            }}
+          />
+          {envOverrideMessage ? <Text color="warning">{envOverrideMessage}</Text> : null}
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen.state === 'bind-discovering') {
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Bind bot to project"
+        onCancel={() => setScreen({ state: 'overview' })}
+        hideInputGuide
+      >
+        <Text>Looking for Telegram chats that have messaged your selected bot…</Text>
+      </Dialog>
+    )
+  }
+
+  if (screen.state === 'bind-select-chat') {
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Choose chat"
+        onCancel={() => setScreen({ state: 'overview' })}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>
+            Select the Telegram chat that should be allowlisted for the current
+            project.
+          </Text>
+          <Select
+            options={screen.candidates.map(candidate => ({
+              label: (
+                <Text>
+                  {candidate.title} · <Text dimColor>{candidate.subtitle}</Text>
+                </Text>
+              ),
+              value: candidate.chatId,
+            }))}
+            onChange={chatId => {
+              const candidate = screen.candidates.find(
+                item => item.chatId === chatId,
+              )
+              if (!candidate) {
+                return
+              }
+              setScreen({
+                state: 'bind-saving',
+                profileId: screen.profileId,
+                label: screen.label,
+                chat: candidate,
+              })
+            }}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen.state === 'bind-saving') {
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Bind bot to project"
+        onCancel={handleExit}
+        hideInputGuide
+      >
+        <Text>Saving Telegram project binding…</Text>
+      </Dialog>
+    )
+  }
+
   if (screen.state === 'clear-confirm') {
     return (
       <Dialog
@@ -435,22 +682,22 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
       >
         <Box flexDirection="column" gap={1}>
           <Text>
-            Remove the stored Telegram bot token and paired chat configuration
-            from this app?
+            Remove the current Telegram bot binding from this project?
           </Text>
           <Select
             options={[
               {
-                label: <Text>Yes, clear in-app Telegram pairing</Text>,
+                label: <Text>Yes, clear the current project binding</Text>,
                 value: 'clear',
               },
               { label: <Text>Cancel</Text>, value: 'cancel' },
             ]}
             onChange={value => {
               if (value === 'clear') {
-                clearTelegramAppConfig()
-                clearTelegramStoredBotToken()
-                onExit('Telegram pairing cleared', { display: 'system' })
+                clearCurrentProjectTelegramBinding()
+                onExit('Telegram project binding cleared', {
+                  display: 'system',
+                })
                 return
               }
               setScreen({ state: 'overview' })
@@ -510,8 +757,8 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             value={
               snapshot.source === 'env'
                 ? 'Environment variables'
-                : snapshot.source === 'app'
-                  ? 'In-app pairing'
+                : snapshot.source === 'project'
+                  ? 'Project binding'
                   : 'Not configured'
             }
           />
@@ -519,6 +766,7 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             label="Bot token"
             value={snapshot.botTokenConfigured ? 'Configured' : 'Missing'}
           />
+          <StatusLine label="Current project bot" value={currentBindingLabel} />
           <StatusLine
             label="Allowlisted chats"
             value={String(snapshot.allowedChatIdsCount)}
@@ -530,6 +778,9 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
           <StatusLine label="Voice transcription" value={voiceStatus} />
           {snapshot.botUsername ? (
             <StatusLine label="Bot" value={`@${snapshot.botUsername}`} />
+          ) : null}
+          {snapshot.projectPath ? (
+            <StatusLine label="Project path" value={snapshot.projectPath} />
           ) : null}
           {snapshot.lastPairedChatId ? (
             <StatusLine label="Last paired chat" value={snapshot.lastPairedChatId} />
@@ -544,11 +795,22 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                 label: <Text>Pair Telegram bot in-app</Text>,
                 value: 'pair',
               },
-              {
-                label: <Text>Clear in-app Telegram pairing</Text>,
-                value: 'clear',
-                disabled: snapshot.source !== 'app',
-              },
+              ...(profiles.length > 0
+                ? [
+                    {
+                      label: <Text>Bind saved Telegram bot to this project</Text>,
+                      value: 'bind',
+                    },
+                  ]
+                : []),
+              ...(currentBinding
+                ? [
+                    {
+                      label: <Text>Clear current project Telegram binding</Text>,
+                      value: 'clear',
+                    },
+                  ]
+                : []),
               {
                 label: <Text>Done</Text>,
                 value: 'done',
@@ -559,6 +821,11 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                 setDraftBotToken('')
                 setCursorOffset(0)
                 setScreen({ state: 'pair-input' })
+                return
+              }
+
+              if (value === 'bind') {
+                setScreen({ state: 'bind-select-profile' })
                 return
               }
 
@@ -573,11 +840,32 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
         </Box>
 
         <Box flexDirection="column">
+          <Text bold>Saved bot profiles</Text>
+          {profiles.length > 0 ? (
+            profiles.map(profile => (
+              <Bullet key={profile.profileId}>
+                {(profile.botDisplayName || profile.botUsername || profile.profileId) +
+                  (profile.botUsername ? ` (@${profile.botUsername})` : '') +
+                  (currentBinding?.profileId === profile.profileId
+                    ? ' · bound to this project'
+                    : '')}
+              </Bullet>
+            ))
+          ) : (
+            <Bullet>No saved Telegram bots yet. Pair one to create the first profile.</Bullet>
+          )}
+        </Box>
+
+        <Box flexDirection="column">
           <Text bold>Manual setup</Text>
           <Bullet>Create a Telegram bot with BotFather.</Bullet>
           <Bullet>
             Set <Text color="claude">CLAUDE_CODE_TELEGRAM_BOT_TOKEN</Text> to
             the bot token.
+          </Bullet>
+          <Bullet>
+            Pairing in-app saves the bot as a reusable profile, then binds it
+            to the current project.
           </Bullet>
           <Bullet>
             Message the bot once, then find the chat ID from Telegram Bot API

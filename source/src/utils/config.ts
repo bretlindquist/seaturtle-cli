@@ -73,6 +73,24 @@ export interface HistoryEntry {
 
 export type ReleaseChannel = 'stable' | 'latest'
 
+export type TelegramProjectBinding = {
+  profileId: string
+  allowedChatIds: string[]
+  pollTimeoutSeconds?: number
+  defaultChatId?: string
+  lastInboundChatId?: string
+  pairedAt?: number
+  updatedAt?: number
+}
+
+export type TelegramBotProfileMeta = {
+  profileId: string
+  botUsername?: string
+  botDisplayName?: string
+  createdAt?: number
+  updatedAt: number
+}
+
 export type ProjectConfig = {
   allowedTools: string[]
   mcpContextUris: string[]
@@ -106,6 +124,7 @@ export type ProjectConfig = {
   lastSessionMetrics?: Record<string, number>
   exampleFiles?: string[]
   exampleFilesGeneratedAt?: number
+  telegram?: TelegramProjectBinding
 
   // Trust dialog settings
   hasTrustDialogAccepted?: boolean
@@ -196,6 +215,10 @@ export type GlobalConfig = {
   userID?: string
   theme: ThemeSetting
   preferredMainProvider?: 'anthropic' | 'openai-codex'
+  telegramProfiles?: Record<string, TelegramBotProfileMeta>
+  /**
+   * @deprecated Use projects[projectPath].telegram and telegramProfiles instead.
+   */
   telegram?: {
     allowedChatIds: string[]
     pollTimeoutSeconds?: number

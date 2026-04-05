@@ -137,6 +137,10 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
       snapshot.pollTimeoutSeconds,
       snapshot.ready,
       snapshot.source,
+      snapshot.profileId,
+      snapshot.defaultChatId,
+      snapshot.lastPairedChatId,
+      snapshot.projectPath,
     ],
   )
   const offsetRef = useRef<number | undefined>(undefined)
