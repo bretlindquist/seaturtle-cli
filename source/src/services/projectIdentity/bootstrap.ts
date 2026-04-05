@@ -167,3 +167,54 @@ export function overwriteProjectCtIdentityFiles(input: {
     writeFile(getCtSessionPath(root), input.session)
   }
 }
+
+export function resetProjectCtIdentityToActiveDefaults(): void {
+  const defaults = getActiveCtDefaults()
+  overwriteProjectCtIdentityFiles({
+    identity: defaults.identity,
+    soul: defaults.soul,
+  })
+}
+
+export function ensureCtGlobalDefaultsPaths(): {
+  identityPath: string
+  soulPath: string
+} {
+  const fs = getFsImplementation()
+  const identityPath = getCtGlobalIdentityOverridePath()
+  const soulPath = getCtGlobalSoulOverridePath()
+  fs.mkdirSync(dirname(identityPath))
+  return {
+    identityPath,
+    soulPath,
+  }
+}
+
+export function ensureCtGlobalDefaultFile(
+  kind: 'identity' | 'soul',
+): string {
+  const defaults = getActiveCtDefaults()
+  const { identityPath, soulPath } = ensureCtGlobalDefaultsPaths()
+  const path = kind === 'identity' ? identityPath : soulPath
+  const content = kind === 'identity' ? defaults.identity : defaults.soul
+  writeFileIfMissing(path, content)
+  return path
+}
+
+export function resetCtGlobalDefaultsToShipped(): {
+  removedPaths: string[]
+} {
+  const fs = getFsImplementation()
+  const removedPaths: string[] = []
+  for (const path of [
+    getCtGlobalIdentityOverridePath(),
+    getCtGlobalSoulOverridePath(),
+  ]) {
+    if (!fs.existsSync(path)) {
+      continue
+    }
+    fs.unlinkSync(path)
+    removedPaths.push(path)
+  }
+  return { removedPaths }
+}

@@ -53,6 +53,8 @@ That layer is local/private by default and is meant for CT's project-specific
 working style and current context, not team-shared repo policy.
 On a new project, CT writes starter SeaTurtle defaults immediately, then offers
 to tune them through a short in-app picker flow.
+Use `/ct` any time to retune CT, edit the private `.ct` files, or manage
+global SeaTurtle defaults for future projects.
 
 Branding and compatibility boundaries live in
 [`docs/BRANDING.md`](./docs/BRANDING.md).

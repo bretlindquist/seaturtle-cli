@@ -129,6 +129,7 @@ Keywords:
 Next steps:
 
 - On a new project, follow the short startup picker if CT offers to tune the private SeaTurtle defaults
+- Run `/ct` if you want the simplest way to retune CT, edit `.ct` files, or manage defaults
 - Edit `.ct/identity.md` to tune CT's role and interaction style for this project
 - Edit `.ct/soul.md` to tune warmth, curiosity, and tone
 - Edit `.ct/session.md` for what matters right now

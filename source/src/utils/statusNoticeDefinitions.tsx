@@ -221,7 +221,7 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
         <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
         <Text>
           {isSeaTurtleIntro ? "I'm 🐢 SeaTurtle, or CT for short. I already set up the starter private identity for this project." : 'CT set up a private `.ct/` identity for this project.'}
-          <Text dimColor> · keep moving, or refine it any time in `.ct/identity.md` and `.ct/soul.md`</Text>
+          <Text dimColor> · use /ct whenever you want to retune it or edit `.ct/identity.md` and `.ct/soul.md`</Text>
         </Text>
       </Box>;
   }
@@ -237,7 +237,7 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
       <Text color="claude">🐢</Text>
       <Text>
         What are we working on today?
-        <Text dimColor> · use `.ct/session.md` for private project context whenever you want to steer CT</Text>
+        <Text dimColor> · use /ct to edit `.ct/session.md` or retune CT whenever you want to steer the project</Text>
       </Text>
     </Box>
 };

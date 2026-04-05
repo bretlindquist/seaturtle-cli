@@ -12,21 +12,28 @@ import {
   type CtIdentityTonePreset,
 } from '../services/projectIdentity/templates.js'
 import { Box, Text } from '../ink.js'
+import { clearMemoryFileCaches } from '../utils/claudemd.js'
 import { Select } from './CustomSelect/select.js'
 
 type Props = {
   onDone(): void
+  mode?: 'startup' | 'retune'
 }
 
 type Screen = 'start' | 'role' | 'focus' | 'tone'
 
-export function CtIdentityBootstrapDialog({ onDone }: Props): React.ReactNode {
-  const [screen, setScreen] = useState<Screen>('start')
+export function CtIdentityBootstrapDialog({
+  onDone,
+  mode = 'startup',
+}: Props): React.ReactNode {
+  const [screen, setScreen] = useState<Screen>(mode === 'retune' ? 'role' : 'start')
   const [role, setRole] = useState<CtIdentityRolePreset>('builder')
   const [focus, setFocus] = useState<CtIdentityFocusPreset>('speed')
-  const useFallbackIntro = shouldUseSeaTurtleFallbackIntro()
+  const useFallbackIntro =
+    mode === 'startup' && shouldUseSeaTurtleFallbackIntro()
 
   function finishWithStarterDefaults(): void {
+    clearMemoryFileCaches()
     markCtIdentityBootstrapComplete('defaulted')
     onDone()
   }
@@ -38,6 +45,7 @@ export function CtIdentityBootstrapDialog({ onDone }: Props): React.ReactNode {
       tone,
     })
     overwriteProjectCtIdentityFiles(guided)
+    clearMemoryFileCaches()
     markCtIdentityBootstrapComplete('guided')
     onDone()
   }
@@ -100,7 +108,9 @@ export function CtIdentityBootstrapDialog({ onDone }: Props): React.ReactNode {
                 return
               }
 
-              markCtIdentityBootstrapSkipped()
+              if (mode === 'startup') {
+                markCtIdentityBootstrapSkipped()
+              }
               onDone()
             }}
             onCancel={() => {
@@ -109,7 +119,9 @@ export function CtIdentityBootstrapDialog({ onDone }: Props): React.ReactNode {
                 return
               }
 
-              markCtIdentityBootstrapSkipped()
+              if (mode === 'startup') {
+                markCtIdentityBootstrapSkipped()
+              }
               onDone()
             }}
           />
@@ -156,7 +168,7 @@ export function CtIdentityBootstrapDialog({ onDone }: Props): React.ReactNode {
               setRole(value as CtIdentityRolePreset)
               setScreen('focus')
             }}
-            onCancel={() => setScreen('start')}
+            onCancel={() => (mode === 'retune' ? onDone() : setScreen('start'))}
           />
         </Box>
         <Text dimColor>Enter to confirm · Esc to go back</Text>
