@@ -7,6 +7,8 @@ should_build=0
 install_default_claude=0
 prefix_explicit=0
 
+MIN_NODE_MAJOR=18
+
 choose_default_prefix() {
   local path_entry
   local fallback="${HOME}/.local/bin"
@@ -38,6 +40,102 @@ Options:
   --prefix DIR          Install symlinks into DIR (default: ~/.local/bin)
   --as-default-claude   Also install a "claude" symlink to ct
   -h, --help            Show this help
+EOF
+}
+
+print_install_hint() {
+  local tool="$1"
+
+  case "$tool" in
+    node)
+      cat <<'EOF'
+Next step:
+  Install Node.js 18+ first, then rerun this installer.
+EOF
+      ;;
+    npm)
+      cat <<'EOF'
+Next step:
+  npm should ship with Node.js. Reinstall or repair your Node.js install, then rerun this installer.
+EOF
+      ;;
+    bun)
+      cat <<'EOF'
+Next step:
+  Install Bun, then rerun this installer.
+  One common path is:
+    curl -fsSL https://bun.sh/install | bash
+EOF
+      ;;
+    codex)
+      cat <<'EOF'
+Next step:
+  Install the OpenAI Codex CLI before using OpenAI/Codex OAuth inside CT.
+  CT can still be installed now, but OpenAI login/setup will stay unavailable until `codex` is on PATH.
+EOF
+      ;;
+  esac
+}
+
+require_command() {
+  local tool="$1"
+  local reason="$2"
+
+  if command -v "$tool" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  cat <<EOF >&2
+Missing required dependency: $tool
+
+Why it matters:
+  $reason
+EOF
+  print_install_hint "$tool" >&2
+  exit 1
+}
+
+check_node_version() {
+  local node_version node_major
+
+  node_version="$(node -p 'process.versions.node' 2>/dev/null || true)"
+  node_major="${node_version%%.*}"
+
+  if [[ -z "$node_version" || -z "$node_major" ]]; then
+    cat <<EOF >&2
+Unable to read your Node.js version.
+
+Next step:
+  Confirm that \`node\` runs successfully, then rerun this installer.
+EOF
+    exit 1
+  fi
+
+  if (( node_major < MIN_NODE_MAJOR )); then
+    cat <<EOF >&2
+Node.js $node_version is too old for this repo.
+
+Why it matters:
+  Building this fork requires Node.js $MIN_NODE_MAJOR or newer.
+
+Next step:
+  Upgrade Node.js, then rerun this installer.
+EOF
+    exit 1
+  fi
+}
+
+show_optional_codex_note() {
+  if command -v codex >/dev/null 2>&1; then
+    return 0
+  fi
+
+  cat <<'EOF'
+
+OpenAI/Codex note:
+  `codex` is not installed or not on PATH yet.
+  CT can still be installed now.
+  When you want OpenAI/Codex OAuth inside CT, install the Codex CLI first.
 EOF
 }
 
@@ -75,8 +173,22 @@ if (( ! prefix_explicit )); then
 fi
 
 if (( should_build )); then
+  require_command node "The build step runs the repo's bundler entrypoint."
+  check_node_version
+  require_command npm "The build overlay installs runtime dependencies with npm."
+  require_command bun "The build pipeline bundles the CLI with Bun."
+
   echo "Building local CLI..."
   node scripts/build-cli.mjs --no-minify
+elif [[ ! -f "$repo_root/dist/cli.js" ]]; then
+  cat <<'EOF'
+CT is not built yet.
+
+Next step:
+  Rerun this installer with:
+    ./scripts/install-local-cli.sh --build
+EOF
+  exit 1
 fi
 
 mkdir -p "$prefix"
@@ -144,6 +256,11 @@ cat <<EOF
 
 Step 4: Start CT:
   ct
+EOF
+
+show_optional_codex_note
+
+cat <<EOF
 
 Step 5: Inside CT, pick the next setup step you need:
   /login      Connect Anthropic or OpenAI/Codex auth

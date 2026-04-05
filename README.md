@@ -104,6 +104,15 @@ Recommended local install:
 ct
 ```
 
+The installer now preflights the local prerequisites it needs for a build:
+
+- `node` 18+
+- `npm`
+- `bun`
+
+It also checks for `codex` and explains that it is only required when you want
+OpenAI/Codex OAuth inside CT.
+
 That installs branded local wrappers:
 
 - `ct`

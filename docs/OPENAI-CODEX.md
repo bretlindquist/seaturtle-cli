@@ -59,6 +59,9 @@ Recommended local install:
 ./scripts/install-local-cli.sh --build
 ```
 
+That installer preflights `node`, `npm`, and `bun` for the build, then tells
+you when `codex` is still missing for OpenAI/Codex OAuth.
+
 Run on OpenAI/Codex:
 
 ```bash
