@@ -436,7 +436,7 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
           await sendTelegramMessage(
             config,
             targetChatId,
-            'Telegram test from Claude Code: outbound delivery is working for this project.',
+            'Telegram test from CT: outbound delivery is working for this project.',
           )
 
           if (cancelled) {

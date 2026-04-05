@@ -173,7 +173,7 @@ function buildLogoutOptions(): LogoutOption[] {
         <Text>
           Anthropic account{'\n'}
           <Text dimColor>
-            Sign Claude Code out of Anthropic login and managed API access
+            Sign CT out of Anthropic login and managed API access
           </Text>
         </Text>
       ),
@@ -187,8 +187,8 @@ function buildLogoutOptions(): LogoutOption[] {
         <Text>
           OpenAI Codex OAuth{'\n'}
           <Text dimColor>
-            Remove Claude Code&apos;s local Codex linkage and switch away from
-            the OpenAI provider
+            Remove CT&apos;s local Codex linkage and switch away from the
+            OpenAI provider
           </Text>
         </Text>
       ),
@@ -202,7 +202,7 @@ function buildLogoutOptions(): LogoutOption[] {
         <Text>
           All configured providers{'\n'}
           <Text dimColor>
-            Clear Anthropic auth and Claude Code&apos;s OpenAI Codex linkage
+            Clear Anthropic auth and CT&apos;s OpenAI Codex linkage
           </Text>
         </Text>
       ),
@@ -237,12 +237,12 @@ async function executeLogout(target: LogoutTarget): Promise<string> {
 
   if (target === 'openai-codex') {
     await performOpenAiCodexLogout({ clearOnboarding: true })
-    return "Removed Claude Code's OpenAI Codex linkage. Existing Codex CLI auth was left intact."
+    return "Removed CT's OpenAI Codex linkage. Existing Codex CLI auth was left intact."
   }
 
   await performAnthropicLogout({ clearOnboarding: false })
   await performOpenAiCodexLogout({ clearOnboarding: true })
-  return 'Cleared Anthropic auth and Claude Code’s OpenAI Codex linkage.'
+  return 'Cleared Anthropic auth and CT’s OpenAI Codex linkage.'
 }
 
 function LogoutCommand({
@@ -263,7 +263,7 @@ function LogoutCommand({
       return
     }
 
-    onDone('No Claude Code auth is currently configured.', {
+    onDone('No CT auth is currently configured.', {
       display: 'system',
     })
   }, [onDone, options])
@@ -296,7 +296,7 @@ function LogoutCommand({
     >
       <Box flexDirection="column" gap={1}>
         <Text>
-          Choose which auth to remove from Claude Code.
+          Choose which auth to remove from CT.
         </Text>
         {error ? <Text color="error">{error}</Text> : null}
         {isSubmitting ? (
@@ -328,7 +328,7 @@ function LogoutCommand({
           />
         )}
         <Text dimColor>
-          OpenAI logout removes Claude Code&apos;s local linkage. If you also
+          OpenAI logout removes CT&apos;s local linkage. If you also
           want to sign out of Codex itself, run <Text bold>codex logout</Text>.
         </Text>
       </Box>

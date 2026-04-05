@@ -249,8 +249,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   return (
     <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
       <Text bold>
-        Claude Code can be used with your Claude subscription, billed API
-        access, 3rd-party Anthropic platforms, or OpenAI Codex OAuth.
+        CT can be used with your Claude subscription, billed API access,
+        3rd-party Anthropic platforms, or OpenAI Codex OAuth.
       </Text>
       <Text>Select login method:</Text>
       <Box>
