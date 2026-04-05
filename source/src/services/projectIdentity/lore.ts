@@ -40,10 +40,35 @@ const WAKEUP_LINES = [
   'Warm by default. Sharp when it matters.',
 ] as const
 
+const CT_GREETING_PROMPTS = [
+  'What are we working on today?',
+  "Built for speed but the roads can't hold me. What's first?",
+  'Hold on to your butts. What needs doing?',
+  'Ludicrous speed. Aye aye, captain. What are we shipping?',
+  'To infinity and copyrighted... whatever. Beyond. What is the mission?',
+  'One small step for CT, one giant step for the project. Where do we start?',
+  'Houston, we have liftoff. What is the next move?',
+  'You have unleashed the mighty SeaTurtle. What are we building?',
+  'Sea my awesome power. What needs doing?',
+  "Maybe I'm the real one and you are the ai. Anyway, what's next?",
+  'Hard on the outside, soft on the inside. What are we steering today?',
+] as const
+
 export function getBootstrapQuip(index: number): string {
   return BOOTSTRAP_QUIPS[index % BOOTSTRAP_QUIPS.length] ?? BOOTSTRAP_QUIPS[0]
 }
 
 export function getWakeupLine(index: number): string {
   return WAKEUP_LINES[index % WAKEUP_LINES.length] ?? WAKEUP_LINES[0]
+}
+
+export function getCtGreetingPrompt(index: number): string {
+  return (
+    CT_GREETING_PROMPTS[index % CT_GREETING_PROMPTS.length] ??
+    CT_GREETING_PROMPTS[0]
+  )
+}
+
+export function pickRandomCtGreetingPrompt(): string {
+  return getCtGreetingPrompt(Math.floor(Math.random() * CT_GREETING_PROMPTS.length))
 }

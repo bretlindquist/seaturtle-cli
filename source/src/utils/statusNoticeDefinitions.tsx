@@ -13,7 +13,7 @@ import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
-import { HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
+import { pickRandomCtGreetingPrompt, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
 import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
 
 // Types
@@ -237,19 +237,51 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
   },
   render: () => {
     const canonCallback = getCtCanonCallback();
-    return <Box flexDirection="row">
-        <Text color="claude">🐢</Text>
-        <Box flexDirection="column" marginLeft={1}>
-          <Text>What are we working on today?</Text>
-          <Text dimColor>
-            Use /ct to edit `.ct/session.md` or retune CT whenever you want to
-            steer the project.
-          </Text>
-          {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
-        </Box>
-      </Box>;
+    return <CtIdentityGreetingNoticeBody canonCallback={canonCallback} />;
   }
 };
+
+const CT_GREETING_TYPING_DELAY_MS = 12;
+
+function CtIdentityGreetingNoticeBody({
+  canonCallback,
+}: {
+  canonCallback: string | null;
+}): React.ReactNode {
+  const [prompt] = React.useState(() => pickRandomCtGreetingPrompt());
+  const [visibleChars, setVisibleChars] = React.useState(0);
+
+  React.useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const tick = () => {
+      setVisibleChars(current => {
+        const next = Math.min(prompt.length, current + 2);
+        if (next < prompt.length) {
+          timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
+        }
+        return next;
+      });
+    };
+
+    timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [prompt]);
+
+  return <Box flexDirection="column">
+      <Text dimColor>
+        Use /ct to edit `.ct/session.md` or retune CT whenever you want to
+        steer the project.
+      </Text>
+      {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
+      <Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text>
+    </Box>;
+}
 
 // All notice definitions
 export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice, ctIdentityBootstrapNotice, ctIdentityGreetingNotice];
