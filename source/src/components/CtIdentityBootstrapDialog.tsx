@@ -7,6 +7,7 @@ import {
 } from '../services/projectIdentity/state.js'
 import {
   buildGuidedCtIdentity,
+  getBootstrapQuip,
   type CtIdentityFocusPreset,
   type CtIdentityRolePreset,
   type CtIdentityTonePreset,
@@ -14,6 +15,7 @@ import {
 import { Box, Text } from '../ink.js'
 import { clearMemoryFileCaches } from '../utils/claudemd.js'
 import { Select } from './CustomSelect/select.js'
+import { getCurrentProjectConfig } from '../utils/config.js'
 
 type Props = {
   onDone(): void
@@ -31,6 +33,8 @@ export function CtIdentityBootstrapDialog({
   const [focus, setFocus] = useState<CtIdentityFocusPreset>('speed')
   const useFallbackIntro =
     mode === 'startup' && shouldUseSeaTurtleFallbackIntro()
+  const seenCount = getCurrentProjectConfig().ctIdentityBootstrap?.seenCount ?? 0
+  const quip = getBootstrapQuip(Math.max(seenCount - 1, 0))
 
   function finishWithStarterDefaults(): void {
     clearMemoryFileCaches()
@@ -53,6 +57,7 @@ export function CtIdentityBootstrapDialog({
   if (screen === 'start') {
     return (
       <Box flexDirection="column" gap={1} paddingLeft={1}>
+        <Text color="claude">{quip}</Text>
         <Text bold>
           {useFallbackIntro
             ? "I'm 🐢 SeaTurtle, or CT for short."
@@ -60,13 +65,13 @@ export function CtIdentityBootstrapDialog({
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'I already set up starter private identity files for this project so we can keep moving.'
+            ? 'I already started this project with a stock private `identity.md` and `soul.md` so we can keep moving.'
             : 'CT already created private starter files in `.ct/` and a tiny `CLAUDE.local.md` bridge for this project.'}
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'You can keep the starter SeaTurtle defaults, or tune CT for this project now.'
-            : 'Want to tune CT a little, keep the starter SeaTurtle defaults, or skip for now?'}
+            ? 'Now we can either keep the stock SeaTurtle starter kit, or tune CT so this project gets its own voice, soul, and working posture.'
+            : 'This is where we establish CT’s private identity and soul for this project. Want to tune it a little, keep the stock starter kit, or skip for now?'}
         </Text>
         <Box>
           <Select
@@ -74,21 +79,25 @@ export function CtIdentityBootstrapDialog({
               useFallbackIntro
                 ? [
                     {
-                      label: 'Keep the SeaTurtle starter for now',
+                      label:
+                        'Go with the stock SeaTurtle start kit, wield this power carefully.',
                       value: 'default',
                     },
                     {
-                      label: 'Tune CT for this project',
+                      label:
+                        'Tune this SeaTurtle for your project, and unleash even more speed and power.',
                       value: 'guided',
                     },
                   ]
                 : [
                     {
-                      label: 'Tune CT for this project',
+                      label:
+                        'Tune this SeaTurtle for your project, and unleash even more speed and power.',
                       value: 'guided',
                     },
                     {
-                      label: 'Keep the SeaTurtle starter for now',
+                      label:
+                        'Go with the stock SeaTurtle start kit, wield this power carefully.',
                       value: 'default',
                     },
                     {
@@ -128,7 +137,7 @@ export function CtIdentityBootstrapDialog({
         </Box>
         <Text dimColor>
           {useFallbackIntro
-            ? 'Enter to confirm · Esc keeps the SeaTurtle starter'
+            ? 'Enter to confirm · Esc keeps the stock SeaTurtle starter kit'
             : 'Enter to confirm · Esc skips for now'}
         </Text>
       </Box>
@@ -138,8 +147,11 @@ export function CtIdentityBootstrapDialog({
   if (screen === 'role') {
     return (
       <Box flexDirection="column" gap={1} paddingLeft={1}>
-        <Text bold>What role should CT lean into here?</Text>
-        <Text>Pick the closest fit. We can keep this simple.</Text>
+        <Text bold>What kind of SeaTurtle should I be in this project?</Text>
+        <Text>
+          This shapes your private CT identity going forward. Pick the closest
+          fit.
+        </Text>
         <Box>
           <Select
             options={[
@@ -180,7 +192,7 @@ export function CtIdentityBootstrapDialog({
     return (
       <Box flexDirection="column" gap={1} paddingLeft={1}>
         <Text bold>What should CT optimize for first?</Text>
-        <Text>This sets the default posture, not a permanent rule.</Text>
+        <Text>This tunes how I lean when the path isn&apos;t obvious.</Text>
         <Box>
           <Select
             options={[
@@ -219,8 +231,10 @@ export function CtIdentityBootstrapDialog({
 
   return (
     <Box flexDirection="column" gap={1} paddingLeft={1}>
-      <Text bold>How should CT sound by default?</Text>
-      <Text>Keep it human. You can always rewrite the files later.</Text>
+      <Text bold>How should I sound by default?</Text>
+      <Text>
+        This shapes the voice in your private CT soul and identity files.
+      </Text>
       <Box>
         <Select
           options={[
