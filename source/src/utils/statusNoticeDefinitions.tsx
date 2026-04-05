@@ -7,6 +7,7 @@ import { getCwd } from './cwd.js';
 import { relative } from 'path';
 import { formatNumber } from './format.js';
 import type { getGlobalConfig } from './config.js';
+import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
 import { getAnthropicApiKeyWithSource, getApiKeyFromConfigOrMacOSKeychain, getAuthTokenSource, isClaudeAISubscriber } from './auth.js';
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js';
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
@@ -187,9 +188,27 @@ const jetbrainsPluginNotice: StatusNoticeDefinition = {
       </Box>;
   }
 };
+const telegramSetupNotice: StatusNoticeDefinition = {
+  id: 'telegram-setup',
+  type: 'warning',
+  isActive: () => {
+    const snapshot = getTelegramConfigSnapshot();
+    return (snapshot.botTokenConfigured || snapshot.allowedChatIdsCount > 0) && !snapshot.ready;
+  },
+  render: () => {
+    const snapshot = getTelegramConfigSnapshot();
+    return <Box flexDirection="row">
+        <Text color="warning">{figures.warning}</Text>
+        <Text color="warning">
+          Telegram is partially configured {snapshot.source === 'env' ? '(from environment variables) ' : ''}and will not receive messages yet.
+          <Text dimColor> · /telegram to finish setup</Text>
+        </Text>
+      </Box>;
+  }
+};
 
 // All notice definitions
-export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice];
+export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice];
 
 // Helper functions for external use
 export function getActiveNotices(context: StatusNoticeContext): StatusNoticeDefinition[] {

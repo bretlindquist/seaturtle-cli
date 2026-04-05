@@ -125,6 +125,9 @@ export function buildTelegramProperties(theme: ThemeName): Property[] {
   }, {
     label: 'Telegram voice',
     value: voiceValue
+  }, {
+    label: 'Telegram setup',
+    value: '/telegram'
   }];
 }
 export async function buildMemoryDiagnostics(): Promise<Diagnostic[]> {
@@ -195,10 +198,13 @@ export async function buildInstallationHealthDiagnostics(): Promise<Diagnostic[]
   const items: Diagnostic[] = [];
   const telegramSnapshot = getTelegramConfigSnapshot();
   if (telegramSnapshot.botTokenConfigured && telegramSnapshot.allowedChatIdsCount === 0) {
-    items.push('Telegram bot token is configured, but no allowlisted chat IDs are set.');
+    items.push('Telegram bot token is configured, but no allowlisted chat IDs are set. Run /telegram to finish pairing or setup.');
   }
   if (!telegramSnapshot.botTokenConfigured && telegramSnapshot.allowedChatIdsCount > 0) {
-    items.push('Telegram allowlisted chat IDs are configured, but the bot token is missing.');
+    items.push('Telegram allowlisted chat IDs are configured, but the bot token is missing. Run /telegram to repair the setup.');
+  }
+  if (telegramSnapshot.source === 'env' && telegramSnapshot.botTokenConfigured) {
+    items.push('Telegram is currently being configured by environment variables. Run /telegram to view the active contract and pairing status.');
   }
   const {
     errors: validationErrors
