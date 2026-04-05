@@ -37,6 +37,7 @@ import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { formatTokens, truncateToWidth } from '../utils/format.js';
+import { getCwd } from '../utils/cwd.js';
 import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { setMemberActive } from '../utils/swarm/teamHelpers.js';
 import { isSwarmWorker, generateSandboxRequestId, sendSandboxPermissionRequestViaMailbox, sendSandboxPermissionResponseViaMailbox } from '../utils/swarm/permissionSync.js';
@@ -2801,12 +2802,17 @@ export function REPL({
       } : {})
     };
     queryCheckpoint('query_context_loading_end');
-    const conversationPosture = getCtConversationPostureResult({
-      currentInput: input ?? '',
-      recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
-      seed: `${getCwd()}:${input ?? ''}:${messagesIncludingNewMessages.length}`,
-    });
-    const effectiveAppendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${conversationPosture.addendum}` : conversationPosture.addendum;
+    let effectiveAppendSystemPrompt = appendSystemPrompt;
+    try {
+      const conversationPosture = getCtConversationPostureResult({
+        currentInput: input ?? '',
+        recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
+        seed: `${getCwd()}:${input ?? ''}:${messagesIncludingNewMessages.length}`,
+      });
+      effectiveAppendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${conversationPosture.addendum}` : conversationPosture.addendum;
+    } catch (error) {
+      logError(error);
+    }
     const systemPrompt = buildEffectiveSystemPrompt({
       mainThreadAgentDefinition,
       toolUseContext,
