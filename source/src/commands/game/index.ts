@@ -6,6 +6,8 @@ const game = {
   description: 'Hidden SeaTurtle game shell',
   isHidden: true,
   immediate: true,
+  disableModelInvocation: true,
+  userInvocable: true,
   load: () => import('./game.js'),
 } satisfies Command
 
