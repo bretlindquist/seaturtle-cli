@@ -49,9 +49,12 @@ After pairing, `/telegram` can also:
 - send a Telegram test message
 - run Telegram doctor diagnostics
 
-When `/autowork` or `/swim` is active in safe mode, Telegram can also receive a
-short stop notice for critical checkpoint failures if this project already has a
-default or last-inbound chat bound.
+When `/autowork` or `/swim` is active, Telegram can also receive:
+
+- a short stop notice for critical checkpoint failures
+- a dangerous-mode debt notice when the run continues with recorded checkpoint debt
+
+This uses the current project's bound Telegram bot and chat routing.
 
 For a concise in-app summary, run:
 
@@ -146,13 +149,14 @@ Telegram is intentionally allowlist-based.
 
 This prevents a bot from being reachable by arbitrary chats once a token is set.
 
-Autowork stop notices follow the same project-local binding model:
+Autowork Telegram notices follow the same project-local binding model:
 
 - they use the current project's bound Telegram bot
 - they target the default project chat first
 - then the last inbound project chat
 - then the first allowlisted chat as a fallback
-- if Telegram is not configured for the project, no stop notice is sent
+- if Telegram is not configured for the project, no notice is sent
+- stop notices and dangerous-mode debt notices both use the same routing path
 
 ## Multi-Bot And Project Binding
 

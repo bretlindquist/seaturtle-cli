@@ -269,23 +269,27 @@ than dropping them into Anthropic-first wording.
 - `/autowork`
 - `/swim`
 
-These start the same safe orchestration harness.
+These start the same tracked-plan orchestration harness.
 
 Current contract:
 
 - requires one tracked root-level dated `*-state.md` plan file
 - runs one chunk at a time
-- enforces validation and commit gates between chunks
-- stops on checkpoint failure instead of continuing blindly
-- can send a Telegram stop notice when Telegram is bound for the project
+- safe mode enforces validation and commit gates between chunks
+- safe mode stops on checkpoint failure instead of continuing blindly
+- dangerous mode is available, but heavily discouraged
+- when dangerous mode continues, it records checkpoint debt instead of hiding it
+- can send Telegram stop notices and dangerous-mode debt notices when Telegram is bound for the project
 
 Current subcommands:
 
 - `/autowork`
+- `/autowork dangerous`
 - `/autowork run`
 - `/autowork status`
 - `/autowork doctor`
 - `/swim`
+- `/swim dangerous`
 - `/swim run`
 - `/swim status`
 - `/swim doctor`
@@ -365,11 +369,34 @@ They are a higher-level tracked-plan orchestrator with these guarantees:
 - safe mode requires a clean tree after the checkpoint commit
 - failures persist a stop reason instead of silently continuing
 
+Dangerous mode keeps these hard refusals:
+
+- not in a git repo
+- missing or untracked plan file
+- plan parse failure
+- no pending chunks
+- secret-hygiene failures
+
+Dangerous mode relaxes these checkpoint gates into recorded debt:
+
+- dirty tree before launch
+- validation failure
+- missing new commit after a chunk
+- dirty tree after verification
+
+Dangerous-mode behavior:
+
+- it is heavily discouraged
+- it still runs one chunk at a time
+- it still re-checks the previous chunk before advancing
+- it persists checkpoint debt into state instead of pretending the run was clean
+- it can send a Telegram notice when it continues with dangerous-mode debt
+
 Cost and operator expectations:
 
 - it uses more tokens, time, and runtime than ordinary interactive work
 - it is meant for a tracked, surgical chunk plan, not open-ended exploration
-- dangerous mode is not shipped in this wave
+- safe mode remains the recommended default
 
 ### Clean Rebuild
 

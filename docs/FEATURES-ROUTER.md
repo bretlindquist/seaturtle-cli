@@ -133,6 +133,7 @@ Next steps:
 
 - Use `/autowork` for the operator-forward entrypoint
 - Use `/swim` for the more whimsical alias with the same guarantees
+- Use `/autowork dangerous` or `/swim dangerous` only when you deliberately want the dangerous-mode policy
 - Use `/autowork run` or `/swim run` to launch exactly one chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
@@ -144,7 +145,10 @@ Important truth:
 - safe mode verifies validation and commit hygiene before it advances
 - failures stop and persist a stop reason
 - if Telegram is bound for the project, critical stops can send a short Telegram notice
-- dangerous mode is intentionally not shipped in this wave
+- dangerous mode is shipped, but heavily discouraged
+- dangerous mode still keeps hard refusals for git/plan/secret-hygiene failures
+- dangerous mode can continue with recorded checkpoint debt for selected validation and git-check failures
+- Telegram can also send a dangerous-mode debt notice after a degraded continuation
 
 ## CT identity / soul / local project memory
 
