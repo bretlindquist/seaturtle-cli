@@ -18,7 +18,10 @@ import {
   verifyAutoworkPostCommitCleanTree,
   verifyAutoworkPreChunkGitState,
 } from './gitChecks.js'
-import { sendAutoworkTelegramStopNotice } from './telegramAlerts.js'
+import {
+  sendAutoworkTelegramDebtNotice,
+  sendAutoworkTelegramStopNotice,
+} from './telegramAlerts.js'
 import {
   readAutoworkState,
   type AutoworkMode,
@@ -336,6 +339,41 @@ function buildStopMessage(
     .join('\n')
 }
 
+function buildTelegramStopNoticeSignature(
+  code: string,
+  message: string,
+  chunkId?: string,
+): string {
+  return ['stop', code, chunkId ?? '', message].join('|')
+}
+
+function buildTelegramDebtNoticeSignature(
+  chunkId: string,
+  debts: readonly AutoworkContinuationDebt[],
+): string {
+  const debtKey = debts
+    .map(debt =>
+      [debt.code, debt.failedCheck ?? '', debt.chunkId ?? '', debt.message].join(':'),
+    )
+    .sort()
+    .join(';')
+
+  return ['debt', chunkId, debtKey].join('|')
+}
+
+function persistTelegramNoticeSignature(
+  repoRoot: string,
+  signature: string,
+): void {
+  updateAutoworkState(
+    current => ({
+      ...current,
+      lastTelegramNoticeSignature: signature,
+    }),
+    repoRoot,
+  )
+}
+
 function persistAutoworkStop(
   context: AutoworkStartupContext,
   code: string,
@@ -347,11 +385,8 @@ function persistAutoworkStop(
     return
   }
 
-  const shouldNotify =
-    !context.state.stopReason ||
-    context.state.stopReason.code !== code ||
-    context.state.stopReason.message !== message ||
-    context.state.stopReason.chunkId !== chunkId
+  const noticeSignature = buildTelegramStopNoticeSignature(code, message, chunkId)
+  const shouldNotify = context.state.lastTelegramNoticeSignature !== noticeSignature
 
   const telegramEscalationEnabled = context.state.telegramEscalationEnabled
 
@@ -379,6 +414,10 @@ function persistAutoworkStop(
       message,
       failedCheck,
       chunkId,
+    }).then(result => {
+      if (result.ok) {
+        persistTelegramNoticeSignature(context.repoRoot!, noticeSignature)
+      }
     })
   }
 }
@@ -791,6 +830,30 @@ export async function verifyAutoworkSafeExecution(
     }),
     context.repoRoot,
   )
+
+  if (
+    context.state.runMode === 'dangerous' &&
+    finalContinuationDebt.length > 0
+  ) {
+    const debtSignature = buildTelegramDebtNoticeSignature(
+      activeChunk.id,
+      finalContinuationDebt,
+    )
+
+    if (context.state.lastTelegramNoticeSignature !== debtSignature) {
+      void sendAutoworkTelegramDebtNotice({
+        repoRoot: context.repoRoot,
+        telegramEscalationEnabled: context.state.telegramEscalationEnabled,
+        chunkId: activeChunk.id,
+        debts: finalContinuationDebt,
+        nextPendingChunkId,
+      }).then(result => {
+        if (result.ok) {
+          persistTelegramNoticeSignature(context.repoRoot!, debtSignature)
+        }
+      })
+    }
+  }
 
   return {
     ok: true,

@@ -73,6 +73,7 @@ export type AutoworkState = {
   lastFinishedAt: number | null
   implementedButUnverified: boolean
   telegramEscalationEnabled: boolean
+  lastTelegramNoticeSignature: string | null
   runCount: number
 }
 
@@ -96,6 +97,7 @@ function createDefaultAutoworkState(): AutoworkState {
     lastFinishedAt: null,
     implementedButUnverified: false,
     telegramEscalationEnabled: true,
+    lastTelegramNoticeSignature: null,
     runCount: 0,
   }
 }
@@ -288,6 +290,10 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
       typeof value.telegramEscalationEnabled === 'boolean'
         ? value.telegramEscalationEnabled
         : defaults.telegramEscalationEnabled,
+    lastTelegramNoticeSignature:
+      typeof value.lastTelegramNoticeSignature === 'string'
+        ? value.lastTelegramNoticeSignature
+        : null,
     runCount:
       typeof value.runCount === 'number' && value.runCount >= 0
         ? value.runCount

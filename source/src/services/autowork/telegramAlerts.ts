@@ -2,6 +2,7 @@ import { basename } from 'path'
 import { getTelegramConfig, getCurrentProjectTelegramBindingSnapshot } from '../telegram/config.js'
 import { sendTelegramMessage } from '../telegram/client.js'
 import { logError } from '../../utils/log.js'
+import type { AutoworkContinuationDebt } from './state.js'
 
 export type AutoworkTelegramAlertResult =
   | { ok: true; chatId: string }
@@ -50,6 +51,30 @@ function buildAutoworkStopMessage(params: {
     .join('\n')
 }
 
+function buildAutoworkDebtMessage(params: {
+  repoRoot: string
+  chunkId: string
+  debts: readonly AutoworkContinuationDebt[]
+  nextPendingChunkId?: string | null
+}): string {
+  return [
+    'SeaTurtle autowork continued in dangerous mode.',
+    '',
+    `Project: ${basename(params.repoRoot) || params.repoRoot}`,
+    `Chunk: ${params.chunkId}`,
+    '',
+    'Checkpoint debt:',
+    ...params.debts.map(debt =>
+      debt.failedCheck
+        ? `- ${debt.code}: ${debt.message} [${debt.failedCheck}]`
+        : `- ${debt.code}: ${debt.message}`,
+    ),
+    '',
+    `Next chunk: ${params.nextPendingChunkId ?? 'none'}`,
+    'Next step: open CT in this repo and run /autowork doctor.',
+  ].join('\n')
+}
+
 export async function sendAutoworkTelegramStopNotice(params: {
   repoRoot: string
   telegramEscalationEnabled: boolean
@@ -81,6 +106,44 @@ export async function sendAutoworkTelegramStopNotice(params: {
       config,
       chatId,
       buildAutoworkStopMessage(params),
+    )
+    return { ok: true, chatId }
+  } catch (error) {
+    logError(error)
+    return { ok: false, code: 'telegram_send_failed' }
+  }
+}
+
+export async function sendAutoworkTelegramDebtNotice(params: {
+  repoRoot: string
+  telegramEscalationEnabled: boolean
+  chunkId: string
+  debts: readonly AutoworkContinuationDebt[]
+  nextPendingChunkId?: string | null
+}): Promise<AutoworkTelegramAlertResult> {
+  if (!params.telegramEscalationEnabled) {
+    return { ok: false, code: 'telegram_disabled' }
+  }
+
+  const config = getTelegramConfig()
+  if (!config) {
+    return { ok: false, code: 'telegram_not_configured' }
+  }
+
+  const chatId =
+    getCurrentProjectTelegramBindingSnapshot()?.defaultChatId ??
+    getCurrentProjectTelegramBindingSnapshot()?.lastInboundChatId ??
+    selectTargetChatId()
+
+  if (!chatId) {
+    return { ok: false, code: 'telegram_no_target_chat' }
+  }
+
+  try {
+    await sendTelegramMessage(
+      config,
+      chatId,
+      buildAutoworkDebtMessage(params),
     )
     return { ok: true, chatId }
   } catch (error) {
