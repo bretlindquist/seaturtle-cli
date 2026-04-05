@@ -293,6 +293,7 @@ Current subcommands:
 - `/autowork step`
 - `/autowork status`
 - `/autowork doctor`
+- `/autowork verify`
 - `/swim`
 - `/swim safe`
 - `/swim dangerous`
@@ -300,6 +301,7 @@ Current subcommands:
 - `/swim step`
 - `/swim status`
 - `/swim doctor`
+- `/swim verify`
 
 `/swim` is the more whimsical entrypoint. The execution guarantees are the same.
 

@@ -226,7 +226,7 @@ async function setAutoworkRunMode(
       message: [
         resolved.message,
         '',
-        `Then rerun ${baseName} dangerous after the tracked plan is ready.`,
+        `Then rerun ${baseName} ${runMode} after the tracked plan is ready.`,
       ].join('\n'),
     }
   }

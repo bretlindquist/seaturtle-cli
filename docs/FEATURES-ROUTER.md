@@ -139,6 +139,7 @@ Next steps:
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
+- Use `/autowork verify` or `/swim verify` when you need to manually enforce the current checkpoint
 
 Important truth:
 
