@@ -224,8 +224,8 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row">
         <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
         <Text>
-          {isSeaTurtleIntro ? `I'm 🐢 SeaTurtle, or CT for short. I already set up a stock private identity and soul for this project. Over time, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.` : 'CT set up a private `.ct/` identity layer for this project.'}
-          <Text dimColor> · use /ct whenever you want to retune it or edit `.ct/identity.md` and `.ct/soul.md`</Text>
+          {isSeaTurtleIntro ? `I'm 🐢 SeaTurtle, or CT for short. I already set up a private starter kit for this project. Over time, this layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.` : 'CT set up a private `.ct/` layer for this project.'}
+          <Text dimColor> · use /ct whenever you want to retune it or edit the private CT files directly</Text>
         </Text>
       </Box>;
   }

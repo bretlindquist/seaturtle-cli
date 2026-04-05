@@ -64,17 +64,17 @@ export function CtIdentityBootstrapDialog({
         <Text bold>
           {useFallbackIntro
             ? "I'm 🐢 SeaTurtle, or CT for short."
-            : 'Private CT identity for this project'}
+            : 'Let’s shape how CT should show up here.'}
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'I already started this project with a stock private `identity.md` and `soul.md` starter kit so we can keep moving.'
-            : 'CT already created private starter files in `.ct/` and a tiny `CLAUDE.local.md` bridge for this project.'}
+            ? 'I already set up a stock private starter kit in `.ct/` so we could keep moving.'
+            : 'CT already created a private `.ct/` layer for this project, along with a tiny compatibility bridge.'}
         </Text>
         <Text>
           {useFallbackIntro
-            ? `Now we can either keep the stock SeaTurtle starter kit, or tune CT so this project gets its own voice, soul, and working posture. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
-            : `This is where we establish CT’s private identity and soul for this project. Want to tune it a little, keep the stock starter kit, or skip for now? Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
+            ? `If you want, we can keep the stock SeaTurtle starter kit, or tune how I think, sound, and work in this project. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
+            : `This is a small first conversation, not a form. We can tune how I think, sound, and work in this project, keep the stock starter kit, or skip for now. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
         </Text>
         <Box>
           <Select
@@ -82,25 +82,21 @@ export function CtIdentityBootstrapDialog({
               useFallbackIntro
                 ? [
                     {
-                      label:
-                        'Go with the stock SeaTurtle start kit, wield this power carefully.',
+                      label: 'Keep the stock SeaTurtle starter kit',
                       value: 'default',
                     },
                     {
-                      label:
-                        'Tune this SeaTurtle for your project, and unleash even more speed and power.',
+                      label: 'Tune how SeaTurtle shows up here',
                       value: 'guided',
                     },
                   ]
                 : [
                     {
-                      label:
-                        'Tune this SeaTurtle for your project, and unleash even more speed and power.',
+                      label: 'Tune how SeaTurtle shows up here',
                       value: 'guided',
                     },
                     {
-                      label:
-                        'Go with the stock SeaTurtle start kit, wield this power carefully.',
+                      label: 'Keep the stock SeaTurtle starter kit',
                       value: 'default',
                     },
                     {
@@ -152,8 +148,8 @@ export function CtIdentityBootstrapDialog({
       <Box flexDirection="column" gap={1} paddingLeft={1}>
         <Text bold>What kind of SeaTurtle should I be in this project?</Text>
         <Text>
-          This shapes your private CT identity going forward. Pick the closest
-          fit. We can keep it light and conversational.
+          We are not locking in a costume. We are just picking the closest
+          working stance so this feels natural.
         </Text>
         <Box>
           <Select
@@ -195,7 +191,7 @@ export function CtIdentityBootstrapDialog({
     return (
       <Box flexDirection="column" gap={1} paddingLeft={1}>
         <Text bold>What should CT optimize for first?</Text>
-        <Text>This tunes how I lean when the path isn&apos;t obvious.</Text>
+        <Text>This tunes how I lean when the path is still forming.</Text>
         <Box>
           <Select
             options={[
@@ -236,8 +232,8 @@ export function CtIdentityBootstrapDialog({
     <Box flexDirection="column" gap={1} paddingLeft={1}>
       <Text bold>How should I sound by default?</Text>
       <Text>
-        This shapes the voice in your private CT soul and identity files going
-        forward.
+        This shapes the voice in the private CT layer going forward. We can keep
+        it warm, playful, or cleaner without turning it into a persona stunt.
       </Text>
       <Box>
         <Select

@@ -27,10 +27,13 @@ import { getProjectCtIdentityBootstrapState, markCtIdentityBootstrapComplete } f
 import {
   getCtGlobalIdentityOverridePath,
   getCtGlobalSoulOverridePath,
+  getCtBootstrapPath,
   getCtIdentityPath,
   getCtProjectRoot,
+  getCtRolePath,
   getCtSessionPath,
   getCtSoulPath,
+  getCtUserPath,
 } from '../../services/projectIdentity/paths.js'
 
 type OnExit = (
@@ -45,6 +48,9 @@ type Screen = 'overview' | 'retune' | 'confirm-reset-project' | 'confirm-reset-g
 type Action =
   | 'edit-identity'
   | 'edit-soul'
+  | 'edit-role'
+  | 'edit-user'
+  | 'edit-bootstrap'
   | 'edit-session'
   | 'retune'
   | 'reset-project'
@@ -124,7 +130,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Retune CT for this project"
-        subtitle="This rewrites the private `.ct/identity.md` and `.ct/soul.md` files that shape CT in this project."
+        subtitle="This rewrites the private CT starter files that shape how SeaTurtle thinks, sounds, and works in this project."
         onCancel={() => setScreen('overview')}
       >
         <CtIdentityBootstrapDialog
@@ -142,7 +148,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Reset this project to active defaults?"
-        subtitle="This restores the private CT identity and soul for this project to the active SeaTurtle defaults. `.ct/session.md` is left alone."
+        subtitle="This restores the private CT starter files for this project to the active SeaTurtle defaults. `.ct/session.md` is left alone."
         onCancel={() => setScreen('overview')}
       >
         <Select
@@ -219,7 +225,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   return (
     <Dialog
       title="CT private identity layer"
-      subtitle="Shape CT’s private identity, soul, and session for this project, or manage the default SeaTurtle starter kit."
+      subtitle="Shape how SeaTurtle thinks, sounds, remembers, and works in this project, or manage the default starter kit."
       onCancel={() => onExit('CT menu dismissed', { display: 'system' })}
     >
       <Box flexDirection="column" gap={1}>
@@ -246,6 +252,21 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               label: 'Edit project soul',
               value: 'edit-soul' as const,
               description: 'Adjust warmth, curiosity, playfulness, and overall CT tone',
+            },
+            {
+              label: 'Edit project role',
+              value: 'edit-role' as const,
+              description: 'Tune how exploratory, operational, or exacting CT should be here',
+            },
+            {
+              label: 'Edit project user context',
+              value: 'edit-user' as const,
+              description: 'Keep lightweight notes about how to collaborate well with the user',
+            },
+            {
+              label: 'Edit project bootstrap ritual',
+              value: 'edit-bootstrap' as const,
+              description: 'Shape the first-run or retune conversation tone for this project',
             },
             {
               label: 'Edit current session note',
@@ -302,6 +323,39 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   onSuccess: () => markCtIdentityBootstrapComplete('customized'),
                 })
                 return
+              case 'edit-role':
+                openCtFile({
+                  path: getCtRolePath(projectRoot),
+                  initialContent: getActiveCtDefaults().role,
+                  onExit,
+                  successPrefix: 'Opened project role at',
+                  nextStep:
+                    'shape how CT should lean here, or use /ct retune if you want the guided picker again',
+                  onSuccess: () => markCtIdentityBootstrapComplete('customized'),
+                })
+                return
+              case 'edit-user':
+                openCtFile({
+                  path: getCtUserPath(projectRoot),
+                  initialContent: getActiveCtDefaults().user,
+                  onExit,
+                  successPrefix: 'Opened project user context at',
+                  nextStep:
+                    'keep only what improves collaboration, then jump back into the session',
+                  onSuccess: () => markCtIdentityBootstrapComplete('customized'),
+                })
+                return
+              case 'edit-bootstrap':
+                openCtFile({
+                  path: getCtBootstrapPath(projectRoot),
+                  initialContent: getActiveCtDefaults().bootstrap,
+                  onExit,
+                  successPrefix: 'Opened project bootstrap ritual at',
+                  nextStep:
+                    'keep the opening conversational and small, then use /ct retune when you want to feel it in practice',
+                  onSuccess: () => markCtIdentityBootstrapComplete('customized'),
+                })
+                return
               case 'edit-session':
                 openCtFile({
                   path: getCtSessionPath(projectRoot),
@@ -344,7 +398,7 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             }
           }}
           onCancel={() => onExit('CT menu dismissed', { display: 'system' })}
-          visibleOptionCount={8}
+          visibleOptionCount={11}
         />
       </Box>
     </Dialog>

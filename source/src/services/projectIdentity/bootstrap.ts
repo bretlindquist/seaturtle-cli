@@ -30,8 +30,10 @@ import {
   getCtUserPath,
 } from './paths.js'
 
-const CT_ROUTER_CONTENT = `@./identity.md
-@./soul.md
+const CT_ROUTER_CONTENT = `@./soul.md
+@./identity.md
+@./role.md
+@./user.md
 @./attunement.md
 @./session.md
 `
@@ -95,14 +97,16 @@ function writeFile(path: string, content: string): void {
   writeFileSyncAndFlush_DEPRECATED(path, content, { encoding: 'utf-8' })
 }
 
-function ensureFileContainsLine(path: string, line: string): boolean {
+function ensureFileContent(path: string, content: string): boolean {
   const current = readIfExists(path)
-  if (current === null || current.includes(line)) {
+  if (
+    current === null ||
+    normalizeComparableContent(current) === normalizeComparableContent(content)
+  ) {
     return false
   }
 
-  const next = `${current.trimEnd()}\n${line}\n`
-  writeFile(path, next)
+  writeFile(path, content)
   return true
 }
 
@@ -162,7 +166,7 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
   if (writeFileIfMissing(compatBridgePath, CT_COMPAT_BRIDGE_CONTENT)) {
     createdPaths.push(compatBridgePath)
   }
-  if (ensureFileContainsLine(routerPath, '@./attunement.md')) {
+  if (ensureFileContent(routerPath, CT_ROUTER_CONTENT)) {
     createdPaths.push(routerPath)
   }
 
