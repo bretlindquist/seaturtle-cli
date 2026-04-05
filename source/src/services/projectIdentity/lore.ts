@@ -42,16 +42,16 @@ const WAKEUP_LINES = [
 
 const CT_GREETING_PROMPTS = [
   'What are we working on today?',
-  "Built for speed but the roads can't hold me. What's first?",
-  'Hold on to your butts. What needs doing?',
-  'Ludicrous speed. Aye aye, captain. What are we shipping?',
-  'To infinity and copyrighted... whatever. Beyond. What is the mission?',
-  'One small step for CT, one giant step for the project. Where do we start?',
-  'Houston, we have liftoff. What is the next move?',
-  'You have unleashed the mighty SeaTurtle. What are we building?',
+  'You have unleashed the mighty SeaTurtle. What shall we build?',
   'Sea my awesome power. What needs doing?',
   "Maybe I'm the real one and you are the ai. Anyway, what's next?",
   'Hard on the outside, soft on the inside. What are we steering today?',
+  'Underestimate the power of the SeaTurtle at your own peril. What are we fixing?',
+  'Land or sea, where are we headed?',
+  'Fancy a race, or are we shipping something first?',
+  'A human... this should be fun. What are we making?',
+  'Got any carrots? If not, I also fancy debugs. What needs doing?',
+  'Big Turtle Energy. What is the move?',
 ] as const
 
 export function getBootstrapQuip(index: number): string {
@@ -69,6 +69,11 @@ export function getCtGreetingPrompt(index: number): string {
   )
 }
 
-export function pickRandomCtGreetingPrompt(): string {
-  return getCtGreetingPrompt(Math.floor(Math.random() * CT_GREETING_PROMPTS.length))
+export function pickCtGreetingPrompt(seed: string): string {
+  let score = 0
+  for (const char of seed) {
+    score += char.charCodeAt(0)
+  }
+
+  return getCtGreetingPrompt(score)
 }
