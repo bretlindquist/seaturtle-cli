@@ -14,6 +14,7 @@ import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from '.
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
 import { HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
+import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -234,13 +235,17 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
     const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
     return bootstrap?.hasCompletedSetup === true;
   },
-  render: () => <Box flexDirection="row">
-      <Text color="claude">🐢</Text>
-      <Text>
-        What are we working on today?
-        <Text dimColor> · use /ct to edit `.ct/session.md` or retune CT whenever you want to steer the project</Text>
-      </Text>
-    </Box>
+  render: () => {
+    const canonCallback = getCtCanonCallback();
+    return <Box flexDirection="row">
+        <Text color="claude">🐢</Text>
+        <Text>
+          What are we working on today?
+          <Text dimColor> · use /ct to edit `.ct/session.md` or retune CT whenever you want to steer the project</Text>
+          {canonCallback ? <Text dimColor> · {canonCallback}</Text> : null}
+        </Text>
+      </Box>;
+  }
 };
 
 // All notice definitions

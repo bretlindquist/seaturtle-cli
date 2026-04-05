@@ -18,6 +18,10 @@ import {
   resetCtGlobalDefaultsToShipped,
   resetProjectCtIdentityToActiveDefaults,
 } from '../../services/projectIdentity/bootstrap.js'
+import {
+  getCtArchiveSummary,
+  getCtCanonCallback,
+} from '../../services/projectIdentity/canonCallbacks.js'
 import { CtIdentityBootstrapDialog } from '../../components/CtIdentityBootstrapDialog.js'
 import { getProjectCtIdentityBootstrapState, markCtIdentityBootstrapComplete } from '../../services/projectIdentity/state.js'
 import {
@@ -93,6 +97,8 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const projectBootstrap = getProjectCtIdentityBootstrapState()
   const activeDefaults = getActiveCtDefaults()
   const projectRoot = getCtProjectRoot()
+  const archiveSummary = getCtArchiveSummary(projectRoot)
+  const canonCallback = getCtCanonCallback(projectRoot)
   const globalIdentityOverrideExists = getFsImplementation().existsSync(
     getCtGlobalIdentityOverridePath(),
   )
@@ -221,6 +227,13 @@ function CtCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           <Text>Project root: {getRelativeMemoryPath(projectRoot)}</Text>
           <Text>Project CT mode: {projectMode}</Text>
           <Text>Active defaults: {globalDefaultsLabel}</Text>
+          <Text>
+            Half-Shell Archives: {archiveSummary.titles} title
+            {archiveSummary.titles === 1 ? '' : 's'} · {archiveSummary.inventory}{' '}
+            inventory · {archiveSummary.legendEvents} legend event
+            {archiveSummary.legendEvents === 1 ? '' : 's'}
+          </Text>
+          {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
         </Box>
         <Select
           options={[
