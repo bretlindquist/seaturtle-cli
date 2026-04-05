@@ -21,6 +21,10 @@ import {
 import { getCommands } from './commands.js'
 import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
 import { ensureProjectCtIdentityBootstrap } from './services/projectIdentity/bootstrap.js'
+import {
+  incrementCtIdentitySeenCount,
+  shouldShowCtIdentityBootstrap,
+} from './services/projectIdentity/state.js'
 import { asSessionId } from './types/ids.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
@@ -164,6 +168,9 @@ export async function setup(
   // Materialize the private CT project identity layer on first load so the
   // project has a usable local baseline before guided customization exists.
   await ensureProjectCtIdentityBootstrap()
+  if (!getIsNonInteractiveSession() && shouldShowCtIdentityBootstrap()) {
+    incrementCtIdentitySeenCount()
+  }
 
   // Capture hooks configuration snapshot to avoid hidden hook modifications.
   // IMPORTANT: Must be called AFTER setCwd() so hooks are loaded from the correct directory

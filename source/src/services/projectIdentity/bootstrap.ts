@@ -130,9 +130,7 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
     ...current,
     ctIdentityBootstrap: {
       hasCompletedSetup: isCustomized,
-      seenCount: isCustomized
-        ? current.ctIdentityBootstrap?.seenCount ?? 0
-        : (current.ctIdentityBootstrap?.seenCount ?? 0) + 1,
+      seenCount: current.ctIdentityBootstrap?.seenCount ?? 0,
       mode: isCustomized ? 'customized' : 'defaulted',
       lastPromptedAt: Date.now(),
     },
