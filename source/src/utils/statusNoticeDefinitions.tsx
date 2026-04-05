@@ -239,11 +239,14 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
     const canonCallback = getCtCanonCallback();
     return <Box flexDirection="row">
         <Text color="claude">🐢</Text>
-        <Text>
-          What are we working on today?
-          <Text dimColor> · use /ct to edit `.ct/session.md` or retune CT whenever you want to steer the project</Text>
-          {canonCallback ? <Text dimColor> · {canonCallback}</Text> : null}
-        </Text>
+        <Box flexDirection="column" marginLeft={1}>
+          <Text>What are we working on today?</Text>
+          <Text dimColor>
+            Use /ct to edit `.ct/session.md` or retune CT whenever you want to
+            steer the project.
+          </Text>
+          {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
+        </Box>
       </Box>;
   }
 };
