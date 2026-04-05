@@ -10,8 +10,12 @@ import {
   type AutoworkStartupContext,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
-import { getAutoworkLaunchQuip } from '../../services/autowork/quips.js'
+import {
+  getAutoworkDangerousQuip,
+  getAutoworkLaunchQuip,
+} from '../../services/autowork/quips.js'
 import { resolveActiveAutoworkPlanFile } from '../../services/autowork/planResolution.js'
+import { updateAutoworkState, type AutoworkRunMode } from '../../services/autowork/state.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
 type EntryPoint = 'autowork' | 'swim'
@@ -23,7 +27,11 @@ type OnDone = (
   },
 ) => void
 
-type ShellAction = 'run' | 'status' | 'doctor' | 'back'
+type ShellAction = 'run' | 'dangerous' | 'status' | 'doctor' | 'back'
+
+function titleCaseRunMode(runMode: AutoworkRunMode): string {
+  return runMode === 'dangerous' ? 'dangerous' : 'safe'
+}
 
 function formatChecks(
   context: AutoworkStartupContext,
@@ -51,6 +59,7 @@ function formatStatusSummary(
     `Mode: ${context.mode}`,
     `Why: ${context.modeReason}`,
     `Plan: ${context.planPath}`,
+    `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -72,6 +81,7 @@ function formatDoctorSummary(context: AutoworkStartupContext): string {
     '',
     `Plan: ${context.planPath}`,
     `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
+    `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -182,6 +192,61 @@ async function runAutowork(
   }
 }
 
+async function setAutoworkRunMode(
+  entryPoint: EntryPoint,
+  runMode: AutoworkRunMode,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const resolved = await resolveActiveAutoworkPlanFile()
+  if (!resolved.ok) {
+    const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+    return {
+      ok: false,
+      message: [
+        resolved.message,
+        '',
+        `Then rerun ${baseName} dangerous after the tracked plan is ready.`,
+      ].join('\n'),
+    }
+  }
+
+  const context = await inspectAndSelectAutoworkMode(resolved.planPath)
+  if (!context.repoRoot) {
+    return { ok: false, message: 'Autowork requires a git repository.' }
+  }
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      runMode,
+    }),
+    context.repoRoot,
+  )
+
+  const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+  const quip = getAutoworkDangerousQuip(
+    entryPoint,
+    `${context.planPath}:dangerous:${context.state.runCount}`,
+  )
+  const heading = entryPoint === 'swim' ? 'Swim dangerous mode armed.' : 'Autowork dangerous mode armed.'
+
+  return {
+    ok: true,
+    message: [
+      quip,
+      '',
+      heading,
+      '',
+      'This is heavily discouraged.',
+      'Dangerous mode can consume more tokens, time, and context and is allowed to accumulate checkpoint debt in later waves.',
+      'Safe mode is still the recommended path.',
+      '',
+      `Current state: ${baseName} is now marked dangerous.`,
+      `Next: use ${baseName} run only if you intend to proceed with the dangerous-mode policy once the runner relaxations are active.`,
+      `Use ${baseName} status or ${baseName} doctor to inspect the current state.`,
+    ].join('\n'),
+  }
+}
+
 async function verifyAutowork(
   entryPoint: EntryPoint,
 ): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
@@ -242,6 +307,11 @@ function AutoworkMenu({
               description: 'Launch exactly one chunk, then queue automatic checkpoint verification',
             },
             {
+              label: 'Dangerous mode',
+              value: 'dangerous' as const,
+              description: 'Heavily discouraged. Arm the dangerous-mode policy for this project state.',
+            },
+            {
               label: 'Status snapshot',
               value: 'status' as const,
               description: 'See the selected mode, next chunk, and readiness summary',
@@ -282,6 +352,12 @@ function AutoworkMenu({
               return
             }
 
+            if (value === 'dangerous') {
+              const changed = await setAutoworkRunMode(entryPoint, 'dangerous')
+              onDone(changed.message, { display: 'system' })
+              return
+            }
+
             const resolved = await getAutoworkContext(entryPoint)
             if (!resolved.ok) {
               onDone(resolved.message, { display: 'system' })
@@ -318,15 +394,23 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           '',
           'Available now:',
           `- ${baseName}`,
+          `- ${baseName} dangerous`,
           `- ${baseName} run`,
           `- ${baseName} status`,
           `- ${baseName} doctor`,
           `- ${baseName} verify`,
           '',
           'Safe autowork uses more context, tokens, time, and risk than normal interactive work. Each chunk is expected to validate and commit before progression continues.',
+          'Dangerous mode is heavily discouraged and is a separate operator choice.',
         ].join('\n'),
         { display: 'system' },
       )
+      return null
+    }
+
+    if (trimmedArgs === 'dangerous') {
+      const changed = await setAutoworkRunMode(entryPoint, 'dangerous')
+      onDone(changed.message, { display: 'system' })
       return null
     }
 
@@ -375,6 +459,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `Unknown ${titleForEntryPoint(entryPoint).toLowerCase()} option.`,
         '',
         `Use /${entryPoint} for the menu, or one of:`,
+        `- /${entryPoint} dangerous`,
         `- /${entryPoint} run`,
         `- /${entryPoint} status`,
         `- /${entryPoint} doctor`,

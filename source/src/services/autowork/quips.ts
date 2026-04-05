@@ -22,6 +22,20 @@ const SWIM_QUIPS = [
   'Mighty turtle energy. Surgical execution.',
 ] as const
 
+const DANGEROUS_AUTOWORK_QUIPS = [
+  'Dangerous mode armed. Keep the scope tighter than your heartbeat.',
+  'Manual override accepted. Precision first, swagger second.',
+  'Shell hot. Gates loosened. Accountability stays on.',
+  'This road has fewer guardrails. Drive like you mean it.',
+] as const
+
+const DANGEROUS_SWIM_QUIPS = [
+  'Dangerous swim engaged. Mighty fins, tighter judgment.',
+  'Deep water now. Professional turtle rules still apply.',
+  'The tide just got rougher. Stay deliberate.',
+  'Whimsy above water, steel underneath. Dangerous swim armed.',
+] as const
+
 function pickQuip(quips: readonly string[], seed: string): string {
   let score = 0
   for (const char of seed) {
@@ -36,4 +50,14 @@ export function getAutoworkLaunchQuip(
   seed: string,
 ): string {
   return pickQuip(entrypoint === 'swim' ? SWIM_QUIPS : AUTOWORK_QUIPS, seed)
+}
+
+export function getAutoworkDangerousQuip(
+  entrypoint: 'autowork' | 'swim',
+  seed: string,
+): string {
+  return pickQuip(
+    entrypoint === 'swim' ? DANGEROUS_SWIM_QUIPS : DANGEROUS_AUTOWORK_QUIPS,
+    seed,
+  )
 }
