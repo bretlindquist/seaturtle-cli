@@ -29,7 +29,7 @@ type OnExit = (
   },
 ) => void
 
-type Screen = 'menu' | 'wager'
+type Screen = 'menu' | 'wager' | 'tide-dice'
 
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [screen, setScreen] = React.useState<Screen>('menu')
@@ -80,6 +80,51 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
+  function finishTideDiceRoll(): void {
+    const roll = Math.floor(Math.random() * 6) + 1
+
+    updateCtGameState(
+      current => ({
+        ...current,
+        lastPlayedAt: Date.now(),
+        discoveries: {
+          ...current.discoveries,
+          tideDicePlayed: true,
+        },
+      }),
+      projectRoot,
+    )
+
+    if (roll === 6) {
+      recordCtGameResult('win', projectRoot)
+      addLegendEvent(`Rolled a perfect 6 in Roll the Tide Dice.`, projectRoot)
+      addInventoryItem('tide-polished die', projectRoot)
+      addRarityUnlock('roll-the-tide-dice', projectRoot)
+      onExit(
+        `You rolled a ${roll}.\n\nThe tide rises in your favor.\n\nArchive updates:\n- inventory: tide-polished die\n- rarity unlock: roll-the-tide-dice`,
+        { display: 'system' },
+      )
+      return
+    }
+
+    if (roll >= 4) {
+      recordCtGameResult('played', projectRoot)
+      addLegendEvent(`Rolled a steady ${roll} in Roll the Tide Dice.`, projectRoot)
+      onExit(
+        `You rolled a ${roll}.\n\nNot a triumph. Not a disaster. The tide simply acknowledges you and moves on.`,
+        { display: 'system' },
+      )
+      return
+    }
+
+    recordCtGameResult('loss', projectRoot)
+    addLegendEvent(`Rolled a rough ${roll} in Roll the Tide Dice.`, projectRoot)
+    onExit(
+      `You rolled a ${roll}.\n\nThe tide takes this round without apology.\n\nThe loss is recorded in the Half-Shell Archives.`,
+      { display: 'system' },
+    )
+  }
+
   if (screen === 'wager') {
     return (
       <Dialog
@@ -125,6 +170,45 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
+  if (screen === 'tide-dice') {
+    return (
+      <Dialog
+        title="Roll the Tide Dice"
+        subtitle="One throw. No bargaining. The tide keeps the ledger."
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>
+            Roll once and live with whatever washes ashore.
+          </Text>
+          <Select
+            options={[
+              {
+                label: 'Roll the Tide Dice',
+                value: 'roll',
+                description: 'Let the tide choose a number from 1 to 6',
+              },
+              {
+                label: 'Back away slowly',
+                value: 'back',
+                description: 'Return to the hidden shell without rolling',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen('menu')
+                return
+              }
+
+              finishTideDiceRoll()
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
   if (screen === 'menu') {
     return (
       <Dialog
@@ -158,6 +242,13 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   : 'The first hidden game waits just under the surface',
               },
               {
+                label: 'Roll the Tide Dice',
+                value: 'tide-dice',
+                description: gameState.discoveries.tideDicePlayed
+                  ? 'Return to the second hidden game'
+                  : 'A private die waits in the surf',
+              },
+              {
                 label: 'Study the archives',
                 value: 'archives',
                 description: 'Review the current private archive ledger for this project',
@@ -179,6 +270,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   `Half-Shell Archives summary for this project:\n- titles: ${archiveSummary.titles}\n- inventory: ${archiveSummary.inventory}\n- oaths: ${archiveSummary.oaths}\n- truths: ${archiveSummary.truths}\n- legend events: ${archiveSummary.legendEvents}\n- rarity unlocks: ${archiveSummary.rarityUnlocks}\n- games played: ${archiveSummary.gamesPlayed}\n- wins: ${archiveSummary.wins}\n- losses: ${archiveSummary.losses}`,
                   { display: 'system' },
                 )
+                return
+              }
+
+              if (value === 'tide-dice') {
+                setScreen('tide-dice')
                 return
               }
 
