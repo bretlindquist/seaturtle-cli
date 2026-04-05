@@ -123,7 +123,7 @@ Keywords:
 - autowork
 - swim
 - tracked plan
-- one chunk at a time
+- plan to completion
 - orchestration
 - doctor
 - safe mode
@@ -134,14 +134,16 @@ Next steps:
 - Use `/autowork` for the operator-forward entrypoint
 - Use `/swim` for the more whimsical alias with the same guarantees
 - Use `/autowork dangerous` or `/swim dangerous` only when you deliberately want the dangerous-mode policy
-- Use `/autowork run` or `/swim run` to launch exactly one chunk
+- Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
+- Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
 
 Important truth:
 
 - `/autowork` requires one tracked root-level dated `*-state.md` plan file
-- safe mode is one chunk at a time only
+- safe mode carries the approved plan to completion
+- progression still happens one guarded chunk at a time
 - safe mode verifies validation and commit hygiene before it advances
 - failures stop and persist a stop reason
 - if Telegram is bound for the project, critical stops can send a short Telegram notice

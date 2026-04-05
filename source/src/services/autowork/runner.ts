@@ -24,6 +24,7 @@ import {
 } from './telegramAlerts.js'
 import {
   readAutoworkState,
+  type AutoworkExecutionScope,
   type AutoworkMode,
   type AutoworkContinuationDebt,
   type AutoworkStartupInspection,
@@ -125,6 +126,7 @@ export type AutoworkVerificationResult =
       chunkId: string
       commitSha: string
       nextPendingChunkId: string | null
+      nextInput?: string
     }
   | {
       ok: false
@@ -281,6 +283,7 @@ function buildAutoworkExecutionPrompt(
   repoRoot: string,
   planPath: string,
   chunk: AutoworkPlanChunk,
+  executionScope: AutoworkExecutionScope,
 ): string {
   const validationPlan = resolveAutoworkValidationPlan(chunk)
   const validationLines =
@@ -295,7 +298,9 @@ function buildAutoworkExecutionPrompt(
   return [
     '<system-reminder>',
     `CT ${entryPoint} safe mode is active for ${projectName}.`,
-    'Execute exactly one chunk and stop.',
+    executionScope === 'plan'
+      ? 'Execute exactly one chunk, stop, and hand control back to the verification gate. If that checkpoint passes and approved chunks remain, autowork will continue the plan automatically.'
+      : 'Execute exactly one chunk and stop after the verification gate.',
     '',
     `Plan file: ${planPath}`,
     `Chunk: ${chunk.id}`,
@@ -319,6 +324,9 @@ function buildAutoworkExecutionPrompt(
     ...validationLines,
     '',
     `The queued /${entryPoint} verify command will run after your response and enforce the checkpoint.`,
+    executionScope === 'plan'
+      ? `If that checkpoint passes and more approved chunks remain, /${entryPoint} run will be queued automatically.`
+      : `Step mode ends after that checkpoint, even if more approved chunks remain.`,
     '</system-reminder>',
   ].join('\n')
 }
@@ -508,6 +516,7 @@ export async function inspectAndSelectAutoworkMode(
 export async function prepareAutoworkSafeExecution(
   planPath: string,
   entryPoint: AutoworkEntryPoint,
+  executionScope: AutoworkExecutionScope = 'plan',
 ): Promise<AutoworkSafeExecutionLaunch> {
   const context = await inspectAndSelectAutoworkMode(planPath)
   if (!context.repoRoot) {
@@ -575,12 +584,16 @@ export async function prepareAutoworkSafeExecution(
     context.repoRoot,
     context.planPath,
     nextChunk,
+    executionScope,
   )
   const nextRunCount = context.state.runCount + 1
   const visibleMessage = [
     '',
     `Launching ${nextChunk.id}.`,
     `Plan: ${context.planPath}`,
+    executionScope === 'plan'
+      ? 'Execution scope: plan to completion.'
+      : 'Execution scope: one chunk only.',
     context.state.runMode === 'dangerous' && launchDebts.length > 0
       ? 'Dangerous-mode debt at launch:'
       : null,
@@ -588,6 +601,9 @@ export async function prepareAutoworkSafeExecution(
       ? formatContinuationDebtLines(launchDebts)
       : []),
     `Queued next step: /${entryPoint} verify`,
+    executionScope === 'plan'
+      ? `If verification passes, /${entryPoint} run will continue the remaining approved plan automatically.`
+      : 'Step mode will stop after verification.',
   ].join('\n')
 
   updateAutoworkState(
@@ -601,6 +617,7 @@ export async function prepareAutoworkSafeExecution(
       lastValidationResult: null,
       lastCommitSha: preChunkHeadSha,
       rollbackRef: nextChunk.risks.length > 0 ? preChunkHeadSha : null,
+      executionScope,
       continuationDebt: appendUniqueContinuationDebt([], launchDebts),
       stopReason: null,
       lastStartedAt: Date.now(),
@@ -623,6 +640,7 @@ export async function prepareAutoworkSafeExecution(
 
 export async function verifyAutoworkSafeExecution(
   planPath: string,
+  entryPoint: AutoworkEntryPoint,
 ): Promise<AutoworkVerificationResult> {
   const context = await inspectAndSelectAutoworkMode(planPath)
   if (!context.repoRoot) {
@@ -831,6 +849,9 @@ export async function verifyAutoworkSafeExecution(
     context.repoRoot,
   )
 
+  const shouldContinuePlan =
+    context.state.executionScope === 'plan' && nextPendingChunkId !== null
+
   if (
     context.state.runMode === 'dangerous' &&
     finalContinuationDebt.length > 0
@@ -880,6 +901,12 @@ export async function verifyAutoworkSafeExecution(
         ? 'Tree: dirty'
         : 'Tree: clean',
       `Next chunk: ${nextPendingChunkId ?? 'none'}`,
+      shouldContinuePlan
+        ? `Queued next step: /${entryPoint} run`
+        : context.state.executionScope === 'step' && nextPendingChunkId
+          ? `Step mode complete. Use /${entryPoint} run to continue the approved plan, or /${entryPoint} step to execute only one more chunk.`
+          : null,
     ].join('\n'),
+    nextInput: shouldContinuePlan ? `/${entryPoint} run` : undefined,
   }
 }

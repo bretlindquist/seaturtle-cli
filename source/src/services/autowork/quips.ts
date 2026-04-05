@@ -8,7 +8,7 @@ const AUTOWORK_QUIPS = [
   'Houston, we have liftoff.',
   'Vector set. Commencing chunk run.',
   'Throttle steady. Shell forward. No drift.',
-  'Track locked. Gates armed. Advancing one chunk at a time.',
+  'Track locked. Gates armed. Running the plan through clean chunk after clean chunk.',
   'Serious plan. Serious checkpoints. Serious speed.',
 ] as const
 

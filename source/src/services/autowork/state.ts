@@ -18,6 +18,7 @@ export type AutoworkMode =
   | 'idle'
 
 export type AutoworkRunMode = 'safe' | 'dangerous'
+export type AutoworkExecutionScope = 'plan' | 'step'
 
 export type AutoworkStartupInspection = {
   branch: string | null
@@ -67,6 +68,7 @@ export type AutoworkState = {
   lastCommitSha: string | null
   rollbackRef: string | null
   runMode: AutoworkRunMode
+  executionScope: AutoworkExecutionScope
   continuationDebt: AutoworkContinuationDebt[]
   stopReason: AutoworkStopReason | null
   lastStartedAt: number | null
@@ -91,6 +93,7 @@ function createDefaultAutoworkState(): AutoworkState {
     lastCommitSha: null,
     rollbackRef: null,
     runMode: 'safe',
+    executionScope: 'plan',
     continuationDebt: [],
     stopReason: null,
     lastStartedAt: null,
@@ -252,6 +255,10 @@ function sanitizeRunMode(value: unknown): AutoworkRunMode {
   return value === 'dangerous' ? 'dangerous' : 'safe'
 }
 
+function sanitizeExecutionScope(value: unknown): AutoworkExecutionScope {
+  return value === 'step' ? 'step' : 'plan'
+}
+
 function sanitizeAutoworkState(input: unknown): AutoworkState {
   const defaults = createDefaultAutoworkState()
   if (!input || typeof input !== 'object') {
@@ -279,6 +286,7 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
     rollbackRef:
       typeof value.rollbackRef === 'string' ? value.rollbackRef : null,
     runMode: sanitizeRunMode(value.runMode),
+    executionScope: sanitizeExecutionScope(value.executionScope),
     continuationDebt: sanitizeContinuationDebt(value.continuationDebt),
     stopReason: sanitizeStopReason(value.stopReason),
     lastStartedAt:

@@ -276,7 +276,8 @@ These start the same tracked-plan orchestration harness.
 Current contract:
 
 - requires one tracked root-level dated `*-state.md` plan file
-- runs one chunk at a time
+- `/autowork run` and `/swim run` carry the approved plan to completion
+- progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks
 - safe mode stops on checkpoint failure instead of continuing blindly
 - dangerous mode is available, but heavily discouraged
@@ -288,11 +289,13 @@ Current subcommands:
 - `/autowork`
 - `/autowork dangerous`
 - `/autowork run`
+- `/autowork step`
 - `/autowork status`
 - `/autowork doctor`
 - `/swim`
 - `/swim dangerous`
 - `/swim run`
+- `/swim step`
 - `/swim status`
 - `/swim doctor`
 
@@ -365,7 +368,8 @@ harness exits with an explicit skip instead of reporting a false regression.
 They are a higher-level tracked-plan orchestrator with these guarantees:
 
 - safe mode requires a clean working tree before chunk launch
-- safe mode launches exactly one chunk at a time
+- safe mode uses `/autowork run` and `/swim run` to carry the approved plan to completion
+- safe mode still launches one guarded chunk at a time
 - safe mode queues a verification step after the execution turn
 - safe mode requires validation and a new commit before it advances
 - safe mode requires a clean tree after the checkpoint commit
@@ -389,7 +393,7 @@ Dangerous mode relaxes these checkpoint gates into recorded debt:
 Dangerous-mode behavior:
 
 - it is heavily discouraged
-- it still runs one chunk at a time
+- it still carries the approved plan one guarded chunk at a time
 - it still re-checks the previous chunk before advancing
 - it persists checkpoint debt into state instead of pretending the run was clean
 - it can send a Telegram notice when it continues with dangerous-mode debt
@@ -399,6 +403,7 @@ Cost and operator expectations:
 - it uses more tokens, time, and runtime than ordinary interactive work
 - it is meant for a tracked, surgical chunk plan, not open-ended exploration
 - safe mode remains the recommended default
+- use `/autowork step` or `/swim step` when you intentionally want just one guarded chunk
 
 ### Clean Rebuild
 
