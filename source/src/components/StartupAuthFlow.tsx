@@ -126,9 +126,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
         <Text bold>Using 3rd-party platforms</Text>
         <Box flexDirection="column" gap={1}>
           <Text>
-            Claude Code supports Amazon Bedrock, Microsoft Foundry, and Vertex
-            AI. Set the required environment variables, then restart Claude
-            Code.
+            CT supports Amazon Bedrock, Microsoft Foundry, and Vertex AI. Set
+            the required environment variables, then restart CT.
           </Text>
           <Text>
             If you are part of an enterprise organization, contact your
