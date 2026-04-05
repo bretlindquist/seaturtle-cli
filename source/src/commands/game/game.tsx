@@ -22,6 +22,11 @@ import {
   addRarityUnlock,
   updateCtGameState,
 } from '../../services/projectIdentity/archives.js'
+import {
+  getSwordsOfChaosOutcome,
+  TIDE_DICE_REWARDS,
+  WAGER_REWARDS,
+} from '../../services/game/rewards.js'
 
 type OnExit = (
   result?: string,
@@ -60,11 +65,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
         `Won a wager with the Mighty SeaTurtle by choosing ${choice === 'ride-the-tide' ? 'Ride the Tide' : 'Trust the Shell'}.`,
         projectRoot,
       )
-      addInventoryItem('shell-marked lucky token', projectRoot)
-      addRarityUnlock('wager-with-the-mighty-seaturtle', projectRoot)
-      addTitle('Friend of the Mighty SeaTurtle', projectRoot)
+      addInventoryItem(WAGER_REWARDS.inventory, projectRoot)
+      addRarityUnlock(WAGER_REWARDS.rarityUnlock, projectRoot)
+      addTitle(WAGER_REWARDS.title, projectRoot)
       onExit(
-        `You won the wager.\n\nThe Mighty SeaTurtle nods once, as if this outcome was obvious all along.\n\nArchive updates:\n- title: Friend of the Mighty SeaTurtle\n- inventory: shell-marked lucky token\n- rarity unlock: wager-with-the-mighty-seaturtle`,
+        `You won the wager.\n\nThe Mighty SeaTurtle nods once, as if this outcome was obvious all along.\n\nArchive updates:\n- title: ${WAGER_REWARDS.title}\n- inventory: ${WAGER_REWARDS.inventory}\n- rarity unlock: ${WAGER_REWARDS.rarityUnlock}`,
         { display: 'system' },
       )
       return
@@ -99,10 +104,10 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     if (roll === 6) {
       recordCtGameResult('win', projectRoot)
       addLegendEvent(`Rolled a perfect 6 in Roll the Tide Dice.`, projectRoot)
-      addInventoryItem('tide-polished die', projectRoot)
-      addRarityUnlock('roll-the-tide-dice', projectRoot)
+      addInventoryItem(TIDE_DICE_REWARDS.inventory, projectRoot)
+      addRarityUnlock(TIDE_DICE_REWARDS.rarityUnlock, projectRoot)
       onExit(
-        `You rolled a ${roll}.\n\nThe tide rises in your favor.\n\nArchive updates:\n- inventory: tide-polished die\n- rarity unlock: roll-the-tide-dice`,
+        `You rolled a ${roll}.\n\nThe tide rises in your favor.\n\nArchive updates:\n- inventory: ${TIDE_DICE_REWARDS.inventory}\n- rarity unlock: ${TIDE_DICE_REWARDS.rarityUnlock}`,
         { display: 'system' },
       )
       return
@@ -127,7 +132,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   }
 
   function finishSwordsOfChaos(choice: 'draw-steel' | 'bow-slightly'): void {
-    const outcome = Math.floor(Math.random() * 4)
+    const outcome = getSwordsOfChaosOutcome(Math.floor(Math.random() * 4))
 
     updateCtGameState(
       current => ({
@@ -141,43 +146,43 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       projectRoot,
     )
 
-    if (outcome === 0) {
+    if (outcome.key === 'relic') {
       recordCtGameResult('win', projectRoot)
-      addInventoryItem('trench-coat relic blade', projectRoot)
+      addInventoryItem(outcome.inventory, projectRoot)
       addLegendEvent(
-        `Survived Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'} and came away with a trench-coat relic blade.`,
+        `Survived Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'} and came away with a ${outcome.inventory}.`,
         projectRoot,
       )
       onExit(
-        'Swords of Chaos ends with a strange little victory.\n\nA turtle in a trench coat vanishes into the dark and leaves behind a trench-coat relic blade.\n\nThe relic is now in the Half-Shell Archives.',
+        `Swords of Chaos ends with a strange little victory.\n\nA turtle in a trench coat vanishes into the dark and leaves behind a ${outcome.inventory}.\n\nThe relic is now in the Half-Shell Archives.`,
         { display: 'system' },
       )
       return
     }
 
-    if (outcome === 1) {
+    if (outcome.key === 'title') {
       recordCtGameResult('win', projectRoot)
-      addTitle('Walker of the Salt Arcade', projectRoot)
+      addTitle(outcome.title, projectRoot)
       addLegendEvent(
         `Won a title in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
         projectRoot,
       )
       onExit(
-        'Swords of Chaos closes with an old arcade hush.\n\nThe trench-coat turtle names you Walker of the Salt Arcade, then disappears.\n\nThe title is now in the Half-Shell Archives.',
+        `Swords of Chaos closes with an old arcade hush.\n\nThe trench-coat turtle names you ${outcome.title}, then disappears.\n\nThe title is now in the Half-Shell Archives.`,
         { display: 'system' },
       )
       return
     }
 
-    if (outcome === 2) {
+    if (outcome.key === 'oath') {
       recordCtGameResult('played', projectRoot)
-      addOath('Leave one mystery unsolved on purpose.', projectRoot)
+      addOath(outcome.oath, projectRoot)
       addLegendEvent(
         `Accepted an oath in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
         projectRoot,
       )
       onExit(
-        'Swords of Chaos does not give you a prize this time.\n\nInstead, the trench-coat turtle leaves you with an oath: "Leave one mystery unsolved on purpose."\n\nThe oath is now in the Half-Shell Archives.',
+        `Swords of Chaos does not give you a prize this time.\n\nInstead, the trench-coat turtle leaves you with an oath: "${outcome.oath}"\n\nThe oath is now in the Half-Shell Archives.`,
         { display: 'system' },
       )
       return
