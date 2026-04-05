@@ -23,7 +23,7 @@ import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
 import { ensureProjectCtIdentityBootstrap } from './services/projectIdentity/bootstrap.js'
 import {
   incrementCtIdentitySeenCount,
-  shouldShowCtIdentityBootstrap,
+  shouldAdvanceCtIdentitySeenCount,
 } from './services/projectIdentity/state.js'
 import { asSessionId } from './types/ids.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
@@ -168,7 +168,7 @@ export async function setup(
   // Materialize the private CT project identity layer on first load so the
   // project has a usable local baseline before guided customization exists.
   await ensureProjectCtIdentityBootstrap()
-  if (!getIsNonInteractiveSession() && shouldShowCtIdentityBootstrap()) {
+  if (!getIsNonInteractiveSession() && shouldAdvanceCtIdentitySeenCount()) {
     incrementCtIdentitySeenCount()
   }
 

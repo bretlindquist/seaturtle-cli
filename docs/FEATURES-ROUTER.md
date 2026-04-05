@@ -128,6 +128,7 @@ Keywords:
 
 Next steps:
 
+- On a new project, follow the short startup picker if CT offers to tune the private SeaTurtle defaults
 - Edit `.ct/identity.md` to tune CT's role and interaction style for this project
 - Edit `.ct/soul.md` to tune warmth, curiosity, and tone
 - Edit `.ct/session.md` for what matters right now
@@ -138,6 +139,7 @@ Important truth:
 - `.ct/` is the private CT layer for this project
 - `CLAUDE.local.md` is the compatibility bridge into the existing memory loader
 - defaults are created automatically on first load
+- CT uses playful SeaTurtle starter defaults until you replace them
 - project-local `.ct` files are meant to be private and easy to replace
 
 ## GitHub Actions / install-github-app

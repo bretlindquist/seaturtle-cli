@@ -220,15 +220,30 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
     return <Box flexDirection="row">
         <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
         <Text>
-          {isSeaTurtleIntro ? "I'm 🐢 SeaTurtle, or CT for short. I'm using the starter private identity for this project." : 'CT set up a private .ct identity for this project.'}
-          <Text dimColor> · edit `.ct/identity.md` or `.ct/soul.md` any time</Text>
+          {isSeaTurtleIntro ? "I'm 🐢 SeaTurtle, or CT for short. I already set up the starter private identity for this project." : 'CT set up a private `.ct/` identity for this project.'}
+          <Text dimColor> · keep moving, or refine it any time in `.ct/identity.md` and `.ct/soul.md`</Text>
         </Text>
       </Box>;
   }
 };
+const ctIdentityGreetingNotice: StatusNoticeDefinition = {
+  id: 'ct-identity-greeting',
+  type: 'info',
+  isActive: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    return bootstrap?.hasCompletedSetup === true;
+  },
+  render: () => <Box flexDirection="row">
+      <Text color="claude">🐢</Text>
+      <Text>
+        What are we working on today?
+        <Text dimColor> · use `.ct/session.md` for private project context whenever you want to steer CT</Text>
+      </Text>
+    </Box>
+};
 
 // All notice definitions
-export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice, ctIdentityBootstrapNotice];
+export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice, ctIdentityBootstrapNotice, ctIdentityGreetingNotice];
 
 // Helper functions for external use
 export function getActiveNotices(context: StatusNoticeContext): StatusNoticeDefinition[] {

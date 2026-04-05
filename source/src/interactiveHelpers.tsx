@@ -12,6 +12,7 @@ import { isSynchronizedOutputSupported } from './ink/terminal.js';
 import type { RenderOptions, Root, TextProps } from './ink.js';
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js';
 import { startDeferredPrefetches } from './main.js';
+import { shouldShowCtIdentityBootstrapDialog } from './services/projectIdentity/state.js';
 import { checkGate_CACHED_OR_BLOCKING, initializeGrowthBook, resetGrowthBook } from './services/analytics/growthbook.js';
 import { isQualifiedForGrove } from './services/api/grove.js';
 import { handleMcpjsonServerApprovals } from './services/mcpServerApproval.js';
@@ -293,6 +294,12 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
       ClaudeInChromeOnboarding
     } = await import('./components/ClaudeInChromeOnboarding.js');
     await showSetupDialog(root, done => <ClaudeInChromeOnboarding onDone={done} />);
+  }
+  if (shouldShowCtIdentityBootstrapDialog()) {
+    const {
+      CtIdentityBootstrapDialog
+    } = await import('./components/CtIdentityBootstrapDialog.js');
+    await showSetupDialog(root, done => <CtIdentityBootstrapDialog onDone={done} />);
   }
   return onboardingShown;
 }

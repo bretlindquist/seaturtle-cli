@@ -72,6 +72,11 @@ function writeFileIfMissing(path: string, content: string): boolean {
   return true
 }
 
+function writeFile(path: string, content: string): void {
+  ensureParentDir(path)
+  writeFileSyncAndFlush_DEPRECATED(path, content, { encoding: 'utf-8' })
+}
+
 export type CtBootstrapResult = {
   projectRoot: string
   createdPaths: string[]
@@ -140,5 +145,25 @@ export async function ensureProjectCtIdentityBootstrap(): Promise<CtBootstrapRes
     projectRoot: root,
     createdPaths,
     createdCtFiles: createdPaths.length > 0,
+  }
+}
+
+export function overwriteProjectCtIdentityFiles(input: {
+  identity?: string
+  soul?: string
+  session?: string
+}): void {
+  const root = getCtProjectRoot()
+
+  if (input.identity !== undefined) {
+    writeFile(getCtIdentityPath(root), input.identity)
+  }
+
+  if (input.soul !== undefined) {
+    writeFile(getCtSoulPath(root), input.soul)
+  }
+
+  if (input.session !== undefined) {
+    writeFile(getCtSessionPath(root), input.session)
   }
 }

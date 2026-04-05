@@ -51,6 +51,8 @@ CT also maintains a private project-local identity layer:
 
 That layer is local/private by default and is meant for CT's project-specific
 working style and current context, not team-shared repo policy.
+On a new project, CT writes starter SeaTurtle defaults immediately, then offers
+to tune them through a short in-app picker flow.
 
 Branding and compatibility boundaries live in
 [`docs/BRANDING.md`](./docs/BRANDING.md).
