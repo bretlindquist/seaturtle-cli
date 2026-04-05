@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+repo_root="${0:A:h:h}"
+cli_path="$repo_root/dist/cli.js"
+
+if [[ ! -f "$cli_path" ]]; then
+  echo "ct is not built yet." >&2
+  echo "Build once with: node scripts/build-cli.mjs --no-minify" >&2
+  echo "Or install wrappers with: ./scripts/install-local-cli.sh --build" >&2
+  exit 1
+fi
+
+export CLAUDE_CODE_USE_OPENAI_CODEX=1
+exec node "$cli_path" "$@"

@@ -18,6 +18,8 @@ Keywords:
 
 - openai
 - codex
+- ct
+- seaturtle
 - oauth
 - chatgpt login
 - login
@@ -34,6 +36,7 @@ Next steps:
 - Use `/model` to switch supported OpenAI/Codex models
 - Use `/effort` to adjust reasoning level
 - Use `/status` or `auth status --json` to inspect active provider/runtime
+- Use `ct` to launch this fork directly on the OpenAI/Codex path
 
 Deep doc:
 
@@ -158,5 +161,6 @@ When the user asks how to do something:
 Examples:
 
 - “Run `/telegram`. It handles pairing, binding, test, and diagnostics for the current project.”
+- “Run `ct`. It launches this fork on the OpenAI/Codex path without the raw env-prefixed node command.”
 - “Run `/model`. It shows the supported OpenAI/Codex models for this fork.”
 - “Run `/install-github-app`. If the OpenAI path is gated, the command will explain the current CI limitation.”

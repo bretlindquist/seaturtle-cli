@@ -20,7 +20,7 @@ conversation loop work on OpenAI/Codex OAuth.
 
 ## What Currently Works
 
-- `CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js`
+- `ct`
 - direct prompts on the OpenAI/Codex path
 - local built-in tools such as `Bash`
 - strict `TodoWrite` turns
@@ -53,18 +53,30 @@ Build first:
 node scripts/build-cli.mjs --no-minify
 ```
 
+Recommended local install:
+
+```bash
+./scripts/install-local-cli.sh --build
+```
+
 Run on OpenAI/Codex:
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+ct
 ```
 
 Quick smoke check:
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js auth status --json
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js -p "say hello in five words"
+ct auth status --json
+ct -p "say hello in five words"
 ```
+
+Compatibility note:
+
+- the underlying runtime still uses `dist/cli.js`
+- `ct` and `seaturtle` are branded wrappers for the OpenAI/Codex path
+- compatibility-sensitive env vars and internal paths are intentionally unchanged
 
 ## Auth Model
 

@@ -1,4 +1,4 @@
-# Claude Code 2.1.88 — Custom Build With OpenAI/Codex OAuth Port
+# CT / seaturtle — Custom Build With OpenAI/Codex OAuth Port
 
 ![](<img/2026-03-31 14-58-01-combined.gif>)
 
@@ -6,6 +6,8 @@ Rebuilt from source maps with real source preservation for `@ant/*` packages.
 
 This fork keeps Andrew Kramer-Inno's Claude Code source-build as the product
 surface base, and adds a native OpenAI/Codex provider path for the main loop.
+The user-facing wrapper brand for this fork is `CT`, with `seaturtle` as an
+equivalent alias.
 
 Current fork goals:
 
@@ -77,6 +79,21 @@ First build runs `npm install` for ~80 overlay packages. Subsequent builds skip 
 
 ## Run
 
+Recommended local install:
+
+```bash
+./scripts/install-local-cli.sh --build
+ct
+```
+
+That installs branded local wrappers:
+
+- `ct`
+- `seaturtle`
+- `ct-dev`
+
+Compatibility entrypoint:
+
 ```bash
 node dist/cli.js
 ```
@@ -87,20 +104,20 @@ This fork supports an OpenAI/Codex-backed main loop when the provider is
 enabled:
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+ct
 ```
 
 Useful checks:
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js auth status --json
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js -p "say hello in five words"
+ct auth status --json
+ct -p "say hello in five words"
 ```
 
 Telegram setup helper:
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+ct
 # then run /telegram inside the app
 ```
 
@@ -174,10 +191,14 @@ Do not commit live auth state to this repo.
 
 ```
 scripts/build-cli.mjs    — Build script (source map extraction + bun bundling)
+scripts/install-local-cli.sh — Local wrapper installer for ct / seaturtle
 source/cli.js.map         — Original source map (4756 modules)
 source/native-addons/     — Pre-built .node binaries
 source/src/               — Overlay assets (.md skill files)
 .cache/workspace/         — Extracted workspace (generated, gitignored)
 dist/                     — Build output (generated)
+bin/ct                    — Branded OpenAI/Codex wrapper
+bin/seaturtle             — Alias wrapper for ct
+assets/branding/          — CT / seaturtle text + SVG branding assets
 docs/OPENAI-CODEX.md      — Provider port behavior, setup, and validation
 ```

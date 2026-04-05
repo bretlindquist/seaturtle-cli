@@ -2,6 +2,7 @@
 
 This fork has custom feature behavior beyond upstream Claude Code, especially:
 
+- CT / seaturtle branded wrappers for the OpenAI/Codex path
 - OpenAI / Codex OAuth main-loop support
 - provider-aware login, logout, model, and effort behavior
 - Telegram setup, pairing, multi-bot inventory, project binding, test, and doctor flows

@@ -30,7 +30,7 @@ Current product contract:
 ## In-App Pairing
 
 1. Create a Telegram bot with BotFather.
-2. Start Claude Code and run `/telegram`.
+2. Start `ct` and run `/telegram`.
 3. Choose `Pair Telegram bot in-app`.
 4. Paste the bot token.
 5. Send the bot a message from the Telegram chat you want to pair.
@@ -108,7 +108,7 @@ export CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_MODEL="whisper-1"
 ## Run
 
 ```bash
-CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+ct
 ```
 
 Then use:
