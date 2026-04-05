@@ -13,7 +13,10 @@ import {
   splitTelegramMessage,
   getTelegramUpdates,
 } from '../services/telegram/client.js'
-import { getTelegramConfig } from '../services/telegram/config.js'
+import {
+  getTelegramConfig,
+  getTelegramConfigSnapshot,
+} from '../services/telegram/config.js'
 import {
   classifyTelegramOutboundAttachments,
   resolveTelegramInboundPayload,
@@ -125,7 +128,17 @@ async function getOutboundPayload(
 
 export function useTelegramBridge({ isLoading, messages }: Props): void {
   const mailbox = useMailbox()
-  const config = useMemo(() => getTelegramConfig(), [])
+  const snapshot = getTelegramConfigSnapshot()
+  const config = useMemo(
+    () => getTelegramConfig(),
+    [
+      snapshot.botTokenConfigured,
+      snapshot.allowedChatIdsCount,
+      snapshot.pollTimeoutSeconds,
+      snapshot.ready,
+      snapshot.source,
+    ],
+  )
   const offsetRef = useRef<number | undefined>(undefined)
   const pendingResponsesRef = useRef<PendingTelegramResponse[]>([])
   const previousLoadingRef = useRef(isLoading)

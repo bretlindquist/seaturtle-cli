@@ -7,6 +7,16 @@ type TelegramGetUpdatesResponse = {
   result: TelegramUpdate[]
 }
 
+type TelegramGetMeResponse = {
+  ok: boolean
+  result: {
+    id: number
+    is_bot: boolean
+    first_name: string
+    username?: string
+  }
+}
+
 type TelegramGetFileResponse = {
   ok: boolean
   result: {
@@ -80,8 +90,38 @@ type TelegramSendMessageResponse = {
   ok: boolean
 }
 
+export type TelegramBotIdentity = {
+  id: number
+  username?: string
+  displayName: string
+}
+
 function getBaseUrl(botToken: string): string {
   return `https://api.telegram.org/bot${botToken}`
+}
+
+export async function getTelegramMe(params: {
+  botToken: string
+  signal?: AbortSignal
+}): Promise<TelegramBotIdentity> {
+  const response = await fetch(`${getBaseUrl(params.botToken)}/getMe`, {
+    signal: params.signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Telegram getMe failed with ${response.status}`)
+  }
+
+  const payload = (await response.json()) as TelegramGetMeResponse
+  if (!payload.ok) {
+    throw new Error('Telegram getMe returned ok=false')
+  }
+
+  return {
+    id: payload.result.id,
+    username: payload.result.username,
+    displayName: payload.result.first_name,
+  }
 }
 
 export async function getTelegramUpdates(

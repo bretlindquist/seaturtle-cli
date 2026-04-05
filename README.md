@@ -33,7 +33,7 @@ Current OpenAI/Codex status:
 See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for provider behavior,
 setup, validation, and current gaps.
 
-Telegram setup and status guidance lives in
+Telegram setup, pairing, and status guidance lives in
 [`docs/TELEGRAM.md`](./docs/TELEGRAM.md).
 
 ## Prerequisites

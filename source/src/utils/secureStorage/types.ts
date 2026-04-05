@@ -59,6 +59,10 @@ export type SecureStorageData = {
   claudeAiOauth?: ClaudeAiOAuthData
   trustedDeviceToken?: string
   providerAuthProfiles?: ProviderAuthProfileStore
+  telegram?: {
+    botToken: string
+    updatedAt: number
+  }
   [key: string]: unknown
 }
 

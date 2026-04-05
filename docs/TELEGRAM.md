@@ -13,11 +13,27 @@ Current Telegram support:
 Not yet supported:
 
 - outbound voice messages
-- full in-app pairing flow
 
 ## Current Setup Method
 
-Telegram is currently configured with environment variables.
+Telegram can now be paired from inside the app with `/telegram`, or configured
+with environment variables.
+
+## In-App Pairing
+
+1. Create a Telegram bot with BotFather.
+2. Start Claude Code and run `/telegram`.
+3. Choose `Pair Telegram bot in-app`.
+4. Paste the bot token.
+5. Send the bot a message from the Telegram chat you want to pair.
+6. Choose the discovered chat.
+
+The bot token is stored in secure storage. Allowlisted chat IDs and pairing
+metadata are stored in app config.
+
+Environment variables still work and override in-app pairing when present.
+
+## Environment Variable Setup
 
 Required:
 
@@ -78,7 +94,7 @@ Then use:
 /status
 ```
 
-`/telegram` shows setup guidance and current readiness.
+`/telegram` shows setup guidance, pairing, and current readiness.
 
 ## Voice Notes
 
@@ -103,10 +119,5 @@ This prevents a bot from being reachable by arbitrary chats once a token is set.
 
 ## Current Direction
 
-The next planned Telegram improvement is true in-app pairing:
-
-- enter bot token inside the app
-- validate it
-- discover chats from recent bot updates
-- choose allowlisted chats
-- persist Telegram config without requiring shell edits
+Current Telegram pairing supports one primary allowlisted chat in-app. A later
+follow-up can expand that into richer multi-chat management and outbound voice.

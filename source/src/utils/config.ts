@@ -196,6 +196,14 @@ export type GlobalConfig = {
   userID?: string
   theme: ThemeSetting
   preferredMainProvider?: 'anthropic' | 'openai-codex'
+  telegram?: {
+    allowedChatIds: string[]
+    pollTimeoutSeconds?: number
+    lastPairedChatId?: string
+    botUsername?: string
+    botDisplayName?: string
+    pairedAt?: number
+  }
   hasCompletedOnboarding?: boolean
   // Tracks the last version that reset onboarding, used with MIN_VERSION_REQUIRING_ONBOARDING_RESET
   lastOnboardingVersion?: string
@@ -980,7 +988,7 @@ function removeProjectHistory(
     const legacy = projectConfig as ProjectConfig & { history?: unknown }
     if (legacy.history !== undefined) {
       needsCleaning = true
-      const { history, ...cleanedConfig } = legacy
+      const { history: _history, ...cleanedConfig } = legacy
       cleanedProjects[path] = cleanedConfig
     } else {
       cleanedProjects[path] = projectConfig

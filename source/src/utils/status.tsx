@@ -118,7 +118,7 @@ export function buildTelegramProperties(theme: ThemeName): Property[] {
   const voiceValue = transcription ? color('success', theme)(`Enabled · ${transcription.model}`) : color('inactive', theme)('Disabled');
   return [{
     label: 'Telegram',
-    value: transportValue
+    value: `${transportValue} ${color('inactive', theme)(snapshot.source === 'env' ? '· env' : snapshot.source === 'app' ? '· paired in app' : '')}`.trim()
   }, {
     label: 'Telegram polling',
     value: `${String(snapshot.pollTimeoutSeconds)}s long poll`
