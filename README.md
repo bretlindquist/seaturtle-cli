@@ -36,6 +36,7 @@ layer.
 - provider-aware `/login`, `/logout`, `/model`, `/effort`, `/status`
 - Telegram pairing and project binding from inside the app
 - Telegram text, photos, documents, and voice-note transcription
+- safe tracked-plan orchestration with `/autowork` and `/swim`
 - per-project reminders with `/remindme` / `/rm`
 - rainbow theme control with `/lolcat`, including animated and persistent modes
 
@@ -97,6 +98,7 @@ Inside CT, the next-step commands to know first are:
 - `/effort`
 - `/status`
 - `/telegram`
+- `/autowork`
 - `/remindme`
 - `/lolcat`
 
@@ -262,6 +264,34 @@ than dropping them into Anthropic-first wording.
 - `/telegram`
 - `/telegram help`
 
+### Tracked-Plan Orchestration
+
+- `/autowork`
+- `/swim`
+
+These start the same safe orchestration harness.
+
+Current contract:
+
+- requires one tracked root-level dated `*-state.md` plan file
+- runs one chunk at a time
+- enforces validation and commit gates between chunks
+- stops on checkpoint failure instead of continuing blindly
+- can send a Telegram stop notice when Telegram is bound for the project
+
+Current subcommands:
+
+- `/autowork`
+- `/autowork run`
+- `/autowork status`
+- `/autowork doctor`
+- `/swim`
+- `/swim run`
+- `/swim status`
+- `/swim doctor`
+
+`/swim` is the more whimsical entrypoint. The execution guarantees are the same.
+
 ### Reminders
 
 - `/remindme`
@@ -321,6 +351,25 @@ What they do:
 
 When the live Codex account is quota-limited, the OpenAI/Codex regression
 harness exits with an explicit skip instead of reporting a false regression.
+
+### Autowork Safety Model
+
+`/autowork` and `/swim` are not the existing permission auto mode.
+
+They are a higher-level tracked-plan orchestrator with these guarantees:
+
+- safe mode requires a clean working tree before chunk launch
+- safe mode launches exactly one chunk at a time
+- safe mode queues a verification step after the execution turn
+- safe mode requires validation and a new commit before it advances
+- safe mode requires a clean tree after the checkpoint commit
+- failures persist a stop reason instead of silently continuing
+
+Cost and operator expectations:
+
+- it uses more tokens, time, and runtime than ordinary interactive work
+- it is meant for a tracked, surgical chunk plan, not open-ended exploration
+- dangerous mode is not shipped in this wave
 
 ### Clean Rebuild
 

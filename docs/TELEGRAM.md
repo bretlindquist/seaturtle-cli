@@ -49,6 +49,10 @@ After pairing, `/telegram` can also:
 - send a Telegram test message
 - run Telegram doctor diagnostics
 
+When `/autowork` or `/swim` is active in safe mode, Telegram can also receive a
+short stop notice for critical checkpoint failures if this project already has a
+default or last-inbound chat bound.
+
 For a concise in-app summary, run:
 
 ```text
@@ -141,6 +145,14 @@ Telegram is intentionally allowlist-based.
   `CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS` env override are accepted
 
 This prevents a bot from being reachable by arbitrary chats once a token is set.
+
+Autowork stop notices follow the same project-local binding model:
+
+- they use the current project's bound Telegram bot
+- they target the default project chat first
+- then the last inbound project chat
+- then the first allowlisted chat as a fallback
+- if Telegram is not configured for the project, no stop notice is sent
 
 ## Multi-Bot And Project Binding
 

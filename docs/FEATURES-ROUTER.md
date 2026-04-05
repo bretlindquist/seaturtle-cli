@@ -9,6 +9,8 @@ Use it when the user asks natural-language questions like:
 - how does CT identity work in this project?
 - how do I make CT remind me about something after replies?
 - how do I switch models?
+- how do I use autowork?
+- what is swim mode?
 - why is GitHub Actions gated?
 - how do I test Telegram?
 - why does CT still use CLAUDE env vars?
@@ -113,6 +115,36 @@ Important truth:
 - Telegram bot binding and allowlisted chats are project-local
 - one running app session/process uses one active Telegram bot
 - separate projects can use different saved Telegram bots
+
+## Autowork / Swim
+
+Keywords:
+
+- autowork
+- swim
+- tracked plan
+- one chunk at a time
+- orchestration
+- doctor
+- safe mode
+- telegram stop notice
+
+Next steps:
+
+- Use `/autowork` for the operator-forward entrypoint
+- Use `/swim` for the more whimsical alias with the same guarantees
+- Use `/autowork run` or `/swim run` to launch exactly one chunk
+- Use `/autowork status` or `/swim status` to see the selected mode and next chunk
+- Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
+
+Important truth:
+
+- `/autowork` requires one tracked root-level dated `*-state.md` plan file
+- safe mode is one chunk at a time only
+- safe mode verifies validation and commit hygiene before it advances
+- failures stop and persist a stop reason
+- if Telegram is bound for the project, critical stops can send a short Telegram notice
+- dangerous mode is intentionally not shipped in this wave
 
 ## CT identity / soul / local project memory
 
