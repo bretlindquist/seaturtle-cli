@@ -4,6 +4,7 @@ import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, getIsClean, gitExe } from '../../utils/git.js'
 import type { AutoworkPlanChunk, AutoworkPlanParseFailure } from './planParser.js'
 import { parseAutoworkPlanFile } from './planParser.js'
+import type { AutoworkRunMode } from './state.js'
 
 const REQUIRED_GITIGNORE_ENTRIES = [
   '.env',
@@ -164,6 +165,7 @@ export async function assessAutoworkHygiene(
 
 export async function assessAutoworkEligibility(
   planPath: string,
+  runMode: AutoworkRunMode = 'safe',
 ): Promise<AutoworkEligibilityResult> {
   const resolvedPlanPath = resolve(planPath)
   const checks: AutoworkEligibilityCheck[] = []
@@ -189,30 +191,6 @@ export async function assessAutoworkEligibility(
     name: 'git-repo',
     ok: true,
     summary: `Repository root: ${repoRoot}`,
-  })
-
-  const isClean = await getIsClean()
-  if (!isClean) {
-    checks.push({
-      name: 'clean-tree',
-      ok: false,
-      summary:
-        'Working tree is not clean. Commit, stash, or remove changes before autowork starts.',
-    })
-    return fail(
-      'dirty_worktree',
-      'Autowork safe mode requires a clean working tree before the first chunk.',
-      'clean-tree',
-      repoRoot,
-      resolvedPlanPath,
-      checks,
-    )
-  }
-
-  checks.push({
-    name: 'clean-tree',
-    ok: true,
-    summary: 'Working tree is clean.',
   })
 
   const fs = getFsImplementation()
@@ -332,6 +310,35 @@ export async function assessAutoworkEligibility(
     ok: true,
     summary: `Pending chunks: ${pendingChunkIds.join(', ')}`,
   })
+
+  const isClean = await getIsClean()
+  if (!isClean) {
+    checks.push({
+      name: 'clean-tree',
+      ok: false,
+      summary:
+        runMode === 'dangerous'
+          ? 'Working tree is not clean. Dangerous mode may continue, but this is recorded as checkpoint debt.'
+          : 'Working tree is not clean. Commit, stash, or remove changes before autowork starts.',
+    })
+
+    if (runMode !== 'dangerous') {
+      return fail(
+        'dirty_worktree',
+        'Autowork safe mode requires a clean working tree before the first chunk.',
+        'clean-tree',
+        repoRoot,
+        resolvedPlanPath,
+        checks,
+      )
+    }
+  } else {
+    checks.push({
+      name: 'clean-tree',
+      ok: true,
+      summary: 'Working tree is clean.',
+    })
+  }
 
   return {
     ok: true,

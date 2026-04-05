@@ -28,7 +28,11 @@ import {
   type AutoworkValidationResult,
   updateAutoworkState,
 } from './state.js'
-import { getAutoworkRunPolicy, type AutoworkRunPolicy } from './policy.js'
+import {
+  getAutoworkRunPolicy,
+  isAutoworkRelaxableFailureCode,
+  type AutoworkRunPolicy,
+} from './policy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
 
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
@@ -137,6 +141,39 @@ function createAutoworkContinuationDebt(
     chunkId,
     capturedAt: Date.now(),
   }
+}
+
+function appendUniqueContinuationDebt(
+  current: AutoworkContinuationDebt[],
+  additions: AutoworkContinuationDebt[],
+): AutoworkContinuationDebt[] {
+  const next = [...current]
+
+  for (const debt of additions) {
+    const exists = next.some(
+      existing =>
+        existing.code === debt.code &&
+        existing.message === debt.message &&
+        existing.failedCheck === debt.failedCheck &&
+        existing.chunkId === debt.chunkId,
+    )
+
+    if (!exists) {
+      next.push(debt)
+    }
+  }
+
+  return next
+}
+
+function formatContinuationDebtLines(
+  debts: AutoworkContinuationDebt[],
+): string[] {
+  return debts.map(debt =>
+    debt.failedCheck
+      ? `- ${debt.code}: ${debt.message} [${debt.failedCheck}]`
+      : `- ${debt.code}: ${debt.message}`,
+  )
 }
 
 function getEffectivePendingChunks(
@@ -360,7 +397,7 @@ export async function inspectAndSelectAutoworkMode(
           getGitStatusShortLines(repoRoot),
           getLatestRelevantCommits(repoRoot),
           parseAutoworkPlanFile(resolvedPlanPath),
-          assessAutoworkEligibility(resolvedPlanPath),
+          assessAutoworkEligibility(resolvedPlanPath, state.runMode),
           assessAutoworkHygiene(repoRoot),
         ])
       : [
@@ -458,9 +495,39 @@ export async function prepareAutoworkSafeExecution(
   }
 
   const gitCheck = await verifyAutoworkPreChunkGitState(context.repoRoot)
-  if (!gitCheck.ok || !gitCheck.snapshot.headSha) {
-    const message = gitCheck.message
-    persistAutoworkStop(context, gitCheck.code, message, 'clean-tree', nextChunk.id)
+  const launchDebts: AutoworkContinuationDebt[] = []
+  let preChunkHeadSha: string | null = gitCheck.ok ? gitCheck.snapshot.headSha : null
+
+  if (!gitCheck.ok) {
+    if (
+      isAutoworkRelaxableFailureCode(context.state.runMode, gitCheck.code) &&
+      gitCheck.snapshot?.headSha
+    ) {
+      preChunkHeadSha = gitCheck.snapshot.headSha
+      launchDebts.push(
+        createAutoworkContinuationDebt(
+          gitCheck.code,
+          gitCheck.message,
+          'clean-tree',
+          nextChunk.id,
+        ),
+      )
+    } else {
+      const message = gitCheck.message
+      persistAutoworkStop(context, gitCheck.code, message, 'clean-tree', nextChunk.id)
+      return { ok: false, message }
+    }
+  }
+
+  if (!preChunkHeadSha) {
+    const message = 'Autowork could not determine the pre-chunk HEAD commit.'
+    persistAutoworkStop(
+      context,
+      'missing_pre_chunk_head',
+      message,
+      'commit-gate',
+      nextChunk.id,
+    )
     return { ok: false, message }
   }
 
@@ -475,6 +542,12 @@ export async function prepareAutoworkSafeExecution(
     '',
     `Launching ${nextChunk.id}.`,
     `Plan: ${context.planPath}`,
+    context.state.runMode === 'dangerous' && launchDebts.length > 0
+      ? 'Dangerous-mode debt at launch:'
+      : null,
+    ...(context.state.runMode === 'dangerous'
+      ? formatContinuationDebtLines(launchDebts)
+      : []),
     `Queued next step: /${entryPoint} verify`,
   ].join('\n')
 
@@ -487,9 +560,9 @@ export async function prepareAutoworkSafeExecution(
       currentMode: 'execution',
       lastStartupInspection: context.inspection,
       lastValidationResult: null,
-      lastCommitSha: gitCheck.snapshot.headSha,
-      rollbackRef: nextChunk.risks.length > 0 ? gitCheck.snapshot.headSha : null,
-      continuationDebt: [],
+      lastCommitSha: preChunkHeadSha,
+      rollbackRef: nextChunk.risks.length > 0 ? preChunkHeadSha : null,
+      continuationDebt: appendUniqueContinuationDebt([], launchDebts),
       stopReason: null,
       lastStartedAt: Date.now(),
       implementedButUnverified: true,
@@ -527,32 +600,34 @@ export async function verifyAutoworkSafeExecution(
 
   const validationPlan = resolveAutoworkValidationPlan(activeChunk)
   const validationResults: AutoworkValidationResult[] = []
+  const verificationDebts: AutoworkContinuationDebt[] = []
 
   for (const command of validationPlan.commands) {
     const result = await runAutoworkShellCommand(command.command, context.repoRoot)
     validationResults.push(result)
 
     if (!result.ok) {
+      const validationDebt = createAutoworkContinuationDebt(
+        'validation_failed',
+        `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
+        'validation',
+        activeChunk.id,
+      )
+
+      if (context.state.runMode === 'dangerous') {
+        verificationDebts.push(validationDebt)
+        continue
+      }
+
       updateAutoworkState(
         current => ({
           ...current,
           currentMode: 'verification',
           lastValidationResult: result,
-          continuationDebt: [
-            ...current.continuationDebt.filter(
-              debt =>
-                debt.code !== 'validation_failed' ||
-                debt.chunkId !== activeChunk.id ||
-                debt.message !==
-                  `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
-            ),
-            createAutoworkContinuationDebt(
-              'validation_failed',
-              `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
-              'validation',
-              activeChunk.id,
-            ),
-          ],
+          continuationDebt: appendUniqueContinuationDebt(
+            current.continuationDebt,
+            [validationDebt],
+          ),
           stopReason: {
             code: 'validation_failed',
             message: `Validation failed for chunk ${activeChunk.id}: ${command.command}`,
@@ -583,6 +658,7 @@ export async function verifyAutoworkSafeExecution(
   }
 
   const finalValidationResult =
+    validationResults.findLast(result => !result.ok) ??
     validationResults.at(-1) ?? {
       command: 'docs-only',
       ok: true,
@@ -614,35 +690,62 @@ export async function verifyAutoworkSafeExecution(
     context.repoRoot,
     beforeHeadSha,
   )
-  if (!postCommit.ok || !postCommit.snapshot.headSha) {
-    persistAutoworkStop(
-      context,
-      postCommit.code,
-      postCommit.message,
-      'commit-gate',
-      activeChunk.id,
-    )
-    return {
-      ok: false,
-      message: buildStopMessage(postCommit.code, postCommit.message, activeChunk.id),
+  const effectivePostCommitSnapshot = postCommit.snapshot
+  if (!postCommit.ok || !effectivePostCommitSnapshot?.headSha) {
+    if (
+      !postCommit.ok &&
+      isAutoworkRelaxableFailureCode(context.state.runMode, postCommit.code) &&
+      effectivePostCommitSnapshot?.headSha
+    ) {
+      verificationDebts.push(
+        createAutoworkContinuationDebt(
+          postCommit.code,
+          postCommit.message,
+          'commit-gate',
+          activeChunk.id,
+        ),
+      )
+    } else {
+      persistAutoworkStop(
+        context,
+        postCommit.code,
+        postCommit.message,
+        'commit-gate',
+        activeChunk.id,
+      )
+      return {
+        ok: false,
+        message: buildStopMessage(postCommit.code, postCommit.message, activeChunk.id),
+      }
     }
   }
 
   const postClean = await verifyAutoworkPostCommitCleanTree(
     context.repoRoot,
-    postCommit.snapshot.headSha,
+    effectivePostCommitSnapshot.headSha,
   )
   if (!postClean.ok) {
-    persistAutoworkStop(
-      context,
-      postClean.code,
-      postClean.message,
-      'clean-tree',
-      activeChunk.id,
-    )
-    return {
-      ok: false,
-      message: buildStopMessage(postClean.code, postClean.message, activeChunk.id),
+    if (isAutoworkRelaxableFailureCode(context.state.runMode, postClean.code)) {
+      verificationDebts.push(
+        createAutoworkContinuationDebt(
+          postClean.code,
+          postClean.message,
+          'clean-tree',
+          activeChunk.id,
+        ),
+      )
+    } else {
+      persistAutoworkStop(
+        context,
+        postClean.code,
+        postClean.message,
+        'clean-tree',
+        activeChunk.id,
+      )
+      return {
+        ok: false,
+        message: buildStopMessage(postClean.code, postClean.message, activeChunk.id),
+      }
     }
   }
 
@@ -651,6 +754,10 @@ export async function verifyAutoworkSafeExecution(
   )
   const failedChunkIds = context.state.failedChunkIds.filter(
     chunkId => chunkId !== activeChunk.id,
+  )
+  const finalContinuationDebt = appendUniqueContinuationDebt(
+    context.state.continuationDebt,
+    verificationDebts,
   )
   const nextPendingChunkId =
     context.parsedPlan.ok
@@ -675,9 +782,9 @@ export async function verifyAutoworkSafeExecution(
       currentMode: nextPendingChunkId ? 'execution' : 'idle',
       lastStartupInspection: context.inspection,
       lastValidationResult: finalValidationResult,
-      lastCommitSha: postCommit.snapshot.headSha,
+      lastCommitSha: effectivePostCommitSnapshot.headSha,
       rollbackRef: null,
-      continuationDebt: [],
+      continuationDebt: finalContinuationDebt,
       stopReason: null,
       lastFinishedAt: Date.now(),
       implementedButUnverified: false,
@@ -688,16 +795,27 @@ export async function verifyAutoworkSafeExecution(
   return {
     ok: true,
     chunkId: activeChunk.id,
-    commitSha: postCommit.snapshot.headSha,
+    commitSha: effectivePostCommitSnapshot.headSha,
     nextPendingChunkId,
     message: [
-      `Chunk ${activeChunk.id} verified.`,
+      finalContinuationDebt.length > 0 && context.state.runMode === 'dangerous'
+        ? `Chunk ${activeChunk.id} completed in dangerous mode with checkpoint debt.`
+        : `Chunk ${activeChunk.id} verified.`,
       '',
       'Validation results:',
       ...formatValidationLines(validationResults.length > 0 ? validationResults : [finalValidationResult]),
+      ...(finalContinuationDebt.length > 0
+        ? [
+            '',
+            'Dangerous-mode debt:',
+            ...formatContinuationDebtLines(finalContinuationDebt),
+          ]
+        : []),
       '',
-      `Commit: ${postCommit.snapshot.headSha}`,
-      'Tree: clean',
+      `Commit: ${effectivePostCommitSnapshot.headSha}`,
+      verificationDebts.some(debt => debt.code === 'dirty_worktree_after_commit')
+        ? 'Tree: dirty'
+        : 'Tree: clean',
       `Next chunk: ${nextPendingChunkId ?? 'none'}`,
     ].join('\n'),
   }
