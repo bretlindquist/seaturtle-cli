@@ -251,6 +251,7 @@ Next step:
 
 - Use `/theme` and choose `neonbbs`
 - Use `/lolcat` to turn the whole shell rainbow, including the animated variants
+- Use `/haiku` to recite a SeaTurtle haiku or enable rare startup haiku
 
 ## Skills / Plugins / MCP / Hooks
 

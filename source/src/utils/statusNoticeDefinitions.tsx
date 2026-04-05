@@ -15,6 +15,7 @@ import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } fr
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
 import { pickCtGreeting, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
 import { getCtArchives } from '../services/projectIdentity/archives.js';
+import { getCtHaikuDisplay, markStartupHaikuShown, shouldShowStartupHaiku } from '../services/projectIdentity/haiku.js';
 import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
 
 // Types
@@ -249,13 +250,35 @@ function CtIdentityGreetingNoticeBody({
 }: {
   canonCallback: string | null;
 }): React.ReactNode {
-  const [prompt] = React.useState(() => {
-    const greeting = pickCtGreeting(`${getCwd()}:${Date.now()}`, getCtArchives().temperament);
-    return greeting.prompt;
+  const [display] = React.useState(() => {
+    const seed = `${getCwd()}:${Date.now()}`;
+    const archives = getCtArchives();
+    const greeting = pickCtGreeting(seed, archives.temperament);
+    if (shouldShowStartupHaiku({
+      seed,
+      startupCount: getGlobalConfig().numStartups,
+      disposition: greeting.disposition,
+    })) {
+      return {
+        kind: 'haiku' as const,
+        text: getCtHaikuDisplay(seed),
+      };
+    }
+    return {
+      kind: 'greeting' as const,
+      text: greeting.prompt,
+    };
   });
+  const prompt = display.kind === 'greeting' ? display.text : '';
+  const haikuLines = display.kind === 'haiku' ? display.text.split('\n') : [];
   const [visibleChars, setVisibleChars] = React.useState(0);
 
   React.useEffect(() => {
+    if (display.kind === 'haiku') {
+      markStartupHaikuShown();
+      return;
+    }
+
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const tick = () => {
@@ -275,15 +298,17 @@ function CtIdentityGreetingNoticeBody({
         clearTimeout(timeoutId);
       }
     };
-  }, [prompt]);
+  }, [display.kind, prompt]);
 
   return <Box flexDirection="column">
       <Text dimColor>
-        Use /ct to edit `.ct/session.md` or retune CT whenever you want to
+        Use /ct to edit `.ct/session.md`, /haiku to tune the rare creative tide, or retune CT whenever you want to
         steer the project.
       </Text>
       {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
-      <Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text>
+      {display.kind === 'haiku' ? <Box flexDirection="column">
+          {haikuLines.map((line, index) => <Text key={index} color="claude">{line}</Text>)}
+        </Box> : <Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text>}
     </Box>;
 }
 

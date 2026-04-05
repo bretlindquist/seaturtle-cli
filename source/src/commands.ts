@@ -24,6 +24,7 @@ import doctor from './commands/doctor/index.js'
 import autowork from './commands/autowork/index.js'
 import memory from './commands/memory/index.js'
 import help from './commands/help/index.js'
+import haiku from './commands/haiku/index.js'
 import ide from './commands/ide/index.js'
 import init from './commands/init.js'
 import initVerifiers from './commands/init-verifiers.js'
@@ -324,6 +325,7 @@ const COMMANDS = memoize((): Command[] => [
   theme,
   feedback,
   game,
+  haiku,
   review,
   ultrareview,
   rewind,

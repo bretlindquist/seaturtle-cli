@@ -233,6 +233,10 @@ export type GlobalConfig = {
     persistAnimation?: boolean
     previousTheme?: ThemeSetting
   }
+  haiku?: {
+    startupMode?: 'off' | 'rare'
+    lastShownAt?: number
+  }
   preferredMainProvider?: 'anthropic' | 'openai-codex'
   telegramProfiles?: Record<string, TelegramBotProfileMeta>
   /**

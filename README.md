@@ -39,6 +39,7 @@ layer.
 - safe tracked-plan orchestration with `/autowork` and `/swim`
 - per-project reminders with `/remindme` / `/rm`
 - rainbow theme control with `/lolcat`, including animated and persistent modes
+- rare startup haiku and on-demand SeaTurtle poems with `/haiku`
 
 ### Intentionally Gated Or Still Anthropic-Bound
 
@@ -101,6 +102,7 @@ Inside CT, the next-step commands to know first are:
 - `/autowork`
 - `/remindme`
 - `/lolcat`
+- `/haiku`
 
 ## Installation And Prerequisites
 
