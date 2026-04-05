@@ -33,6 +33,9 @@ Current OpenAI/Codex status:
 See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for provider behavior,
 setup, validation, and current gaps.
 
+Telegram setup and status guidance lives in
+[`docs/TELEGRAM.md`](./docs/TELEGRAM.md).
+
 ## Prerequisites
 
 - Node.js >= 20
@@ -76,6 +79,13 @@ Useful checks:
 ```bash
 CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js auth status --json
 CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js -p "say hello in five words"
+```
+
+Telegram setup helper:
+
+```bash
+CLAUDE_CODE_USE_OPENAI_CODEX=1 node dist/cli.js
+# then run /telegram inside the app
 ```
 
 ### Computer Use (macOS)
