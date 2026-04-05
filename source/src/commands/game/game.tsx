@@ -18,6 +18,7 @@ import {
   addLegendEvent,
   addInventoryItem,
   addTitle,
+  addOath,
   addRarityUnlock,
   updateCtGameState,
 } from '../../services/projectIdentity/archives.js'
@@ -29,7 +30,7 @@ type OnExit = (
   },
 ) => void
 
-type Screen = 'menu' | 'wager' | 'tide-dice'
+type Screen = 'menu' | 'wager' | 'tide-dice' | 'swords-of-chaos'
 
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [screen, setScreen] = React.useState<Screen>('menu')
@@ -125,6 +126,74 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
+  function finishSwordsOfChaos(choice: 'draw-steel' | 'bow-slightly'): void {
+    const outcome = Math.floor(Math.random() * 4)
+
+    updateCtGameState(
+      current => ({
+        ...current,
+        lastPlayedAt: Date.now(),
+        discoveries: {
+          ...current.discoveries,
+          swordsOfChaosPlayed: true,
+        },
+      }),
+      projectRoot,
+    )
+
+    if (outcome === 0) {
+      recordCtGameResult('win', projectRoot)
+      addInventoryItem('trench-coat relic blade', projectRoot)
+      addLegendEvent(
+        `Survived Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'} and came away with a trench-coat relic blade.`,
+        projectRoot,
+      )
+      onExit(
+        'Swords of Chaos ends with a strange little victory.\n\nA turtle in a trench coat vanishes into the dark and leaves behind a trench-coat relic blade.\n\nThe relic is now in the Half-Shell Archives.',
+        { display: 'system' },
+      )
+      return
+    }
+
+    if (outcome === 1) {
+      recordCtGameResult('win', projectRoot)
+      addTitle('Walker of the Salt Arcade', projectRoot)
+      addLegendEvent(
+        `Won a title in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
+        projectRoot,
+      )
+      onExit(
+        'Swords of Chaos closes with an old arcade hush.\n\nThe trench-coat turtle names you Walker of the Salt Arcade, then disappears.\n\nThe title is now in the Half-Shell Archives.',
+        { display: 'system' },
+      )
+      return
+    }
+
+    if (outcome === 2) {
+      recordCtGameResult('played', projectRoot)
+      addOath('Leave one mystery unsolved on purpose.', projectRoot)
+      addLegendEvent(
+        `Accepted an oath in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
+        projectRoot,
+      )
+      onExit(
+        'Swords of Chaos does not give you a prize this time.\n\nInstead, the trench-coat turtle leaves you with an oath: "Leave one mystery unsolved on purpose."\n\nThe oath is now in the Half-Shell Archives.',
+        { display: 'system' },
+      )
+      return
+    }
+
+    recordCtGameResult('loss', projectRoot)
+    addLegendEvent(
+      `Was turned away from Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
+      projectRoot,
+    )
+    onExit(
+      'Swords of Chaos snaps shut before it really begins.\n\nThe trench-coat turtle tilts its head, decides you are not ready, and the alley goes dark.\n\nThe refusal is recorded in the Half-Shell Archives.',
+      { display: 'system' },
+    )
+  }
+
   if (screen === 'wager') {
     return (
       <Dialog
@@ -209,6 +278,51 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
+  if (screen === 'swords-of-chaos') {
+    return (
+      <Dialog
+        title="Swords of Chaos"
+        subtitle="A short BBS alleyway. A trench-coat turtle. A bad decision waiting to happen."
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>
+            Neon rain. A humming sign. A trench-coat turtle under one broken
+            lamp.
+          </Text>
+          <Select
+            options={[
+              {
+                label: 'Draw Steel',
+                value: 'draw-steel',
+                description: 'Step into the alley like you belong there',
+              },
+              {
+                label: 'Bow Slightly',
+                value: 'bow-slightly',
+                description: 'Respect the moment and hope it respects you back',
+              },
+              {
+                label: 'Retreat to safer waters',
+                value: 'back',
+                description: 'Leave the alley before the sign flickers again',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen('menu')
+                return
+              }
+
+              finishSwordsOfChaos(value as 'draw-steel' | 'bow-slightly')
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
   if (screen === 'menu') {
     return (
       <Dialog
@@ -249,6 +363,13 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   : 'A private die waits in the surf',
               },
               {
+                label: 'Enter Swords of Chaos',
+                value: 'swords-of-chaos',
+                description: gameState.discoveries.swordsOfChaosPlayed
+                  ? 'Return to the trench-coat turtle alley'
+                  : 'A tiny BBS alley waits behind the static',
+              },
+              {
                 label: 'Study the archives',
                 value: 'archives',
                 description: 'Review the current private archive ledger for this project',
@@ -275,6 +396,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
               if (value === 'tide-dice') {
                 setScreen('tide-dice')
+                return
+              }
+
+              if (value === 'swords-of-chaos') {
+                setScreen('swords-of-chaos')
                 return
               }
 
