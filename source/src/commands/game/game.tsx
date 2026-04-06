@@ -73,7 +73,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
   const gameState = readCtGameState(projectRoot)
-  const swordsRuntimeSave = React.useMemo(() => ensureSwordsOfChaosRuntimeReady(), [])
+  const [swordsRuntimeSave, setSwordsRuntimeSave] = React.useState(() =>
+    ensureSwordsOfChaosRuntimeReady(),
+  )
   const swordsRelevantMemory = React.useMemo(
     () => getSwordsOfChaosRelevantMemory(swordsRuntimeSave),
     [swordsRuntimeSave],
@@ -90,10 +92,6 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const swordsEncounterPlace = getSwordsEncounterPlaceName(swordsEncounterLocus)
   const swordsEncounterPlaceLabel =
     swordsEncounterPlace.charAt(0).toUpperCase() + swordsEncounterPlace.slice(1)
-
-  React.useEffect(() => {
-    void swordsRuntimeSave
-  }, [swordsRuntimeSave])
 
   function showResult(result: string): void {
     setResultMessage(result)
@@ -202,7 +200,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }),
       projectRoot,
     )
-    applySwordsOfChaosEventBatchToSave(resolution.eventBatch)
+    const nextSave = applySwordsOfChaosEventBatchToSave(resolution.eventBatch)
+    setSwordsRuntimeSave(nextSave)
 
     recordCtGameResult(outcome.gameResult, projectRoot)
     applySwordsOfChaosOutcomeEchoes(resolution.hostEchoes, projectRoot)
