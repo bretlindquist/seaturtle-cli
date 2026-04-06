@@ -96,6 +96,19 @@ What this does:
 - keeps `/game` richer without muddying the project transcript
 - helps project sessions stay sharp, resumable, and surgical
 
+It also now includes hidden mid-turn steering lanes:
+
+- `same_task_steer`
+- `side_question`
+- `park_for_later`
+- `interrupt_now`
+
+This is meant to reduce routing burden on the user:
+
+- related mid-turn input quietly steers the active task
+- unrelated ideas are quietly parked for later
+- `/btw` remains a true side-question lane instead of becoming accidental task steer
+
 ## Intent Anchor
 
 SeaTurtle carries the idea that transcript memory is not the same thing as

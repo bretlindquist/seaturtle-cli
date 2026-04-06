@@ -33,6 +33,7 @@ In practice, that means SeaTurtle now treats context in domains:
 - `/btw` is treated as a sidecar question, not a branch of the main project transcript
 - `/btw` is for quick side questions specifically, not for steering the active task and not for parking unrelated follow-up work
 - `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
+- mid-turn input is also classified under the hood so related steer stays with the current task while unrelated ideas can wait their turn
 
 The goal is simple:
 

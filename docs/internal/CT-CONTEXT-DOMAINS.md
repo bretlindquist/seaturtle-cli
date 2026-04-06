@@ -74,12 +74,16 @@ flowchart TD
     J -- "Casual chat / philosophy / banter" --> M["companion_chat"]
     J -- "/game" --> N["gameplay"]
     J -- "/btw" --> O["side_question"]
+    J -- "Mid-turn related steer" --> J1["same_task_steer"]
+    J -- "Mid-turn unrelated idea" --> J2["park_for_later"]
 
     K --> P["Work memory stays sharp and resumable"]
     L --> Q["Exploration stays project-bound but broader"]
     M --> R["Chat stays relational without polluting work context"]
     N --> S["Game state, archive, rarity, and outcomes stay in game memory"]
     O --> T["Side question stays ephemeral and narrowly borrowed"]
+    J1 --> P
+    J2 --> W["Deferred idea stays out of the active turn until the work settles"]
 
     P --> U["Cross back only validated conclusions, constraints, and active decisions"]
     Q --> U
@@ -87,6 +91,7 @@ flowchart TD
     R -. ambient only .-> V["Tiny canon callbacks allowed if non-binding"]
     S -. no default spillover .-> V
     O -. no transcript persistence .-> V
+    W -. resume later .-> V
 ```
 
 This is the current architecture truth:
@@ -98,8 +103,33 @@ This is the current architecture truth:
 - git-root is the first protection heuristic for project sanctity
 - `/btw` and `/game` are richer because they are separated, not blended into
   surgical work memory
+- mid-turn steering is no longer only a timing queue; it is also a semantic
+  routing layer
+- the user should not have to do session math to keep CT on task
 
 ## Domain model
+
+## Hidden steering lanes
+
+SeaTurtle now treats mid-turn input as more than transport timing.
+
+The hidden steering classifier can route incoming input as:
+
+- `interrupt_now`
+- `same_task_steer`
+- `side_question`
+- `park_for_later`
+
+The intended behavior is:
+
+- same-task input quietly steers the active work
+- unrelated ideas do not hijack the active task
+- unrelated ideas are parked and resumed after the active task chain settles
+- `/btw` remains the explicit side-question lane
+
+This is part of project sanctity.
+It keeps active work sharper without forcing the user to manually route every
+thought.
 
 ### `project_work`
 
