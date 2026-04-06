@@ -8,6 +8,23 @@ import type {
 import type { SwordsOfChaosResolution } from '../types/resolution.js'
 import { getSwordsOfChaosOutcome } from './outcomes.js'
 
+function getOutcomeThread(route: SwordsOfChaosRoute): string {
+  const outcome = getSwordsOfChaosOutcome(route)
+
+  switch (outcome.key) {
+    case 'relic':
+      return 'half-shell-relic-trail'
+    case 'title':
+      return 'broken-lamp-witnesses'
+    case 'oath':
+      return 'alley-oath-keepers'
+    case 'truth':
+      return 'sign-truth-fractures'
+    case 'refusal':
+      return 'quiet-refusals'
+  }
+}
+
 function buildHostEchoes(route: SwordsOfChaosRoute): SwordsOfChaosHostEcho[] {
   const outcome = getSwordsOfChaosOutcome(route)
   const echoes: SwordsOfChaosHostEcho[] = [
@@ -47,6 +64,10 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
       {
         kind: 'thread_candidate_add',
         thread: 'trench-coat-turtle-alley',
+      },
+      {
+        kind: 'thread_candidate_add',
+        thread: getOutcomeThread(route),
       },
       {
         kind: 'callback_marker_add',

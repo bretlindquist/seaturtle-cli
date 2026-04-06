@@ -32,5 +32,8 @@ export function getSwordsOfChaosRelevantMemory(
     roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
     revisitCount: alleyMemory?.visits ?? 0,
     lastRoute: alleyMemory?.lastRoute ?? undefined,
+    recentTitle: memory.recentTitle,
+    recentRelic: memory.recentRelic,
+    liveThread: memory.liveThread,
   }
 }

@@ -4,6 +4,9 @@ export type SwordsOfChaosRelevantMemory = {
   roadNotTakenHint?: string
   revisitCount: number
   lastRoute?: string
+  recentTitle?: string
+  recentRelic?: string
+  liveThread?: string
 }
 
 export type SwordsOfChaosDerivedMemory = {
@@ -11,4 +14,7 @@ export type SwordsOfChaosDerivedMemory = {
   callbackCandidates: string[]
   priorRoutes: string[]
   familiarPlaces: string[]
+  recentTitle?: string
+  recentRelic?: string
+  liveThread?: string
 }

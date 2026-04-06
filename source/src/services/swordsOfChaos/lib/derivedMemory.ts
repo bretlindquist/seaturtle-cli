@@ -18,6 +18,11 @@ export function deriveSwordsOfChaosMemory(
   const priorRoutes = alleyMemory?.seenRoutes ?? save.callbackMarkers.filter(marker =>
     marker.includes(':'),
   )
+  const recentTitle = save.progression.titles.at(-1)
+  const recentRelic = save.inventory.at(-1)
+  const liveThread = [...save.threadCandidates]
+    .reverse()
+    .find(thread => thread !== 'trench-coat-turtle-alley')
 
   return {
     version: 1,
@@ -30,6 +35,9 @@ export function deriveSwordsOfChaosMemory(
     priorRoutes,
     familiarPlaces:
       alleyMemory && alleyMemory.visits > 0 ? ['trench-coat turtle alley'] : [],
+    recentTitle,
+    recentRelic,
+    liveThread,
   }
 }
 

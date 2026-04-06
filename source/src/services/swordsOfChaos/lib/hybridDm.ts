@@ -100,6 +100,24 @@ function getSecondBeatLead(
   return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
 }
 
+function getReturningWeight(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): string | undefined {
+  if (relevantMemory?.recentRelic) {
+    return `Whatever you carried out of this world last time has not stopped humming: ${relevantMemory.recentRelic}.`
+  }
+
+  if (relevantMemory?.recentTitle) {
+    return `The name you earned elsewhere has reached this place before you: ${relevantMemory.recentTitle}.`
+  }
+
+  if (relevantMemory?.liveThread) {
+    return `A thread has started to follow you between places: ${relevantMemory.liveThread}.`
+  }
+
+  return undefined
+}
+
 function applySecondBeatCallbackMemory(
   openingChoice: SwordsOfChaosOpeningChoice,
   options: SwordsSecondBeatOption[],
@@ -151,8 +169,8 @@ function renderDeterministicScene(
       sceneText:
         familiar
           ? returningAgain
-            ? `Neon rain again, but the sign is darker now and the brickwork carries marks you do not remember leaving. Something in the alley has had time to think about you.\n\nThe last road you walked here still hangs in the air. ${payload.relevantMemory?.roadNotTakenHint ?? 'Another answer is waiting to see whether you are capable of it.'}`
-            : `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
+            ? `Neon rain again, but the sign is darker now and the brickwork carries marks you do not remember leaving. Something in the alley has had time to think about you.\n\nThe last road you walked here still hangs in the air. ${payload.relevantMemory?.roadNotTakenHint ?? 'Another answer is waiting to see whether you are capable of it.'}${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`
+            : `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`
           : 'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
       options: applyOpeningCallbackMemory(
         getSwordsOpeningOptions(),
