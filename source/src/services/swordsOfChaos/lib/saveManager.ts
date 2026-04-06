@@ -4,6 +4,7 @@ import { writeFileSyncAndFlush_DEPRECATED } from '../../../utils/file.js'
 import { getFsImplementation } from '../../../utils/fsOperations.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
+import { appendSwordsOfChaosEvent } from './eventHistory.js'
 import { migrateSwordsOfChaosSave } from './migrationRunner.js'
 import { getSwordsOfChaosPaths } from './paths.js'
 
@@ -68,7 +69,15 @@ export function ensureSwordsOfChaosSaveExists(): SwordsOfChaosSaveFile {
   const fs = getFsImplementation()
 
   if (!fs.existsSync(savePath)) {
-    return saveSwordsOfChaosSave(createDefaultSwordsOfChaosSave())
+    const created = saveSwordsOfChaosSave(createDefaultSwordsOfChaosSave())
+    appendSwordsOfChaosEvent({
+      at: Date.now(),
+      kind: 'save_initialized',
+      detail: {
+        version: created.version,
+      },
+    })
+    return created
   }
 
   return loadSwordsOfChaosSave()

@@ -32,8 +32,9 @@ import {
   WAGER_REWARDS,
 } from '../../services/game/rewards.js'
 import {
-  applySwordsOfChaosHostEchoes,
-  ensureSwordsOfChaosSaveExists,
+  applySwordsOfChaosOutcomeEchoes,
+  ensureSwordsOfChaosRuntimeReady,
+  touchSwordsOfChaosSave,
 } from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
@@ -167,7 +168,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const gameState = readCtGameState(projectRoot)
 
   React.useEffect(() => {
-    ensureSwordsOfChaosSaveExists()
+    ensureSwordsOfChaosRuntimeReady()
   }, [])
 
   function showResult(result: string): void {
@@ -275,11 +276,19 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }),
       projectRoot,
     )
+    touchSwordsOfChaosSave(current => ({
+      ...current,
+      runHistorySummary: {
+        ...current.runHistorySummary,
+        runsStarted: Math.max(current.runHistorySummary.runsStarted, 1),
+        lastPlayedAt: Date.now(),
+      },
+    }))
 
     recordCtGameResult(outcome.gameResult, projectRoot)
 
     if (outcome.key === 'relic') {
-      applySwordsOfChaosHostEchoes(
+      applySwordsOfChaosOutcomeEchoes(
         [
           { kind: 'legend', value: outcome.legendEvent },
           { kind: 'relic', value: outcome.inventory },
@@ -294,7 +303,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
 
     if (outcome.key === 'title') {
-      applySwordsOfChaosHostEchoes(
+      applySwordsOfChaosOutcomeEchoes(
         [
           { kind: 'legend', value: outcome.legendEvent },
           { kind: 'title', value: outcome.title },
@@ -306,7 +315,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
 
     if (outcome.key === 'oath') {
-      applySwordsOfChaosHostEchoes(
+      applySwordsOfChaosOutcomeEchoes(
         [
           { kind: 'legend', value: outcome.legendEvent },
           { kind: 'oath', value: outcome.oath },
@@ -318,7 +327,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
 
     if (outcome.key === 'truth') {
-      applySwordsOfChaosHostEchoes(
+      applySwordsOfChaosOutcomeEchoes(
         [
           { kind: 'legend', value: outcome.legendEvent },
           { kind: 'truth', value: outcome.truth },
@@ -329,7 +338,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       return
     }
 
-    applySwordsOfChaosHostEchoes(
+    applySwordsOfChaosOutcomeEchoes(
       [{ kind: 'legend', value: outcome.legendEvent }],
       projectRoot,
     )
