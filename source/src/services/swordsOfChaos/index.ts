@@ -17,6 +17,7 @@ export {
   getSwordsOpeningOptions,
   getSwordsSecondBeat,
 } from './lib/shells.js'
+export { renderSwordsOfChaosHybridScene } from './lib/hybridDm.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'
 export type { SwordsOfChaosHostEcho } from './types/echoes.js'
@@ -37,3 +38,9 @@ export type {
   SwordsSecondBeat,
   SwordsSecondBeatOption,
 } from './types/shells.js'
+export type {
+  SwordsOfChaosDmSceneResponse,
+  SwordsOfChaosPromptPayload,
+  SwordsOfChaosSceneOption,
+  SwordsOfChaosSceneStage,
+} from './types/dm.js'

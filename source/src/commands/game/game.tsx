@@ -32,12 +32,11 @@ import {
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
   getSwordsOpeningLabel,
-  getSwordsOpeningOptions,
-  getSwordsSecondBeat,
+  renderSwordsOfChaosHybridScene,
   resolveSwordsOfChaosRoute,
   type SwordsOfChaosOpeningChoice,
   type SwordsOfChaosSecondChoice,
-  type SwordsSecondBeatOption,
+  type SwordsOfChaosDmSceneResponse,
 } from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
@@ -69,6 +68,10 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
   const gameState = readCtGameState(projectRoot)
+  const swordsOpeningScene = React.useMemo<SwordsOfChaosDmSceneResponse>(
+    () => renderSwordsOfChaosHybridScene({ stage: 'opening' }),
+    [],
+  )
 
   React.useEffect(() => {
     ensureSwordsOfChaosRuntimeReady()
@@ -277,12 +280,15 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     const openingChoice = swordsEncounter.openingChoice
 
     if (openingChoice) {
-      const secondBeat = getSwordsSecondBeat(openingChoice)
+      const secondBeatScene = renderSwordsOfChaosHybridScene({
+        stage: 'second-beat',
+        openingChoice,
+      })
 
       return (
         <Dialog
           title="Swords of Chaos"
-          subtitle={secondBeat.subtitle}
+          subtitle={secondBeatScene.subtitle}
           onCancel={() =>
             setSwordsEncounter({
               openingChoice: null,
@@ -290,14 +296,13 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           }
         >
           <Box flexDirection="column" gap={1}>
-            <Text dimColor>
-              {getSwordsOpeningLabel(openingChoice)} got you this far. The
-              alley seems interested now.
-            </Text>
-            <Text dimColor>{secondBeat.intro}</Text>
+            <Text dimColor>{secondBeatScene.sceneText}</Text>
+            {secondBeatScene.hintText ? (
+              <Text dimColor>{secondBeatScene.hintText}</Text>
+            ) : null}
             <Select
               options={[
-                ...secondBeat.options,
+                ...secondBeatScene.options,
                 {
                   label: 'Step back out of the alley',
                   value: 'back',
@@ -331,21 +336,17 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Swords of Chaos"
-        subtitle="A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting."
+        subtitle={swordsOpeningScene.subtitle}
         onCancel={() => setScreen('menu')}
       >
         <Box flexDirection="column" gap={1}>
-          <Text dimColor>
-            Neon rain. A humming sign. A trench-coat turtle under one broken
-            lamp.
-          </Text>
-          <Text dimColor>
-            The first move matters here. Pick the posture that feels most like
-            trouble you can survive.
-          </Text>
+          <Text dimColor>{swordsOpeningScene.sceneText}</Text>
+          {swordsOpeningScene.hintText ? (
+            <Text dimColor>{swordsOpeningScene.hintText}</Text>
+          ) : null}
           <Select
             options={[
-              ...getSwordsOpeningOptions(),
+              ...swordsOpeningScene.options,
               {
                 label: 'Retreat to safer waters',
                 value: 'back',
