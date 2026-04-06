@@ -4,6 +4,28 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
+function isEncounterMemoryRecord(
+  value: unknown,
+): value is SwordsOfChaosSaveFile['encounterMemory'] {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  return Object.values(value).every(entry => {
+    if (!entry || typeof entry !== 'object') {
+      return false
+    }
+
+    const memory = entry as SwordsOfChaosSaveFile['encounterMemory'][string]
+    return (
+      typeof memory.visits === 'number' &&
+      isStringArray(memory.seenOpeners) &&
+      isStringArray(memory.seenRoutes) &&
+      (typeof memory.lastRoute === 'string' || memory.lastRoute === null)
+    )
+  })
+}
+
 export function isSwordsOfChaosSaveFile(
   input: unknown,
 ): input is SwordsOfChaosSaveFile {
@@ -31,6 +53,7 @@ export function isSwordsOfChaosSaveFile(
     isStringArray(value.callbackMarkers) &&
     isStringArray(value.unresolvedBranches) &&
     isStringArray(value.threadCandidates) &&
+    isEncounterMemoryRecord(value.encounterMemory) &&
     !!value.seaturtle &&
     typeof value.seaturtle.bond === 'number' &&
     typeof value.seaturtle.favor === 'number' &&

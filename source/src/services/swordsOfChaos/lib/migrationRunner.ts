@@ -4,5 +4,16 @@ import { validateSwordsOfChaosSave } from './stateValidator.js'
 export function migrateSwordsOfChaosSave(
   input: unknown,
 ): SwordsOfChaosSaveFile {
-  return validateSwordsOfChaosSave(input)
+  if (!input || typeof input !== 'object') {
+    return validateSwordsOfChaosSave(input)
+  }
+
+  const candidate = input as Partial<SwordsOfChaosSaveFile> & {
+    encounterMemory?: SwordsOfChaosSaveFile['encounterMemory']
+  }
+
+  return validateSwordsOfChaosSave({
+    ...candidate,
+    encounterMemory: candidate.encounterMemory ?? {},
+  })
 }

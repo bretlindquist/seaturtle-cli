@@ -10,7 +10,7 @@ import type {
 } from '../types/dm.js'
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosOpeningChoice } from '../types/outcomes.js'
-import type { SwordsOpeningOption } from '../types/shells.js'
+import type { SwordsOpeningOption, SwordsSecondBeatOption } from '../types/shells.js'
 
 function applyOpeningCallbackMemory(
   options: SwordsOpeningOption[],
@@ -87,6 +87,40 @@ function getSecondBeatLead(
   return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
 }
 
+function applySecondBeatCallbackMemory(
+  openingChoice: SwordsOfChaosOpeningChoice,
+  options: SwordsSecondBeatOption[],
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): SwordsSecondBeatOption[] {
+  if (!relevantMemory?.familiarPlace) {
+    return options
+  }
+
+  const priorRoutes = new Set(relevantMemory.priorRoutes)
+
+  const rewritten = options.map(option => {
+    const route = `${openingChoice}:${option.value}`
+    const seen = priorRoutes.has(route)
+    return {
+      ...option,
+      description: seen
+        ? `${option.description} The alley has watched you choose this road before.`
+        : `${option.description} This is one of the roads the alley kept from you last time.`,
+    }
+  })
+
+  return [...rewritten].sort((left, right) => {
+    const leftSeen = priorRoutes.has(`${openingChoice}:${left.value}`)
+    const rightSeen = priorRoutes.has(`${openingChoice}:${right.value}`)
+
+    if (leftSeen === rightSeen) {
+      return 0
+    }
+
+    return leftSeen ? 1 : -1
+  })
+}
+
 function renderDeterministicScene(
   payload: SwordsOfChaosPromptPayload,
 ): SwordsOfChaosDmSceneResponse {
@@ -120,8 +154,14 @@ function renderDeterministicScene(
   return {
     subtitle: secondBeat.subtitle,
     sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}`,
-    options: secondBeat.options,
-    hintText: 'The second move reveals what kind of trouble this really is.',
+    options: applySecondBeatCallbackMemory(
+      payload.openingChoice,
+      secondBeat.options,
+      payload.relevantMemory,
+    ),
+    hintText: payload.relevantMemory?.familiarPlace
+      ? 'The second move reveals whether you repeat yourself or take the road the alley saved for later.'
+      : 'The second move reveals what kind of trouble this really is.',
   }
 }
 

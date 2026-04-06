@@ -14,6 +14,7 @@
     "callbackMarkers",
     "unresolvedBranches",
     "threadCandidates",
+    "encounterMemory",
     "seaturtle",
     "runHistorySummary"
   ],
@@ -80,6 +81,28 @@
     "threadCandidates": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "encounterMemory": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["visits", "seenOpeners", "seenRoutes", "lastRoute"],
+        "properties": {
+          "visits": { "type": "number" },
+          "seenOpeners": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "seenRoutes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "lastRoute": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "seaturtle": {
       "type": "object",

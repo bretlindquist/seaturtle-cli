@@ -14,15 +14,22 @@ function ensureParentDir(path: string): void {
 export function deriveSwordsOfChaosMemory(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosDerivedMemory {
-  const priorRoutes = save.callbackMarkers.filter(marker =>
+  const alleyMemory = save.encounterMemory['trench-coat-turtle-alley']
+  const priorRoutes = alleyMemory?.seenRoutes ?? save.callbackMarkers.filter(marker =>
     marker.includes(':'),
   )
 
   return {
     version: 1,
-    callbackCandidates: [...save.callbackMarkers],
+    callbackCandidates: [
+      ...new Set([
+        ...save.callbackMarkers,
+        ...Object.keys(save.encounterMemory),
+      ]),
+    ],
     priorRoutes,
-    familiarPlaces: priorRoutes.length > 0 ? ['trench-coat turtle alley'] : [],
+    familiarPlaces:
+      alleyMemory && alleyMemory.visits > 0 ? ['trench-coat turtle alley'] : [],
   }
 }
 

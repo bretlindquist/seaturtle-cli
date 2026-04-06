@@ -35,6 +35,11 @@ function validateMutationEvent(event: SwordsOfChaosMutationEvent): void {
         throw new Error('Invalid callback_marker_add event')
       }
       return
+    case 'encounter_memory_record':
+      if (!event.encounter.trim() || !event.opener.trim()) {
+        throw new Error('Invalid encounter_memory_record event')
+      }
+      return
   }
 }
 

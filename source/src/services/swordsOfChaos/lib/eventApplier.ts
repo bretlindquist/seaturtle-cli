@@ -11,6 +11,33 @@ function appendUnique(list: string[], value: string): string[] {
   return [...list, value]
 }
 
+function applyEncounterMemoryRecord(
+  save: SwordsOfChaosSaveFile,
+  event: Extract<SwordsOfChaosMutationEvent, { kind: 'encounter_memory_record' }>,
+): SwordsOfChaosSaveFile {
+  const current = save.encounterMemory[event.encounter] ?? {
+    visits: 0,
+    seenOpeners: [],
+    seenRoutes: [],
+    lastRoute: null,
+  }
+
+  return {
+    ...save,
+    encounterMemory: {
+      ...save.encounterMemory,
+      [event.encounter]: {
+        visits: current.visits + 1,
+        seenOpeners: appendUnique(current.seenOpeners, event.opener),
+        seenRoutes: event.route
+          ? appendUnique(current.seenRoutes, event.route)
+          : current.seenRoutes,
+        lastRoute: event.route ?? current.lastRoute,
+      },
+    },
+  }
+}
+
 function applyMutationEvent(
   save: SwordsOfChaosSaveFile,
   event: SwordsOfChaosMutationEvent,
@@ -55,6 +82,8 @@ function applyMutationEvent(
           lastPlayedAt: event.playedAt,
         },
       }
+    case 'encounter_memory_record':
+      return applyEncounterMemoryRecord(save, event)
   }
 }
 

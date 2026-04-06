@@ -35,6 +35,12 @@ export type SwordsOfChaosMutationEvent =
       kind: 'callback_marker_add'
       marker: string
     }
+  | {
+      kind: 'encounter_memory_record'
+      encounter: string
+      opener: string
+      route?: string
+    }
 
 export type SwordsOfChaosEventBatch = {
   at: number

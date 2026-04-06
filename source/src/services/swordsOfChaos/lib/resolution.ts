@@ -53,6 +53,12 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
         marker: route,
       },
       {
+        kind: 'encounter_memory_record',
+        encounter: 'trench-coat-turtle-alley',
+        opener: route.split(':')[0],
+        route,
+      },
+      {
         kind: 'world_flag_add',
         flag: `swords-route:${route}`,
       },

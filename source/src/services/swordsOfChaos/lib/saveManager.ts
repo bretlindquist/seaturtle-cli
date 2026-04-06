@@ -42,6 +42,7 @@ export function createDefaultSwordsOfChaosSave(): SwordsOfChaosSaveFile {
     callbackMarkers: [],
     unresolvedBranches: [],
     threadCandidates: [],
+    encounterMemory: {},
     seaturtle: {
       bond: 0,
       favor: 0,
