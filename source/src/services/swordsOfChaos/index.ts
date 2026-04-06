@@ -11,6 +11,11 @@ export {
   ensureSwordsOfChaosRuntimeReady,
 } from './lib/runtimeFacade.js'
 export { getSwordsOfChaosOutcome } from './lib/outcomes.js'
+export {
+  getSwordsOpeningLabel,
+  getSwordsOpeningOptions,
+  getSwordsSecondBeat,
+} from './lib/shells.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'
 export type { SwordsOfChaosHostEcho } from './types/echoes.js'
@@ -25,3 +30,8 @@ export type {
   SwordsOfChaosRoute,
   SwordsOfChaosSecondChoice,
 } from './types/outcomes.js'
+export type {
+  SwordsOpeningOption,
+  SwordsSecondBeat,
+  SwordsSecondBeatOption,
+} from './types/shells.js'
