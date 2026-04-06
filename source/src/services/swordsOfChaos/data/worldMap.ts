@@ -1,7 +1,34 @@
 import type {
   SwordsOfChaosEncounterLocus,
+  SwordsOfChaosThreadPresentation,
   SwordsOfChaosWorldMapNode,
 } from '../types/worldMap.js'
+
+export const SWORDS_OF_CHAOS_THREAD_PRESENTATION: Record<
+  string,
+  SwordsOfChaosThreadPresentation
+> = {
+  'half-shell-relic-trail': {
+    title: 'the relic trail',
+    pressure: 'The relic trail has stopped behaving like drift. It now presses against each place like an itinerary the world refuses to lose.',
+  },
+  'broken-lamp-witnesses': {
+    title: 'the witness light',
+    pressure: 'The witness light no longer feels local. It has started moving through places like a system that expects to find you.',
+  },
+  'alley-oath-keepers': {
+    title: 'the oathkeepers',
+    pressure: 'The oathkeepers now feel less like a rumor and more like a structure the world has decided to keep standing.',
+  },
+  'sign-truth-fractures': {
+    title: 'the fractured sign',
+    pressure: 'The fractured sign has stopped acting like a glitch. It now behaves like a law that keeps rewriting the world slightly wrong.',
+  },
+  'quiet-refusals': {
+    title: 'the refused doors',
+    pressure: 'The refused doors no longer feel like private moments. They have started following you like a doctrine with hinges.',
+  },
+}
 
 export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
   SwordsOfChaosEncounterLocus,

@@ -14,6 +14,7 @@ import {
   getSwordsEncounterLocus,
   getSwordsRecurringSymbol,
   getSwordsThreadEcho,
+  getSwordsThreadPressureText,
   getSwordsWorldMapWeight,
 } from './worldMap.js'
 import type {
@@ -225,7 +226,10 @@ function getCanonThreadPressure(
     return undefined
   }
 
-  return `The thread behind this place has stopped acting like coincidence. ${relevantMemory.canonThread} now presses against the scene like a name trying to become a law.`
+  return (
+    getSwordsThreadPressureText(relevantMemory.canonThread) ??
+    'The thread behind this place has stopped acting like coincidence. It now presses against the scene like a name trying to become a law.'
+  )
 }
 
 function getReturningWeight(
@@ -242,7 +246,7 @@ function getReturningWeight(
   }
 
   if (relevantMemory?.canonThread) {
-    return `One thread has started hardening into something the world intends to keep: ${relevantMemory.canonThread}.`
+    return `One thread has started hardening into something the world intends to keep: ${relevantMemory.canonThreadTitle ?? 'this thread'}.`
   }
 
   if (relevantMemory?.recentRelic) {
@@ -254,7 +258,7 @@ function getReturningWeight(
   }
 
   if (relevantMemory?.liveThread) {
-    return `A thread has started to follow you between places: ${relevantMemory.liveThread}.`
+    return `A thread has started to follow you between places: ${relevantMemory.liveThreadTitle ?? 'something unfinished'}.`
   }
 
   return undefined

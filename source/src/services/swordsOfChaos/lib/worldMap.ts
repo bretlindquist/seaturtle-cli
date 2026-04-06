@@ -1,4 +1,7 @@
-import { SWORDS_OF_CHAOS_WORLD_MAP } from '../data/worldMap.js'
+import {
+  SWORDS_OF_CHAOS_THREAD_PRESENTATION,
+  SWORDS_OF_CHAOS_WORLD_MAP,
+} from '../data/worldMap.js'
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosEncounterLocus } from '../types/worldMap.js'
 
@@ -88,4 +91,24 @@ export function getSwordsThreadEcho(input: {
   }
 
   return SWORDS_OF_CHAOS_WORLD_MAP[input.locus].threadEchoes[input.thread]
+}
+
+export function getSwordsThreadTitle(
+  thread: string | undefined,
+): string | undefined {
+  if (!thread) {
+    return undefined
+  }
+
+  return SWORDS_OF_CHAOS_THREAD_PRESENTATION[thread]?.title
+}
+
+export function getSwordsThreadPressureText(
+  thread: string | undefined,
+): string | undefined {
+  if (!thread) {
+    return undefined
+  }
+
+  return SWORDS_OF_CHAOS_THREAD_PRESENTATION[thread]?.pressure
 }

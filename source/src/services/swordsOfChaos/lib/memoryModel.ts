@@ -4,6 +4,7 @@ import {
   getSwordsEncounterMemoryKey,
   getSwordsEncounterPlaceName,
   getSwordsRecurringSymbol,
+  getSwordsThreadTitle,
   isSwordsEncounterMemoryKey,
   type SwordsOfChaosEncounterLocus,
 } from './worldMap.js'
@@ -104,6 +105,8 @@ export function deriveSwordsOfChaosMemory(
     recentRelic,
     liveThread,
     canonThread,
+    liveThreadTitle: getSwordsThreadTitle(liveThread),
+    canonThreadTitle: getSwordsThreadTitle(canonThread),
     threadOmen: getSwordsThreadOmen(canonThread ?? liveThread),
     recurringSymbol: getSwordsRecurringSymbol(encounterShift),
   }

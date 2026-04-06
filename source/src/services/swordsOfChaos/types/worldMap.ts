@@ -13,3 +13,8 @@ export type SwordsOfChaosWorldMapNode = {
   threadEchoes: Record<string, string>
   recurringSymbol?: string
 }
+
+export type SwordsOfChaosThreadPresentation = {
+  title: string
+  pressure: string
+}
