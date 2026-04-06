@@ -43,6 +43,9 @@ an ally than a novelty layer.
 
 See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the durable runtime
 and context-domain Mermaid map.
+See [`docs/SEATURTLE-HIDDEN-FEATURES.md`](./docs/SEATURTLE-HIDDEN-FEATURES.md)
+for the hidden relationship, context, voice, and operational layers that are
+present in the product but not always directly exposed as top-level commands.
 
 ## What SeaTurtle Is Trying To Do
 
