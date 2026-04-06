@@ -212,4 +212,16 @@ Examples:
 - current constraints
 - what has already been researched
 - the next surgical chunk
+
+When the work is project-bound, keep a lightweight intent anchor close by:
+
+- goal
+- constraints
+- desired feel
+- wrong-fit signals
+- active decisions
+- next check
+
+Intent is not the same thing as transcript memory.
+Use it to notice when a solution is neat but does not really fit what the user meant.
 `
