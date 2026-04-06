@@ -248,8 +248,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   return (
     <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
       <Text bold>
-        CT can be used with your Claude subscription, billed API access,
-        3rd-party Anthropic platforms, or OpenAI Codex OAuth.
+        CT can be used with subscription access, billed API access, 3rd-party
+        Anthropic platforms, or OpenAI Codex OAuth.
       </Text>
       <Text>Select login method:</Text>
       <Box>
@@ -258,7 +258,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             {
               label: (
                 <Text>
-                  Claude account with subscription ·{' '}
+                  Subscription account ·{' '}
                   <Text dimColor>Pro, Max, Team, or Enterprise</Text>
                   {'\n'}
                 </Text>
