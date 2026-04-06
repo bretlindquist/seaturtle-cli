@@ -168,7 +168,7 @@ Keywords:
 - local memory
 - private memory
 - .ct
-- CLAUDE.local.md
+- SeaTurtle.local.md
 - what are we working on today
 
 Next steps:
@@ -181,13 +181,13 @@ Next steps:
 - Edit `.ct/user.md` to keep lightweight private notes about how to collaborate well with the user
 - Edit `.ct/bootstrap.md` to shape the first-run or retune conversation ritual
 - Edit `.ct/session.md` for what matters right now
-- Leave `CLAUDE.md` for team-shared repo guidance
+- Leave `SeaTurtle.md` for team-shared repo guidance
 
 Important truth:
 
 - `.ct/` is the private CT layer for this project
 - the hidden CT stack is layered: soul → identity → role → user → attunement → session
-- `CLAUDE.local.md` is the compatibility bridge into the existing memory loader
+- `SeaTurtle.local.md` is the project-local private instruction layer
 - defaults are created automatically on first load
 - CT uses playful SeaTurtle starter defaults until you replace them
 - project-local `.ct` files are meant to be private and easy to replace

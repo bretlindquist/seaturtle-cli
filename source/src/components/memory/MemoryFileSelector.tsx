@@ -20,7 +20,9 @@ import { getMemoryFiles, type MemoryFileInfo } from '../../utils/claudemd.js';
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { formatRelativeTimeAgo } from '../../utils/format.js';
+import { getCandidateMemoryFileNames } from '../../utils/memoryFileNames.js';
 import { projectIsInGitRepo } from '../../utils/memory/versions.js';
+import { getMemoryPath } from '../../utils/config.js';
 import { updateSettingsForSource } from '../../utils/settings/settings.js';
 import { Select } from '../CustomSelect/index.js';
 import { ListItem } from '../design-system/ListItem.js';
@@ -48,10 +50,12 @@ export function MemoryFileSelector(t0) {
     onCancel
   } = t0;
   const existingMemoryFiles = use(getMemoryFiles());
-  const userMemoryPath = join(getClaudeConfigHomeDir(), "CLAUDE.md");
-  const projectMemoryPath = join(getOriginalCwd(), "CLAUDE.md");
-  const hasUserMemory = existingMemoryFiles.some(f => f.path === userMemoryPath);
-  const hasProjectMemory = existingMemoryFiles.some(f_0 => f_0.path === projectMemoryPath);
+  const userMemoryPath = getMemoryPath('User');
+  const projectMemoryPath = getMemoryPath('Project');
+  const userMemoryCandidates = getCandidateMemoryFileNames('user').map(fileName => join(getClaudeConfigHomeDir(), fileName));
+  const projectMemoryCandidates = getCandidateMemoryFileNames('project').map(fileName => join(getOriginalCwd(), fileName));
+  const hasUserMemory = existingMemoryFiles.some(f => userMemoryCandidates.includes(f.path));
+  const hasProjectMemory = existingMemoryFiles.some(f_0 => projectMemoryCandidates.includes(f_0.path));
   const allMemoryFiles = [...existingMemoryFiles.filter(_temp).map(_temp2), ...(hasUserMemory ? [] : [{
     path: userMemoryPath,
     type: "User" as const,
@@ -87,10 +91,10 @@ export function MemoryFileSelector(t0) {
     let description;
     const isGit = projectIsInGitRepo(getOriginalCwd());
     if (file.type === "User" && !file.isNested) {
-      description = "Saved in ~/.claude/CLAUDE.md";
+      description = "Saved in ~/.claude/SeaTurtle.md";
     } else {
       if (file.type === "Project" && !file.isNested && file.path === projectMemoryPath) {
-        description = `${isGit ? "Checked in at" : "Saved in"} ./CLAUDE.md`;
+        description = `${isGit ? "Checked in at" : "Saved in"} ./SeaTurtle.md`;
       } else {
         if (file.parent) {
           description = "@-imported";

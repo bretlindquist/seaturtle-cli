@@ -1,4 +1,4 @@
-import { dirname, isAbsolute, sep } from 'path'
+import { basename, dirname, isAbsolute } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { diagnosticTracker } from '../../services/diagnosticTracking.js'
@@ -41,6 +41,7 @@ import {
   type ToolUseDiff,
 } from '../../utils/gitDiff.js'
 import { logError } from '../../utils/log.js'
+import { isInstructionMemoryFileName } from '../../utils/memoryFileNames.js'
 import { expandPath } from '../../utils/path.js'
 import {
   checkWritePermissionForTool,
@@ -525,7 +526,7 @@ export const FileEditTool = buildTool({
     })
 
     // 7. Log events
-    if (absoluteFilePath.endsWith(`${sep}CLAUDE.md`)) {
+    if (isInstructionMemoryFileName(basename(absoluteFilePath))) {
       logEvent('tengu_write_claudemd', {})
     }
     countLinesChanged(patch)

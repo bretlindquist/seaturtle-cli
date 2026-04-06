@@ -31,6 +31,10 @@ import { normalizePathForConfigKey } from './path.js'
 import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import type { ThemeSetting } from './theme.js'
+import {
+  getLegacyMemoryFileName,
+  getPreferredMemoryFileName,
+} from './memoryFileNames.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemPaths = feature('TEAMMEM')
@@ -1834,16 +1838,34 @@ export function recordFirstStartTime(): void {
 
 export function getMemoryPath(memoryType: MemoryType): string {
   const cwd = getOriginalCwd()
+  const fs = getFsImplementation()
+
+  const resolveMemoryPath = (
+    kind: 'managed' | 'user' | 'project' | 'local',
+    baseDir: string,
+  ): string => {
+    const preferredPath = join(baseDir, getPreferredMemoryFileName(kind))
+    if (fs.existsSync(preferredPath)) {
+      return preferredPath
+    }
+
+    const legacyPath = join(baseDir, getLegacyMemoryFileName(kind))
+    if (fs.existsSync(legacyPath)) {
+      return legacyPath
+    }
+
+    return preferredPath
+  }
 
   switch (memoryType) {
     case 'User':
-      return join(getClaudeConfigHomeDir(), 'CLAUDE.md')
+      return resolveMemoryPath('user', getClaudeConfigHomeDir())
     case 'Local':
-      return join(cwd, 'CLAUDE.local.md')
+      return resolveMemoryPath('local', cwd)
     case 'Project':
-      return join(cwd, 'CLAUDE.md')
+      return resolveMemoryPath('project', cwd)
     case 'Managed':
-      return join(getManagedFilePath(), 'CLAUDE.md')
+      return resolveMemoryPath('managed', getManagedFilePath())
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
