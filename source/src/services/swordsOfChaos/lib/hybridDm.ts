@@ -49,6 +49,15 @@ function getBiomeRecallLanguage(
         quietApproval:
           ' Something in the lantern swing seems to approve of this quieter line.',
       }
+    case 'post-apocalyptic-ruin':
+      return {
+        place: 'the ruin',
+        witness: 'the siren tower',
+        atmosphere:
+          'Even the ash-laced static seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the dead warning tone seems to approve of this quieter line.',
+      }
     case 'space-station':
       return {
         place: 'the station',
@@ -168,6 +177,10 @@ function getSecondBeatLead(
 ): string {
   if (relevantMemory?.encounterShift === 'space-station') {
     return `${openingChoice} got you this far on a station that sounds like it is remembering the wrong century. The air tastes like frost, current, and unfinished instructions.`
+  }
+
+  if (relevantMemory?.encounterShift === 'post-apocalyptic-ruin') {
+    return `${openingChoice} got you this far in a ruin that still thinks warning and prophecy are the same job. Ash, shell-green corrosion, and bad signage make the whole district feel like a shipwreck dragged onto land and left to memorize its own failure.`
   }
 
   if (relevantMemory?.encounterShift === 'mars-outpost') {
@@ -318,6 +331,8 @@ function renderDeterministicScene(
     const openingShell =
       payload.relevantMemory?.encounterShift === 'dark-dungeon'
         ? getSwordsOpeningShellVariant('dark-dungeon')
+        : payload.relevantMemory?.encounterShift === 'post-apocalyptic-ruin'
+        ? getSwordsOpeningShellVariant('post-apocalyptic-ruin')
         : payload.relevantMemory?.encounterShift === 'mars-outpost'
         ? getSwordsOpeningShellVariant('mars-outpost')
         : payload.relevantMemory?.encounterShift === 'fae-realm'
@@ -369,6 +384,8 @@ function renderDeterministicScene(
   const secondBeat =
     payload.relevantMemory?.encounterShift === 'dark-dungeon'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'dark-dungeon')
+      : payload.relevantMemory?.encounterShift === 'post-apocalyptic-ruin'
+      ? getSwordsSecondBeatVariant(payload.openingChoice, 'post-apocalyptic-ruin')
       : payload.relevantMemory?.encounterShift === 'fae-realm'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'fae-realm')
       : payload.relevantMemory?.encounterShift === 'mars-outpost'

@@ -84,6 +84,15 @@ export const SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL: SwordsOpeningShell = {
     'Some callbacks do not bring you back. They carry you onward.',
 }
 
+export const SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You wake in the ashfall ruin of a place that still broadcasts warnings long after running out of anyone left to save.',
+  sceneText:
+    'Broken concrete sweats shell-green corrosion. A siren tower leans over a street full of collapsed signage and old barricades. Somewhere under the rubble, a district speaker keeps misnaming this place as if the apocalypse damaged memory before it damaged stone.',
+  hintText:
+    'Some threads do not widen the world. They expose what was left after the world widened too far.',
+}
+
 export const SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL: SwordsOpeningShell = {
   subtitle:
     'You wake under failing strip-lights on a station ring that hums like a broken theorem trying to finish itself.',
@@ -526,6 +535,90 @@ export const SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the ship itself has to decide whether to call you captain or prey.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The siren tower coughs once. Glass dust skates across the street as if the ruin is trying to decide whether your blade is a promise or a mistake.',
+    intro:
+      'Steel in the ruin feels less like heroism than excavation. The place wants to know whether you mean to cut into the warning system, hold a dead line, or deny the rubble the violence it still expects from survivors.',
+    options: [
+      {
+        label: 'Cut the siren cable',
+        value: 'cut-the-sign-chain',
+        description:
+          'Sever the hanging line feeding the tower and see whether the warning dies, wakes, or gets honest.',
+      },
+      {
+        label: 'Hold the broken street',
+        value: 'hold-the-line',
+        description:
+          'Brace among the barricades and make the ruin reveal what it still thinks is coming.',
+      },
+      {
+        label: 'Lower the blade into the ash',
+        value: 'lower-the-blade',
+        description:
+          'Refuse the ruin its expected script of salvage-through-force.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The ruined loudspeaker clicks like a throat trying to remember etiquette. Even the ash seems to pause around the gesture.',
+    intro:
+      'Courtesy in a dead district can read as mourning, discipline, or dangerous optimism. The ruin wants to know whether your calm is meant for the living, the lost, or yourself.',
+    options: [
+      {
+        label: 'Keep the mourning stillness',
+        value: 'keep-bowing',
+        description:
+          'Stay in the gesture until the ruined street has to decide whether it is being honored or judged.',
+      },
+      {
+        label: 'Meet the tower eye',
+        value: 'meet-the-gaze',
+        description:
+          'Raise your head toward the cracked siren housing as if the real witness survived inside it.',
+      },
+      {
+        label: 'Ask who never evacuated',
+        value: 'ask-the-price',
+        description:
+          'Treat the district like a bargain whose final clause was left under concrete and static.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The dead speaker almost laughs. In the ruin, confidence sounds one step away from inheritance.',
+    intro:
+      'Bluffing familiarity in a collapsed district means claiming kinship with whatever still patrols the story of its fall. The risk is not getting caught. It is being accepted.',
+    options: [
+      {
+        label: 'Claim the district charter',
+        value: 'name-a-false-title',
+        description:
+          'Speak as if you know which old authority the siren keeps trying to resurrect.',
+      },
+      {
+        label: 'Laugh through the warning tone',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Treat the half-dead alert like theater that has forgotten the audience is gone.',
+      },
+      {
+        label: 'Double down through the rubble',
+        value: 'double-down',
+        description:
+          'Keep talking until the ruin has to decide whether you are scavenger, heir, or the correction to its last false broadcast.',
       },
     ],
   },

@@ -61,6 +61,24 @@ export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
         'Below deck, the knocking sounds like something refused entry too many times and no longer accepts the answer.',
     },
   },
+  'post-apocalyptic-ruin': {
+    connectiveWeight:
+      'The ruin feels like the ship after land remembered it badly: the same shell-green trail and broken warnings, only now they sit under ash, collapse, and the long patience of failed survival.',
+    recurringSymbol:
+      'A cracked siren tower, shell-green corrosion in the rubble, and a district name spoken wrong by dead speakers make the ruin feel like the relic trail after the world gave up pretending it was local.',
+    threadEchoes: {
+      'half-shell-relic-trail':
+        'Shell-green corrosion has climbed the ruin like ivy made of circuitry, as if the relic path finally found the graveyard it was always walking toward.',
+      'broken-lamp-witnesses':
+        'A watchlight still blinks in the ruin in the same rhythm as the lamp and the beacon, stubborn enough to make witness feel like a curse.',
+      'alley-oath-keepers':
+        'The broken walls feel full of promises people made to outlast collapse and then failed to keep together.',
+      'sign-truth-fractures':
+        'Every district marker here says the wrong name with total confidence, as if truth has been cracked long enough to fossilize.',
+      'quiet-refusals':
+        'The sealed bunkers and half-open doors suggest a history of refusals mistaken for strategy until the city learned to bury them.',
+    },
+  },
   'space-station': {
     connectiveWeight:
       'The station does not replace the alley. It feels like the same structure expressed as pressure doors, frost, and failing light.',

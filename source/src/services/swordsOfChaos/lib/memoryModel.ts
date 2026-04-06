@@ -43,10 +43,14 @@ export function deriveSwordsOfChaosMemory(
 
       return right[1].sightings - left[1].sightings
     })[0]?.[0]
+  const oceanShipMemory = save.encounterMemory['black-deck-ocean-ship']
   const stationMemory = save.encounterMemory['failing-ring-space-station']
   const encounterShift: SwordsOfChaosEncounterLocus =
-    canonThread === 'sign-truth-fractures' &&
-    (stationMemory?.visits ?? 0) >= 2
+    canonThread === 'half-shell-relic-trail' &&
+    (oceanShipMemory?.visits ?? 0) >= 2
+      ? 'post-apocalyptic-ruin'
+      : canonThread === 'sign-truth-fractures' &&
+          (stationMemory?.visits ?? 0) >= 2
       ? 'mars-outpost'
       : alleyMemory &&
           alleyMemory.visits >= 4 &&

@@ -3,6 +3,8 @@ import {
   SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS,
   SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL,
   SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS,
+  SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_OPENING_SHELL,
+  SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_SECOND_BEATS,
   SWORDS_OF_CHAOS_OPENING_SHELL,
   SWORDS_OF_CHAOS_OPENING_LABELS,
   SWORDS_OF_CHAOS_OPENING_OPTIONS,
@@ -46,6 +48,7 @@ export function getSwordsOpeningShellVariant(
     | 'seaturtle'
     | 'old-tree'
     | 'ocean-ship'
+    | 'post-apocalyptic-ruin'
     | 'space-station'
     | 'mars-outpost'
     | 'fae-realm'
@@ -54,6 +57,8 @@ export function getSwordsOpeningShellVariant(
   switch (variant) {
     case 'mars-outpost':
       return SWORDS_OF_CHAOS_MARS_OUTPOST_OPENING_SHELL
+    case 'post-apocalyptic-ruin':
+      return SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_OPENING_SHELL
     case 'dark-dungeon':
       return SWORDS_OF_CHAOS_DARK_DUNGEON_OPENING_SHELL
     case 'fae-realm':
@@ -89,6 +94,7 @@ export function getSwordsSecondBeatVariant(
     | 'threadmarked'
     | 'old-tree'
     | 'ocean-ship'
+    | 'post-apocalyptic-ruin'
     | 'space-station'
     | 'mars-outpost'
     | 'fae-realm'
@@ -97,6 +103,8 @@ export function getSwordsSecondBeatVariant(
   switch (variant) {
     case 'mars-outpost':
       return SWORDS_OF_CHAOS_MARS_OUTPOST_SECOND_BEATS[choice]
+    case 'post-apocalyptic-ruin':
+      return SWORDS_OF_CHAOS_POST_APOCALYPTIC_RUIN_SECOND_BEATS[choice]
     case 'dark-dungeon':
       return SWORDS_OF_CHAOS_DARK_DUNGEON_SECOND_BEATS[choice]
     case 'fae-realm':

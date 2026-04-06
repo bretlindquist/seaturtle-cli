@@ -12,6 +12,8 @@ export function getSwordsEncounterMemoryKey(
   locus: SwordsOfChaosEncounterLocus,
 ): string {
   switch (locus) {
+    case 'post-apocalyptic-ruin':
+      return 'ashfall-post-apocalyptic-ruin'
     case 'mars-outpost':
       return 'red-dust-mars-outpost'
     case 'old-tree':
@@ -32,6 +34,7 @@ export function getSwordsEncounterMemoryKey(
 export function isSwordsEncounterMemoryKey(thread: string): boolean {
   return (
     thread === 'trench-coat-turtle-alley' ||
+    thread === 'ashfall-post-apocalyptic-ruin' ||
     thread === 'red-dust-mars-outpost' ||
     thread === 'old-tree-bramble-latch' ||
     thread === 'black-deck-ocean-ship' ||
@@ -45,6 +48,8 @@ export function getSwordsEncounterPlaceName(
   locus: SwordsOfChaosEncounterLocus,
 ): string {
   switch (locus) {
+    case 'post-apocalyptic-ruin':
+      return 'the ruin'
     case 'mars-outpost':
       return 'the Mars outpost'
     case 'old-tree':
