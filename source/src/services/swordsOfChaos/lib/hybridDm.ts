@@ -10,6 +10,63 @@ import type {
 } from '../types/dm.js'
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosOpeningChoice } from '../types/outcomes.js'
+import type { SwordsOpeningOption } from '../types/shells.js'
+
+function applyOpeningCallbackMemory(
+  options: SwordsOpeningOption[],
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): SwordsOpeningOption[] {
+  if (!relevantMemory?.familiarPlace) {
+    return options
+  }
+
+  const priorOpeners = new Set(
+    relevantMemory.priorRoutes.map(route => route.split(':')[0]),
+  )
+
+  return options.map(option => {
+    switch (option.value) {
+      case 'draw-steel':
+        return priorOpeners.has('draw-steel')
+          ? {
+              ...option,
+              description:
+                'The hard road again. The alley remembers how bright the steel looked last time.',
+            }
+          : {
+              ...option,
+              description:
+                'The road you left unopened before. This time the blade feels almost inevitable.',
+            }
+      case 'bow-slightly':
+        return priorOpeners.has('bow-slightly')
+          ? {
+              ...option,
+              description:
+                'The patient road again. Even the rain seems to recognize the restraint.',
+            }
+          : {
+              ...option,
+              description:
+                'The road you spared last time. A quieter answer waits to see if you mean it.',
+            }
+      case 'talk-like-you-belong':
+        return priorOpeners.has('talk-like-you-belong')
+          ? {
+              ...option,
+              description:
+                'The bluff again. The sign crackles like it remembers your voice.',
+            }
+          : {
+              ...option,
+              description:
+                'The road of nerve you never tried. The alley seems almost curious about it.',
+            }
+      default:
+        return option
+    }
+  })
+}
 
 function renderDeterministicScene(
   payload: SwordsOfChaosPromptPayload,
@@ -26,7 +83,10 @@ function renderDeterministicScene(
         familiar
           ? `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
           : 'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
-      options: getSwordsOpeningOptions(),
+      options: applyOpeningCallbackMemory(
+        getSwordsOpeningOptions(),
+        payload.relevantMemory,
+      ),
       hintText: familiar
         ? 'A familiar place rarely offers the same meaning twice.'
         : 'Choose a stance, not just an action.',
