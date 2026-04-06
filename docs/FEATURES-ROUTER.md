@@ -190,6 +190,12 @@ Important truth:
 - defaults are created automatically on first load
 - CT uses playful SeaTurtle starter defaults until you replace them
 - project-local `.ct` files are meant to be private and easy to replace
+- CT now treats context in domains instead of one big running blob:
+  - git-backed project work is protected most strongly
+  - project exploration stays broader but still project-bound
+  - companion chat should not quietly become project-working state
+  - `/btw` stays sidecar and ephemeral
+  - `/game` keeps its outcomes inside the hidden shell instead of cluttering the main project transcript
 
 ## GitHub Actions / install-github-app
 

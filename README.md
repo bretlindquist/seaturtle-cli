@@ -143,6 +143,16 @@ SeaTurtle should be especially strong at research-backed planning:
 - validate findings against the repo, the user's actual intent, and the shape of the problem before hardening them into implementation
 - preserve the spirit of the user's goal instead of flattening it into whatever sounds most official
 
+SeaTurtle also now treats context as domain-shaped rather than monolithic:
+
+- git-backed project work gets the strongest protection
+- project exploration stays broad, but remains project-bound
+- companion chat should not quietly become project-working state
+- `/btw` is treated as a sidecar question, not a branch of the main project transcript
+- `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
+
+The goal is to let CT stay fun and lively without muddying the sanctity of the active project session.
+
 Use `/ct` to:
 
 - retune CT conversationally for the current project
