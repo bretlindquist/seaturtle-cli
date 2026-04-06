@@ -39,7 +39,13 @@ type OnExit = (
   },
 ) => void
 
-type Screen = 'menu' | 'wager' | 'tide-dice' | 'swords-of-chaos'
+type Screen =
+  | 'menu'
+  | 'wager'
+  | 'tide-dice'
+  | 'swords-of-chaos'
+  | 'archives'
+  | 'result'
 
 type SwordsEncounter = {
   openingChoice: SwordsOfChaosOpeningChoice | null
@@ -150,10 +156,16 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [swordsEncounter, setSwordsEncounter] = React.useState<SwordsEncounter>({
     openingChoice: null,
   })
+  const [resultMessage, setResultMessage] = React.useState<string | null>(null)
   const projectRoot = getCtProjectRoot()
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
   const gameState = readCtGameState(projectRoot)
+
+  function showResult(result: string): void {
+    setResultMessage(result)
+    setScreen('result')
+  }
 
   function finishWager(choice: 'ride-the-tide' | 'trust-the-shell'): void {
     const won = Math.random() >= 0.5
@@ -179,9 +191,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       addInventoryItem(WAGER_REWARDS.inventory, projectRoot)
       addRarityUnlock(WAGER_REWARDS.rarityUnlock, projectRoot)
       addTitle(WAGER_REWARDS.title, projectRoot)
-      onExit(
+      showResult(
         `You won the wager.\n\nThe Mighty SeaTurtle nods once, as if this outcome was obvious all along.\n\nArchive updates:\n- title: ${WAGER_REWARDS.title}\n- inventory: ${WAGER_REWARDS.inventory}\n- rarity unlock: ${WAGER_REWARDS.rarityUnlock}`,
-        { display: 'system' },
       )
       return
     }
@@ -191,9 +202,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       `Lost a wager with the Mighty SeaTurtle after choosing ${choice === 'ride-the-tide' ? 'Ride the Tide' : 'Trust the Shell'}.`,
       projectRoot,
     )
-    onExit(
+    showResult(
       'You lost the wager.\n\nThe Mighty SeaTurtle says nothing, which somehow makes it worse.\n\nThe loss is recorded in the Half-Shell Archives.',
-      { display: 'system' },
     )
   }
 
@@ -217,9 +227,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       addLegendEvent(`Rolled a perfect 6 in Roll the Tide Dice.`, projectRoot)
       addInventoryItem(TIDE_DICE_REWARDS.inventory, projectRoot)
       addRarityUnlock(TIDE_DICE_REWARDS.rarityUnlock, projectRoot)
-      onExit(
+      showResult(
         `You rolled a ${roll}.\n\nThe tide rises in your favor.\n\nArchive updates:\n- inventory: ${TIDE_DICE_REWARDS.inventory}\n- rarity unlock: ${TIDE_DICE_REWARDS.rarityUnlock}`,
-        { display: 'system' },
       )
       return
     }
@@ -227,18 +236,16 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     if (roll >= 4) {
       recordCtGameResult('played', projectRoot)
       addLegendEvent(`Rolled a steady ${roll} in Roll the Tide Dice.`, projectRoot)
-      onExit(
+      showResult(
         `You rolled a ${roll}.\n\nNot a triumph. Not a disaster. The tide simply acknowledges you and moves on.`,
-        { display: 'system' },
       )
       return
     }
 
     recordCtGameResult('loss', projectRoot)
     addLegendEvent(`Rolled a rough ${roll} in Roll the Tide Dice.`, projectRoot)
-    onExit(
+    showResult(
       `You rolled a ${roll}.\n\nThe tide takes this round without apology.\n\nThe loss is recorded in the Half-Shell Archives.`,
-      { display: 'system' },
     )
   }
 
@@ -269,41 +276,29 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       if (outcome.rarityUnlock) {
         addRarityUnlock(outcome.rarityUnlock, projectRoot)
       }
-      onExit(
-        outcome.ending,
-        { display: 'system' },
-      )
+      showResult(outcome.ending)
       return
     }
 
     if (outcome.key === 'title') {
       addTitle(outcome.title, projectRoot)
-      onExit(
-        outcome.ending,
-        { display: 'system' },
-      )
+      showResult(outcome.ending)
       return
     }
 
     if (outcome.key === 'oath') {
       addOath(outcome.oath, projectRoot)
-      onExit(
-        outcome.ending,
-        { display: 'system' },
-      )
+      showResult(outcome.ending)
       return
     }
 
     if (outcome.key === 'truth') {
       addUserTruth(outcome.truth, projectRoot)
-      onExit(
-        outcome.ending,
-        { display: 'system' },
-      )
+      showResult(outcome.ending)
       return
     }
 
-    onExit(outcome.ending, { display: 'system' })
+    showResult(outcome.ending)
   }
 
   if (screen === 'wager') {
@@ -500,12 +495,100 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
+  if (screen === 'archives') {
+    return (
+      <Dialog
+        title="Half-Shell Archives"
+        subtitle="The ledger is private, local, and slightly smug about it."
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text>Half-Shell Archives summary for this project:</Text>
+          <Text dimColor>- titles: {archiveSummary.titles}</Text>
+          <Text dimColor>- inventory: {archiveSummary.inventory}</Text>
+          <Text dimColor>- oaths: {archiveSummary.oaths}</Text>
+          <Text dimColor>- truths: {archiveSummary.truths}</Text>
+          <Text dimColor>- legend events: {archiveSummary.legendEvents}</Text>
+          <Text dimColor>- rarity unlocks: {archiveSummary.rarityUnlocks}</Text>
+          <Text dimColor>- games played: {archiveSummary.gamesPlayed}</Text>
+          <Text dimColor>- wins: {archiveSummary.wins}</Text>
+          <Text dimColor>- losses: {archiveSummary.losses}</Text>
+          {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
+          <Select
+            options={[
+              {
+                label: 'Return to the hidden shell',
+                value: 'menu',
+                description: 'Go back to the game menu without muddying the main transcript',
+              },
+              {
+                label: 'Back to work',
+                value: 'leave',
+                description: 'Close the hidden shell cleanly',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'menu') {
+                setScreen('menu')
+                return
+              }
+
+              onExit(undefined, { display: 'skip' })
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'result') {
+    return (
+      <Dialog
+        title="Half-Shell Archives"
+        subtitle="The alley goes quiet again."
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{resultMessage ?? 'The shell keeps its own counsel.'}</Text>
+          <Select
+            options={[
+              {
+                label: 'Return to the hidden shell',
+                value: 'menu',
+                description: 'Stay inside the game space and choose another turn',
+              },
+              {
+                label: 'Back to work',
+                value: 'leave',
+                description: 'Close the game cleanly without adding transcript clutter',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'menu') {
+                setResultMessage(null)
+                setSwordsEncounter({
+                  openingChoice: null,
+                })
+                setScreen('menu')
+                return
+              }
+
+              onExit(undefined, { display: 'skip' })
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
   if (screen === 'menu') {
     return (
       <Dialog
         title="Half-Shell Archives"
         subtitle="A hidden SeaTurtle command shell. Quiet, private, and tied to this project."
-        onCancel={() => onExit('The Half-Shell Archives slip back beneath the surface.', { display: 'system' })}
+        onCancel={() => onExit(undefined, { display: 'skip' })}
       >
         <Box flexDirection="column" gap={1}>
           <Box flexDirection="column">
@@ -564,10 +647,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               }
 
               if (value === 'archives') {
-                onExit(
-                  `Half-Shell Archives summary for this project:\n- titles: ${archiveSummary.titles}\n- inventory: ${archiveSummary.inventory}\n- oaths: ${archiveSummary.oaths}\n- truths: ${archiveSummary.truths}\n- legend events: ${archiveSummary.legendEvents}\n- rarity unlocks: ${archiveSummary.rarityUnlocks}\n- games played: ${archiveSummary.gamesPlayed}\n- wins: ${archiveSummary.wins}\n- losses: ${archiveSummary.losses}`,
-                  { display: 'system' },
-                )
+                setScreen('archives')
                 return
               }
 
@@ -584,15 +664,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                 return
               }
 
-              onExit('The Half-Shell Archives slip back beneath the surface.', {
-                display: 'system',
-              })
+              onExit(undefined, { display: 'skip' })
             }}
-            onCancel={() =>
-              onExit('The Half-Shell Archives slip back beneath the surface.', {
-                display: 'system',
-              })
-            }
+            onCancel={() => onExit(undefined, { display: 'skip' })}
           />
         </Box>
       </Dialog>
