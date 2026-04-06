@@ -293,6 +293,12 @@ export type EditablePromptInputMode = Exclude<
  */
 export type QueuePriority = 'now' | 'next' | 'later'
 
+export type MidTurnSteeringIntent =
+  | 'interrupt_now'
+  | 'same_task_steer'
+  | 'side_question'
+  | 'park_for_later'
+
 /**
  * Queued command type
  */
@@ -301,6 +307,12 @@ export type QueuedCommand = {
   mode: PromptInputMode
   /** Defaults to the priority implied by `mode` when enqueued. */
   priority?: QueuePriority
+  /**
+   * Hidden semantic classification for input submitted while another turn is
+   * active. Used to keep unrelated ideas from quietly hijacking the active
+   * task while preserving same-task steering.
+   */
+  midTurnIntent?: MidTurnSteeringIntent
   uuid?: UUID
   orphanedPermission?: OrphanedPermission
   /** Raw pasted contents including images. Images are resized at execution time. */

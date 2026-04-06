@@ -447,8 +447,11 @@ export function canBatchWith(
   return (
     next !== undefined &&
     next.mode === 'prompt' &&
+    next.priority === head.priority &&
     next.workload === head.workload &&
-    next.isMeta === head.isMeta
+    next.isMeta === head.isMeta &&
+    next.midTurnIntent === head.midTurnIntent &&
+    head.midTurnIntent !== 'park_for_later'
   )
 }
 

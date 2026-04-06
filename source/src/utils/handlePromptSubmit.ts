@@ -27,6 +27,7 @@ import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './fileHistory.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
 import { stopTransientLolcatAnimation } from '../services/lolcat.js'
 import { enqueue } from './messageQueueManager.js'
+import { classifyMidTurnSteering } from './midTurnSteering.js'
 import { resolveSkillModelOverride } from './model/model.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
 import { processUserInput } from './processUserInput/processUserInput.js'
@@ -359,10 +360,23 @@ export async function handlePromptSubmit(
 
     // Enqueue with string value + raw pastedContents. Images will be resized
     // at execution time when processUserInput runs (not baked in here).
+    const midTurnIntent = classifyMidTurnSteering({
+      currentInput: finalInput.trim(),
+      messages,
+    })
+    const priority =
+      midTurnIntent === 'interrupt_now'
+        ? 'now'
+        : midTurnIntent === 'same_task_steer'
+          ? 'next'
+          : 'later'
+
     enqueue({
       value: finalInput.trim(),
       preExpansionValue: input.trim(),
       mode,
+      priority,
+      midTurnIntent,
       pastedContents: hasImages ? pastedContents : undefined,
       skipSlashCommands,
       uuid,

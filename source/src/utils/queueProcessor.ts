@@ -75,8 +75,30 @@ export function processQueueIfReady({
 
   // Drain all non-slash-command items with the same mode at once.
   const targetMode = next.mode
+  const targetPriority = next.priority
+  const targetMidTurnIntent = next.midTurnIntent
+  const shouldProcessIndividually = targetMidTurnIntent === 'park_for_later'
+
+  if (shouldProcessIndividually) {
+    const cmd = dequeue(
+      cmd =>
+        isMainThread(cmd) &&
+        !isSlashCommand(cmd) &&
+        cmd.mode === targetMode &&
+        cmd.priority === targetPriority &&
+        cmd.midTurnIntent === targetMidTurnIntent,
+    )!
+    void executeInput([cmd])
+    return { processed: true }
+  }
+
   const commands = dequeueAllMatching(
-    cmd => isMainThread(cmd) && !isSlashCommand(cmd) && cmd.mode === targetMode,
+    cmd =>
+      isMainThread(cmd) &&
+      !isSlashCommand(cmd) &&
+      cmd.mode === targetMode &&
+      cmd.priority === targetPriority &&
+      cmd.midTurnIntent === targetMidTurnIntent,
   )
   if (commands.length === 0) {
     return { processed: false }
