@@ -306,9 +306,9 @@ function CtIdentityGreetingNoticeBody({
         steer the project.
       </Text>
       {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
-      {display.kind === 'haiku' ? <Box flexDirection="column">
+      {display.kind === 'haiku' ? <Box marginTop={1} flexDirection="column">
           {haikuLines.map((line, index) => <Text key={index} color="claude">{line}</Text>)}
-        </Box> : <Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text>}
+        </Box> : <Box marginTop={1}><Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text></Box>}
     </Box>;
 }
 
