@@ -68,8 +68,11 @@ function simulateScenario([openingChoice, secondChoice]) {
   }
   const snapshots = []
 
-  for (let run = 1; run <= 4; run += 1) {
-    const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice)
+  for (let run = 1; run <= 5; run += 1) {
+    const beforeRelevant = getSwordsOfChaosRelevantMemory(save)
+    const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
+      encounterLocus: beforeRelevant.encounterShift ?? 'alley',
+    })
     save = processSwordsOfChaosEventBatch(save, resolution.eventBatch)
     const derived = deriveSwordsOfChaosMemory(save)
     const relevant = getSwordsOfChaosRelevantMemory(save)
@@ -79,6 +82,7 @@ function simulateScenario([openingChoice, secondChoice]) {
       canonThread: derived.canonThread ?? null,
       liveThread: derived.liveThread ?? null,
       encounterShift: derived.encounterShift,
+      familiarPlace: relevant.familiarPlace ?? null,
       threadOmen: derived.threadOmen ?? null,
       revisitCount: relevant.revisitCount,
       recentTitle: relevant.recentTitle ?? null,
