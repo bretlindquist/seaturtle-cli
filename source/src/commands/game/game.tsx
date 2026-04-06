@@ -32,7 +32,9 @@ import {
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
   getSwordsOfChaosRelevantMemory,
+  getSwordsOfChaosRetreatNarration,
   getSwordsOpeningLabel,
+  recordSwordsOfChaosRetreat,
   renderSwordsOfChaosHybridScene,
   resolveSwordsOfChaosRoute,
   type SwordsOfChaosOpeningChoice,
@@ -202,6 +204,20 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     showResult(resolution.resultText)
   }
 
+  function retreatFromSwordsOfChaos(
+    stage: 'opening' | 'second-beat',
+    openingChoice?: SwordsOfChaosOpeningChoice,
+  ): void {
+    recordSwordsOfChaosRetreat(stage)
+    showResult(
+      getSwordsOfChaosRetreatNarration({
+        stage,
+        openingChoice,
+        relevantMemory: swordsRelevantMemory,
+      }),
+    )
+  }
+
   if (screen === 'wager') {
     return (
       <Dialog
@@ -300,11 +316,12 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
         <Dialog
           title="Swords of Chaos"
           subtitle={secondBeatScene.subtitle}
-          onCancel={() =>
+          onCancel={() => {
             setSwordsEncounter({
               openingChoice: null,
             })
-          }
+            retreatFromSwordsOfChaos('second-beat', openingChoice)
+          }}
         >
           <Box flexDirection="column" gap={1}>
             <Text dimColor>{secondBeatScene.sceneText}</Text>
@@ -325,6 +342,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   setSwordsEncounter({
                     openingChoice: null,
                   })
+                  retreatFromSwordsOfChaos('second-beat', openingChoice)
                   return
                 }
 
@@ -333,11 +351,12 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                   value as SwordsOfChaosSecondChoice,
                 )
               }}
-              onCancel={() =>
+              onCancel={() => {
                 setSwordsEncounter({
                   openingChoice: null,
                 })
-              }
+                retreatFromSwordsOfChaos('second-beat', openingChoice)
+              }}
             />
           </Box>
         </Dialog>
@@ -348,7 +367,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       <Dialog
         title="Swords of Chaos"
         subtitle={swordsOpeningScene.subtitle}
-        onCancel={() => setScreen('menu')}
+        onCancel={() => retreatFromSwordsOfChaos('opening')}
       >
         <Box flexDirection="column" gap={1}>
           <Text dimColor>{swordsOpeningScene.sceneText}</Text>
@@ -366,7 +385,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             ]}
             onChange={value => {
               if (value === 'back') {
-                setScreen('menu')
+                retreatFromSwordsOfChaos('opening')
                 return
               }
 
@@ -374,7 +393,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                 openingChoice: value as SwordsOfChaosOpeningChoice,
               })
             }}
-            onCancel={() => setScreen('menu')}
+            onCancel={() => retreatFromSwordsOfChaos('opening')}
           />
         </Box>
       </Dialog>

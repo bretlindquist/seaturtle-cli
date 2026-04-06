@@ -5,6 +5,7 @@ export type SwordsOfChaosHistoryEventRecord = {
     | 'host_echo_applied'
     | 'game_opened'
     | 'outcome_recorded'
+    | 'retreated'
   detail: Record<string, unknown>
 }
 

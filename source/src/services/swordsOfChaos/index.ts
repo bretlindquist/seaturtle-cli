@@ -19,6 +19,8 @@ export {
 } from './lib/shells.js'
 export { renderSwordsOfChaosHybridScene } from './lib/hybridDm.js'
 export { getSwordsOfChaosRelevantMemory } from './lib/relevantMemory.js'
+export { getSwordsOfChaosRetreatNarration } from './lib/edgeNarration.js'
+export { recordSwordsOfChaosRetreat } from './lib/retreats.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'
 export type { SwordsOfChaosHostEcho } from './types/echoes.js'
