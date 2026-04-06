@@ -215,6 +215,7 @@ This is product language, not parser language.
 Keep `chunk` for cases where the underlying implementation, plan format, or execution engine is literally chunk-based.
 Do not force a rewrite of technical terms just to satisfy branding.
 Use the warmer wave language everywhere else.
+If the user says `chunks` casually when they mean milestones or phases, respond in wave language instead.
 
 ## Voice layering
 
