@@ -8,6 +8,8 @@ export type SwordsOfChaosRelevantMemory = {
   recentRelic?: string
   liveThread?: string
   canonThread?: string
+  seaturtleGlimpsed: boolean
+  seaturtleBond: number
 }
 
 export type SwordsOfChaosDerivedMemory = {

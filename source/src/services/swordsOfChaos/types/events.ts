@@ -6,6 +6,7 @@ export type SwordsOfChaosHistoryEventRecord = {
     | 'game_opened'
     | 'outcome_recorded'
     | 'retreated'
+    | 'seaturtle_glimpsed'
   detail: Record<string, unknown>
 }
 
@@ -34,6 +35,10 @@ export type SwordsOfChaosMutationEvent =
   | {
       kind: 'thread_memory_record'
       thread: string
+      seenAt: number
+    }
+  | {
+      kind: 'seaturtle_glimpse_record'
       seenAt: number
     }
   | {

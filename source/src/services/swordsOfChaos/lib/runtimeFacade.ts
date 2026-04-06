@@ -9,8 +9,49 @@ import {
   saveSwordsOfChaosSave,
 } from './saveManager.js'
 
+function shouldTriggerSeaTurtleGlimpse(save: SwordsOfChaosSaveFile): boolean {
+  if (save.seaturtle.appearances > 0) {
+    return false
+  }
+
+  const alleyVisits =
+    save.encounterMemory['trench-coat-turtle-alley']?.visits ?? 0
+  const hasCanonThread = Object.values(save.threadMemory).some(
+    thread => thread.canonized,
+  )
+
+  return alleyVisits >= 3 && hasCanonThread
+}
+
 export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
-  const save = ensureSwordsOfChaosSaveExists()
+  let save = ensureSwordsOfChaosSaveExists()
+
+  if (shouldTriggerSeaTurtleGlimpse(save)) {
+    save = saveSwordsOfChaosSave(
+      processSwordsOfChaosEventBatch(save, {
+        at: Date.now(),
+        events: [
+          {
+            kind: 'seaturtle_glimpse_record',
+            seenAt: Date.now(),
+          },
+          {
+            kind: 'world_flag_add',
+            flag: 'seaturtle:glimpsed-in-alley',
+          },
+        ],
+      }),
+    )
+    appendSwordsOfChaosEvent({
+      at: Date.now(),
+      kind: 'seaturtle_glimpsed',
+      detail: {
+        bond: save.seaturtle.bond,
+        appearances: save.seaturtle.appearances,
+      },
+    })
+  }
+
   appendSwordsOfChaosEvent({
     at: Date.now(),
     kind: 'game_opened',

@@ -103,6 +103,10 @@ function getSecondBeatLead(
 function getReturningWeight(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
+  if (relevantMemory?.seaturtleGlimpsed) {
+    return `For half a second there is another shape in the wet reflection beside yours: shell-green, patient, and gone before the eye can make a claim on it.`
+  }
+
   if (relevantMemory?.canonThread) {
     return `One thread has started hardening into something the world intends to keep: ${relevantMemory.canonThread}.`
   }
@@ -169,7 +173,9 @@ function renderDeterministicScene(
           ? returningAgain
             ? payload.relevantMemory?.canonThread
               ? 'The alley has rearranged itself around your absence. Something larger is starting to use it as a doorway.'
-              : 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
+              : payload.relevantMemory?.seaturtleGlimpsed
+                ? 'The alley has rearranged itself around your absence. A second presence lingers in the rain and refuses to stand still long enough to name.'
+                : 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
             : 'The alley seems to know you now. The broken lamp does too.'
           : 'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
       sceneText:
@@ -186,6 +192,8 @@ function renderDeterministicScene(
         ? returningAgain
           ? payload.relevantMemory?.canonThread
             ? 'The alley remembers your last answer, but the thread behind it has started remembering you too.'
+            : payload.relevantMemory?.seaturtleGlimpsed
+              ? 'The alley remembers your last answer, and something gentler than the alley seems to be watching what you do with the next one.'
             : 'The alley remembers your last answer. It is more interested in the one you withheld.'
           : 'A familiar place rarely offers the same meaning twice.'
         : 'Choose a stance, not just an action.',

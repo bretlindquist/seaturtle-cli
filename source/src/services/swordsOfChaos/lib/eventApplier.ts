@@ -65,6 +65,21 @@ function applyThreadMemoryRecord(
   }
 }
 
+function applySeaTurtleGlimpseRecord(
+  save: SwordsOfChaosSaveFile,
+  event: Extract<SwordsOfChaosMutationEvent, { kind: 'seaturtle_glimpse_record' }>,
+): SwordsOfChaosSaveFile {
+  return {
+    ...save,
+    seaturtle: {
+      ...save.seaturtle,
+      bond: save.seaturtle.bond + 1,
+      appearances: save.seaturtle.appearances + 1,
+      lastAppearanceAt: event.seenAt,
+    },
+  }
+}
+
 function applyMutationEvent(
   save: SwordsOfChaosSaveFile,
   event: SwordsOfChaosMutationEvent,
@@ -95,6 +110,8 @@ function applyMutationEvent(
       }
     case 'thread_memory_record':
       return applyThreadMemoryRecord(save, event)
+    case 'seaturtle_glimpse_record':
+      return applySeaTurtleGlimpseRecord(save, event)
     case 'callback_marker_add':
       return {
         ...save,
