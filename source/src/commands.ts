@@ -64,6 +64,7 @@ import terminalSetup from './commands/terminalSetup/index.js'
 import telegram from './commands/telegram/index.js'
 import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
+import mermaid from './commands/mermaid/index.js'
 import vim from './commands/vim/index.js'
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional imports
@@ -323,6 +324,7 @@ const COMMANDS = memoize((): Command[] => [
   swim,
   tag,
   theme,
+  mermaid,
   feedback,
   game,
   haiku,
