@@ -5,6 +5,17 @@ import { Dialog } from '../../components/design-system/Dialog.js'
 import { COMMON_HELP_ARGS } from '../../constants/xml.js'
 import { Box, Text } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
+import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import {
+  getMermaidSuggestions,
+  scanMermaidRepo,
+} from '../../services/mermaid/scan.js'
+import { writeMermaidPlan } from '../../services/mermaid/generator.js'
+import { planMermaid } from '../../services/mermaid/planner.js'
+import type {
+  MermaidExistingDoc,
+  MermaidRequest,
+} from '../../services/mermaid/types.js'
 
 type OnDone = (
   result?: string,
@@ -22,58 +33,218 @@ type MermaidAction =
   | 'explain'
   | 'back'
 
-function formatStubResult(action: Exclude<MermaidAction, 'back'>): string {
-  switch (action) {
+type Screen = 'menu' | 'pick-focus' | 'pick-flow' | 'pick-journey' | 'pick-update'
+
+function parseMermaidRequest(rawArg: string): MermaidRequest {
+  const trimmed = rawArg.trim()
+  if (!trimmed) {
+    return { intent: 'project' }
+  }
+
+  const [rawIntent, ...rest] = trimmed.split(/\s+/)
+  const intent = rawIntent.toLowerCase()
+  const target = rest.join(' ').trim() || undefined
+
+  switch (intent) {
     case 'project':
-      return [
-        'Mermaid project map selected.',
-        '',
-        'This mode is for a durable high-level architecture doc for the repo.',
-        'Next chunk: inspect the repo, choose the right Mermaid type, and write a markdown doc under docs/.',
-      ].join('\n')
+    case 'architecture':
+      return { intent: 'project', target }
     case 'focus':
-      return [
-        'Mermaid focused map selected.',
-        '',
-        'This mode is for one feature, file, folder, or service slice.',
-        'Next chunk: gather repo evidence for the requested slice and turn it into a tighter Mermaid doc.',
-      ].join('\n')
+    case 'focused':
+      return { intent: 'focus', target }
     case 'flow':
-      return [
-        'Mermaid flow map selected.',
-        '',
-        'This mode is for runtime, command, or request flow.',
-        'Next chunk: inspect the relevant entrypoint or command path and generate a readable flow diagram.',
-      ].join('\n')
+      return { intent: 'flow', target }
     case 'journey':
-      return [
-        'Mermaid user journey map selected.',
-        '',
-        'This mode is for the user path through a feature, not just the system internals.',
-        'Next chunk: map one concrete user journey and write it as a durable Mermaid journey doc.',
-      ].join('\n')
+      return { intent: 'journey', target }
     case 'update':
-      return [
-        'Mermaid doc update selected.',
-        '',
-        'This mode is for refreshing an existing Mermaid markdown doc instead of creating a new one.',
-        'Next chunk: discover existing Mermaid docs, let you choose one, and update it surgically.',
-      ].join('\n')
+    case 'refresh':
+      return { intent: 'update', target }
+    case 'docs':
     case 'explain':
-      return [
-        'Mermaid docs explainer selected.',
-        '',
-        'This mode will list Mermaid docs already in the repo and explain what each one covers.',
-        'Next chunk: scan docs/, detect Mermaid blocks, and surface the current architecture map cleanly.',
-      ].join('\n')
+    case 'help-docs':
+      return { intent: 'explain', target }
+    default:
+      return { intent: 'focus', target: trimmed }
   }
 }
 
-function normalizeArg(value: string): string {
-  return value.trim().toLowerCase()
+function formatExplainResult(docs: MermaidExistingDoc[]): string {
+  if (docs.length === 0) {
+    return 'No Mermaid docs were found under docs/ or docs/internal/.'
+  }
+
+  return [
+    'Current Mermaid docs:',
+    '',
+    ...docs.map(doc => `- ${doc.path} — ${doc.title}`),
+  ].join('\n')
 }
 
-function MermaidMenu({ onDone }: { onDone: OnDone }): React.ReactNode {
+function runMermaidRequest(request: MermaidRequest, onDone: OnDone): void {
+  const root = getCtProjectRoot()
+  const evidence = scanMermaidRepo(request, root)
+  const plan = planMermaid(request, evidence)
+
+  if (request.intent === 'explain') {
+    onDone(formatExplainResult(evidence.existingDocs), { display: 'system' })
+    return
+  }
+
+  const fullPath = writeMermaidPlan(plan, root)
+  onDone(
+    [
+      `${plan.title} written.`,
+      '',
+      `Path: ${plan.outputPath}`,
+      '',
+      plan.summary,
+      '',
+      `Full path: ${fullPath}`,
+    ].join('\n'),
+    { display: 'system' },
+  )
+}
+
+function MermaidMenu({
+  onDone,
+}: {
+  onDone: OnDone
+}): React.ReactNode {
+  const [screen, setScreen] = React.useState<Screen>('menu')
+  const suggestions = React.useMemo(() => getMermaidSuggestions(), [])
+
+  if (screen === 'pick-focus') {
+    return (
+      <Dialog
+        title="Focused Mermaid map"
+        subtitle="Pick a feature or slice to map."
+        onCancel={() => setScreen('menu')}
+      >
+        <Select
+          options={[
+            ...suggestions.focusTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Generate a focused map for ${target}`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the Mermaid menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('menu')
+              return
+            }
+            runMermaidRequest({ intent: 'focus', target: value }, onDone)
+          }}
+          onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-flow') {
+    return (
+      <Dialog
+        title="Mermaid flow map"
+        subtitle="Pick a runtime or command flow to trace."
+        onCancel={() => setScreen('menu')}
+      >
+        <Select
+          options={[
+            ...suggestions.flowTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Generate a flow map for ${target}`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the Mermaid menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('menu')
+              return
+            }
+            runMermaidRequest({ intent: 'flow', target: value }, onDone)
+          }}
+          onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-journey') {
+    return (
+      <Dialog
+        title="Mermaid user journey"
+        subtitle="Pick a feature experience to map from the user's point of view."
+        onCancel={() => setScreen('menu')}
+      >
+        <Select
+          options={[
+            ...suggestions.journeyTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Generate a user journey map for ${target}`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the Mermaid menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('menu')
+              return
+            }
+            runMermaidRequest({ intent: 'journey', target: value }, onDone)
+          }}
+          onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-update') {
+    return (
+      <Dialog
+        title="Update Mermaid doc"
+        subtitle="Pick an existing Mermaid markdown doc to refresh."
+        onCancel={() => setScreen('menu')}
+      >
+        <Select
+          options={[
+            ...suggestions.updateTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Regenerate ${target} from current repo evidence`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the Mermaid menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('menu')
+              return
+            }
+            runMermaidRequest({ intent: 'update', target: value }, onDone)
+          }}
+          onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
   return (
     <Dialog
       title="Mermaid"
@@ -126,11 +297,29 @@ function MermaidMenu({ onDone }: { onDone: OnDone }): React.ReactNode {
             },
           ]}
           onChange={(value: MermaidAction) => {
-            if (value === 'back') {
-              onDone('Mermaid menu dismissed', { display: 'system' })
-              return
+            switch (value) {
+              case 'project':
+                runMermaidRequest({ intent: 'project' }, onDone)
+                return
+              case 'focus':
+                setScreen('pick-focus')
+                return
+              case 'flow':
+                setScreen('pick-flow')
+                return
+              case 'journey':
+                setScreen('pick-journey')
+                return
+              case 'update':
+                setScreen('pick-update')
+                return
+              case 'explain':
+                runMermaidRequest({ intent: 'explain' }, onDone)
+                return
+              case 'back':
+                onDone('Mermaid menu dismissed', { display: 'system' })
+                return
             }
-            onDone(formatStubResult(value), { display: 'system' })
           }}
           onCancel={() => onDone('Mermaid menu dismissed', { display: 'system' })}
         />
@@ -146,61 +335,20 @@ function MermaidCommandRouter({
   onDone: OnDone
   arg: string
 }): React.ReactNode {
-  if (arg === '') {
+  if (arg.trim() === '') {
     return <MermaidMenu onDone={onDone} />
   }
 
-  if (arg === 'project' || arg === 'architecture') {
-    onDone(formatStubResult('project'), { display: 'system' })
-    return null
-  }
-
-  if (arg.startsWith('focus') || arg.startsWith('focused')) {
-    onDone(formatStubResult('focus'), { display: 'system' })
-    return null
-  }
-
-  if (arg.startsWith('flow')) {
-    onDone(formatStubResult('flow'), { display: 'system' })
-    return null
-  }
-
-  if (arg.startsWith('journey')) {
-    onDone(formatStubResult('journey'), { display: 'system' })
-    return null
-  }
-
-  if (arg.startsWith('update') || arg.startsWith('refresh')) {
-    onDone(formatStubResult('update'), { display: 'system' })
-    return null
-  }
-
-  if (arg === 'docs' || arg === 'explain' || arg === 'help-docs') {
-    onDone(formatStubResult('explain'), { display: 'system' })
-    return null
-  }
-
-  onDone(
-    [
-      'Unknown mermaid option.',
-      '',
-      'Use /mermaid for the menu, or one of:',
-      '- /mermaid project',
-      '- /mermaid focus <path-or-feature>',
-      '- /mermaid flow <path-or-feature>',
-      '- /mermaid journey <feature>',
-      '- /mermaid update <existing-doc>',
-      '- /mermaid explain',
-    ].join('\n'),
-    { display: 'system' },
-  )
+  const request = parseMermaidRequest(arg)
+  runMermaidRequest(request, onDone)
   return null
 }
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
-  const trimmedArgs = normalizeArg(args || '')
+  const rawArgs = args?.trim() || ''
+  const normalizedHead = rawArgs.toLowerCase()
 
-  if (COMMON_HELP_ARGS.includes(trimmedArgs)) {
+  if (COMMON_HELP_ARGS.includes(normalizedHead)) {
     onDone(
       [
         'Run /mermaid for the menu.',
@@ -218,5 +366,5 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     return null
   }
 
-  return <MermaidCommandRouter onDone={onDone} arg={trimmedArgs} />
+  return <MermaidCommandRouter onDone={onDone} arg={rawArgs} />
 }
