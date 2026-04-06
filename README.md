@@ -41,6 +41,9 @@ The goal is simple:
 This architectural separation is part of what makes SeaTurtle feel more like
 an ally than a novelty layer.
 
+See [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) for the durable runtime
+and context-domain Mermaid map.
+
 ## What SeaTurtle Is Trying To Do
 
 - keep the source-build local UX useful and familiar

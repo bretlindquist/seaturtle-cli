@@ -36,6 +36,69 @@ Do not treat every turn as belonging to one undifferentiated running memory.
 The user should experience a seamless CT.
 The architecture should maintain meaningful boundaries underneath.
 
+## Architecture map
+
+```mermaid
+flowchart TD
+    A["User runs ct in a repo or project directory"] --> B["REPL startup"]
+    B --> C["Load project instruction files"]
+    C --> C1["SEATURTLE.md"]
+    C --> C2["AGENTS.md compatibility"]
+    C --> C3["Legacy Claude-era files if present"]
+
+    B --> D["Load private .ct relationship stack"]
+    D --> D1["soul.md"]
+    D --> D2["identity.md"]
+    D --> D3["role.md"]
+    D --> D4["user.md"]
+    D --> D5["attunement.md"]
+    D --> D6["session.md"]
+
+    C --> E["Build effective hidden prompt context"]
+    D --> E
+
+    E --> F["Classify current turn"]
+    F --> F1["Conversation posture: open / explore / work / supportive"]
+    F --> F2["Context domain: project_work / project_explore / companion_chat / gameplay / side_question"]
+    F --> F3["Intent anchor applies in project_work and project_explore"]
+
+    F --> G{"Inside git-backed project?"}
+    G -- Yes --> H["Protect project sanctity by default"]
+    G -- No --> I["Allow looser general CT flow"]
+
+    H --> J{"Turn type"}
+    I --> J
+
+    J -- "Explicit build / fix / validate" --> K["project_work"]
+    J -- "Planning / research / architecture" --> L["project_explore"]
+    J -- "Casual chat / philosophy / banter" --> M["companion_chat"]
+    J -- "/game" --> N["gameplay"]
+    J -- "/btw" --> O["side_question"]
+
+    K --> P["Work memory stays sharp and resumable"]
+    L --> Q["Exploration stays project-bound but broader"]
+    M --> R["Chat stays relational without polluting work context"]
+    N --> S["Game state, archive, rarity, and outcomes stay in game memory"]
+    O --> T["Side question stays ephemeral and narrowly borrowed"]
+
+    P --> U["Cross back only validated conclusions, constraints, and active decisions"]
+    Q --> U
+
+    R -. ambient only .-> V["Tiny canon callbacks allowed if non-binding"]
+    S -. no default spillover .-> V
+    O -. no transcript persistence .-> V
+```
+
+This is the current architecture truth:
+
+- `SEATURTLE.md` is the preferred shared project instruction file
+- `AGENTS.md` is also read as a compatibility project-instructions file
+- the `.ct/` relationship stack shapes CT continuously, but posture and domain
+  classification stay lighter and more temporary
+- git-root is the first protection heuristic for project sanctity
+- `/btw` and `/game` are richer because they are separated, not blended into
+  surgical work memory
+
 ## Domain model
 
 ### `project_work`

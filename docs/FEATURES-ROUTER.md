@@ -19,6 +19,10 @@ Use it when the user asks natural-language questions like:
 
 Prefer the command first, then the deeper doc if needed.
 
+Architecture reference:
+
+- [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md)
+
 ## OpenAI / Codex / OAuth
 
 Keywords:
