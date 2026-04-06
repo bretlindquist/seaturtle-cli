@@ -5,6 +5,7 @@ import {
 } from './dmPromptBuilder.js'
 import {
   getSwordsOpeningOptions,
+  getSwordsOpeningShellVariant,
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
 } from './shells.js'
@@ -207,36 +208,33 @@ function renderDeterministicScene(
     const familiar =
       payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
     const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
+    const openingShell =
+      familiar && returningAgain
+        ? payload.relevantMemory?.canonThread
+          ? getSwordsOpeningShellVariant('threadmarked')
+          : payload.relevantMemory?.seaturtleGlimpsed
+            ? getSwordsOpeningShellVariant('seaturtle')
+            : getSwordsOpeningShellVariant('returning')
+        : familiar
+          ? getSwordsOpeningShellVariant('returning')
+          : getSwordsOpeningShellVariant('default')
     return {
-      subtitle:
+      subtitle: openingShell.subtitle,
+      sceneText: `${openingShell.sceneText}${
         familiar
-          ? returningAgain
-            ? payload.relevantMemory?.canonThread
-              ? 'The alley has rearranged itself around your absence. Something larger is starting to use it as a doorway.'
-              : payload.relevantMemory?.seaturtleGlimpsed
-                ? 'The alley has rearranged itself around your absence. A second presence lingers in the rain and refuses to stand still long enough to name.'
-                : 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
-            : 'The alley seems to know you now. The broken lamp does too.'
-          : 'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
-      sceneText:
-        familiar
-          ? returningAgain
-            ? `Neon rain again, but the sign is darker now and the brickwork carries marks you do not remember leaving. Something in the alley has had time to think about you.\n\nThe last road you walked here still hangs in the air. ${payload.relevantMemory?.roadNotTakenHint ?? 'Another answer is waiting to see whether you are capable of it.'}${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`
-            : `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`
-          : 'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
+          ? `\n\n${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
+          : ''
+      }${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`,
       options: applyOpeningCallbackMemory(
         getSwordsOpeningOptions(),
         payload.relevantMemory,
       ),
-      hintText: familiar
-        ? returningAgain
-          ? payload.relevantMemory?.canonThread
-            ? 'The alley remembers your last answer, but the thread behind it has started remembering you too.'
-            : payload.relevantMemory?.seaturtleGlimpsed
-              ? 'The alley remembers your last answer, and something gentler than the alley seems to be watching what you do with the next one.'
+      hintText:
+        familiar && returningAgain && !payload.relevantMemory?.canonThread
+          ? payload.relevantMemory?.seaturtleGlimpsed
+            ? openingShell.hintText
             : 'The alley remembers your last answer. It is more interested in the one you withheld.'
-          : 'A familiar place rarely offers the same meaning twice.'
-        : 'Choose a stance, not just an action.',
+          : openingShell.hintText,
     }
   }
 

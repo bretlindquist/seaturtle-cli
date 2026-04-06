@@ -15,6 +15,12 @@ export type SwordsOpeningOption = {
   description: string
 }
 
+export type SwordsOpeningShell = {
+  subtitle: string
+  sceneText: string
+  hintText?: string
+}
+
 export type SwordsSecondBeat = {
   subtitle: string
   intro: string

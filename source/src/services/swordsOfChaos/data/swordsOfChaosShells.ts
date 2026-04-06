@@ -1,4 +1,5 @@
 import type {
+  SwordsOpeningShell,
   SwordsOpeningOption,
   SwordsSecondBeat,
 } from '../types/shells.js'
@@ -31,6 +32,39 @@ export const SWORDS_OF_CHAOS_OPENING_OPTIONS: SwordsOpeningOption[] = [
       'Bluff familiarity and let the alley decide whether to believe you',
   },
 ]
+
+export const SWORDS_OF_CHAOS_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
+  sceneText:
+    'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
+  hintText: 'Choose a stance, not just an action.',
+}
+
+export const SWORDS_OF_CHAOS_RETURNING_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle: 'The alley seems to know you now. The broken lamp does too.',
+  sceneText:
+    'Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.',
+  hintText: 'A familiar place rarely offers the same meaning twice.',
+}
+
+export const SWORDS_OF_CHAOS_THREADMARKED_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'The alley has rearranged itself around your absence. Something larger is starting to use it as a doorway.',
+  sceneText:
+    'Neon rain again, but the sign is darker now and the brickwork carries marks you do not remember leaving. Something in the alley has had time to think about you.',
+  hintText:
+    'The alley remembers your last answer, but the thread behind it has started remembering you too.',
+}
+
+export const SWORDS_OF_CHAOS_SEATURTLE_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'The alley has rearranged itself around your absence. A second presence lingers in the rain and refuses to stand still long enough to name.',
+  sceneText:
+    'Neon rain again, and the reflection under the broken lamp keeps threatening to become two shapes instead of one.',
+  hintText:
+    'The alley remembers your last answer, and something gentler than the alley seems to be watching what you do with the next one.',
+}
 
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
