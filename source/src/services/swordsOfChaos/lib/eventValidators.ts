@@ -40,6 +40,11 @@ function validateMutationEvent(event: SwordsOfChaosMutationEvent): void {
         throw new Error('Invalid seaturtle_glimpse_record event')
       }
       return
+    case 'seaturtle_favor_record':
+      if (typeof event.favorAt !== 'number') {
+        throw new Error('Invalid seaturtle_favor_record event')
+      }
+      return
     case 'callback_marker_add':
       if (!event.marker.trim()) {
         throw new Error('Invalid callback_marker_add event')

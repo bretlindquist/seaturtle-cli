@@ -9,6 +9,7 @@ import {
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
 } from './shells.js'
+import { getSwordsSeaTurtleFavoredSecondChoice } from './seaturtleChoice.js'
 import {
   getSwordsEncounterLocus,
   getSwordsRecurringSymbol,
@@ -204,19 +205,6 @@ function getSecondBeatLead(
   return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
 }
 
-function getSeaTurtleFavoredOption(
-  openingChoice: SwordsOfChaosOpeningChoice,
-): SwordsSecondBeatOption['value'] {
-  switch (openingChoice) {
-    case 'draw-steel':
-      return 'lower-the-blade'
-    case 'bow-slightly':
-      return 'meet-the-gaze'
-    case 'talk-like-you-belong':
-      return 'laugh-like-you-mean-it'
-  }
-}
-
 function getCanonThreadPressure(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
@@ -276,7 +264,7 @@ function applySecondBeatCallbackMemory(
     const seen = priorRoutes.has(route)
     const seaTurtleFavored =
       relevantMemory.seaturtleGlimpsed &&
-      option.value === getSeaTurtleFavoredOption(openingChoice)
+      option.value === getSwordsSeaTurtleFavoredSecondChoice(openingChoice)
     return {
       ...option,
       description: `${seen
@@ -294,10 +282,10 @@ function applySecondBeatCallbackMemory(
     const rightSeen = priorRoutes.has(`${openingChoice}:${right.value}`)
     const leftFavored =
       relevantMemory.seaturtleGlimpsed &&
-      left.value === getSeaTurtleFavoredOption(openingChoice)
+      left.value === getSwordsSeaTurtleFavoredSecondChoice(openingChoice)
     const rightFavored =
       relevantMemory.seaturtleGlimpsed &&
-      right.value === getSeaTurtleFavoredOption(openingChoice)
+      right.value === getSwordsSeaTurtleFavoredSecondChoice(openingChoice)
 
     if (leftFavored !== rightFavored) {
       return leftFavored ? -1 : 1
@@ -416,6 +404,8 @@ function renderDeterministicScene(
       ? payload.relevantMemory.seaturtleGlimpsed
         ? payload.relevantMemory.seaturtleBond > 1
           ? 'The second move now carries three pressures: the place, the road you left unopened, and a shell-green patience that has started to choose sides.'
+          : payload.relevantMemory.seaturtleFavor > 0
+            ? 'The second move now carries a quiet bias. Something shell-green has already approved one of your softer answers and may do so again.'
           : 'The second move now carries two kinds of witness: the place itself, and something quieter standing just outside it.'
         : 'The second move reveals whether you repeat yourself or take the road this place saved for later.'
       : 'The second move reveals what kind of trouble this really is.',

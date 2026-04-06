@@ -42,6 +42,10 @@ export type SwordsOfChaosMutationEvent =
       seenAt: number
     }
   | {
+      kind: 'seaturtle_favor_record'
+      favorAt: number
+    }
+  | {
       kind: 'callback_marker_add'
       marker: string
     }

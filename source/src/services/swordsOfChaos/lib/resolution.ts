@@ -11,6 +11,7 @@ import {
   getSwordsEncounterMemoryKey,
   type SwordsOfChaosEncounterLocus,
 } from './worldMap.js'
+import { isSwordsSeaTurtleFavoredChoice } from './seaturtleChoice.js'
 
 function getOutcomeThread(route: SwordsOfChaosRoute): string {
   const outcome = getSwordsOfChaosOutcome(route)
@@ -58,6 +59,9 @@ function buildHostEchoes(route: SwordsOfChaosRoute): SwordsOfChaosHostEcho[] {
 function buildEventBatch(
   route: SwordsOfChaosRoute,
   encounterLocus: SwordsOfChaosEncounterLocus,
+  options?: {
+    seaturtleWitnessed?: boolean
+  },
 ): SwordsOfChaosEventBatch {
   const outcome = getSwordsOfChaosOutcome(route)
   const outcomeThread = getOutcomeThread(route)
@@ -104,6 +108,22 @@ function buildEventBatch(
       ...(outcome.key === 'title'
         ? [{ kind: 'title_add', title: outcome.title } as const]
         : []),
+      ...(options?.seaturtleWitnessed &&
+      isSwordsSeaTurtleFavoredChoice(
+        route.split(':')[0] as SwordsOfChaosOpeningChoice,
+        route.split(':')[1] as SwordsOfChaosSecondChoice,
+      )
+        ? [
+            {
+              kind: 'seaturtle_favor_record',
+              favorAt: seenAt,
+            } as const,
+            {
+              kind: 'world_flag_add',
+              flag: 'seaturtle:favored-quiet-line',
+            } as const,
+          ]
+        : []),
     ],
   }
 }
@@ -113,6 +133,7 @@ export function resolveSwordsOfChaosRoute(
   secondChoice: SwordsOfChaosSecondChoice,
   options?: {
     encounterLocus?: SwordsOfChaosEncounterLocus
+    seaturtleWitnessed?: boolean
   },
 ): SwordsOfChaosResolution {
   const route = `${openingChoice}:${secondChoice}` as SwordsOfChaosRoute
@@ -120,7 +141,9 @@ export function resolveSwordsOfChaosRoute(
   return {
     route,
     outcome,
-    eventBatch: buildEventBatch(route, options?.encounterLocus ?? 'alley'),
+    eventBatch: buildEventBatch(route, options?.encounterLocus ?? 'alley', {
+      seaturtleWitnessed: options?.seaturtleWitnessed,
+    }),
     hostEchoes: buildHostEchoes(route),
     rarityUnlock: outcome.key === 'relic' ? outcome.rarityUnlock : undefined,
     resultText: outcome.ending,

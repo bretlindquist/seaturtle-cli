@@ -80,6 +80,18 @@ function applySeaTurtleGlimpseRecord(
   }
 }
 
+function applySeaTurtleFavorRecord(
+  save: SwordsOfChaosSaveFile,
+): SwordsOfChaosSaveFile {
+  return {
+    ...save,
+    seaturtle: {
+      ...save.seaturtle,
+      favor: save.seaturtle.favor + 1,
+    },
+  }
+}
+
 function applyMutationEvent(
   save: SwordsOfChaosSaveFile,
   event: SwordsOfChaosMutationEvent,
@@ -112,6 +124,8 @@ function applyMutationEvent(
       return applyThreadMemoryRecord(save, event)
     case 'seaturtle_glimpse_record':
       return applySeaTurtleGlimpseRecord(save, event)
+    case 'seaturtle_favor_record':
+      return applySeaTurtleFavorRecord(save)
     case 'callback_marker_add':
       return {
         ...save,

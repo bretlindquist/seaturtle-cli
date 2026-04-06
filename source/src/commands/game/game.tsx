@@ -186,6 +186,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   ): void {
     const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
       encounterLocus: getSwordsEncounterLocus(swordsRelevantMemory),
+      seaturtleWitnessed: swordsRelevantMemory.seaturtleGlimpsed,
     })
     const outcome = resolution.outcome
 

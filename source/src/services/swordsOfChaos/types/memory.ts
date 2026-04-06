@@ -19,6 +19,7 @@ export type SwordsOfChaosRelevantMemory = {
   threadOmen?: string
   seaturtleGlimpsed: boolean
   seaturtleBond: number
+  seaturtleFavor: number
   recurringSymbol?: string
 }
 
