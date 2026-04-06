@@ -28,7 +28,11 @@ export function deriveSwordsOfChaosMemory(
     alleyMemory.visits >= 4 &&
     canonThread === 'alley-oath-keepers'
       ? 'old-tree'
-      : 'alley'
+      : alleyMemory &&
+          alleyMemory.visits >= 4 &&
+          canonThread === 'half-shell-relic-trail'
+        ? 'ocean-ship'
+        : 'alley'
   const liveThread = [...save.threadCandidates]
     .reverse()
     .find(

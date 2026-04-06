@@ -1,6 +1,6 @@
 export type SwordsOfChaosRelevantMemory = {
   familiarPlace?: string
-  encounterShift?: 'alley' | 'old-tree'
+  encounterShift?: 'alley' | 'old-tree' | 'ocean-ship'
   priorRoutes: string[]
   roadNotTakenHint?: string
   revisitCount: number
@@ -18,7 +18,7 @@ export type SwordsOfChaosDerivedMemory = {
   callbackCandidates: string[]
   priorRoutes: string[]
   familiarPlaces: string[]
-  encounterShift?: 'alley' | 'old-tree'
+  encounterShift?: 'alley' | 'old-tree' | 'ocean-ship'
   recentTitle?: string
   recentRelic?: string
   liveThread?: string

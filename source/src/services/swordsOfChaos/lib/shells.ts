@@ -1,6 +1,8 @@
 import {
   SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL,
   SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS,
+  SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL,
+  SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS,
   SWORDS_OF_CHAOS_OPENING_SHELL,
   SWORDS_OF_CHAOS_OPENING_LABELS,
   SWORDS_OF_CHAOS_OPENING_OPTIONS,
@@ -29,9 +31,17 @@ export function getSwordsOpeningOptions(): SwordsOpeningOption[] {
 }
 
 export function getSwordsOpeningShellVariant(
-  variant: 'default' | 'returning' | 'threadmarked' | 'seaturtle' | 'old-tree',
+  variant:
+    | 'default'
+    | 'returning'
+    | 'threadmarked'
+    | 'seaturtle'
+    | 'old-tree'
+    | 'ocean-ship',
 ): SwordsOpeningShell {
   switch (variant) {
+    case 'ocean-ship':
+      return SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL
     case 'old-tree':
       return SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL
     case 'returning':
@@ -53,9 +63,16 @@ export function getSwordsSecondBeat(
 
 export function getSwordsSecondBeatVariant(
   choice: SwordsOfChaosOpeningChoice,
-  variant: 'default' | 'returning' | 'threadmarked' | 'old-tree',
+  variant:
+    | 'default'
+    | 'returning'
+    | 'threadmarked'
+    | 'old-tree'
+    | 'ocean-ship',
 ): SwordsSecondBeat {
   switch (variant) {
+    case 'ocean-ship':
+      return SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS[choice]
     case 'old-tree':
       return SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS[choice]
     case 'returning':

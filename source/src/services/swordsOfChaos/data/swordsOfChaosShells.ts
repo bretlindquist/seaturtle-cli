@@ -75,6 +75,15 @@ export const SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL: SwordsOpeningShell = {
     'Some places do not repeat. They relocate the question.',
 }
 
+export const SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You come to on a black-decked ship under hard salt wind, with no memory of boarding and every certainty that the voyage has been waiting for you.',
+  sceneText:
+    'The boards are wet with cold spray. Lantern light rolls over coiled rope and a hatch rimmed in green corrosion. Somewhere below deck, something knocks from the inside as if the sea itself learned how to ask for entry.',
+  hintText:
+    'Some callbacks do not bring you back. They carry you onward.',
+}
+
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
   SwordsSecondBeat
@@ -397,6 +406,90 @@ export const SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the tree has to decide whether to expose you or accept you.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The lantern swings. Below deck, the knocking answers your grip on the blade.',
+    intro:
+      'Steel on a ship means two things: mutiny or defense. The sea does not care which one you think you chose. Something below wants the distinction badly.',
+    options: [
+      {
+        label: 'Cut the hatch rope',
+        value: 'cut-the-sign-chain',
+        description:
+          'Sever the line holding the hatch fast and let the dark below declare itself first.',
+      },
+      {
+        label: 'Brace at the rail',
+        value: 'hold-the-line',
+        description:
+          'Hold the deck and force whatever is coming to meet you in open salt air.',
+      },
+      {
+        label: 'Lower the point',
+        value: 'lower-the-blade',
+        description:
+          'Keep the blade ready, but deny the ship the violence it seems eager to stage.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The mast groans like an old witness. Even the wind seems to pause to see what courtesy means out here.',
+    intro:
+      'Respect on the open water can read as seamanship, fear, or prayer. The deck beneath you wants to know which one you meant.',
+    options: [
+      {
+        label: 'Keep the still posture',
+        value: 'keep-bowing',
+        description:
+          'Hold the line of your body against the roll and let the ship decide whether that is reverence or defiance.',
+      },
+      {
+        label: 'Look toward the wheel',
+        value: 'meet-the-gaze',
+        description:
+          'Raise your head as if the real captain is not the one with hands on the helm.',
+      },
+      {
+        label: 'Ask what cargo this is',
+        value: 'ask-the-price',
+        description:
+          'Treat the whole deck like a bargain already made by someone who did not ask you first.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The ship answers with a low timber laugh. No one on deck admits to making the sound.',
+    intro:
+      'Bluffing familiarity works differently at sea. Here the danger is not that they know you are lying. It is that the ship may decide you are telling the truth.',
+    options: [
+      {
+        label: 'Name the vessel as if it is yours',
+        value: 'name-a-false-title',
+        description:
+          'Speak ownership into the salt air and see whether the deck accepts rank before truth.',
+      },
+      {
+        label: 'Laugh into the wind',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Throw confidence overboard and see whether it floats back as authority.',
+      },
+      {
+        label: 'Keep talking past the crew',
+        value: 'double-down',
+        description:
+          'Push the bluff until the ship itself has to decide whether to call you captain or prey.',
       },
     ],
   },
