@@ -75,7 +75,7 @@ and context-domain Mermaid map.
 - per-project reminders with `/remindme` / `/rm`
 - rainbow theme control with `/lolcat`, including animated and persistent modes
 - rare startup haiku and on-demand SeaTurtle poems with `/haiku`
-- menu-driven Mermaid docs with `/mermaid`, including project, focused, flow, journey, explain, and update paths
+- menu-driven Mermaid docs with `/mermaid`, including project, focused, flow, journey, C4, explain, and update paths
 
 ### Intentionally Gated Or Still Anthropic-Bound
 
@@ -197,7 +197,12 @@ Use `/mermaid` to:
 - generate a focused architecture doc for one area
 - generate a flow map for a command or runtime path
 - generate a user journey map for a feature
+- generate C4 context, container, component, and dynamic diagrams
 - update an existing Mermaid doc from current repo evidence
+
+Current note:
+
+- Mermaid C4 support is available, but still experimental upstream
 
 ## Installation And Prerequisites
 

@@ -214,6 +214,11 @@ Keywords:
 - journey map
 - diagram
 - update architecture doc
+- c4
+- system context
+- container diagram
+- component diagram
+- dynamic diagram
 
 Next steps:
 
@@ -222,6 +227,11 @@ Next steps:
 - Use `/mermaid focus <path-or-feature>` to map one area
 - Use `/mermaid flow <path-or-feature>` to trace a command or runtime path
 - Use `/mermaid journey <feature>` to write a user journey map
+- Use `/mermaid c4` to open the C4 menu
+- Use `/mermaid c4 context` for a system-context view
+- Use `/mermaid c4 container` for a container view
+- Use `/mermaid c4 component <target>` for a focused component view
+- Use `/mermaid c4 dynamic <target>` for a dynamic interaction view
 - Use `/mermaid update <existing-doc>` to refresh an existing Mermaid doc
 - Use `/mermaid explain` to list Mermaid docs already present in the repo
 
@@ -230,6 +240,7 @@ Important truth:
 - `/mermaid` writes durable markdown docs, not just chat output
 - the feature prefers repo evidence over invention
 - different diagram intents use different Mermaid shapes
+- Mermaid C4 support is available and useful, but still experimental upstream
 - the point is architecture thinking and clarity, not decorative diagram spam
 
 ## GitHub Actions / install-github-app
