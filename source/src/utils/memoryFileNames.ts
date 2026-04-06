@@ -1,17 +1,17 @@
 export type InstructionMemoryKind = 'managed' | 'user' | 'project' | 'local'
 
 const PREFERRED_MEMORY_FILE_NAMES: Record<InstructionMemoryKind, string> = {
-  managed: 'SeaTurtle.md',
-  user: 'SeaTurtle.md',
-  project: 'SeaTurtle.md',
-  local: 'SeaTurtle.local.md',
+  managed: 'SEATURTLE.md',
+  user: 'SEATURTLE.md',
+  project: 'SEATURTLE.md',
+  local: 'SEATURTLE.local.md',
 }
 
-const LEGACY_MEMORY_FILE_NAMES: Record<InstructionMemoryKind, string> = {
-  managed: 'CLAUDE.md',
-  user: 'CLAUDE.md',
-  project: 'CLAUDE.md',
-  local: 'CLAUDE.local.md',
+const LEGACY_MEMORY_FILE_NAMES: Record<InstructionMemoryKind, string[]> = {
+  managed: ['SeaTurtle.md', 'CLAUDE.md'],
+  user: ['SeaTurtle.md', 'CLAUDE.md'],
+  project: ['SeaTurtle.md', 'CLAUDE.md'],
+  local: ['SeaTurtle.local.md', 'CLAUDE.local.md'],
 }
 
 export function getPreferredMemoryFileName(
@@ -23,19 +23,22 @@ export function getPreferredMemoryFileName(
 export function getLegacyMemoryFileName(
   kind: InstructionMemoryKind,
 ): string {
-  return LEGACY_MEMORY_FILE_NAMES[kind]
+  return LEGACY_MEMORY_FILE_NAMES[kind][0]
 }
 
 export function getCandidateMemoryFileNames(
   kind: InstructionMemoryKind,
 ): string[] {
   const preferred = getPreferredMemoryFileName(kind)
-  const legacy = getLegacyMemoryFileName(kind)
-  return preferred === legacy ? [preferred] : [preferred, legacy]
+  return [preferred, ...LEGACY_MEMORY_FILE_NAMES[kind]].filter(
+    (value, index, values) => values.indexOf(value) === index,
+  )
 }
 
 export function isInstructionMemoryFileName(name: string): boolean {
   return (
+    name === 'SEATURTLE.md' ||
+    name === 'SEATURTLE.local.md' ||
     name === 'SeaTurtle.md' ||
     name === 'SeaTurtle.local.md' ||
     name === 'CLAUDE.md' ||

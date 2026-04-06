@@ -1,10 +1,10 @@
 /**
  * Files are loaded in the following order:
  *
- * 1. Managed memory (eg. /etc/claude-code/SeaTurtle.md) - Global instructions for all users
- * 2. User memory (~/.claude/SeaTurtle.md) - Private global instructions for all projects
- * 3. Project memory (SeaTurtle.md, .claude/SeaTurtle.md, and .claude/rules/*.md in project roots) - Instructions checked into the codebase
- * 4. Local memory (SeaTurtle.local.md in project roots) - Private project-specific instructions
+ * 1. Managed memory (eg. /etc/claude-code/SEATURTLE.md) - Global instructions for all users
+ * 2. User memory (~/.claude/SEATURTLE.md) - Private global instructions for all projects
+ * 3. Project memory (SEATURTLE.md, .claude/SEATURTLE.md, and .claude/rules/*.md in project roots) - Instructions checked into the codebase
+ * 4. Local memory (SEATURTLE.local.md in project roots) - Private project-specific instructions
  *
  * Legacy CLAUDE.md filenames remain readable for compatibility. When both the
  * SeaTurtle and legacy variants exist in the same directory, SeaTurtle wins.
@@ -16,7 +16,7 @@
  * - User memory is loaded from the user's home directory
  * - Project and Local files are discovered by traversing from the current directory up to root
  * - Files closer to the current directory have higher priority (loaded later)
- * - SeaTurtle.md, .claude/SeaTurtle.md, and all .md files in .claude/rules/ are checked in each directory for Project memory
+ * - SEATURTLE.md, .claude/SEATURTLE.md, and all .md files in .claude/rules/ are checked in each directory for Project memory
  *
  * Memory @include directive:
  * - Memory files can include other files using @ notation
@@ -909,7 +909,7 @@ export const getMemoryFiles = memoize(
         pathInWorkingPath(dir, canonicalRoot) &&
         !pathInWorkingPath(dir, gitRoot)
 
-      // Try reading SeaTurtle.md / CLAUDE.md (Project) - only if projectSettings is enabled
+      // Try reading SEATURTLE.md / legacy project memory files - only if projectSettings is enabled
       if (isSettingSourceEnabled('projectSettings') && !skipProject) {
         result.push(
           ...(await processFirstExistingMemoryFile(
@@ -921,7 +921,7 @@ export const getMemoryFiles = memoize(
           )),
         )
 
-        // Try reading .claude/SeaTurtle.md / .claude/CLAUDE.md (Project)
+        // Try reading .claude/SEATURTLE.md / legacy project memory files
         result.push(
           ...(await processFirstExistingMemoryFile(
             join(dir, '.claude'),
@@ -945,7 +945,7 @@ export const getMemoryFiles = memoize(
         )
       }
 
-      // Try reading SeaTurtle.local.md / CLAUDE.local.md (Local) - only if localSettings is enabled
+      // Try reading SEATURTLE.local.md / legacy local memory files - only if localSettings is enabled
       if (isSettingSourceEnabled('localSettings')) {
         result.push(
           ...(await processFirstExistingMemoryFile(
@@ -959,7 +959,7 @@ export const getMemoryFiles = memoize(
       }
     }
 
-    // Process SeaTurtle.md / CLAUDE.md from additional directories (--add-dir) if env var is enabled
+    // Process SEATURTLE.md / legacy project memory files from additional directories (--add-dir)
     // This is controlled by CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD and defaults to off
     // Note: we don't check isSettingSourceEnabled('projectSettings') here because --add-dir
     // is an explicit user action and the SDK defaults settingSources to [] when not specified
@@ -1263,7 +1263,7 @@ export async function getManagedAndUserConditionalRules(
 
 /**
  * Gets memory files for a single nested directory (between CWD and target).
- * Loads SeaTurtle.md / CLAUDE.md, unconditional rules, and conditional rules for that directory.
+ * Loads SEATURTLE.md / legacy project memory files, unconditional rules, and conditional rules for that directory.
  *
  * @param dir The directory to process
  * @param targetPath The target file path (for conditional rule matching)
@@ -1277,7 +1277,7 @@ export async function getMemoryFilesForNestedDirectory(
 ): Promise<MemoryFileInfo[]> {
   const result: MemoryFileInfo[] = []
 
-  // Process project memory files (SeaTurtle.md / CLAUDE.md and .claude variants)
+  // Process project memory files (SEATURTLE.md / legacy variants and .claude variants)
   if (isSettingSourceEnabled('projectSettings')) {
     result.push(
       ...(await processFirstExistingMemoryFile(
@@ -1299,7 +1299,7 @@ export async function getMemoryFilesForNestedDirectory(
     )
   }
 
-  // Process local memory file (SeaTurtle.local.md / CLAUDE.local.md)
+  // Process local memory file (SEATURTLE.local.md / legacy variants)
   if (isSettingSourceEnabled('localSettings')) {
     result.push(
       ...(await processFirstExistingMemoryFile(
@@ -1464,7 +1464,7 @@ export async function shouldShowClaudeMdExternalIncludesWarning(): Promise<boole
 export function isMemoryFilePath(filePath: string): boolean {
   const name = basename(filePath)
 
-  // SeaTurtle.md / SeaTurtle.local.md / legacy Claude variants anywhere
+  // SEATURTLE.md / SEATURTLE.local.md / compatibility variants anywhere
   if (isInstructionMemoryFileName(name)) {
     return true
   }

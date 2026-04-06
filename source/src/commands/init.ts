@@ -3,15 +3,15 @@ import type { Command } from '../commands.js'
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 
-const OLD_INIT_PROMPT = `Please analyze this codebase and create a SeaTurtle.md file, which will be given to future instances of CT to operate in this repository.
+const OLD_INIT_PROMPT = `Please analyze this codebase and create a SEATURTLE.md file, which will be given to future instances of CT to operate in this repository.
 
 What to add:
 1. Commands that will be commonly used, such as how to build, lint, and run tests. Include the necessary commands to develop in this codebase, such as how to run a single test.
 2. High-level code architecture and structure so that future instances can be productive more quickly. Focus on the "big picture" architecture that requires reading multiple files to understand.
 
 Usage notes:
-- If there's already a SeaTurtle.md, suggest improvements to it.
-- When you make the initial SeaTurtle.md, do not repeat yourself and do not include obvious instructions like "Provide helpful error messages to users", "Write unit tests for all new utilities", "Never include sensitive information (API keys, tokens) in code or commits".
+- If there's already a SEATURTLE.md, suggest improvements to it.
+- When you make the initial SEATURTLE.md, do not repeat yourself and do not include obvious instructions like "Provide helpful error messages to users", "Write unit tests for all new utilities", "Never include sensitive information (API keys, tokens) in code or commits".
 - Avoid listing every component or file structure that can be easily discovered.
 - Don't include generic development practices.
 - If there are Cursor rules (in .cursor/rules/ or .cursorrules) or Copilot rules (in .github/copilot-instructions.md), make sure to include the important parts.
@@ -20,30 +20,30 @@ Usage notes:
 - Be sure to prefix the file with the following text:
 
 \`\`\`
-# SeaTurtle.md
+# SEATURTLE.md
 
 This file provides guidance to CT (ct) when working with code in this repository.
 \`\`\``
 
-const NEW_INIT_PROMPT = `Set up a minimal SeaTurtle.md (and optionally skills and hooks) for this repo. SeaTurtle.md is loaded into every CT session, so it must be concise — only include what CT would get wrong without it.
+const NEW_INIT_PROMPT = `Set up a minimal SEATURTLE.md (and optionally skills and hooks) for this repo. SEATURTLE.md is loaded into every CT session, so it must be concise — only include what CT would get wrong without it.
 
 ## Phase 1: Ask what to set up
 
 Use AskUserQuestion to find out what the user wants:
 
-- "Which SeaTurtle.md files should /init set up?"
-  Options: "Project SeaTurtle.md" | "Personal SeaTurtle.local.md" | "Both project + personal"
+- "Which SEATURTLE.md files should /init set up?"
+  Options: "Project SEATURTLE.md" | "Personal SEATURTLE.local.md" | "Both project + personal"
   Description for project: "Team-shared instructions checked into source control — architecture, coding standards, common workflows."
   Description for personal: "Your private preferences for this project (gitignored, not shared) — your role, sandbox URLs, preferred test data, workflow quirks."
 
 - "Also set up skills and hooks?"
-  Options: "Skills + hooks" | "Skills only" | "Hooks only" | "Neither, just SeaTurtle.md"
+  Options: "Skills + hooks" | "Skills only" | "Hooks only" | "Neither, just SEATURTLE.md"
   Description for skills: "On-demand capabilities you or CT invoke with \`/skill-name\` — good for repeatable workflows and reference knowledge."
   Description for hooks: "Deterministic shell commands that run on tool events (e.g., format after every edit). CT can't skip them."
 
 ## Phase 2: Explore the codebase
 
-Launch a subagent to survey the codebase, and ask it to read key files to understand the project: manifest files (package.json, Cargo.toml, pyproject.toml, go.mod, pom.xml, etc.), README, Makefile/build configs, CI config, existing SeaTurtle.md, .claude/rules/, AGENTS.md, .cursor/rules or .cursorrules, .github/copilot-instructions.md, .windsurfrules, .clinerules, .mcp.json.
+Launch a subagent to survey the codebase, and ask it to read key files to understand the project: manifest files (package.json, Cargo.toml, pyproject.toml, go.mod, pom.xml, etc.), README, Makefile/build configs, CI config, existing SEATURTLE.md, .claude/rules/, AGENTS.md, .cursor/rules or .cursorrules, .github/copilot-instructions.md, .windsurfrules, .clinerules, .mcp.json.
 
 Detect:
 - Build, test, and lint commands (especially non-standard ones)
@@ -53,30 +53,30 @@ Detect:
 - Non-obvious gotchas, required env vars, or workflow quirks
 - Existing .claude/skills/ and .claude/rules/ directories
 - Formatter configuration (prettier, biome, ruff, black, gofmt, rustfmt, or a unified format script like \`npm run format\` / \`make fmt\`)
-- Git worktree usage: run \`git worktree list\` to check if this repo has multiple worktrees (only relevant if the user wants a personal SeaTurtle.local.md)
+- Git worktree usage: run \`git worktree list\` to check if this repo has multiple worktrees (only relevant if the user wants a personal SEATURTLE.local.md)
 
 Note what you could NOT figure out from code alone — these become interview questions.
 
 ## Phase 3: Fill in the gaps
 
-Use AskUserQuestion to gather what you still need to write good SeaTurtle.md files and skills. Ask only things the code can't answer.
+Use AskUserQuestion to gather what you still need to write good SEATURTLE.md files and skills. Ask only things the code can't answer.
 
-If the user chose project SeaTurtle.md or both: ask about codebase practices — non-obvious commands, gotchas, branch/PR conventions, required env setup, testing quirks. Skip things already in README or obvious from manifest files. Do not mark any options as "recommended" — this is about how their team works, not best practices.
+If the user chose project SEATURTLE.md or both: ask about codebase practices — non-obvious commands, gotchas, branch/PR conventions, required env setup, testing quirks. Skip things already in README or obvious from manifest files. Do not mark any options as "recommended" — this is about how their team works, not best practices.
 
-If the user chose personal SeaTurtle.local.md or both: ask about them, not the codebase. Do not mark any options as "recommended" — this is about their personal preferences, not best practices. Examples of questions:
+If the user chose personal SEATURTLE.local.md or both: ask about them, not the codebase. Do not mark any options as "recommended" — this is about their personal preferences, not best practices. Examples of questions:
   - What's their role on the team? (e.g., "backend engineer", "data scientist", "new hire onboarding")
   - How familiar are they with this codebase and its languages/frameworks? (so CT can calibrate explanation depth)
   - Do they have personal sandbox URLs, test accounts, API key paths, or local setup details CT should know?
-  - Only if Phase 2 found multiple git worktrees: ask whether their worktrees are nested inside the main repo (e.g., \`.claude/worktrees/<name>/\`) or siblings/external (e.g., \`../myrepo-feature/\`). If nested, the upward file walk finds the main repo's SeaTurtle.local.md automatically — no special handling needed. If sibling/external, the personal content should live in a home-directory file (e.g., \`~/.claude/<project-name>-instructions.md\`) and each worktree gets a one-line SeaTurtle.local.md stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. Never put this import in the project SeaTurtle.md — that would check a personal reference into the team-shared file.
+  - Only if Phase 2 found multiple git worktrees: ask whether their worktrees are nested inside the main repo (e.g., \`.claude/worktrees/<name>/\`) or siblings/external (e.g., \`../myrepo-feature/\`). If nested, the upward file walk finds the main repo's SEATURTLE.local.md automatically — no special handling needed. If sibling/external, the personal content should live in a home-directory file (e.g., \`~/.claude/<project-name>-instructions.md\`) and each worktree gets a one-line SEATURTLE.local.md stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. Never put this import in the project SEATURTLE.md — that would check a personal reference into the team-shared file.
   - Any communication preferences? (e.g., "be terse", "always explain tradeoffs", "don't summarize at the end")
 
-**Synthesize a proposal from Phase 2 findings** — e.g., format-on-edit if a formatter exists, a \`/verify\` skill if tests exist, a SeaTurtle.md note for anything from the gap-fill answers that's a guideline rather than a workflow. For each, pick the artifact type that fits, **constrained by the Phase 1 skills+hooks choice**:
+**Synthesize a proposal from Phase 2 findings** — e.g., format-on-edit if a formatter exists, a \`/verify\` skill if tests exist, a SEATURTLE.md note for anything from the gap-fill answers that's a guideline rather than a workflow. For each, pick the artifact type that fits, **constrained by the Phase 1 skills+hooks choice**:
 
   - **Hook** (stricter) — deterministic shell command on a tool event; CT can't skip it. Fits mechanical, fast, per-edit steps: formatting, linting, running a quick test on the changed file.
   - **Skill** (on-demand) — you or CT invoke \`/skill-name\` when you want it. Fits workflows that don't belong on every edit: deep verification, session reports, deploys.
-  - **SeaTurtle.md note** (looser) — influences CT's behavior but not enforced. Fits communication/thinking preferences: "plan before coding", "be terse", "explain tradeoffs".
+  - **SEATURTLE.md note** (looser) — influences CT's behavior but not enforced. Fits communication/thinking preferences: "plan before coding", "be terse", "explain tradeoffs".
 
-  **Respect Phase 1's skills+hooks choice as a hard filter**: if the user picked "Skills only", downgrade any hook you'd suggest to a skill or a SeaTurtle.md note. If "Hooks only", downgrade skills to hooks (where mechanically possible) or notes. If "Neither", everything becomes a SeaTurtle.md note. Never propose an artifact type the user didn't opt into.
+  **Respect Phase 1's skills+hooks choice as a hard filter**: if the user picked "Skills only", downgrade any hook you'd suggest to a skill or a SEATURTLE.md note. If "Hooks only", downgrade skills to hooks (where mechanically possible) or notes. If "Neither", everything becomes a SEATURTLE.md note. Never propose an artifact type the user didn't opt into.
 
 **Show the proposal via AskUserQuestion's \`preview\` field, not as a separate text message** — the dialog overlays your output, so preceding text is hidden. The \`preview\` field renders markdown in a side-panel (like plan mode); the \`question\` field is plain-text-only. Structure it as:
 
@@ -86,17 +86,17 @@ If the user chose personal SeaTurtle.local.md or both: ask about them, not the c
 
     • **Format-on-edit hook** (automatic) — \`ruff format <file>\` via PostToolUse
     • **/verify skill** (on-demand) — \`make lint && make typecheck && make test\`
-    • **SeaTurtle.md note** (guideline) — "run lint/typecheck/test before marking done"
+    • **SEATURTLE.md note** (guideline) — "run lint/typecheck/test before marking done"
 
   - Option labels stay short ("Looks good", "Drop the hook", "Drop the skill") — the tool auto-adds an "Other" free-text option, so don't add your own catch-all.
 
 **Build the preference queue** from the accepted proposal. Each entry: {type: hook|skill|note, description, target file, any Phase-2-sourced details like the actual test/format command}. Phases 4-7 consume this queue.
 
-## Phase 4: Write SeaTurtle.md (if user chose project or both)
+## Phase 4: Write SEATURTLE.md (if user chose project or both)
 
-Write a minimal SeaTurtle.md at the project root. Every line must pass this test: "Would removing this cause CT to make mistakes?" If no, cut it.
+Write a minimal SEATURTLE.md at the project root. Every line must pass this test: "Would removing this cause CT to make mistakes?" If no, cut it.
 
-**Consume \`note\` entries from the Phase 3 preference queue whose target is SeaTurtle.md** (team-level notes) — add each as a concise line in the most relevant section. These are the behaviors the user wants CT to follow but didn't need guaranteed (e.g., "propose a plan before implementing", "explain the tradeoffs when refactoring"). Leave personal-targeted notes for Phase 5.
+**Consume \`note\` entries from the Phase 3 preference queue whose target is SEATURTLE.md** (team-level notes) — add each as a concise line in the most relevant section. These are the behaviors the user wants CT to follow but didn't need guaranteed (e.g., "propose a plan before implementing", "explain the tradeoffs when refactoring"). Leave personal-targeted notes for Phase 5.
 
 Include:
 - Build/test/lint commands CT can't guess (non-standard scripts, flags, or sequences)
@@ -111,7 +111,7 @@ Exclude:
 - File-by-file structure or component lists (CT can discover these by reading the codebase)
 - Standard language conventions CT already knows
 - Generic advice ("write clean code", "handle errors")
-- Detailed API docs or long references — use \`@path/to/import\` syntax instead (e.g., \`@docs/api-reference.md\`) to inline content on demand without bloating SeaTurtle.md
+- Detailed API docs or long references — use \`@path/to/import\` syntax instead (e.g., \`@docs/api-reference.md\`) to inline content on demand without bloating SEATURTLE.md
 - Information that changes frequently — reference the source with \`@path/to/import\` so CT always reads the current version
 - Long tutorials or walkthroughs (move to a separate file and reference with \`@path/to/import\`, or put in a skill)
 - Commands obvious from manifest files (e.g., standard "npm test", "cargo test", "pytest")
@@ -123,22 +123,22 @@ Do not repeat yourself and do not make up sections like "Common Development Task
 Prefix the file with:
 
 \`\`\`
-# SeaTurtle.md
+# SEATURTLE.md
 
 This file provides guidance to CT (ct) when working with code in this repository.
 \`\`\`
 
-If SeaTurtle.md already exists: read it, propose specific changes as diffs, and explain why each change improves it. Do not silently overwrite.
+If SEATURTLE.md already exists: read it, propose specific changes as diffs, and explain why each change improves it. Do not silently overwrite.
 
-For projects with multiple concerns, suggest organizing instructions into \`.claude/rules/\` as separate focused files (e.g., \`code-style.md\`, \`testing.md\`, \`security.md\`). These are loaded automatically alongside SeaTurtle.md and can be scoped to specific file paths using \`paths\` frontmatter.
+For projects with multiple concerns, suggest organizing instructions into \`.claude/rules/\` as separate focused files (e.g., \`code-style.md\`, \`testing.md\`, \`security.md\`). These are loaded automatically alongside SEATURTLE.md and can be scoped to specific file paths using \`paths\` frontmatter.
 
-For projects with distinct subdirectories (monorepos, multi-module projects, etc.): mention that subdirectory SeaTurtle.md files can be added for module-specific instructions (they're loaded automatically when CT works in those directories). Offer to create them if the user wants.
+For projects with distinct subdirectories (monorepos, multi-module projects, etc.): mention that subdirectory SEATURTLE.md files can be added for module-specific instructions (they're loaded automatically when CT works in those directories). Offer to create them if the user wants.
 
-## Phase 5: Write SeaTurtle.local.md (if user chose personal or both)
+## Phase 5: Write SEATURTLE.local.md (if user chose personal or both)
 
-Write a minimal SeaTurtle.local.md at the project root. This file is automatically loaded alongside SeaTurtle.md. After creating it, add \`SeaTurtle.local.md\` to the project's .gitignore so it stays private.
+Write a minimal SEATURTLE.local.md at the project root. This file is automatically loaded alongside SEATURTLE.md. After creating it, add \`SEATURTLE.local.md\` to the project's .gitignore so it stays private.
 
-**Consume \`note\` entries from the Phase 3 preference queue whose target is SeaTurtle.local.md** (personal-level notes) — add each as a concise line. If the user chose personal-only in Phase 1, this is the sole consumer of note entries.
+**Consume \`note\` entries from the Phase 3 preference queue whose target is SEATURTLE.local.md** (personal-level notes) — add each as a concise line. If the user chose personal-only in Phase 1, this is the sole consumer of note entries.
 
 Include:
 - The user's role and familiarity with the codebase (so CT can calibrate explanations)
@@ -147,9 +147,9 @@ Include:
 
 Keep it short — only include what would make CT's responses noticeably better for this user.
 
-If Phase 2 found multiple git worktrees and the user confirmed they use sibling/external worktrees (not nested inside the main repo): the upward file walk won't find a single SeaTurtle.local.md from all worktrees. Write the actual personal content to \`~/.claude/<project-name>-instructions.md\` and make SeaTurtle.local.md a one-line stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. The user can copy this one-line stub to each sibling worktree. Never put this import in the project SeaTurtle.md. If worktrees are nested inside the main repo (e.g., \`.claude/worktrees/\`), no special handling is needed — the main repo's SeaTurtle.local.md is found automatically.
+If Phase 2 found multiple git worktrees and the user confirmed they use sibling/external worktrees (not nested inside the main repo): the upward file walk won't find a single SEATURTLE.local.md from all worktrees. Write the actual personal content to \`~/.claude/<project-name>-instructions.md\` and make SEATURTLE.local.md a one-line stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. The user can copy this one-line stub to each sibling worktree. Never put this import in the project SEATURTLE.md. If worktrees are nested inside the main repo (e.g., \`.claude/worktrees/\`), no special handling is needed — the main repo's SEATURTLE.local.md is found automatically.
 
-If SeaTurtle.local.md already exists: read it, propose specific additions, and do not silently overwrite.
+If SEATURTLE.local.md already exists: read it, propose specific additions, and do not silently overwrite.
 
 ## Phase 6: Suggest and create skills (if user chose "Skills + hooks" or "Skills only")
 
@@ -183,7 +183,7 @@ Both the user (\`/<skill-name>\`) and CT can invoke skills by default. For workf
 
 ## Phase 7: Suggest additional optimizations
 
-Tell the user you're going to suggest a few additional optimizations now that SeaTurtle.md and skills (if chosen) are in place.
+Tell the user you're going to suggest a few additional optimizations now that SEATURTLE.md and skills (if chosen) are in place.
 
 Check the environment and ask about each gap you find (use AskUserQuestion):
 
@@ -195,7 +195,7 @@ Check the environment and ask about each gap you find (use AskUserQuestion):
 
   For each hook preference (from the queue or the formatter fallback):
 
-  1. Target file: default based on the Phase 1 SeaTurtle.md choice — project → \`.claude/settings.json\` (team-shared, committed); personal → \`.claude/settings.local.json\`. Only ask if the user chose "both" in Phase 1 or the preference is ambiguous. Ask once for all hooks, not per-hook.
+  1. Target file: default based on the Phase 1 SEATURTLE.md choice — project → \`.claude/settings.json\` (team-shared, committed); personal → \`.claude/settings.local.json\`. Only ask if the user chose "both" in Phase 1 or the preference is ambiguous. Ask once for all hooks, not per-hook.
 
   2. Pick the event and matcher from the preference:
      - "after every edit" → \`PostToolUse\` with matcher \`Write|Edit\`
@@ -230,8 +230,8 @@ const command = {
     return feature('NEW_INIT') &&
       (process.env.USER_TYPE === 'ant' ||
         isEnvTruthy(process.env.CLAUDE_CODE_NEW_INIT))
-      ? 'Initialize new SeaTurtle.md file(s) and optional skills/hooks with codebase documentation'
-      : 'Initialize a new SeaTurtle.md file with codebase documentation'
+      ? 'Initialize new SEATURTLE.md file(s) and optional skills/hooks with codebase documentation'
+      : 'Initialize a new SEATURTLE.md file with codebase documentation'
   },
   contentLength: 0, // Dynamic content
   progressMessage: 'analyzing your codebase',

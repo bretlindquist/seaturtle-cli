@@ -91,10 +91,10 @@ export function MemoryFileSelector(t0) {
     let description;
     const isGit = projectIsInGitRepo(getOriginalCwd());
     if (file.type === "User" && !file.isNested) {
-      description = "Saved in ~/.claude/SeaTurtle.md";
+      description = "Saved in ~/.claude/SEATURTLE.md";
     } else {
       if (file.type === "Project" && !file.isNested && file.path === projectMemoryPath) {
-        description = `${isGit ? "Checked in at" : "Saved in"} ./SeaTurtle.md`;
+        description = `${isGit ? "Checked in at" : "Saved in"} ./SEATURTLE.md`;
       } else {
         if (file.parent) {
           description = "@-imported";

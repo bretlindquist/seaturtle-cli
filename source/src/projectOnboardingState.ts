@@ -33,7 +33,7 @@ export function getSteps(): Step[] {
     },
     {
       key: 'claudemd',
-      text: 'Run /init to create a SeaTurtle.md file with instructions for CT',
+      text: 'Run /init to create a SEATURTLE.md file with instructions for CT',
       isComplete: hasProjectMemoryFile,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,
