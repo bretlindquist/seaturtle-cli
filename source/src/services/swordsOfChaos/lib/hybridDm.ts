@@ -100,6 +100,29 @@ function getSecondBeatLead(
   return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
 }
 
+function getSeaTurtleFavoredOption(
+  openingChoice: SwordsOfChaosOpeningChoice,
+): SwordsSecondBeatOption['value'] {
+  switch (openingChoice) {
+    case 'draw-steel':
+      return 'lower-the-blade'
+    case 'bow-slightly':
+      return 'meet-the-gaze'
+    case 'talk-like-you-belong':
+      return 'laugh-like-you-mean-it'
+  }
+}
+
+function getCanonThreadPressure(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): string | undefined {
+  if (!relevantMemory?.canonThread) {
+    return undefined
+  }
+
+  return `The thread behind this place has stopped acting like coincidence. ${relevantMemory.canonThread} now presses against the scene like a name trying to become a law.`
+}
+
 function getReturningWeight(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
@@ -140,23 +163,40 @@ function applySecondBeatCallbackMemory(
   const rewritten = options.map(option => {
     const route = `${openingChoice}:${option.value}`
     const seen = priorRoutes.has(route)
+    const seaTurtleFavored =
+      relevantMemory.seaturtleGlimpsed &&
+      option.value === getSeaTurtleFavoredOption(openingChoice)
     return {
       ...option,
-      description: seen
+      description: `${seen
         ? `${option.description} The alley has watched you choose this road before.`
-        : `${option.description} This is one of the roads the alley kept from you last time.`,
+        : `${option.description} This is one of the roads the alley kept from you last time.`}${
+        seaTurtleFavored
+          ? ' Something in the rain seems to approve of this quieter line.'
+          : ''
+      }`,
     }
   })
 
   return [...rewritten].sort((left, right) => {
     const leftSeen = priorRoutes.has(`${openingChoice}:${left.value}`)
     const rightSeen = priorRoutes.has(`${openingChoice}:${right.value}`)
+    const leftFavored =
+      relevantMemory.seaturtleGlimpsed &&
+      left.value === getSeaTurtleFavoredOption(openingChoice)
+    const rightFavored =
+      relevantMemory.seaturtleGlimpsed &&
+      right.value === getSeaTurtleFavoredOption(openingChoice)
 
-    if (leftSeen === rightSeen) {
-      return 0
+    if (leftFavored !== rightFavored) {
+      return leftFavored ? -1 : 1
     }
 
-    return leftSeen ? 1 : -1
+    if (leftSeen !== rightSeen) {
+      return leftSeen ? 1 : -1
+    }
+
+    return 0
   })
 }
 
@@ -208,16 +248,22 @@ function renderDeterministicScene(
   const secondBeat = returningAgain
     ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
     : getSwordsSecondBeat(payload.openingChoice)
+  const canonPressure = getCanonThreadPressure(payload.relevantMemory)
   return {
-    subtitle: secondBeat.subtitle,
-    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}`,
+    subtitle:
+      payload.relevantMemory?.canonThread && returningAgain
+        ? `${secondBeat.subtitle} The air behind it feels occupied.`
+        : secondBeat.subtitle,
+    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}${canonPressure ? `\n\n${canonPressure}` : ''}`,
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
       secondBeat.options,
       payload.relevantMemory,
     ),
     hintText: payload.relevantMemory?.familiarPlace
-      ? 'The second move reveals whether you repeat yourself or take the road the alley saved for later.'
+      ? payload.relevantMemory.seaturtleGlimpsed
+        ? 'The second move now carries two kinds of witness: the alley, and something quieter standing just outside it.'
+        : 'The second move reveals whether you repeat yourself or take the road the alley saved for later.'
       : 'The second move reveals what kind of trouble this really is.',
   }
 }
