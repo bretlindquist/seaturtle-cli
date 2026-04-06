@@ -1,6 +1,6 @@
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
-import { deriveSwordsOfChaosMemory } from './derivedMemory.js'
+import { deriveSwordsOfChaosMemory } from './memoryModel.js'
 
 function getRoadNotTakenHint(routes: string[]): string | undefined {
   const allOpeners = ['draw-steel', 'bow-slightly', 'talk-like-you-belong']
