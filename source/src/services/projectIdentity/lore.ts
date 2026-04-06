@@ -34,6 +34,7 @@ const BOOTSTRAP_QUIPS = [
   "Can't get enough of that BTE, amiright? Big Turtle Energy.",
   'You have unleashed the mighty SeaTurtle!',
   'Sea my awesome power!',
+  "Sea Turtle's power beckons to be unleashed.",
   "Maybe I'm the real one and you are the ai, ever think about that?",
   'Hard on the outside, soft on the inside!',
   "It's hard when you are a turtle in the open sea, so many places to go, so many things to do!",
