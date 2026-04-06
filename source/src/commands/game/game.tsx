@@ -24,10 +24,6 @@ import {
   updateCtGameState,
 } from '../../services/projectIdentity/archives.js'
 import {
-  getSwordsOfChaosOutcome,
-  type SwordsOfChaosOpeningChoice,
-  type SwordsOfChaosRoute,
-  type SwordsOfChaosSecondChoice,
   TIDE_DICE_REWARDS,
   WAGER_REWARDS,
 } from '../../services/game/rewards.js'
@@ -35,6 +31,10 @@ import {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
+  getSwordsOfChaosOutcome,
+  type SwordsOfChaosOpeningChoice,
+  type SwordsOfChaosRoute,
+  type SwordsOfChaosSecondChoice,
 } from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
