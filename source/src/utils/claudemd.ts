@@ -3,11 +3,12 @@
  *
  * 1. Managed memory (eg. /etc/claude-code/SEATURTLE.md) - Global instructions for all users
  * 2. User memory (~/.claude/SEATURTLE.md) - Private global instructions for all projects
- * 3. Project memory (SEATURTLE.md, .claude/SEATURTLE.md, and .claude/rules/*.md in project roots) - Instructions checked into the codebase
+ * 3. Project memory (SEATURTLE.md, AGENTS.md, .claude/SEATURTLE.md, and .claude/rules/*.md in project roots) - Instructions checked into the codebase
  * 4. Local memory (SEATURTLE.local.md in project roots) - Private project-specific instructions
  *
- * Legacy CLAUDE.md filenames remain readable for compatibility. When both the
- * SeaTurtle and legacy variants exist in the same directory, SeaTurtle wins.
+ * Legacy AGENTS.md and CLAUDE.md filenames remain readable for compatibility.
+ * When multiple project instruction files exist in the same directory,
+ * SEATURTLE wins, then AGENTS, then Claude-era variants.
  *
  * Files are loaded in reverse order of priority, i.e. the latest files are highest priority
  * with the model paying more attention to them.
@@ -16,7 +17,7 @@
  * - User memory is loaded from the user's home directory
  * - Project and Local files are discovered by traversing from the current directory up to root
  * - Files closer to the current directory have higher priority (loaded later)
- * - SEATURTLE.md, .claude/SEATURTLE.md, and all .md files in .claude/rules/ are checked in each directory for Project memory
+ * - SEATURTLE.md, AGENTS.md, .claude/SEATURTLE.md, and all .md files in .claude/rules/ are checked in each directory for Project memory
  *
  * Memory @include directive:
  * - Memory files can include other files using @ notation
@@ -1459,7 +1460,7 @@ export async function shouldShowClaudeMdExternalIncludesWarning(): Promise<boole
 }
 
 /**
- * Check if a file path is a memory file (SeaTurtle/CLAUDE memory files, or .claude/rules/*.md)
+ * Check if a file path is a memory file (SeaTurtle/AGENTS/CLAUDE memory files, or .claude/rules/*.md)
  */
 export function isMemoryFilePath(filePath: string): boolean {
   const name = basename(filePath)

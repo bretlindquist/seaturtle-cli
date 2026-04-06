@@ -10,7 +10,7 @@ const PREFERRED_MEMORY_FILE_NAMES: Record<InstructionMemoryKind, string> = {
 const LEGACY_MEMORY_FILE_NAMES: Record<InstructionMemoryKind, string[]> = {
   managed: ['SeaTurtle.md', 'CLAUDE.md'],
   user: ['SeaTurtle.md', 'CLAUDE.md'],
-  project: ['SeaTurtle.md', 'CLAUDE.md'],
+  project: ['SeaTurtle.md', 'AGENTS.md', 'CLAUDE.md'],
   local: ['SeaTurtle.local.md', 'CLAUDE.local.md'],
 }
 
@@ -41,6 +41,7 @@ export function isInstructionMemoryFileName(name: string): boolean {
     name === 'SEATURTLE.local.md' ||
     name === 'SeaTurtle.md' ||
     name === 'SeaTurtle.local.md' ||
+    name === 'AGENTS.md' ||
     name === 'CLAUDE.md' ||
     name === 'CLAUDE.local.md'
   )

@@ -182,6 +182,7 @@ Next steps:
 - Edit `.ct/bootstrap.md` to shape the first-run or retune conversation ritual
 - Edit `.ct/session.md` for what matters right now
 - Leave `SEATURTLE.md` for team-shared repo guidance
+- `AGENTS.md` is also read as a compatibility project-instructions file
 
 Important truth:
 
