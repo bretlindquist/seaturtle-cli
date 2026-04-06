@@ -859,6 +859,18 @@ export function useTypeahead({
       const completionToken = extractCompletionToken(value, effectiveCursorOffset, true);
       if (completionToken) {
         const searchToken = extractSearchToken(completionToken);
+        const hasAtPrefix = completionToken.token.startsWith('@');
+        const hasPathLikeToken = isPathLikeToken(searchToken);
+
+        // File suggestions should only persist while the user is still in an
+        // actual file-completion context. If we leak file mode into ordinary
+        // text input, Enter gets swallowed by stale suggestions.
+        if (!hasAtPrefix && !hasPathLikeToken) {
+          debouncedFetchFileSuggestions.cancel();
+          clearSuggestions();
+          return;
+        }
+
         // Skip if we already fetched for this exact token
         if (latestSearchTokenRef.current === searchToken) {
           return;
