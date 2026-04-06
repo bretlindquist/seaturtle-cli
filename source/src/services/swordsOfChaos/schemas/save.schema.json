@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "seaturtle/swords-of-chaos/save.schema.json",
+  "title": "SwordsOfChaosSaveFile",
+  "type": "object",
+  "required": [
+    "version",
+    "player",
+    "inventory",
+    "conditions",
+    "progression",
+    "worldFlags",
+    "discoveredSeeds",
+    "callbackMarkers",
+    "unresolvedBranches",
+    "threadCandidates",
+    "seaturtle",
+    "runHistorySummary"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "player": {
+      "type": "object",
+      "required": ["level", "hp", "maxHp", "stats"],
+      "properties": {
+        "level": { "type": "number" },
+        "hp": { "type": "number" },
+        "maxHp": { "type": "number" },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "inventory": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "progression": {
+      "type": "object",
+      "required": ["titles", "milestones", "xp"],
+      "properties": {
+        "titles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "milestones": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "xp": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "worldFlags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "discoveredSeeds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "callbackMarkers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "unresolvedBranches": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "threadCandidates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "seaturtle": {
+      "type": "object",
+      "required": ["bond", "favor", "appearances", "lastAppearanceAt"],
+      "properties": {
+        "bond": { "type": "number" },
+        "favor": { "type": "number" },
+        "appearances": { "type": "number" },
+        "lastAppearanceAt": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "runHistorySummary": {
+      "type": "object",
+      "required": ["runsStarted", "runsFinished", "lastPlayedAt"],
+      "properties": {
+        "runsStarted": { "type": "number" },
+        "runsFinished": { "type": "number" },
+        "lastPlayedAt": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
