@@ -1,5 +1,5 @@
 import { basename } from 'path'
-import type { MermaidPlan, MermaidRepoEvidence, MermaidRequest } from './types.js'
+import type { MermaidC4Level, MermaidPlan, MermaidRepoEvidence, MermaidRequest } from './types.js'
 
 function toSlug(value: string): string {
   return value
@@ -186,6 +186,107 @@ function buildJourneyMermaid(target: string): string {
   return lines.join('\n')
 }
 
+function buildC4ContextMermaid(evidence: MermaidRepoEvidence): string {
+  const lines = [
+    'C4Context',
+    'title System Context for SeaTurtle CLI',
+    'Person(user, "User", "Uses CT for work, exploration, and playful side modes")',
+    'System(ct, "SeaTurtle CLI", "Interactive terminal runtime with slash commands, provider runtime, and project-aware context domains")',
+    'System_Ext(openai, "OpenAI/Codex", "Main provider runtime when selected")',
+    'System_Ext(git, "Git-backed project", "Repo, working tree, docs, and codebase context")',
+    'Rel(user, ct, "Uses through ct")',
+    'Rel(ct, openai, "Queries for model responses and tool turns")',
+    'Rel(ct, git, "Reads and writes project state")',
+  ]
+
+  if (evidence.topCommands.includes('telegram')) {
+    lines.push('System_Ext(telegram, "Telegram", "Project-bound pairing and stop/debt notices")')
+    lines.push('Rel(ct, telegram, "Sends messages and alerts when configured")')
+  }
+
+  return lines.join('\n')
+}
+
+function buildC4ContainerMermaid(): string {
+  const lines = [
+    'C4Container',
+    'title SeaTurtle CLI container view',
+    'Person(user, "User", "Runs commands and works in the terminal")',
+    'System_Ext(openai, "OpenAI/Codex", "Provider runtime")',
+    'System_Ext(git, "Git-backed project", "Repo files, docs, and session state")',
+    'System_Boundary(ct_boundary, "SeaTurtle CLI") {',
+    '  Container(wrapper, "ct wrapper", "Shell wrapper", "Launches the branded CLI entrypoint")',
+    '  Container(runtime, "Runtime + REPL", "TypeScript / Node", "Starts the interactive shell, main loop, and command routing")',
+    '  Container(commands, "Slash command layer", "TypeScript", "User-facing commands such as /autowork, /game, /ct, /mermaid")',
+    '  Container(services, "Service layer", "TypeScript", "Autowork, project identity, mermaid planning, telegram, and helper services")',
+    '  ContainerDb(ctlayer, ".ct relationship stack", "Markdown/JSON", "Soul, identity, role, user, attunement, session, and archives")',
+    '}',
+    'Rel(user, wrapper, "Runs")',
+    'Rel(wrapper, runtime, "Starts")',
+    'Rel(runtime, commands, "Routes slash commands")',
+    'Rel(runtime, services, "Uses")',
+    'Rel(runtime, ctlayer, "Loads private CT context from")',
+    'Rel(runtime, openai, "Queries")',
+    'Rel(runtime, git, "Reads and writes project files in")',
+  ]
+
+  return lines.join('\n')
+}
+
+function buildC4ComponentMermaid(
+  evidence: MermaidRepoEvidence,
+  target: string,
+): string {
+  const focusLabel = target || 'Mermaid-focused slice'
+  const lines = [
+    'C4Component',
+    `title Component view for ${focusLabel}`,
+    `Container(target, "${quote(focusLabel)}", "TypeScript", "Focused repo slice")`,
+    `Container(system, "SeaTurtle CLI", "Runtime", "Command shell and service orchestration")`,
+    'Component(scanner, "Repo scan", "scan.ts", "Collects repo evidence, Mermaid docs, and focus files")',
+    'Component(planner, "Diagram planner", "planner.ts", "Chooses Mermaid or C4 diagram structure from intent + evidence")',
+    'Component(generator, "Markdown generator", "generator.ts", "Writes durable Mermaid markdown docs")',
+    'Component(shell, "Command shell", "mermaid.tsx", "Parses fast paths and shows menus")',
+    'Rel(system, shell, "Routes /mermaid requests to")',
+    'Rel(shell, scanner, "Asks for repo evidence from")',
+    'Rel(scanner, planner, "Supplies evidence to")',
+    'Rel(planner, generator, "Supplies planned diagram to")',
+    'Rel(generator, target, "Writes docs that describe")',
+  ]
+
+  const localImports = evidence.importEdges.slice(0, 8)
+  for (const edge of localImports) {
+    lines.push(
+      `Rel(target, target, "contains ${quote(shortLabel(edge.from))} -> ${quote(shortLabel(edge.to))}")`,
+    )
+  }
+
+  return lines.join('\n')
+}
+
+function buildC4DynamicMermaid(target: string): string {
+  const normalized = target.replace(/^\//, '') || 'mermaid'
+  const lines = [
+    'C4Dynamic',
+    `title Dynamic view for ${target || '/mermaid'}`,
+    'Person(user, "User", "Runs the command")',
+    'Container(wrapper, "ct wrapper", "Shell wrapper", "Branded CLI launcher")',
+    'Container(runtime, "Runtime + REPL", "TypeScript", "Main shell and command routing")',
+    'Container(command, "Slash command layer", "TypeScript", "Resolves local-jsx commands")',
+    'Container(scanner, "Repo scan", "TypeScript", "Collects repo evidence")',
+    'Container(planner, "Diagram planner", "TypeScript", "Builds Mermaid/C4 plan")',
+    'Container(generator, "Markdown generator", "TypeScript", "Writes durable markdown docs")',
+    'Rel(user, wrapper, "1. run command")',
+    'Rel(wrapper, runtime, "2. start interactive runtime")',
+    `Rel(runtime, command, "3. route /${quote(normalized)}")`,
+    'Rel(command, scanner, "4. collect repo evidence")',
+    'Rel(scanner, planner, "5. plan the diagram")',
+    'Rel(planner, generator, "6. hand off Mermaid/C4 plan")',
+    'Rel(generator, user, "7. return path to written markdown doc")',
+  ]
+  return lines.join('\n')
+}
+
 export function planMermaid(
   request: MermaidRequest,
   evidence: MermaidRepoEvidence,
@@ -194,6 +295,78 @@ export function planMermaid(
   const targetSlug = toSlug(target || request.intent)
 
   switch (request.intent) {
+    case 'c4': {
+      const level: MermaidC4Level = request.c4Level ?? 'context'
+
+      switch (level) {
+        case 'context':
+          return {
+            intent: request.intent,
+            title: 'C4 System Context',
+            summary: 'System-context view of SeaTurtle CLI and its primary external relationships.',
+            diagramType: 'C4Context',
+            mermaid: buildC4ContextMermaid(evidence),
+            outputPath: 'docs/C4-CONTEXT.md',
+            evidenceLines: [
+              ...evidence.entrypoints.map(path => `entrypoint: ${path}`),
+              ...evidence.topCommands.map(name => `command: /${name}`),
+            ],
+            notes: [
+              'C4 context focuses on the user, SeaTurtle CLI, and major external systems.',
+              'Mermaid C4 support is experimental.',
+            ],
+          }
+        case 'container':
+          return {
+            intent: request.intent,
+            title: 'C4 Container View',
+            summary: 'Container-level view of the main SeaTurtle runtime layers.',
+            diagramType: 'C4Container',
+            mermaid: buildC4ContainerMermaid(),
+            outputPath: 'docs/C4-CONTAINERS.md',
+            evidenceLines: [
+              ...evidence.entrypoints.map(path => `entrypoint: ${path}`),
+              ...evidence.topServices.map(name => `service: ${name}`),
+            ],
+            notes: [
+              'This focuses on top-level runtime pieces rather than every file.',
+              'Mermaid C4 support is experimental.',
+            ],
+          }
+        case 'component':
+          return {
+            intent: request.intent,
+            title: `C4 Component View: ${target || 'mermaid'}`,
+            summary: 'Component-level view of one focused slice of the system.',
+            diagramType: 'C4Component',
+            mermaid: buildC4ComponentMermaid(evidence, target || 'mermaid'),
+            outputPath: `docs/internal/${targetSlug}-c4-component.md`,
+            evidenceLines: evidence.focusFiles.length
+              ? evidence.focusFiles.map(path => `focus file: ${path}`)
+              : ['No specific focus files were resolved from the target.'],
+            notes: [
+              'Component views stay focused on one slice instead of the whole repo.',
+              'Mermaid C4 support is experimental.',
+            ],
+          }
+        case 'dynamic':
+          return {
+            intent: request.intent,
+            title: `C4 Dynamic View: ${target || '/mermaid'}`,
+            summary: 'Dynamic interaction view for one concrete runtime or command path.',
+            diagramType: 'C4Dynamic',
+            mermaid: buildC4DynamicMermaid(target || '/mermaid'),
+            outputPath: `docs/internal/${targetSlug}-c4-dynamic.md`,
+            evidenceLines: target
+              ? [`dynamic target: ${target}`]
+              : ['Dynamic view generated from the selected C4 mode.'],
+            notes: [
+              'Dynamic views show one concrete interaction path.',
+              'Mermaid C4 support is experimental.',
+            ],
+          }
+      }
+    }
     case 'project':
       return {
         intent: request.intent,

@@ -1,12 +1,7 @@
 import { basename, extname, join, relative, resolve } from 'path'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCtProjectRoot } from '../projectIdentity/paths.js'
-import type {
-  MermaidExistingDoc,
-  MermaidRepoEvidence,
-  MermaidRequest,
-  MermaidSuggestions,
-} from './types.js'
+import type { MermaidExistingDoc, MermaidRepoEvidence, MermaidRequest, MermaidSuggestions } from './types.js'
 
 const SOURCE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.md'])
 const TOP_COMMAND_NAMES = [
@@ -248,6 +243,18 @@ export function getMermaidSuggestions(root: string = getCtProjectRoot()): Mermai
       return commandNames.includes(target.replace(/^\//, ''))
     }),
     journeyTargets: JOURNEY_TARGETS.filter(target => commandNames.includes(target)),
+    c4ComponentTargets: [
+      ...TOP_SERVICE_NAMES.filter(name => serviceNames.includes(name)).map(
+        name => `source/src/services/${name}`,
+      ),
+      ...TOP_COMMAND_NAMES.filter(name => commandNames.includes(name)).map(
+        name => `/${name}`,
+      ),
+    ],
+    c4DynamicTargets: FLOW_TARGETS.filter(target => {
+      if (target === 'startup') return true
+      return commandNames.includes(target.replace(/^\//, ''))
+    }),
     updateTargets: listMermaidDocs(root).map(doc => doc.path),
   }
 }

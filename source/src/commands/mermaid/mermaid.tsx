@@ -13,6 +13,7 @@ import {
 import { writeMermaidPlan } from '../../services/mermaid/generator.js'
 import { planMermaid } from '../../services/mermaid/planner.js'
 import type {
+  MermaidC4Level,
   MermaidExistingDoc,
   MermaidRequest,
 } from '../../services/mermaid/types.js'
@@ -26,6 +27,7 @@ type OnDone = (
 
 type MermaidAction =
   | 'project'
+  | 'c4'
   | 'focus'
   | 'flow'
   | 'journey'
@@ -33,7 +35,15 @@ type MermaidAction =
   | 'explain'
   | 'back'
 
-type Screen = 'menu' | 'pick-focus' | 'pick-flow' | 'pick-journey' | 'pick-update'
+type Screen =
+  | 'menu'
+  | 'pick-c4'
+  | 'pick-c4-component'
+  | 'pick-c4-dynamic'
+  | 'pick-focus'
+  | 'pick-flow'
+  | 'pick-journey'
+  | 'pick-update'
 
 function parseMermaidRequest(rawArg: string): MermaidRequest {
   const trimmed = rawArg.trim()
@@ -49,6 +59,30 @@ function parseMermaidRequest(rawArg: string): MermaidRequest {
     case 'project':
     case 'architecture':
       return { intent: 'project', target }
+    case 'c4':
+      if (!target) {
+        return { intent: 'c4', c4Level: 'context' }
+      }
+
+      {
+        const [rawLevel, ...remaining] = target.split(/\s+/)
+        const level = rawLevel?.toLowerCase()
+        const c4Target = remaining.join(' ').trim() || undefined
+
+        switch (level) {
+          case 'context':
+            return { intent: 'c4', c4Level: 'context', target: c4Target }
+          case 'container':
+          case 'containers':
+            return { intent: 'c4', c4Level: 'container', target: c4Target }
+          case 'component':
+            return { intent: 'c4', c4Level: 'component', target: c4Target }
+          case 'dynamic':
+            return { intent: 'c4', c4Level: 'dynamic', target: c4Target }
+          default:
+            return { intent: 'c4', c4Level: 'component', target }
+        }
+      }
     case 'focus':
     case 'focused':
       return { intent: 'focus', target }
@@ -141,6 +175,136 @@ function MermaidMenu({
             runMermaidRequest({ intent: 'focus', target: value }, onDone)
           }}
           onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-c4') {
+    return (
+      <Dialog
+        title="Mermaid C4"
+        subtitle="Pick the architecture level you want to map."
+        onCancel={() => setScreen('menu')}
+      >
+        <Select
+          options={[
+            {
+              label: 'System context',
+              value: 'context' as const,
+              description: 'Map SeaTurtle, the user, and major external systems',
+            },
+            {
+              label: 'Container',
+              value: 'container' as const,
+              description: 'Map the major runtime layers inside SeaTurtle',
+            },
+            {
+              label: 'Component',
+              value: 'component' as const,
+              description: 'Focus inside one service or feature slice',
+            },
+            {
+              label: 'Dynamic',
+              value: 'dynamic' as const,
+              description: 'Show one concrete interaction path',
+            },
+            {
+              label: 'Back',
+              value: 'back' as const,
+              description: 'Return to the Mermaid menu',
+            },
+          ]}
+          onChange={(value: MermaidC4Level | 'back') => {
+            switch (value) {
+              case 'context':
+              case 'container':
+                runMermaidRequest({ intent: 'c4', c4Level: value }, onDone)
+                return
+              case 'component':
+                setScreen('pick-c4-component')
+                return
+              case 'dynamic':
+                setScreen('pick-c4-dynamic')
+                return
+              case 'back':
+                setScreen('menu')
+                return
+            }
+          }}
+          onCancel={() => setScreen('menu')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-c4-component') {
+    return (
+      <Dialog
+        title="C4 component view"
+        subtitle="Pick the slice you want the component view to focus on."
+        onCancel={() => setScreen('pick-c4')}
+      >
+        <Select
+          options={[
+            ...suggestions.c4ComponentTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Generate a C4 component view for ${target}`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the C4 menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('pick-c4')
+              return
+            }
+            runMermaidRequest(
+              { intent: 'c4', c4Level: 'component', target: value },
+              onDone,
+            )
+          }}
+          onCancel={() => setScreen('pick-c4')}
+        />
+      </Dialog>
+    )
+  }
+
+  if (screen === 'pick-c4-dynamic') {
+    return (
+      <Dialog
+        title="C4 dynamic view"
+        subtitle="Pick the runtime or command path you want to trace."
+        onCancel={() => setScreen('pick-c4')}
+      >
+        <Select
+          options={[
+            ...suggestions.c4DynamicTargets.map(target => ({
+              label: target,
+              value: target,
+              description: `Generate a C4 dynamic view for ${target}`,
+            })),
+            {
+              label: 'Back',
+              value: '__back__',
+              description: 'Return to the C4 menu',
+            },
+          ]}
+          onChange={value => {
+            if (value === '__back__') {
+              setScreen('pick-c4')
+              return
+            }
+            runMermaidRequest(
+              { intent: 'c4', c4Level: 'dynamic', target: value },
+              onDone,
+            )
+          }}
+          onCancel={() => setScreen('pick-c4')}
         />
       </Dialog>
     )
@@ -266,6 +430,11 @@ function MermaidMenu({
               description: 'Generate a high-level architecture doc for the repo',
             },
             {
+              label: 'C4 architecture map',
+              value: 'c4' as const,
+              description: 'Generate system context, container, component, or dynamic C4 docs',
+            },
+            {
               label: 'Focused map',
               value: 'focus' as const,
               description: 'Map one feature, service, file, or folder',
@@ -303,6 +472,9 @@ function MermaidMenu({
                 return
               case 'focus':
                 setScreen('pick-focus')
+                return
+              case 'c4':
+                setScreen('pick-c4')
                 return
               case 'flow':
                 setScreen('pick-flow')
@@ -355,6 +527,11 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
         '',
         'Fast paths:',
         '- /mermaid project',
+        '- /mermaid c4',
+        '- /mermaid c4 context',
+        '- /mermaid c4 container',
+        '- /mermaid c4 component <target>',
+        '- /mermaid c4 dynamic <target>',
         '- /mermaid focus <path-or-feature>',
         '- /mermaid flow <path-or-feature>',
         '- /mermaid journey <feature>',

@@ -3,11 +3,19 @@ export type MermaidIntent =
   | 'focus'
   | 'flow'
   | 'journey'
+  | 'c4'
   | 'update'
   | 'explain'
 
+export type MermaidC4Level =
+  | 'context'
+  | 'container'
+  | 'component'
+  | 'dynamic'
+
 export type MermaidRequest = {
   intent: MermaidIntent
+  c4Level?: MermaidC4Level
   target?: string
 }
 
@@ -34,7 +42,14 @@ export type MermaidPlan = {
   intent: MermaidIntent
   title: string
   summary: string
-  diagramType: 'flowchart TD' | 'sequenceDiagram' | 'journey'
+  diagramType:
+    | 'flowchart TD'
+    | 'sequenceDiagram'
+    | 'journey'
+    | 'C4Context'
+    | 'C4Container'
+    | 'C4Component'
+    | 'C4Dynamic'
   mermaid: string
   outputPath?: string
   evidenceLines: string[]
@@ -45,5 +60,7 @@ export type MermaidSuggestions = {
   focusTargets: string[]
   flowTargets: string[]
   journeyTargets: string[]
+  c4ComponentTargets: string[]
+  c4DynamicTargets: string[]
   updateTargets: string[]
 }
