@@ -36,6 +36,7 @@ const BOOTSTRAP_QUIPS = [
   'Sea my awesome power!',
   "Maybe I'm the real one and you are the ai, ever think about that?",
   'Hard on the outside, soft on the inside!',
+  "It's hard when you are a turtle in the open sea, so many places to go, so many things to do!",
 ] as const
 
 const WAKEUP_LINES = [
