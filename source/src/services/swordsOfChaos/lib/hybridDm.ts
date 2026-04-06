@@ -68,6 +68,25 @@ function applyOpeningCallbackMemory(
   })
 }
 
+function getSecondBeatLead(
+  openingChoice: SwordsOfChaosOpeningChoice,
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): string {
+  if (!relevantMemory?.familiarPlace) {
+    return `${openingChoice} got you this far. The alley seems interested now.`
+  }
+
+  const priorOpeners = new Set(
+    relevantMemory.priorRoutes.map(route => route.split(':')[0]),
+  )
+
+  if (priorOpeners.has(openingChoice)) {
+    return `${openingChoice} got you this far again. The alley settles into the posture it remembers.`
+  }
+
+  return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
+}
+
 function renderDeterministicScene(
   payload: SwordsOfChaosPromptPayload,
 ): SwordsOfChaosDmSceneResponse {
@@ -100,7 +119,7 @@ function renderDeterministicScene(
   const secondBeat = getSwordsSecondBeat(payload.openingChoice)
   return {
     subtitle: secondBeat.subtitle,
-    sceneText: `${payload.openingChoice} got you this far. The alley seems interested now.\n\n${secondBeat.intro}`,
+    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}`,
     options: secondBeat.options,
     hintText: 'The second move reveals what kind of trouble this really is.',
   }
