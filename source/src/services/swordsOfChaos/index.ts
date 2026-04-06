@@ -11,6 +11,7 @@ export {
   ensureSwordsOfChaosRuntimeReady,
 } from './lib/runtimeFacade.js'
 export { getSwordsOfChaosOutcome } from './lib/outcomes.js'
+export { resolveSwordsOfChaosRoute } from './lib/resolution.js'
 export {
   getSwordsOpeningLabel,
   getSwordsOpeningOptions,
@@ -30,6 +31,7 @@ export type {
   SwordsOfChaosRoute,
   SwordsOfChaosSecondChoice,
 } from './types/outcomes.js'
+export type { SwordsOfChaosResolution } from './types/resolution.js'
 export type {
   SwordsOpeningOption,
   SwordsSecondBeat,

@@ -31,12 +31,11 @@ import {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
-  getSwordsOfChaosOutcome,
   getSwordsOpeningLabel,
   getSwordsOpeningOptions,
   getSwordsSecondBeat,
+  resolveSwordsOfChaosRoute,
   type SwordsOfChaosOpeningChoice,
-  type SwordsOfChaosRoute,
   type SwordsOfChaosSecondChoice,
   type SwordsSecondBeatOption,
 } from '../../services/swordsOfChaos/index.js'
@@ -166,8 +165,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     openingChoice: SwordsOfChaosOpeningChoice,
     secondChoice: SwordsOfChaosSecondChoice,
   ): void {
-    const route = `${openingChoice}:${secondChoice}` as SwordsOfChaosRoute
-    const outcome = getSwordsOfChaosOutcome(route)
+    const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice)
+    const outcome = resolution.outcome
 
     updateCtGameState(
       current => ({
@@ -180,93 +179,14 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }),
       projectRoot,
     )
-    applySwordsOfChaosEventBatchToSave({
-      at: Date.now(),
-      events: [
-        {
-          kind: 'run_history_update',
-          gameResult: outcome.gameResult,
-          playedAt: Date.now(),
-        },
-        {
-          kind: 'thread_candidate_add',
-          thread: 'trench-coat-turtle-alley',
-        },
-        {
-          kind: 'callback_marker_add',
-          marker: route,
-        },
-        {
-          kind: 'world_flag_add',
-          flag: `swords-route:${route}`,
-        },
-        ...(outcome.key === 'relic'
-          ? [{ kind: 'inventory_add', item: outcome.inventory } as const]
-          : []),
-        ...(outcome.key === 'title'
-          ? [{ kind: 'title_add', title: outcome.title } as const]
-          : []),
-      ],
-    })
+    applySwordsOfChaosEventBatchToSave(resolution.eventBatch)
 
     recordCtGameResult(outcome.gameResult, projectRoot)
-
-    if (outcome.key === 'relic') {
-      applySwordsOfChaosOutcomeEchoes(
-        [
-          { kind: 'legend', value: outcome.legendEvent },
-          { kind: 'relic', value: outcome.inventory },
-        ],
-        projectRoot,
-      )
-      if (outcome.rarityUnlock) {
-        addRarityUnlock(outcome.rarityUnlock, projectRoot)
-      }
-      showResult(outcome.ending)
-      return
+    applySwordsOfChaosOutcomeEchoes(resolution.hostEchoes, projectRoot)
+    if (resolution.rarityUnlock) {
+      addRarityUnlock(resolution.rarityUnlock, projectRoot)
     }
-
-    if (outcome.key === 'title') {
-      applySwordsOfChaosOutcomeEchoes(
-        [
-          { kind: 'legend', value: outcome.legendEvent },
-          { kind: 'title', value: outcome.title },
-        ],
-        projectRoot,
-      )
-      showResult(outcome.ending)
-      return
-    }
-
-    if (outcome.key === 'oath') {
-      applySwordsOfChaosOutcomeEchoes(
-        [
-          { kind: 'legend', value: outcome.legendEvent },
-          { kind: 'oath', value: outcome.oath },
-        ],
-        projectRoot,
-      )
-      showResult(outcome.ending)
-      return
-    }
-
-    if (outcome.key === 'truth') {
-      applySwordsOfChaosOutcomeEchoes(
-        [
-          { kind: 'legend', value: outcome.legendEvent },
-          { kind: 'truth', value: outcome.truth },
-        ],
-        projectRoot,
-      )
-      showResult(outcome.ending)
-      return
-    }
-
-    applySwordsOfChaosOutcomeEchoes(
-      [{ kind: 'legend', value: outcome.legendEvent }],
-      projectRoot,
-    )
-    showResult(outcome.ending)
+    showResult(resolution.resultText)
   }
 
   if (screen === 'wager') {
