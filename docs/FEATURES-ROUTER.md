@@ -201,7 +201,36 @@ Important truth:
   - project exploration stays broader but still project-bound
   - companion chat should not quietly become project-working state
   - `/btw` stays sidecar and ephemeral
-  - `/game` keeps its outcomes inside the hidden shell instead of cluttering the main project transcript
+- `/game` keeps its outcomes inside the hidden shell instead of cluttering the main project transcript
+
+## Mermaid / architecture / journey maps
+
+Keywords:
+
+- mermaid
+- architecture map
+- flow map
+- user journey
+- journey map
+- diagram
+- update architecture doc
+
+Next steps:
+
+- Use `/mermaid` for the menu-driven Mermaid command
+- Use `/mermaid project` to write a high-level project map
+- Use `/mermaid focus <path-or-feature>` to map one area
+- Use `/mermaid flow <path-or-feature>` to trace a command or runtime path
+- Use `/mermaid journey <feature>` to write a user journey map
+- Use `/mermaid update <existing-doc>` to refresh an existing Mermaid doc
+- Use `/mermaid explain` to list Mermaid docs already present in the repo
+
+Important truth:
+
+- `/mermaid` writes durable markdown docs, not just chat output
+- the feature prefers repo evidence over invention
+- different diagram intents use different Mermaid shapes
+- the point is architecture thinking and clarity, not decorative diagram spam
 
 ## GitHub Actions / install-github-app
 

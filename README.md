@@ -53,6 +53,7 @@ and context-domain Mermaid map.
 - make unsupported surfaces explicit instead of pretending they work
 - provide a more approachable user-facing shell through `ct` / `seaturtle`
 - make research a real SeaTurtle strength: use strong sources, papers, and field guidance when they help, but treat them as high-quality evidence to test against user intent, repo reality, and working hypotheses rather than as unquestionable truth
+- turn architecture thinking into a first-class workflow, including Mermaid-backed project maps, flow maps, focused maps, and user journey maps generated from real repo evidence
 
 ## Current Status
 
@@ -74,6 +75,7 @@ and context-domain Mermaid map.
 - per-project reminders with `/remindme` / `/rm`
 - rainbow theme control with `/lolcat`, including animated and persistent modes
 - rare startup haiku and on-demand SeaTurtle poems with `/haiku`
+- menu-driven Mermaid docs with `/mermaid`, including project, focused, flow, journey, explain, and update paths
 
 ### Intentionally Gated Or Still Anthropic-Bound
 
@@ -137,6 +139,7 @@ Inside CT, the next-step commands to know first are:
 - `/remindme`
 - `/lolcat`
 - `/haiku`
+- `/mermaid`
 - `/ct`
 
 ### CT Private Layer
@@ -187,6 +190,14 @@ Use `/ct` to:
 - retune CT conversationally for the current project
 - edit any of the private `.ct` files directly
 - manage the global SeaTurtle starter defaults for future projects
+
+Use `/mermaid` to:
+
+- generate a high-level project map
+- generate a focused architecture doc for one area
+- generate a flow map for a command or runtime path
+- generate a user journey map for a feature
+- update an existing Mermaid doc from current repo evidence
 
 ## Installation And Prerequisites
 
