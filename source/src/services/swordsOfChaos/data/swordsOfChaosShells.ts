@@ -190,3 +190,87 @@ export const SWORDS_OF_CHAOS_RETURNING_SECOND_BEATS: Record<
     ],
   },
 }
+
+export const SWORDS_OF_CHAOS_THREADMARKED_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The lamp throws a second shadow that does not belong to either of you. The alley acts as if it has already chosen a side.',
+    intro:
+      'Steel is no longer the question. Something behind the alley has started taking an interest in how violence names a place. The moment feels less private than it used to.',
+    options: [
+      {
+        label: 'Cut where the shadow thickens',
+        value: 'cut-the-sign-chain',
+        description:
+          'Strike the place where the false dark gathers and see whether the alley bleeds symbol or wire.',
+      },
+      {
+        label: 'Refuse the offered script',
+        value: 'hold-the-line',
+        description:
+          'Stay exactly where you are and make the larger thing reveal how badly it needs your participation.',
+      },
+      {
+        label: 'Turn the blade aside',
+        value: 'lower-the-blade',
+        description:
+          'Deny the scene the ending it wants and see what kind of pressure remains without violence.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The rain holds its breath around you. Even the alley seems to understand that something else has entered the negotiation.',
+    intro:
+      'Courtesy has become a live wire. The place now reads your calm as either an opening, a ward, or a refusal to let the thread name the terms.',
+    options: [
+      {
+        label: 'Keep the warding posture',
+        value: 'keep-bowing',
+        description:
+          'Let the gesture harden into something the alley cannot easily turn into obedience.',
+      },
+      {
+        label: 'Answer the hidden witness',
+        value: 'meet-the-gaze',
+        description:
+          'Lift your chin as if the real conversation is happening one layer behind the visible one.',
+      },
+      {
+        label: 'Ask who profits',
+        value: 'ask-the-price',
+        description:
+          'Treat the whole moment like a bargain someone larger is trying to close around you.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The alley does not laugh. Something beyond it almost does.',
+    intro:
+      'The bluff has crossed a threshold. What used to feel like nerve now feels like you may have accidentally addressed a room larger than the one you can see.',
+    options: [
+      {
+        label: 'Give the myth a sharper name',
+        value: 'name-a-false-title',
+        description:
+          'Say the lie as if it has already become institutional truth somewhere nearby.',
+      },
+      {
+        label: 'Smile at the unseen audience',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Play to the thing behind the alley and see whether it prefers confidence or sacrilege.',
+      },
+      {
+        label: 'Confess without kneeling',
+        value: 'double-down',
+        description:
+          'Keep talking, but bend the bluff until it sounds like a dangerous half-truth.',
+      },
+    ],
+  },
+}

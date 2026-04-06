@@ -245,9 +245,12 @@ function renderDeterministicScene(
   }
 
   const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
-  const secondBeat = returningAgain
-    ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
-    : getSwordsSecondBeat(payload.openingChoice)
+  const secondBeat =
+    payload.relevantMemory?.canonThread && returningAgain
+      ? getSwordsSecondBeatVariant(payload.openingChoice, 'threadmarked')
+      : returningAgain
+        ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
+        : getSwordsSecondBeat(payload.openingChoice)
   const canonPressure = getCanonThreadPressure(payload.relevantMemory)
   return {
     subtitle:
