@@ -19,11 +19,15 @@ import {
   addInventoryItem,
   addTitle,
   addOath,
+  addUserTruth,
   addRarityUnlock,
   updateCtGameState,
 } from '../../services/projectIdentity/archives.js'
 import {
   getSwordsOfChaosOutcome,
+  type SwordsOfChaosOpeningChoice,
+  type SwordsOfChaosRoute,
+  type SwordsOfChaosSecondChoice,
   TIDE_DICE_REWARDS,
   WAGER_REWARDS,
 } from '../../services/game/rewards.js'
@@ -37,8 +41,115 @@ type OnExit = (
 
 type Screen = 'menu' | 'wager' | 'tide-dice' | 'swords-of-chaos'
 
+type SwordsEncounter = {
+  openingChoice: SwordsOfChaosOpeningChoice | null
+}
+
+type SwordsSecondBeatOption = {
+  label: string
+  value: SwordsOfChaosSecondChoice
+  description: string
+}
+
+function getSwordsOpeningLabel(choice: SwordsOfChaosOpeningChoice): string {
+  switch (choice) {
+    case 'draw-steel':
+      return 'Draw Steel'
+    case 'bow-slightly':
+      return 'Bow Slightly'
+    case 'talk-like-you-belong':
+      return "Talk Like You've Been Here Before"
+  }
+}
+
+function getSwordsSecondBeat(
+  choice: SwordsOfChaosOpeningChoice,
+): {
+  subtitle: string
+  intro: string
+  options: SwordsSecondBeatOption[]
+} {
+  switch (choice) {
+    case 'draw-steel':
+      return {
+        subtitle:
+          'The trench-coat turtle shifts one step sideways. The broken sign hums louder.',
+        intro:
+          'You have announced yourself with steel. Now the alley wants to know whether you came for theater, balance, or trouble.',
+        options: [
+          {
+            label: 'Cut the sign chain',
+            value: 'cut-the-sign-chain',
+            description: 'Strike the alley itself and see what falls free',
+          },
+          {
+            label: 'Hold the line',
+            value: 'hold-the-line',
+            description: 'Stay still enough to make the moment blink first',
+          },
+          {
+            label: 'Lower the blade',
+            value: 'lower-the-blade',
+            description: 'Refuse the easy script without backing down',
+          },
+        ],
+      }
+    case 'bow-slightly':
+      return {
+        subtitle:
+          'The turtle returns the gesture by half a breath. The rain keeps score.',
+        intro:
+          'Respect bought you a second moment. The alley now wants to see whether your calm is discipline, courage, or curiosity.',
+        options: [
+          {
+            label: 'Keep bowing',
+            value: 'keep-bowing',
+            description: 'Stay with the gesture until it means something new',
+          },
+          {
+            label: 'Meet the gaze',
+            value: 'meet-the-gaze',
+            description: 'Raise your head and answer without aggression',
+          },
+          {
+            label: 'Ask the price',
+            value: 'ask-the-price',
+            description: 'Treat the alley like a bargain and see what it asks back',
+          },
+        ],
+      }
+    case 'talk-like-you-belong':
+      return {
+        subtitle:
+          'The trench-coat turtle lets the silence run just long enough to become dangerous.',
+        intro:
+          'You walked in as if this place already knew you. Now you have to prove whether that was charm, nerve, or a spectacular mistake.',
+        options: [
+          {
+            label: 'Name a false title',
+            value: 'name-a-false-title',
+            description: 'Push the bluff into outright mythmaking',
+          },
+          {
+            label: 'Laugh like you mean it',
+            value: 'laugh-like-you-mean-it',
+            description: 'Treat the alley like an old joke that finally landed',
+          },
+          {
+            label: 'Double down',
+            value: 'double-down',
+            description: 'Keep the bit alive until reality has to pick a side',
+          },
+        ],
+      }
+  }
+}
+
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [screen, setScreen] = React.useState<Screen>('menu')
+  const [swordsEncounter, setSwordsEncounter] = React.useState<SwordsEncounter>({
+    openingChoice: null,
+  })
   const projectRoot = getCtProjectRoot()
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
@@ -131,8 +242,12 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
   }
 
-  function finishSwordsOfChaos(choice: 'draw-steel' | 'bow-slightly'): void {
-    const outcome = getSwordsOfChaosOutcome(Math.floor(Math.random() * 4))
+  function finishSwordsOfChaos(
+    openingChoice: SwordsOfChaosOpeningChoice,
+    secondChoice: SwordsOfChaosSecondChoice,
+  ): void {
+    const route = `${openingChoice}:${secondChoice}` as SwordsOfChaosRoute
+    const outcome = getSwordsOfChaosOutcome(route)
 
     updateCtGameState(
       current => ({
@@ -146,57 +261,49 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       projectRoot,
     )
 
+    recordCtGameResult(outcome.gameResult, projectRoot)
+    addLegendEvent(outcome.legendEvent, projectRoot)
+
     if (outcome.key === 'relic') {
-      recordCtGameResult('win', projectRoot)
       addInventoryItem(outcome.inventory, projectRoot)
-      addLegendEvent(
-        `Survived Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'} and came away with a ${outcome.inventory}.`,
-        projectRoot,
-      )
+      if (outcome.rarityUnlock) {
+        addRarityUnlock(outcome.rarityUnlock, projectRoot)
+      }
       onExit(
-        `Swords of Chaos ends with a strange little victory.\n\nA turtle in a trench coat vanishes into the dark and leaves behind a ${outcome.inventory}.\n\nThe relic is now in the Half-Shell Archives.`,
+        outcome.ending,
         { display: 'system' },
       )
       return
     }
 
     if (outcome.key === 'title') {
-      recordCtGameResult('win', projectRoot)
       addTitle(outcome.title, projectRoot)
-      addLegendEvent(
-        `Won a title in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
-        projectRoot,
-      )
       onExit(
-        `Swords of Chaos closes with an old arcade hush.\n\nThe trench-coat turtle names you ${outcome.title}, then disappears.\n\nThe title is now in the Half-Shell Archives.`,
+        outcome.ending,
         { display: 'system' },
       )
       return
     }
 
     if (outcome.key === 'oath') {
-      recordCtGameResult('played', projectRoot)
       addOath(outcome.oath, projectRoot)
-      addLegendEvent(
-        `Accepted an oath in Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
-        projectRoot,
-      )
       onExit(
-        `Swords of Chaos does not give you a prize this time.\n\nInstead, the trench-coat turtle leaves you with an oath: "${outcome.oath}"\n\nThe oath is now in the Half-Shell Archives.`,
+        outcome.ending,
         { display: 'system' },
       )
       return
     }
 
-    recordCtGameResult('loss', projectRoot)
-    addLegendEvent(
-      `Was turned away from Swords of Chaos after choosing ${choice === 'draw-steel' ? 'Draw Steel' : 'Bow Slightly'}.`,
-      projectRoot,
-    )
-    onExit(
-      'Swords of Chaos snaps shut before it really begins.\n\nThe trench-coat turtle tilts its head, decides you are not ready, and the alley goes dark.\n\nThe refusal is recorded in the Half-Shell Archives.',
-      { display: 'system' },
-    )
+    if (outcome.key === 'truth') {
+      addUserTruth(outcome.truth, projectRoot)
+      onExit(
+        outcome.ending,
+        { display: 'system' },
+      )
+      return
+    }
+
+    onExit(outcome.ending, { display: 'system' })
   }
 
   if (screen === 'wager') {
@@ -284,16 +391,74 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   }
 
   if (screen === 'swords-of-chaos') {
+    const openingChoice = swordsEncounter.openingChoice
+
+    if (openingChoice) {
+      const secondBeat = getSwordsSecondBeat(openingChoice)
+
+      return (
+        <Dialog
+          title="Swords of Chaos"
+          subtitle={secondBeat.subtitle}
+          onCancel={() =>
+            setSwordsEncounter({
+              openingChoice: null,
+            })
+          }
+        >
+          <Box flexDirection="column" gap={1}>
+            <Text dimColor>
+              {getSwordsOpeningLabel(openingChoice)} got you this far. The
+              alley seems interested now.
+            </Text>
+            <Text dimColor>{secondBeat.intro}</Text>
+            <Select
+              options={[
+                ...secondBeat.options,
+                {
+                  label: 'Step back out of the alley',
+                  value: 'back',
+                  description: 'Leave before the sign decides for you',
+                },
+              ]}
+              onChange={value => {
+                if (value === 'back') {
+                  setSwordsEncounter({
+                    openingChoice: null,
+                  })
+                  return
+                }
+
+                finishSwordsOfChaos(
+                  openingChoice,
+                  value as SwordsOfChaosSecondChoice,
+                )
+              }}
+              onCancel={() =>
+                setSwordsEncounter({
+                  openingChoice: null,
+                })
+              }
+            />
+          </Box>
+        </Dialog>
+      )
+    }
+
     return (
       <Dialog
         title="Swords of Chaos"
-        subtitle="A short BBS alleyway. A trench-coat turtle. A bad decision waiting to happen."
+        subtitle="A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting."
         onCancel={() => setScreen('menu')}
       >
         <Box flexDirection="column" gap={1}>
           <Text dimColor>
             Neon rain. A humming sign. A trench-coat turtle under one broken
             lamp.
+          </Text>
+          <Text dimColor>
+            The first move matters here. Pick the posture that feels most like
+            trouble you can survive.
           </Text>
           <Select
             options={[
@@ -308,6 +473,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                 description: 'Respect the moment and hope it respects you back',
               },
               {
+                label: "Talk Like You've Been Here Before",
+                value: 'talk-like-you-belong',
+                description: 'Bluff familiarity and let the alley decide whether to believe you',
+              },
+              {
                 label: 'Retreat to safer waters',
                 value: 'back',
                 description: 'Leave the alley before the sign flickers again',
@@ -319,7 +489,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                 return
               }
 
-              finishSwordsOfChaos(value as 'draw-steel' | 'bow-slightly')
+              setSwordsEncounter({
+                openingChoice: value as SwordsOfChaosOpeningChoice,
+              })
             }}
             onCancel={() => setScreen('menu')}
           />
@@ -405,6 +577,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               }
 
               if (value === 'swords-of-chaos') {
+                setSwordsEncounter({
+                  openingChoice: null,
+                })
                 setScreen('swords-of-chaos')
                 return
               }
