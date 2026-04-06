@@ -25,9 +25,12 @@ export function getSwordsOfChaosRelevantMemory(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosRelevantMemory {
   const memory = deriveSwordsOfChaosMemory(save)
+  const alleyMemory = save.encounterMemory['trench-coat-turtle-alley']
   return {
     familiarPlace: memory.familiarPlaces[0],
     priorRoutes: memory.priorRoutes,
     roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
+    revisitCount: alleyMemory?.visits ?? 0,
+    lastRoute: alleyMemory?.lastRoute ?? undefined,
   }
 }

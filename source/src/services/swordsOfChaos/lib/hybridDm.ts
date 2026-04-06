@@ -65,6 +65,15 @@ function applyOpeningCallbackMemory(
       default:
         return option
     }
+  }).sort((left, right) => {
+    const leftSeen = priorOpeners.has(left.value)
+    const rightSeen = priorOpeners.has(right.value)
+
+    if (leftSeen === rightSeen) {
+      return 0
+    }
+
+    return leftSeen ? 1 : -1
   })
 }
 
@@ -127,21 +136,28 @@ function renderDeterministicScene(
   if (payload.stage === 'opening') {
     const familiar =
       payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
+    const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
     return {
       subtitle:
         familiar
-          ? 'The alley seems to know you now. The broken lamp does too.'
+          ? returningAgain
+            ? 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
+            : 'The alley seems to know you now. The broken lamp does too.'
           : 'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
       sceneText:
         familiar
-          ? `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
+          ? returningAgain
+            ? `Neon rain again, but the sign is darker now and the brickwork carries marks you do not remember leaving. Something in the alley has had time to think about you.\n\nThe last road you walked here still hangs in the air. ${payload.relevantMemory?.roadNotTakenHint ?? 'Another answer is waiting to see whether you are capable of it.'}`
+            : `Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.\n\nYou could swear you have stood here before. ${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
           : 'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
       options: applyOpeningCallbackMemory(
         getSwordsOpeningOptions(),
         payload.relevantMemory,
       ),
       hintText: familiar
-        ? 'A familiar place rarely offers the same meaning twice.'
+        ? returningAgain
+          ? 'The alley remembers your last answer. It is more interested in the one you withheld.'
+          : 'A familiar place rarely offers the same meaning twice.'
         : 'Choose a stance, not just an action.',
     }
   }
