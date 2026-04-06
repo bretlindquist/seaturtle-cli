@@ -3,6 +3,7 @@ import type {
   SwordsOfChaosMutationEvent,
 } from '../types/events.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
+import { SWORDS_OF_CHAOS_THREAD_CANONIZATION_THRESHOLD } from '../config/coreRules.js'
 
 function appendUnique(list: string[], value: string): string[] {
   if (list.includes(value)) {
@@ -38,6 +39,32 @@ function applyEncounterMemoryRecord(
   }
 }
 
+function applyThreadMemoryRecord(
+  save: SwordsOfChaosSaveFile,
+  event: Extract<SwordsOfChaosMutationEvent, { kind: 'thread_memory_record' }>,
+): SwordsOfChaosSaveFile {
+  const current = save.threadMemory[event.thread] ?? {
+    sightings: 0,
+    canonized: false,
+    lastSeenAt: null,
+  }
+  const sightings = current.sightings + 1
+
+  return {
+    ...save,
+    threadMemory: {
+      ...save.threadMemory,
+      [event.thread]: {
+        sightings,
+        canonized:
+          current.canonized ||
+          sightings >= SWORDS_OF_CHAOS_THREAD_CANONIZATION_THRESHOLD,
+        lastSeenAt: event.seenAt,
+      },
+    },
+  }
+}
+
 function applyMutationEvent(
   save: SwordsOfChaosSaveFile,
   event: SwordsOfChaosMutationEvent,
@@ -66,6 +93,8 @@ function applyMutationEvent(
         ...save,
         threadCandidates: appendUnique(save.threadCandidates, event.thread),
       }
+    case 'thread_memory_record':
+      return applyThreadMemoryRecord(save, event)
     case 'callback_marker_add':
       return {
         ...save,

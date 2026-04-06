@@ -25,6 +25,12 @@ export type SwordsOfChaosEncounterMemory = {
   lastRoute: string | null
 }
 
+export type SwordsOfChaosThreadMemory = {
+  sightings: number
+  canonized: boolean
+  lastSeenAt: number | null
+}
+
 export type SwordsOfChaosSaveFile = {
   version: 1
   player: SwordsOfChaosPlayerState
@@ -40,6 +46,7 @@ export type SwordsOfChaosSaveFile = {
   callbackMarkers: string[]
   unresolvedBranches: string[]
   threadCandidates: string[]
+  threadMemory: Record<string, SwordsOfChaosThreadMemory>
   encounterMemory: Record<string, SwordsOfChaosEncounterMemory>
   seaturtle: SwordsOfChaosSeaTurtleState
   runHistorySummary: SwordsOfChaosRunHistorySummary

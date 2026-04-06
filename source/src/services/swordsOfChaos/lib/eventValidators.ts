@@ -30,6 +30,11 @@ function validateMutationEvent(event: SwordsOfChaosMutationEvent): void {
         throw new Error('Invalid thread_candidate_add event')
       }
       return
+    case 'thread_memory_record':
+      if (!event.thread.trim() || typeof event.seenAt !== 'number') {
+        throw new Error('Invalid thread_memory_record event')
+      }
+      return
     case 'callback_marker_add':
       if (!event.marker.trim()) {
         throw new Error('Invalid callback_marker_add event')

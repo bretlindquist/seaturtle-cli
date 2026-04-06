@@ -9,11 +9,13 @@ export function migrateSwordsOfChaosSave(
   }
 
   const candidate = input as Partial<SwordsOfChaosSaveFile> & {
+    threadMemory?: SwordsOfChaosSaveFile['threadMemory']
     encounterMemory?: SwordsOfChaosSaveFile['encounterMemory']
   }
 
   return validateSwordsOfChaosSave({
     ...candidate,
+    threadMemory: candidate.threadMemory ?? {},
     encounterMemory: candidate.encounterMemory ?? {},
   })
 }

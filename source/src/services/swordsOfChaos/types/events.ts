@@ -32,6 +32,11 @@ export type SwordsOfChaosMutationEvent =
       thread: string
     }
   | {
+      kind: 'thread_memory_record'
+      thread: string
+      seenAt: number
+    }
+  | {
       kind: 'callback_marker_add'
       marker: string
     }

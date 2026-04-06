@@ -7,6 +7,7 @@ export type SwordsOfChaosRelevantMemory = {
   recentTitle?: string
   recentRelic?: string
   liveThread?: string
+  canonThread?: string
 }
 
 export type SwordsOfChaosDerivedMemory = {
@@ -17,4 +18,5 @@ export type SwordsOfChaosDerivedMemory = {
   recentTitle?: string
   recentRelic?: string
   liveThread?: string
+  canonThread?: string
 }

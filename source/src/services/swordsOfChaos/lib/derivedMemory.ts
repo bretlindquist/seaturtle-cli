@@ -20,9 +20,15 @@ export function deriveSwordsOfChaosMemory(
   )
   const recentTitle = save.progression.titles.at(-1)
   const recentRelic = save.inventory.at(-1)
+  const canonThread = Object.entries(save.threadMemory)
+    .filter(([, thread]) => thread.canonized)
+    .sort((left, right) => right[1].sightings - left[1].sightings)[0]?.[0]
   const liveThread = [...save.threadCandidates]
     .reverse()
-    .find(thread => thread !== 'trench-coat-turtle-alley')
+    .find(
+      thread =>
+        thread !== 'trench-coat-turtle-alley' && thread !== canonThread,
+    )
 
   return {
     version: 1,
@@ -38,6 +44,7 @@ export function deriveSwordsOfChaosMemory(
     recentTitle,
     recentRelic,
     liveThread,
+    canonThread,
   }
 }
 

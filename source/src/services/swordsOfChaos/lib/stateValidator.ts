@@ -26,6 +26,27 @@ function isEncounterMemoryRecord(
   })
 }
 
+function isThreadMemoryRecord(
+  value: unknown,
+): value is SwordsOfChaosSaveFile['threadMemory'] {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  return Object.values(value).every(entry => {
+    if (!entry || typeof entry !== 'object') {
+      return false
+    }
+
+    const memory = entry as SwordsOfChaosSaveFile['threadMemory'][string]
+    return (
+      typeof memory.sightings === 'number' &&
+      typeof memory.canonized === 'boolean' &&
+      (typeof memory.lastSeenAt === 'number' || memory.lastSeenAt === null)
+    )
+  })
+}
+
 export function isSwordsOfChaosSaveFile(
   input: unknown,
 ): input is SwordsOfChaosSaveFile {
@@ -53,6 +74,7 @@ export function isSwordsOfChaosSaveFile(
     isStringArray(value.callbackMarkers) &&
     isStringArray(value.unresolvedBranches) &&
     isStringArray(value.threadCandidates) &&
+    isThreadMemoryRecord(value.threadMemory) &&
     isEncounterMemoryRecord(value.encounterMemory) &&
     !!value.seaturtle &&
     typeof value.seaturtle.bond === 'number' &&

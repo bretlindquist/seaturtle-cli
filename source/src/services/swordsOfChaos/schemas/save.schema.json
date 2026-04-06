@@ -14,6 +14,7 @@
     "callbackMarkers",
     "unresolvedBranches",
     "threadCandidates",
+    "threadMemory",
     "encounterMemory",
     "seaturtle",
     "runHistorySummary"
@@ -81,6 +82,21 @@
     "threadCandidates": {
       "type": "array",
       "items": { "type": "string" }
+    },
+    "threadMemory": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sightings", "canonized", "lastSeenAt"],
+        "properties": {
+          "sightings": { "type": "number" },
+          "canonized": { "type": "boolean" },
+          "lastSeenAt": {
+            "type": ["number", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "encounterMemory": {
       "type": "object",

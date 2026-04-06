@@ -103,6 +103,10 @@ function getSecondBeatLead(
 function getReturningWeight(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
+  if (relevantMemory?.canonThread) {
+    return `One thread has started hardening into something the world intends to keep: ${relevantMemory.canonThread}.`
+  }
+
   if (relevantMemory?.recentRelic) {
     return `Whatever you carried out of this world last time has not stopped humming: ${relevantMemory.recentRelic}.`
   }
@@ -163,7 +167,9 @@ function renderDeterministicScene(
       subtitle:
         familiar
           ? returningAgain
-            ? 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
+            ? payload.relevantMemory?.canonThread
+              ? 'The alley has rearranged itself around your absence. Something larger is starting to use it as a doorway.'
+              : 'The alley has rearranged itself around your absence. The broken lamp still refuses to forget you.'
             : 'The alley seems to know you now. The broken lamp does too.'
           : 'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
       sceneText:
@@ -178,7 +184,9 @@ function renderDeterministicScene(
       ),
       hintText: familiar
         ? returningAgain
-          ? 'The alley remembers your last answer. It is more interested in the one you withheld.'
+          ? payload.relevantMemory?.canonThread
+            ? 'The alley remembers your last answer, but the thread behind it has started remembering you too.'
+            : 'The alley remembers your last answer. It is more interested in the one you withheld.'
           : 'A familiar place rarely offers the same meaning twice.'
         : 'Choose a stance, not just an action.',
     }

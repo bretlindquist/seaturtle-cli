@@ -53,6 +53,8 @@ function buildHostEchoes(route: SwordsOfChaosRoute): SwordsOfChaosHostEcho[] {
 
 function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
   const outcome = getSwordsOfChaosOutcome(route)
+  const outcomeThread = getOutcomeThread(route)
+  const seenAt = Date.now()
   return {
     at: Date.now(),
     events: [
@@ -67,7 +69,12 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
       },
       {
         kind: 'thread_candidate_add',
-        thread: getOutcomeThread(route),
+        thread: outcomeThread,
+      },
+      {
+        kind: 'thread_memory_record',
+        thread: outcomeThread,
+        seenAt,
       },
       {
         kind: 'callback_marker_add',

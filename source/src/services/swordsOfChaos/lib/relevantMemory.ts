@@ -35,5 +35,6 @@ export function getSwordsOfChaosRelevantMemory(
     recentTitle: memory.recentTitle,
     recentRelic: memory.recentRelic,
     liveThread: memory.liveThread,
+    canonThread: memory.canonThread,
   }
 }
