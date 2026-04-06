@@ -106,3 +106,87 @@ export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
     ],
   },
 }
+
+export const SWORDS_OF_CHAOS_RETURNING_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The sign chain is already swaying when your hand reaches the hilt. Something in the alley moved first this time.',
+    intro:
+      'Steel is not an announcement anymore. Here, it is a remembered argument. The alley wants to know whether you came back to finish it, redirect it, or finally refuse it.',
+    options: [
+      {
+        label: 'Break the lamp shadow',
+        value: 'cut-the-sign-chain',
+        description:
+          'Strike where the light fails instead of where the chain hangs. Something else might answer.',
+      },
+      {
+        label: 'Stand where you stood before',
+        value: 'hold-the-line',
+        description:
+          'Take the remembered ground on purpose and dare the alley to repeat itself exactly.',
+      },
+      {
+        label: 'Sheathe the old argument',
+        value: 'lower-the-blade',
+        description:
+          'Lower the steel like a man ending a quarrel that outlived its use.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'This time the rain breaks around the gesture instead of through it. Even the alley seems careful with the moment.',
+    intro:
+      'Respect has history here now. The place is no longer testing whether you are calm. It is testing whether your calm can change what happens next.',
+    options: [
+      {
+        label: 'Hold the old courtesy',
+        value: 'keep-bowing',
+        description:
+          'Stay in the gesture until the alley has to decide whether it is ritual or surrender.',
+      },
+      {
+        label: 'Lift your chin slowly',
+        value: 'meet-the-gaze',
+        description:
+          'Answer the remembered moment with a steadier version of yourself.',
+      },
+      {
+        label: 'Ask what changed',
+        value: 'ask-the-price',
+        description:
+          'Treat the alley like a bargain that has had time to reconsider its terms.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The silence does not turn dangerous this time. It turns amused, which is somehow worse.',
+    intro:
+      'The bluff survived long enough to become part of the place. Now the alley wants to know whether you came back to deepen the lie, inherit it, or finally speak plain.',
+    options: [
+      {
+        label: 'Use the old name again',
+        value: 'name-a-false-title',
+        description:
+          'Say the myth once more and see whether repetition makes it truer or thinner.',
+      },
+      {
+        label: 'Laugh like you know the punchline',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Treat the whole remembered tension like a private joke the alley almost understands.',
+      },
+      {
+        label: 'Tell the truth crookedly',
+        value: 'double-down',
+        description:
+          'Push forward, but bend the bluff just enough that it starts sounding like confession.',
+      },
+    ],
+  },
+}

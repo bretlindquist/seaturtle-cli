@@ -16,6 +16,7 @@ export {
   getSwordsOpeningLabel,
   getSwordsOpeningOptions,
   getSwordsSecondBeat,
+  getSwordsSecondBeatVariant,
 } from './lib/shells.js'
 export { renderSwordsOfChaosHybridScene } from './lib/hybridDm.js'
 export { getSwordsOfChaosRelevantMemory } from './lib/relevantMemory.js'

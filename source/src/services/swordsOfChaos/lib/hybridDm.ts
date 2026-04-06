@@ -3,7 +3,11 @@ import {
   buildSwordsOfChaosPromptBundle,
   buildSwordsOfChaosSaveSummary,
 } from './dmPromptBuilder.js'
-import { getSwordsOpeningOptions, getSwordsSecondBeat } from './shells.js'
+import {
+  getSwordsOpeningOptions,
+  getSwordsSecondBeat,
+  getSwordsSecondBeatVariant,
+} from './shells.js'
 import type {
   SwordsOfChaosDmSceneResponse,
   SwordsOfChaosPromptPayload,
@@ -166,7 +170,10 @@ function renderDeterministicScene(
     throw new Error('Second-beat scene requires an opening choice')
   }
 
-  const secondBeat = getSwordsSecondBeat(payload.openingChoice)
+  const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
+  const secondBeat = returningAgain
+    ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
+    : getSwordsSecondBeat(payload.openingChoice)
   return {
     subtitle: secondBeat.subtitle,
     sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}`,
