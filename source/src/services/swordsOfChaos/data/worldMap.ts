@@ -71,4 +71,20 @@ export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
         'Every sealed door on the ring feels like an old refusal given hardware, pressure, and time.',
     },
   },
+  'fae-realm': {
+    connectiveWeight:
+      'The fae grove does not break the map. It feels like the same world slipping into glamour, witness, and older bargains.',
+    threadEchoes: {
+      'half-shell-relic-trail':
+        'Shell-green glints in dew and enamel alike, as if the relic trail can teach even petals how to corrode.',
+      'broken-lamp-witnesses':
+        'The watching light has become foxfire and moth-lantern, but it is still the same witness changing masks.',
+      'alley-oath-keepers':
+        'Promises here bind like old courtesy: beautiful until you realize beauty is just another enforcement layer.',
+      'sign-truth-fractures':
+        'Names slip a little sideways here too, as if glamour and broken signage learned the same trick from different tutors.',
+      'quiet-refusals':
+        'Every path not taken in the grove still glows faintly, unwilling to admit it has been abandoned.',
+    },
+  },
 }

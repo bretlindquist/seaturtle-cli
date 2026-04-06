@@ -93,6 +93,15 @@ export const SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL: SwordsOpeningShell = {
     'Some places do not remember you as a person first. They remember you as a variable.',
 }
 
+export const SWORDS_OF_CHAOS_FAE_REALM_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You open your eyes in a grove lit by patient foxfire, where every leaf seems to be listening for a promise you do not remember making.',
+  sceneText:
+    'Silver roots break through black water. Lantern-moths drift between pale trunks, and somewhere just beyond sight a courtly laugh decides whether you arrived as guest, trespasser, or entertainment. The same pressure from the alley is here, only dressed in beauty that knows it is armed.',
+  hintText:
+    'Some places test you with danger. Others test whether you can recognize danger wearing grace.',
+}
+
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
   SwordsSecondBeat
@@ -583,6 +592,90 @@ export const SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the station has to decide whether you are operator, ghost, or error condition.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_FAE_REALM_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The foxfire leans away from the blade, but the grove itself seems delighted that you answered beauty with steel.',
+    intro:
+      'Force in a fae place is never only force. It is insult, invitation, or proof that you still believe edges can tell truth from glamour.',
+    options: [
+      {
+        label: 'Cut the lantern vine',
+        value: 'cut-the-sign-chain',
+        description:
+          'Sever the glowing vine above you and see whether the light falls, screams, or changes its mind.',
+      },
+      {
+        label: 'Stand in the black water',
+        value: 'hold-the-line',
+        description:
+          'Hold your ground in the mirrored pool and make the grove reveal which version of you it wants to keep.',
+      },
+      {
+        label: 'Lower the sword to the moss',
+        value: 'lower-the-blade',
+        description:
+          'Refuse to let the realm choreograph you into violence and see what kind of courtesy it respects instead.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The grove answers with a curtsy of branches. Somewhere unseen, something older than manners approves of your nerve.',
+    intro:
+      'Courtesy in the fae dark is dangerous because it can mean reverence, challenge, or a willingness to play by rules no one explained aloud.',
+    options: [
+      {
+        label: 'Hold the courtly line',
+        value: 'keep-bowing',
+        description:
+          'Remain in the gesture until the grove has to decide whether you are offering respect or demanding recognition.',
+      },
+      {
+        label: 'Raise your eyes to the foxfire',
+        value: 'meet-the-gaze',
+        description:
+          'Meet the nearest light as if it were the visible edge of the real witness.',
+      },
+      {
+        label: 'Ask which promise brought you here',
+        value: 'ask-the-price',
+        description:
+          'Treat the whole grove like the aftermath of a bargain you do not remember consenting to.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The laugh comes again, closer now. In the grove, confidence sounds dangerously similar to remembered rank.',
+    intro:
+      'Bluffing familiarity in a fae place risks more than embarrassment. It risks the realm deciding you really do belong to one of its older stories.',
+    options: [
+      {
+        label: 'Name the hidden court',
+        value: 'name-a-false-title',
+        description:
+          'Speak as if you know exactly which house claims the lanterns, the roots, and the right to judge you.',
+      },
+      {
+        label: 'Laugh with the unseen host',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Answer the distant amusement like you and the grove have already survived one another before.',
+      },
+      {
+        label: 'Keep talking through the glamour',
+        value: 'double-down',
+        description:
+          'Push the bluff until the realm must either expose you or seat you at a table you never meant to find.',
       },
     ],
   },

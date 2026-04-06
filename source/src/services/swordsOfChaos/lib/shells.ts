@@ -9,6 +9,8 @@ import {
   SWORDS_OF_CHAOS_RETURNING_OPENING_SHELL,
   SWORDS_OF_CHAOS_RETURNING_SECOND_BEATS,
   SWORDS_OF_CHAOS_SEATURTLE_OPENING_SHELL,
+  SWORDS_OF_CHAOS_FAE_REALM_OPENING_SHELL,
+  SWORDS_OF_CHAOS_FAE_REALM_SECOND_BEATS,
   SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL,
   SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS,
   SWORDS_OF_CHAOS_SECOND_BEATS,
@@ -40,9 +42,12 @@ export function getSwordsOpeningShellVariant(
     | 'seaturtle'
     | 'old-tree'
     | 'ocean-ship'
-    | 'space-station',
+    | 'space-station'
+    | 'fae-realm',
 ): SwordsOpeningShell {
   switch (variant) {
+    case 'fae-realm':
+      return SWORDS_OF_CHAOS_FAE_REALM_OPENING_SHELL
     case 'space-station':
       return SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL
     case 'ocean-ship':
@@ -74,9 +79,12 @@ export function getSwordsSecondBeatVariant(
     | 'threadmarked'
     | 'old-tree'
     | 'ocean-ship'
-    | 'space-station',
+    | 'space-station'
+    | 'fae-realm',
 ): SwordsSecondBeat {
   switch (variant) {
+    case 'fae-realm':
+      return SWORDS_OF_CHAOS_FAE_REALM_SECOND_BEATS[choice]
     case 'space-station':
       return SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS[choice]
     case 'ocean-ship':

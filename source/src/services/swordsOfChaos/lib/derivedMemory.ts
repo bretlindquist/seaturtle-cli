@@ -59,6 +59,10 @@ export function deriveSwordsOfChaosMemory(
         ? 'ocean-ship'
         : alleyMemory &&
             alleyMemory.visits >= 4 &&
+            canonThread === 'broken-lamp-witnesses'
+          ? 'fae-realm'
+        : alleyMemory &&
+            alleyMemory.visits >= 4 &&
             canonThread === 'sign-truth-fractures'
           ? 'space-station'
         : 'alley'
