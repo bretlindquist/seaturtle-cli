@@ -11,6 +11,7 @@ import {
 } from './shells.js'
 import {
   getSwordsEncounterLocus,
+  getSwordsRecurringSymbol,
   getSwordsThreadEcho,
   getSwordsWorldMapWeight,
 } from './worldMap.js'
@@ -55,6 +56,15 @@ function getBiomeRecallLanguage(
           'Even the strip-lights seem to recognize the restraint.',
         quietApproval:
           ' Something in the station hum seems to approve of this quieter line.',
+      }
+    case 'mars-outpost':
+      return {
+        place: 'the outpost',
+        witness: 'the beacon',
+        atmosphere:
+          'Even the dust-laced static seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the dead beacon pulse seems to approve of this quieter line.',
       }
     case 'fae-realm':
       return {
@@ -159,6 +169,10 @@ function getSecondBeatLead(
     return `${openingChoice} got you this far on a station that sounds like it is remembering the wrong century. The air tastes like frost, current, and unfinished instructions.`
   }
 
+  if (relevantMemory?.encounterShift === 'mars-outpost') {
+    return `${openingChoice} got you this far in a Mars outpost that sounds abandoned until the speakers misname you. Dust keeps finding shell-green seams in the metal as if orbit's old fracture finally fell to ground.`
+  }
+
   if (relevantMemory?.encounterShift === 'dark-dungeon') {
     return `${openingChoice} got you this far in a dungeon that sounds too interested in your choices. The dark keeps offering hospitality the way a snare offers comfort.`
   }
@@ -217,7 +231,9 @@ function getReturningWeight(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
   if (relevantMemory?.seaturtleGlimpsed) {
-    return `For half a second there is another shape in the wet reflection beside yours: shell-green, patient, and gone before the eye can make a claim on it.`
+    return relevantMemory.seaturtleBond > 1
+      ? `For half a second there is another shape beside yours: shell-green, patient, and no longer entirely content to remain a reflection. The place behaves as if it felt that too.`
+      : `For half a second there is another shape in the wet reflection beside yours: shell-green, patient, and gone before the eye can make a claim on it.`
   }
 
   if (relevantMemory?.threadOmen) {
@@ -300,6 +316,8 @@ function renderDeterministicScene(
 ): SwordsOfChaosDmSceneResponse {
   const locus = getSwordsEncounterLocus(payload.relevantMemory)
   const worldWeight = getSwordsWorldMapWeight(locus)
+  const recurringSymbol =
+    payload.relevantMemory?.recurringSymbol ?? getSwordsRecurringSymbol(locus)
   const threadEcho = getSwordsThreadEcho({
     locus,
     thread:
@@ -307,12 +325,13 @@ function renderDeterministicScene(
   })
 
   if (payload.stage === 'opening') {
-    const familiar =
-      payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
+    const familiar = Boolean(payload.relevantMemory?.familiarPlace)
     const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
     const openingShell =
       payload.relevantMemory?.encounterShift === 'dark-dungeon'
         ? getSwordsOpeningShellVariant('dark-dungeon')
+        : payload.relevantMemory?.encounterShift === 'mars-outpost'
+        ? getSwordsOpeningShellVariant('mars-outpost')
         : payload.relevantMemory?.encounterShift === 'fae-realm'
         ? getSwordsOpeningShellVariant('fae-realm')
         : payload.relevantMemory?.encounterShift === 'space-station'
@@ -337,6 +356,8 @@ function renderDeterministicScene(
           ? `\n\n${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
           : ''
       }${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}\n\n${worldWeight}${
+        recurringSymbol ? `\n\n${recurringSymbol}` : ''
+      }${
         threadEcho ? `\n\n${threadEcho}` : ''
       }`,
       options: applyOpeningCallbackMemory(
@@ -362,6 +383,8 @@ function renderDeterministicScene(
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'dark-dungeon')
       : payload.relevantMemory?.encounterShift === 'fae-realm'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'fae-realm')
+      : payload.relevantMemory?.encounterShift === 'mars-outpost'
+      ? getSwordsSecondBeatVariant(payload.openingChoice, 'mars-outpost')
       : payload.relevantMemory?.encounterShift === 'space-station'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'space-station')
       : payload.relevantMemory?.encounterShift === 'ocean-ship'
@@ -380,6 +403,8 @@ function renderDeterministicScene(
         ? `${secondBeat.subtitle} The air behind it feels occupied.`
         : secondBeat.subtitle,
     sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}${canonPressure ? `\n\n${canonPressure}` : ''}\n\n${worldWeight}${
+      recurringSymbol ? `\n\n${recurringSymbol}` : ''
+    }${
       threadEcho ? `\n\n${threadEcho}` : ''
     }`,
     options: applySecondBeatCallbackMemory(
@@ -389,8 +414,10 @@ function renderDeterministicScene(
     ),
     hintText: payload.relevantMemory?.familiarPlace
       ? payload.relevantMemory.seaturtleGlimpsed
-        ? 'The second move now carries two kinds of witness: the alley, and something quieter standing just outside it.'
-        : 'The second move reveals whether you repeat yourself or take the road the alley saved for later.'
+        ? payload.relevantMemory.seaturtleBond > 1
+          ? 'The second move now carries three pressures: the place, the road you left unopened, and a shell-green patience that has started to choose sides.'
+          : 'The second move now carries two kinds of witness: the place itself, and something quieter standing just outside it.'
+        : 'The second move reveals whether you repeat yourself or take the road this place saved for later.'
       : 'The second move reveals what kind of trouble this really is.',
   }
 }

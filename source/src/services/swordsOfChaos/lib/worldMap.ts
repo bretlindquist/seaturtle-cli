@@ -12,6 +12,8 @@ export function getSwordsEncounterMemoryKey(
   locus: SwordsOfChaosEncounterLocus,
 ): string {
   switch (locus) {
+    case 'mars-outpost':
+      return 'red-dust-mars-outpost'
     case 'old-tree':
       return 'old-tree-bramble-latch'
     case 'ocean-ship':
@@ -30,6 +32,7 @@ export function getSwordsEncounterMemoryKey(
 export function isSwordsEncounterMemoryKey(thread: string): boolean {
   return (
     thread === 'trench-coat-turtle-alley' ||
+    thread === 'red-dust-mars-outpost' ||
     thread === 'old-tree-bramble-latch' ||
     thread === 'black-deck-ocean-ship' ||
     thread === 'failing-ring-space-station' ||
@@ -42,6 +45,8 @@ export function getSwordsEncounterPlaceName(
   locus: SwordsOfChaosEncounterLocus,
 ): string {
   switch (locus) {
+    case 'mars-outpost':
+      return 'the Mars outpost'
     case 'old-tree':
       return 'the old tree'
     case 'ocean-ship':
@@ -55,6 +60,12 @@ export function getSwordsEncounterPlaceName(
     default:
       return 'the alley'
   }
+}
+
+export function getSwordsRecurringSymbol(
+  locus: SwordsOfChaosEncounterLocus,
+): string | undefined {
+  return SWORDS_OF_CHAOS_WORLD_MAP[locus].recurringSymbol
 }
 
 export function getSwordsWorldMapWeight(

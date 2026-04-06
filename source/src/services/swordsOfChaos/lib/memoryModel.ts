@@ -3,6 +3,7 @@ import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import {
   getSwordsEncounterMemoryKey,
   getSwordsEncounterPlaceName,
+  getSwordsRecurringSymbol,
   isSwordsEncounterMemoryKey,
   type SwordsOfChaosEncounterLocus,
 } from './worldMap.js'
@@ -42,10 +43,14 @@ export function deriveSwordsOfChaosMemory(
 
       return right[1].sightings - left[1].sightings
     })[0]?.[0]
+  const stationMemory = save.encounterMemory['failing-ring-space-station']
   const encounterShift: SwordsOfChaosEncounterLocus =
-    alleyMemory &&
-    alleyMemory.visits >= 4 &&
-    canonThread === 'alley-oath-keepers'
+    canonThread === 'sign-truth-fractures' &&
+    (stationMemory?.visits ?? 0) >= 2
+      ? 'mars-outpost'
+      : alleyMemory &&
+          alleyMemory.visits >= 4 &&
+          canonThread === 'alley-oath-keepers'
       ? 'old-tree'
       : alleyMemory &&
           alleyMemory.visits >= 4 &&
@@ -96,5 +101,6 @@ export function deriveSwordsOfChaosMemory(
     liveThread,
     canonThread,
     threadOmen: getSwordsThreadOmen(canonThread ?? liveThread),
+    recurringSymbol: getSwordsRecurringSymbol(encounterShift),
   }
 }

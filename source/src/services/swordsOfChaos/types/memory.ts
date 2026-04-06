@@ -5,6 +5,7 @@ export type SwordsOfChaosRelevantMemory = {
     | 'old-tree'
     | 'ocean-ship'
     | 'space-station'
+    | 'mars-outpost'
     | 'fae-realm'
     | 'dark-dungeon'
   priorRoutes: string[]
@@ -18,6 +19,7 @@ export type SwordsOfChaosRelevantMemory = {
   threadOmen?: string
   seaturtleGlimpsed: boolean
   seaturtleBond: number
+  recurringSymbol?: string
 }
 
 export type SwordsOfChaosDerivedMemory = {
@@ -30,6 +32,7 @@ export type SwordsOfChaosDerivedMemory = {
     | 'old-tree'
     | 'ocean-ship'
     | 'space-station'
+    | 'mars-outpost'
     | 'fae-realm'
     | 'dark-dungeon'
   recentTitle?: string
@@ -37,4 +40,5 @@ export type SwordsOfChaosDerivedMemory = {
   liveThread?: string
   canonThread?: string
   threadOmen?: string
+  recurringSymbol?: string
 }

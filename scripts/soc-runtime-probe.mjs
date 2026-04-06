@@ -68,7 +68,7 @@ function simulateScenario([openingChoice, secondChoice]) {
   }
   const snapshots = []
 
-  for (let run = 1; run <= 5; run += 1) {
+  for (let run = 1; run <= 7; run += 1) {
     const beforeRelevant = getSwordsOfChaosRelevantMemory(save)
     const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
       encounterLocus: beforeRelevant.encounterShift ?? 'alley',

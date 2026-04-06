@@ -49,5 +49,6 @@ export function getSwordsOfChaosRelevantMemory(
     threadOmen: memory.threadOmen,
     seaturtleGlimpsed: save.seaturtle.appearances > 0,
     seaturtleBond: save.seaturtle.bond,
+    recurringSymbol: memory.recurringSymbol,
   }
 }

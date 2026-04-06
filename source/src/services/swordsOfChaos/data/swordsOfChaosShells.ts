@@ -93,6 +93,15 @@ export const SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL: SwordsOpeningShell = {
     'Some places do not remember you as a person first. They remember you as a variable.',
 }
 
+export const SWORDS_OF_CHAOS_MARS_OUTPOST_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You wake in a red-dust outpost where the beacon is cracked, the pressure tents are old, and the silence sounds borrowed from orbit.',
+  sceneText:
+    'Dust rasps across scored metal. A beacon on the ridge keeps trying to finish a warning that the speakers no longer know how to pronounce correctly. Shell-green grit has found every seam that should have stayed closed. You have been in related places before, but never one this dry.',
+  hintText:
+    'Some places do not repeat a thread. They weather it until the same question starts sounding like prophecy.',
+}
+
 export const SWORDS_OF_CHAOS_FAE_REALM_OPENING_SHELL: SwordsOpeningShell = {
   subtitle:
     'You open your eyes in a grove lit by patient foxfire, where every leaf seems to be listening for a promise you do not remember making.',
@@ -601,6 +610,90 @@ export const SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the station has to decide whether you are operator, ghost, or error condition.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_MARS_OUTPOST_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The cracked beacon stutters once. Red dust lifts around your blade like static deciding whether to become weather or witness.',
+    intro:
+      'Steel on Mars feels ceremonial until the old machinery notices it. The outpost wants to know whether you came to cut into the beacon, hold against the storm, or deny the colony the violence it half-remembers asking for.',
+    options: [
+      {
+        label: 'Cut the beacon tether',
+        value: 'cut-the-sign-chain',
+        description:
+          'Sever the line feeding the cracked beacon and see whether the warning was ever meant to protect anyone.',
+      },
+      {
+        label: 'Hold against the red gust',
+        value: 'hold-the-line',
+        description:
+          'Brace in the dust and force the outpost to reveal whether the storm or the signal is the real threat.',
+      },
+      {
+        label: 'Lower the blade into the dust',
+        value: 'lower-the-blade',
+        description:
+          'Refuse to let old colonial panic choose your posture for you.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The dead speakers crackle once in reply. Even the dust seems to pause long enough to listen.',
+    intro:
+      'Courtesy feels strange in an outpost built for attrition, which may be why it matters here. The place wants to know whether your calm is discipline, pilgrimage, or a refusal to inherit its panic.',
+    options: [
+      {
+        label: 'Keep the old stillness',
+        value: 'keep-bowing',
+        description:
+          'Stay in the gesture until the beacon has to decide whether you are answering it or warding it off.',
+      },
+      {
+        label: 'Meet the beacon pulse',
+        value: 'meet-the-gaze',
+        description:
+          'Raise your head and answer the warning as if it were a living witness rather than a failing machine.',
+      },
+      {
+        label: 'Ask who left first',
+        value: 'ask-the-price',
+        description:
+          'Treat the outpost like a bargain whose most important clause was abandoned in the dust.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The outpost does not laugh, but the wrong voice in the speaker almost remembers how.',
+    intro:
+      'Confidence sounds different when there are no crowds left to impress. Here the bluff risks becoming jurisdiction, ghost protocol, or the first decent lie this place has heard in years.',
+    options: [
+      {
+        label: 'Claim the forgotten station code',
+        value: 'name-a-false-title',
+        description:
+          'Speak as if you know the designation the beacon keeps failing to say correctly.',
+      },
+      {
+        label: 'Laugh into the static',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Treat the dead speakers like an audience that stayed after the colony did not.',
+      },
+      {
+        label: 'Double down in the dust',
+        value: 'double-down',
+        description:
+          'Keep the bit alive until the outpost has to decide whether you are trespasser, heir, or the answer to an old misfiled alarm.',
       },
     ],
   },
