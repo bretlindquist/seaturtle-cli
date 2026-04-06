@@ -66,6 +66,15 @@ export const SWORDS_OF_CHAOS_SEATURTLE_OPENING_SHELL: SwordsOpeningShell = {
     'The alley remembers your last answer, and something gentler than the alley seems to be watching what you do with the next one.',
 }
 
+export const SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You open your eyes beneath a bramble-latched tree older than the alley and somehow carrying the same pressure.',
+  sceneText:
+    'Wet roots knot through black soil. A metal latch disappears under thorn and moss where no latch should exist. You were somewhere else a moment ago. Now the tree is waiting as if it has kept your place.',
+  hintText:
+    'Some places do not repeat. They relocate the question.',
+}
+
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
   SwordsSecondBeat
@@ -304,6 +313,90 @@ export const SWORDS_OF_CHAOS_THREADMARKED_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Keep talking, but bend the bluff until it sounds like a dangerous half-truth.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The bark parts just enough to reveal metal under wood grain. The tree is not natural enough to trust.',
+    intro:
+      'Steel feels smaller here, but no less honest. The old tree wants to know whether you mean to pry, defend, or refuse the mechanism hidden in its heart.',
+    options: [
+      {
+        label: 'Cut the bramble latch',
+        value: 'cut-the-sign-chain',
+        description:
+          'Strike the buried mechanism and see whether the tree opens like a door or bleeds like a lie.',
+      },
+      {
+        label: 'Stand under the roots',
+        value: 'hold-the-line',
+        description:
+          'Hold your ground beneath the hanging roots and make the place reveal what it expected you to do.',
+      },
+      {
+        label: 'Lower the sword to the bark',
+        value: 'lower-the-blade',
+        description:
+          'Offer restraint to something that looks built to punish force.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'Leaves shiver without wind. The old tree answers courtesy by tightening the silence around it.',
+    intro:
+      'Respect reaches differently here. The tree does not care for manners, only for whether you can approach a buried threshold without waking the wrong thing inside it.',
+    options: [
+      {
+        label: 'Keep the old stillness',
+        value: 'keep-bowing',
+        description:
+          'Stay inside the gesture until the roots decide whether you are guest, pilgrim, or intruder.',
+      },
+      {
+        label: 'Raise your eyes to the knot',
+        value: 'meet-the-gaze',
+        description:
+          'Meet the dark center of the trunk as if it were looking back through rings older than speech.',
+      },
+      {
+        label: 'Ask who sealed it',
+        value: 'ask-the-price',
+        description:
+          'Treat the buried latch like evidence that someone once feared what the tree keeps.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'Somewhere inside the roots, something almost clicks in amusement.',
+    intro:
+      'The bluff sounds different under branches that remember older kingdoms. Here it is not charm alone. It is trespass dressed as confidence.',
+    options: [
+      {
+        label: 'Name the vanished order',
+        value: 'name-a-false-title',
+        description:
+          'Speak as if you know which dead house built the latch into the trunk.',
+      },
+      {
+        label: 'Laugh under the branches',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Answer the haunted stillness like you have heard its joke before.',
+      },
+      {
+        label: 'Keep talking through the roots',
+        value: 'double-down',
+        description:
+          'Push the bluff until the tree has to decide whether to expose you or accept you.',
       },
     ],
   },

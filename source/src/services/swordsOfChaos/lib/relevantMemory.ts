@@ -28,6 +28,7 @@ export function getSwordsOfChaosRelevantMemory(
   const alleyMemory = save.encounterMemory['trench-coat-turtle-alley']
   return {
     familiarPlace: memory.familiarPlaces[0],
+    encounterShift: memory.encounterShift,
     priorRoutes: memory.priorRoutes,
     roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
     revisitCount: alleyMemory?.visits ?? 0,

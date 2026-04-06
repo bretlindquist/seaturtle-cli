@@ -1,4 +1,6 @@
 import {
+  SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL,
+  SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS,
   SWORDS_OF_CHAOS_OPENING_SHELL,
   SWORDS_OF_CHAOS_OPENING_LABELS,
   SWORDS_OF_CHAOS_OPENING_OPTIONS,
@@ -27,9 +29,11 @@ export function getSwordsOpeningOptions(): SwordsOpeningOption[] {
 }
 
 export function getSwordsOpeningShellVariant(
-  variant: 'default' | 'returning' | 'threadmarked' | 'seaturtle',
+  variant: 'default' | 'returning' | 'threadmarked' | 'seaturtle' | 'old-tree',
 ): SwordsOpeningShell {
   switch (variant) {
+    case 'old-tree':
+      return SWORDS_OF_CHAOS_OLD_TREE_OPENING_SHELL
     case 'returning':
       return SWORDS_OF_CHAOS_RETURNING_OPENING_SHELL
     case 'threadmarked':
@@ -49,9 +53,11 @@ export function getSwordsSecondBeat(
 
 export function getSwordsSecondBeatVariant(
   choice: SwordsOfChaosOpeningChoice,
-  variant: 'default' | 'returning' | 'threadmarked',
+  variant: 'default' | 'returning' | 'threadmarked' | 'old-tree',
 ): SwordsSecondBeat {
   switch (variant) {
+    case 'old-tree':
+      return SWORDS_OF_CHAOS_OLD_TREE_SECOND_BEATS[choice]
     case 'returning':
       return SWORDS_OF_CHAOS_RETURNING_SECOND_BEATS[choice]
     case 'threadmarked':

@@ -86,6 +86,10 @@ function getSecondBeatLead(
   openingChoice: SwordsOfChaosOpeningChoice,
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string {
+  if (relevantMemory?.encounterShift === 'old-tree') {
+    return `${openingChoice} got you this far beneath the old tree. The place feels like a memory that learned how to grow bark over metal.`
+  }
+
   if (!relevantMemory?.familiarPlace) {
     return `${openingChoice} got you this far. The alley seems interested now.`
   }
@@ -209,7 +213,9 @@ function renderDeterministicScene(
       payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
     const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
     const openingShell =
-      familiar && returningAgain
+      payload.relevantMemory?.encounterShift === 'old-tree'
+        ? getSwordsOpeningShellVariant('old-tree')
+        : familiar && returningAgain
         ? payload.relevantMemory?.canonThread
           ? getSwordsOpeningShellVariant('threadmarked')
           : payload.relevantMemory?.seaturtleGlimpsed
@@ -244,7 +250,9 @@ function renderDeterministicScene(
 
   const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
   const secondBeat =
-    payload.relevantMemory?.canonThread && returningAgain
+    payload.relevantMemory?.encounterShift === 'old-tree'
+      ? getSwordsSecondBeatVariant(payload.openingChoice, 'old-tree')
+      : payload.relevantMemory?.canonThread && returningAgain
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'threadmarked')
       : returningAgain
         ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')

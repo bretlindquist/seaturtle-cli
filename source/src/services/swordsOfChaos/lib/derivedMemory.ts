@@ -23,6 +23,12 @@ export function deriveSwordsOfChaosMemory(
   const canonThread = Object.entries(save.threadMemory)
     .filter(([, thread]) => thread.canonized)
     .sort((left, right) => right[1].sightings - left[1].sightings)[0]?.[0]
+  const encounterShift =
+    alleyMemory &&
+    alleyMemory.visits >= 4 &&
+    canonThread === 'alley-oath-keepers'
+      ? 'old-tree'
+      : 'alley'
   const liveThread = [...save.threadCandidates]
     .reverse()
     .find(
@@ -41,6 +47,7 @@ export function deriveSwordsOfChaosMemory(
     priorRoutes,
     familiarPlaces:
       alleyMemory && alleyMemory.visits > 0 ? ['trench-coat turtle alley'] : [],
+    encounterShift,
     recentTitle,
     recentRelic,
     liveThread,
