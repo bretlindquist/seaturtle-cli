@@ -9,6 +9,11 @@ import {
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
 } from './shells.js'
+import {
+  getSwordsEncounterLocus,
+  getSwordsThreadEcho,
+  getSwordsWorldMapWeight,
+} from './worldMap.js'
 import type {
   SwordsOfChaosDmSceneResponse,
   SwordsOfChaosPromptPayload,
@@ -220,6 +225,14 @@ function applySecondBeatCallbackMemory(
 function renderDeterministicScene(
   payload: SwordsOfChaosPromptPayload,
 ): SwordsOfChaosDmSceneResponse {
+  const locus = getSwordsEncounterLocus(payload.relevantMemory)
+  const worldWeight = getSwordsWorldMapWeight(locus)
+  const threadEcho = getSwordsThreadEcho({
+    locus,
+    thread:
+      payload.relevantMemory?.canonThread ?? payload.relevantMemory?.liveThread,
+  })
+
   if (payload.stage === 'opening') {
     const familiar =
       payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
@@ -246,7 +259,9 @@ function renderDeterministicScene(
         familiar
           ? `\n\n${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
           : ''
-      }${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}`,
+      }${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}\n\n${worldWeight}${
+        threadEcho ? `\n\n${threadEcho}` : ''
+      }`,
       options: applyOpeningCallbackMemory(
         getSwordsOpeningOptions(),
         payload.relevantMemory,
@@ -283,7 +298,9 @@ function renderDeterministicScene(
       payload.relevantMemory?.canonThread && returningAgain
         ? `${secondBeat.subtitle} The air behind it feels occupied.`
         : secondBeat.subtitle,
-    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}${canonPressure ? `\n\n${canonPressure}` : ''}`,
+    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}${canonPressure ? `\n\n${canonPressure}` : ''}\n\n${worldWeight}${
+      threadEcho ? `\n\n${threadEcho}` : ''
+    }`,
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
       secondBeat.options,
