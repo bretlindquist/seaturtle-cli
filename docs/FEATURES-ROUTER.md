@@ -226,7 +226,8 @@ Important truth:
   - git-backed project work is protected most strongly
   - project exploration stays broader but still project-bound
   - companion chat should not quietly become project-working state
-  - `/btw` stays sidecar and ephemeral
+- `/btw` stays sidecar and ephemeral
+- `/btw` is for quick side questions, not active-task steering and not parked follow-up work
 - `/game` keeps its outcomes inside the hidden shell instead of cluttering the main project transcript
 
 ## Mermaid / architecture / journey maps

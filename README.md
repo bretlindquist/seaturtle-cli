@@ -31,6 +31,7 @@ In practice, that means SeaTurtle now treats context in domains:
 - project exploration stays broad, but remains project-bound
 - companion chat should not quietly become project-working state
 - `/btw` is treated as a sidecar question, not a branch of the main project transcript
+- `/btw` is for quick side questions specifically, not for steering the active task and not for parking unrelated follow-up work
 - `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
 
 The goal is simple:
@@ -186,6 +187,7 @@ SeaTurtle also now treats context as domain-shaped rather than monolithic:
 - project exploration stays broad, but remains project-bound
 - companion chat should not quietly become project-working state
 - `/btw` is treated as a sidecar question, not a branch of the main project transcript
+- `/btw` is for quick side questions specifically, not for steering the current task and not for parking unrelated ideas that should wait until later
 - `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
 
 The goal is to let CT stay fun and lively without muddying the sanctity of the active project session.
