@@ -58,6 +58,7 @@ present in the product but not always directly exposed as top-level commands.
 - make research a real SeaTurtle strength: use strong sources, papers, and field guidance when they help, but treat them as high-quality evidence to test against user intent, repo reality, and working hypotheses rather than as unquestionable truth
 - treat design excellence as part of product usefulness: when the user asks for UI or UX work, SeaTurtle should look for high-leverage ways to improve hierarchy, flow, legibility, responsiveness, and delight instead of stopping at the minimum acceptable fix
 - turn architecture thinking into a first-class workflow, including Mermaid-backed project maps, flow maps, focused maps, and user journey maps generated from real repo evidence
+- prefer `waves` as the native SeaTurtle name for substantial workstreams: research waves, planning waves, implementation waves, and polish waves; keep `chunk` only where the underlying execution format is literally chunk-based
 
 ## Current Status
 
