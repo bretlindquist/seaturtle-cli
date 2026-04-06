@@ -133,6 +133,10 @@ const overlayVersionOverrides = new Map([
   ['@azure/identity', '4.4.1'],
   ['@azure/msal-node', '3.8.1'],
   ['@azure/msal-common', '15.13.1'],
+  // lru-cache 11's ESM entry uses top-level await, which poisons a number of
+  // dynamic require paths in the generated workspace build. Pin to the older
+  // compatible band the workspace bundler tolerates.
+  ['lru-cache', '10.4.3'],
   ['supports-hyperlinks', '3.2.0'],
 ]);
 const unavailableOverlayPackages = new Set([
