@@ -15,6 +15,33 @@ That private CT layer is no longer just a couple of theme files. It is a small
 relationship stack under `.ct/` that lets SeaTurtle carry a project-local soul,
 identity, role, user context, bootstrap ritual, and current session note.
 
+## Core SeaTurtle Feature: Context Sanctity
+
+One of SeaTurtle's strongest product features is that it does not treat every
+interaction as one big undifferentiated session blob.
+
+SeaTurtle is designed to be:
+
+- fun and alive when you want play, chat, or surprise
+- sharp and surgical when you are deep in real project work
+- a better ally in both modes because it tries to keep those contexts from muddying each other
+
+In practice, that means SeaTurtle now treats context in domains:
+
+- git-backed project work gets the strongest protection
+- project exploration stays broad, but remains project-bound
+- companion chat should not quietly become project-working state
+- `/btw` is treated as a sidecar question, not a branch of the main project transcript
+- `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
+
+The goal is simple:
+
+- keep the project session clean enough to stay coherent, resumable, and precise
+- keep the non-work modes rich enough to stay fun, surprising, and alive
+
+This architectural separation is part of what makes SeaTurtle feel more like
+an ally than a novelty layer.
+
 ## What This Fork Is Trying To Do
 
 - keep the source-build local UX useful and familiar
