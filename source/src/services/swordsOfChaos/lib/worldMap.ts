@@ -8,6 +8,44 @@ export function getSwordsEncounterLocus(
   return relevantMemory?.encounterShift ?? 'alley'
 }
 
+export function getSwordsEncounterMemoryKey(
+  locus: SwordsOfChaosEncounterLocus,
+): string {
+  switch (locus) {
+    case 'old-tree':
+      return 'old-tree-bramble-latch'
+    case 'ocean-ship':
+      return 'black-deck-ocean-ship'
+    case 'space-station':
+      return 'failing-ring-space-station'
+    case 'fae-realm':
+      return 'foxfire-fae-grove'
+    case 'dark-dungeon':
+      return 'seductive-dark-dungeon'
+    default:
+      return 'trench-coat-turtle-alley'
+  }
+}
+
+export function getSwordsEncounterPlaceName(
+  locus: SwordsOfChaosEncounterLocus,
+): string {
+  switch (locus) {
+    case 'old-tree':
+      return 'the old tree'
+    case 'ocean-ship':
+      return 'the ship'
+    case 'space-station':
+      return 'the station'
+    case 'fae-realm':
+      return 'the grove'
+    case 'dark-dungeon':
+      return 'the dungeon'
+    default:
+      return 'the alley'
+  }
+}
+
 export function getSwordsWorldMapWeight(
   locus: SwordsOfChaosEncounterLocus,
 ): string {

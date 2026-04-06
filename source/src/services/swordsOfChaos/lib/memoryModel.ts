@@ -1,5 +1,10 @@
 import type { SwordsOfChaosDerivedMemory } from '../types/memory.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
+import {
+  getSwordsEncounterMemoryKey,
+  getSwordsEncounterPlaceName,
+  type SwordsOfChaosEncounterLocus,
+} from './worldMap.js'
 
 export function getSwordsThreadOmen(
   thread: string | undefined,
@@ -24,9 +29,6 @@ export function deriveSwordsOfChaosMemory(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosDerivedMemory {
   const alleyMemory = save.encounterMemory['trench-coat-turtle-alley']
-  const priorRoutes = alleyMemory?.seenRoutes ?? save.callbackMarkers.filter(marker =>
-    marker.includes(':'),
-  )
   const recentTitle = save.progression.titles.at(-1)
   const recentRelic = save.inventory.at(-1)
   const canonThread = Object.entries(save.threadMemory)
@@ -39,7 +41,7 @@ export function deriveSwordsOfChaosMemory(
 
       return right[1].sightings - left[1].sightings
     })[0]?.[0]
-  const encounterShift =
+  const encounterShift: SwordsOfChaosEncounterLocus =
     alleyMemory &&
     alleyMemory.visits >= 4 &&
     canonThread === 'alley-oath-keepers'
@@ -61,6 +63,12 @@ export function deriveSwordsOfChaosMemory(
             canonThread === 'sign-truth-fractures'
           ? 'space-station'
         : 'alley'
+  const activeEncounterMemory =
+    save.encounterMemory[getSwordsEncounterMemoryKey(encounterShift)]
+  const priorRoutes =
+    activeEncounterMemory?.seenRoutes ??
+    alleyMemory?.seenRoutes ??
+    save.callbackMarkers.filter(marker => marker.includes(':'))
   const liveThread = [...save.threadCandidates]
     .reverse()
     .find(
@@ -78,7 +86,9 @@ export function deriveSwordsOfChaosMemory(
     ],
     priorRoutes,
     familiarPlaces:
-      alleyMemory && alleyMemory.visits > 0 ? ['trench-coat turtle alley'] : [],
+      activeEncounterMemory && activeEncounterMemory.visits > 0
+        ? [getSwordsEncounterPlaceName(encounterShift)]
+        : [],
     encounterShift,
     recentTitle,
     recentRelic,

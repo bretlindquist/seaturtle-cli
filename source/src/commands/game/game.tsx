@@ -31,6 +31,7 @@ import {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
+  getSwordsEncounterLocus,
   getSwordsOfChaosRelevantMemory,
   getSwordsOfChaosRetreatNarration,
   getSwordsOpeningLabel,
@@ -180,7 +181,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     openingChoice: SwordsOfChaosOpeningChoice,
     secondChoice: SwordsOfChaosSecondChoice,
   ): void {
-    const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice)
+    const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
+      encounterLocus: getSwordsEncounterLocus(swordsRelevantMemory),
+    })
     const outcome = resolution.outcome
 
     updateCtGameState(

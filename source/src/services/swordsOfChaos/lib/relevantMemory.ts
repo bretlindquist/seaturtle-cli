@@ -1,6 +1,7 @@
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import { deriveSwordsOfChaosMemory } from './memoryModel.js'
+import { getSwordsEncounterMemoryKey } from './worldMap.js'
 
 function getRoadNotTakenHint(routes: string[]): string | undefined {
   const allOpeners = ['draw-steel', 'bow-slightly', 'talk-like-you-belong']
@@ -25,14 +26,15 @@ export function getSwordsOfChaosRelevantMemory(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosRelevantMemory {
   const memory = deriveSwordsOfChaosMemory(save)
-  const alleyMemory = save.encounterMemory['trench-coat-turtle-alley']
+  const activeEncounterMemory =
+    save.encounterMemory[getSwordsEncounterMemoryKey(memory.encounterShift ?? 'alley')]
   return {
     familiarPlace: memory.familiarPlaces[0],
     encounterShift: memory.encounterShift,
     priorRoutes: memory.priorRoutes,
     roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
-    revisitCount: alleyMemory?.visits ?? 0,
-    lastRoute: alleyMemory?.lastRoute ?? undefined,
+    revisitCount: activeEncounterMemory?.visits ?? 0,
+    lastRoute: activeEncounterMemory?.lastRoute ?? undefined,
     recentTitle: memory.recentTitle,
     recentRelic: memory.recentRelic,
     liveThread: memory.liveThread,

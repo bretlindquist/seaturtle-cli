@@ -7,6 +7,10 @@ import type {
 } from '../types/outcomes.js'
 import type { SwordsOfChaosResolution } from '../types/resolution.js'
 import { getSwordsOfChaosOutcome } from './outcomes.js'
+import {
+  getSwordsEncounterMemoryKey,
+  type SwordsOfChaosEncounterLocus,
+} from './worldMap.js'
 
 function getOutcomeThread(route: SwordsOfChaosRoute): string {
   const outcome = getSwordsOfChaosOutcome(route)
@@ -51,10 +55,14 @@ function buildHostEchoes(route: SwordsOfChaosRoute): SwordsOfChaosHostEcho[] {
   return echoes
 }
 
-function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
+function buildEventBatch(
+  route: SwordsOfChaosRoute,
+  encounterLocus: SwordsOfChaosEncounterLocus,
+): SwordsOfChaosEventBatch {
   const outcome = getSwordsOfChaosOutcome(route)
   const outcomeThread = getOutcomeThread(route)
   const seenAt = Date.now()
+  const encounterKey = getSwordsEncounterMemoryKey(encounterLocus)
   return {
     at: Date.now(),
     events: [
@@ -65,7 +73,7 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
       },
       {
         kind: 'thread_candidate_add',
-        thread: 'trench-coat-turtle-alley',
+        thread: encounterKey,
       },
       {
         kind: 'thread_candidate_add',
@@ -82,7 +90,7 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
       },
       {
         kind: 'encounter_memory_record',
-        encounter: 'trench-coat-turtle-alley',
+        encounter: encounterKey,
         opener: route.split(':')[0],
         route,
       },
@@ -103,13 +111,16 @@ function buildEventBatch(route: SwordsOfChaosRoute): SwordsOfChaosEventBatch {
 export function resolveSwordsOfChaosRoute(
   openingChoice: SwordsOfChaosOpeningChoice,
   secondChoice: SwordsOfChaosSecondChoice,
+  options?: {
+    encounterLocus?: SwordsOfChaosEncounterLocus
+  },
 ): SwordsOfChaosResolution {
   const route = `${openingChoice}:${secondChoice}` as SwordsOfChaosRoute
   const outcome = getSwordsOfChaosOutcome(route)
   return {
     route,
     outcome,
-    eventBatch: buildEventBatch(route),
+    eventBatch: buildEventBatch(route, options?.encounterLocus ?? 'alley'),
     hostEchoes: buildHostEchoes(route),
     rarityUnlock: outcome.key === 'relic' ? outcome.rarityUnlock : undefined,
     resultText: outcome.ending,
