@@ -4,8 +4,17 @@ import { Box } from '../../ink.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { SeaTurtleMark } from './SeaTurtleMark.js'
 
-const FRAMES = ['success', 'rainbow_blue_shimmer', 'success', 'success'] as const
-const FRAME_MS = 110
+const FRAMES = [
+  'success',
+  'success',
+  'rainbow_blue_shimmer',
+  'success',
+  'success',
+  'rainbow_blue_shimmer',
+  'success',
+  'success',
+] as const
+const FRAME_MS = 165
 
 export function AnimatedSeaTurtle(): React.ReactNode {
   const [reducedMotion] = useState(
