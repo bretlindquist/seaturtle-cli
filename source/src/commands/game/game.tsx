@@ -33,8 +33,8 @@ import {
 } from '../../services/game/rewards.js'
 import {
   applySwordsOfChaosOutcomeEchoes,
+  applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
-  touchSwordsOfChaosSave,
 } from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
@@ -276,14 +276,34 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }),
       projectRoot,
     )
-    touchSwordsOfChaosSave(current => ({
-      ...current,
-      runHistorySummary: {
-        ...current.runHistorySummary,
-        runsStarted: Math.max(current.runHistorySummary.runsStarted, 1),
-        lastPlayedAt: Date.now(),
-      },
-    }))
+    applySwordsOfChaosEventBatchToSave({
+      at: Date.now(),
+      events: [
+        {
+          kind: 'run_history_update',
+          gameResult: outcome.gameResult,
+          playedAt: Date.now(),
+        },
+        {
+          kind: 'thread_candidate_add',
+          thread: 'trench-coat-turtle-alley',
+        },
+        {
+          kind: 'callback_marker_add',
+          marker: route,
+        },
+        {
+          kind: 'world_flag_add',
+          flag: `swords-route:${route}`,
+        },
+        ...(outcome.key === 'relic'
+          ? [{ kind: 'inventory_add', item: outcome.inventory } as const]
+          : []),
+        ...(outcome.key === 'title'
+          ? [{ kind: 'title_add', title: outcome.title } as const]
+          : []),
+      ],
+    })
 
     recordCtGameResult(outcome.gameResult, projectRoot)
 

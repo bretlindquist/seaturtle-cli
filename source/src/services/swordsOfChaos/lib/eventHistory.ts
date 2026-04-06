@@ -2,7 +2,7 @@ import { dirname } from 'path'
 import { writeFileSyncAndFlush_DEPRECATED } from '../../../utils/file.js'
 import { getFsImplementation } from '../../../utils/fsOperations.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
-import type { SwordsOfChaosEventRecord } from '../types/events.js'
+import type { SwordsOfChaosHistoryEventRecord } from '../types/events.js'
 import { getSwordsOfChaosPaths } from './paths.js'
 
 function ensureParentDir(path: string): void {
@@ -10,8 +10,8 @@ function ensureParentDir(path: string): void {
 }
 
 export function appendSwordsOfChaosEvent(
-  event: SwordsOfChaosEventRecord,
-): SwordsOfChaosEventRecord {
+  event: SwordsOfChaosHistoryEventRecord,
+): SwordsOfChaosHistoryEventRecord {
   const { eventsPath } = getSwordsOfChaosPaths()
   const fs = getFsImplementation()
   ensureParentDir(eventsPath)

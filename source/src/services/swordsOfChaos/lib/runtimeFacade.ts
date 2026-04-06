@@ -1,7 +1,9 @@
 import type { SwordsOfChaosHostEcho } from '../types/echoes.js'
+import type { SwordsOfChaosEventBatch } from '../types/events.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import { applySwordsOfChaosHostEchoes } from './archiveEchoBridge.js'
 import { appendSwordsOfChaosEvent } from './eventHistory.js'
+import { processSwordsOfChaosEventBatch } from './eventProcessor.js'
 import {
   ensureSwordsOfChaosSaveExists,
   saveSwordsOfChaosSave,
@@ -39,10 +41,11 @@ export function applySwordsOfChaosOutcomeEchoes(
   })
 }
 
-export function touchSwordsOfChaosSave(
-  mutator: (current: SwordsOfChaosSaveFile) => SwordsOfChaosSaveFile,
+export function applySwordsOfChaosEventBatchToSave(
+  batch: SwordsOfChaosEventBatch,
 ): SwordsOfChaosSaveFile {
-  const next = mutator(ensureSwordsOfChaosSaveExists())
+  const current = ensureSwordsOfChaosSaveExists()
+  const next = processSwordsOfChaosEventBatch(current, batch)
   const saved = saveSwordsOfChaosSave(next)
   appendSwordsOfChaosEvent({
     at: Date.now(),

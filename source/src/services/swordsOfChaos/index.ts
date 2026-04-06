@@ -7,10 +7,14 @@ export {
 } from './lib/saveManager.js'
 export {
   applySwordsOfChaosOutcomeEchoes,
+  applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
-  touchSwordsOfChaosSave,
 } from './lib/runtimeFacade.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'
 export type { SwordsOfChaosHostEcho } from './types/echoes.js'
-export type { SwordsOfChaosEventRecord } from './types/events.js'
+export type {
+  SwordsOfChaosEventBatch,
+  SwordsOfChaosHistoryEventRecord,
+  SwordsOfChaosMutationEvent,
+} from './types/events.js'
