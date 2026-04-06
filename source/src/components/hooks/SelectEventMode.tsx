@@ -51,7 +51,7 @@ export function SelectEventMode(t0) {
   } else {
     t2 = $[3];
   }
-  const t3 = <Box flexDirection="column" gap={1}><Text dimColor={true}>{figures.info} This menu is read-only. Configured hooks still run automatically during turns; this screen only shows what is configured. To add or modify hooks, edit settings.json directly or ask Claude.{" "}<Link url="https://code.claude.com/docs/en/hooks">Learn more</Link></Text>{totalHooksCount === 0 && <Text dimColor={true}>No hooks are configured yet. That is normal on a new install.</Text>}</Box>;
+  const t3 = <Box flexDirection="column" gap={1}><Text dimColor={true}>{figures.info} This menu is read-only. Configured hooks still run automatically during turns; this screen only shows what is configured. To add or modify hooks, edit settings.json directly or ask CT.{" "}<Link url="https://code.claude.com/docs/en/hooks">Learn more</Link></Text>{totalHooksCount === 0 && <Text dimColor={true}>No hooks are configured yet. That is normal on a new install.</Text>}</Box>;
   let t4;
   if ($[5] !== onSelectEvent) {
     t4 = value => {

@@ -1,6 +1,6 @@
 # Telegram Integration
 
-This fork supports Telegram as an external control and messaging channel.
+SeaTurtle supports Telegram as an external control and messaging channel.
 
 Current Telegram support:
 
@@ -160,7 +160,7 @@ Autowork Telegram notices follow the same project-local binding model:
 
 ## Multi-Bot And Project Binding
 
-This fork now supports multiple saved Telegram bot profiles.
+SeaTurtle now supports multiple saved Telegram bot profiles.
 
 - pair a bot once, save it as a reusable profile
 - bind that profile to the current project

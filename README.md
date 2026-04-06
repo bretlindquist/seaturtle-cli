@@ -1,15 +1,14 @@
 # SeaTurtle CLI (CT)
 
-SeaTurtle CLI, or `CT`, is a working fork of Andrew Kramer-Inno's Claude Code
-source-build. The goal of this fork is to preserve as much of the local
-feature surface as possible while porting the main runtime toward native
-OpenAI/Codex OAuth support.
+SeaTurtle CLI, or `CT`, is a heavily modified source-build lineage project that
+started from Andrew Kramer-Inno's local coding runtime base. The goal is to
+preserve as much of the local feature surface as possible while porting the
+main runtime toward native OpenAI/Codex OAuth support.
 
-This is not a clean-room reimplementation. It is a heavily modified derivative
-of the Andrew source-build base, with a branded wrapper layer, provider-aware
-runtime changes, and additional operator-facing features such as Telegram
-integration, project-local reminders, and a private project-local CT working
-layer.
+This is not a clean-room reimplementation. It began from that source-build
+base, but it now carries its own branded wrapper layer, provider-aware runtime
+changes, and additional operator-facing features such as Telegram integration,
+project-local reminders, and a private project-local CT working layer.
 
 That private CT layer is no longer just a couple of theme files. It is a small
 relationship stack under `.ct/` that lets SeaTurtle carry a project-local soul,
@@ -42,7 +41,7 @@ The goal is simple:
 This architectural separation is part of what makes SeaTurtle feel more like
 an ally than a novelty layer.
 
-## What This Fork Is Trying To Do
+## What SeaTurtle Is Trying To Do
 
 - keep the source-build local UX useful and familiar
 - run the main conversation loop on OpenAI/Codex when selected
@@ -245,7 +244,7 @@ For a fuller explanation, see [docs/BRANDING.md](./docs/BRANDING.md).
 
 ## OpenAI/Codex Support
 
-This fork adds a native OpenAI/Codex provider path to the Andrew source-build
+SeaTurtle adds a native OpenAI/Codex provider path to the Andrew source-build
 runtime.
 
 ### What Currently Works On OpenAI/Codex
@@ -288,7 +287,7 @@ For provider details, known gates, and validation commands, see
 
 ## Telegram Integration
 
-This fork supports Telegram as an external control and messaging channel.
+SeaTurtle supports Telegram as an external control and messaging channel.
 
 ### Supported Today
 

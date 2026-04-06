@@ -1,6 +1,6 @@
 # CT / seaturtle Branding And Compatibility
 
-This fork uses `CT` as the primary user-facing name and `seaturtle` as an
+SeaTurtle uses `CT` as the primary user-facing name and `seaturtle` as an
 equivalent wrapper alias.
 
 The branding goal is:
@@ -65,7 +65,7 @@ Examples:
 
 ## Why The Compatibility Boundary Exists
 
-This fork is built on Andrew Kramer-Inno's source-build base. It is not a
+SeaTurtle started from Andrew Kramer-Inno's source-build base. It is not a
 clean-room reimplementation.
 
 That means the safest branding strategy is:
@@ -91,5 +91,5 @@ Answer with:
 
 Examples:
 
-- "Run `ct`. It is the preferred CT wrapper for this fork."
+- "Run `ct`. It is the preferred CT wrapper for SeaTurtle."
 - "The internal `CLAUDE_*` names remain for compatibility with the underlying source-build base."

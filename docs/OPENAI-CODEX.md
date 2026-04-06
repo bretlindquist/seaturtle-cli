@@ -1,13 +1,13 @@
 # OpenAI/Codex Provider Port
 
-This fork adds a native OpenAI/Codex provider path to the Andrew
-`claude-code-source-build` codebase.
+SeaTurtle adds a native OpenAI/Codex provider path on top of the Andrew
+source-build lineage.
 
 It does not replace every Anthropic- or claude.ai-specific feature. The goal is
-to preserve the local Claude Code runtime where possible while making the main
-conversation loop work on OpenAI/Codex OAuth.
+to preserve the local runtime feature surface where possible while making the
+main conversation loop work on OpenAI/Codex OAuth.
 
-## What This Fork Adds
+## What SeaTurtle Adds
 
 - provider-aware main-loop runtime selection
 - OpenAI/Codex-backed main-loop execution
@@ -83,7 +83,7 @@ Compatibility note:
 
 ## Auth Model
 
-This fork is designed so auth does not live in the repo.
+SeaTurtle is designed so auth does not live in the repo.
 
 - OpenAI/Codex auth is expected to come from local Codex CLI auth state and/or
   secure storage
@@ -119,4 +119,4 @@ After the current planned port/hardening chunks, the most likely next areas are:
 
 - expand strict OpenAI tool-schema coverage beyond `TodoWrite`
 - broaden provider-neutral replacements for Anthropic-only account surfaces
-- continue operator-facing polish as the fork stabilizes
+- continue operator-facing polish as SeaTurtle stabilizes
