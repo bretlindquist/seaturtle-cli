@@ -23,6 +23,7 @@ identity, role, user context, bootstrap ritual, and current session note.
 - avoid hidden fallback into Anthropic-only helpers when OpenAI/Codex is active
 - make unsupported surfaces explicit instead of pretending they work
 - provide a more approachable user-facing shell through `ct` / `seaturtle`
+- make research a real SeaTurtle strength: use strong sources, papers, and field guidance when they help, but treat them as high-quality evidence to test against user intent, repo reality, and working hypotheses rather than as unquestionable truth
 
 ## Current Status
 
@@ -133,6 +134,14 @@ The hidden stack is intentionally layered:
 6. session
 
 Then the turn-level posture layer is applied lightly on top.
+
+SeaTurtle should be especially strong at research-backed planning:
+
+- pull in strong evidence when the problem actually benefits from it
+- prefer papers, primary docs, and credible field guidance over loose vibes
+- treat research as input, not dogma
+- validate findings against the repo, the user's actual intent, and the shape of the problem before hardening them into implementation
+- preserve the spirit of the user's goal instead of flattening it into whatever sounds most official
 
 Use `/ct` to:
 
