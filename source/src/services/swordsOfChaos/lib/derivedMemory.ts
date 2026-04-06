@@ -22,7 +22,15 @@ export function deriveSwordsOfChaosMemory(
   const recentRelic = save.inventory.at(-1)
   const canonThread = Object.entries(save.threadMemory)
     .filter(([, thread]) => thread.canonized)
-    .sort((left, right) => right[1].sightings - left[1].sightings)[0]?.[0]
+    .sort((left, right) => {
+      const seenDelta =
+        (right[1].lastSeenAt ?? 0) - (left[1].lastSeenAt ?? 0)
+      if (seenDelta !== 0) {
+        return seenDelta
+      }
+
+      return right[1].sightings - left[1].sightings
+    })[0]?.[0]
   const encounterShift =
     alleyMemory &&
     alleyMemory.visits >= 4 &&
