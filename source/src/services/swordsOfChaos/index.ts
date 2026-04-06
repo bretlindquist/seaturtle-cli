@@ -26,6 +26,7 @@ export {
   getSwordsEncounterLocus,
   getSwordsEncounterMemoryKey,
   getSwordsEncounterPlaceName,
+  isSwordsEncounterMemoryKey,
 } from './lib/worldMap.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'

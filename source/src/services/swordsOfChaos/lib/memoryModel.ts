@@ -3,6 +3,7 @@ import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import {
   getSwordsEncounterMemoryKey,
   getSwordsEncounterPlaceName,
+  isSwordsEncounterMemoryKey,
   type SwordsOfChaosEncounterLocus,
 } from './worldMap.js'
 
@@ -73,7 +74,7 @@ export function deriveSwordsOfChaosMemory(
     .reverse()
     .find(
       thread =>
-        thread !== 'trench-coat-turtle-alley' && thread !== canonThread,
+        !isSwordsEncounterMemoryKey(thread) && thread !== canonThread,
     )
 
   return {

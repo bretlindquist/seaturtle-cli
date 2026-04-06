@@ -27,6 +27,17 @@ export function getSwordsEncounterMemoryKey(
   }
 }
 
+export function isSwordsEncounterMemoryKey(thread: string): boolean {
+  return (
+    thread === 'trench-coat-turtle-alley' ||
+    thread === 'old-tree-bramble-latch' ||
+    thread === 'black-deck-ocean-ship' ||
+    thread === 'failing-ring-space-station' ||
+    thread === 'foxfire-fae-grove' ||
+    thread === 'seductive-dark-dungeon'
+  )
+}
+
 export function getSwordsEncounterPlaceName(
   locus: SwordsOfChaosEncounterLocus,
 ): string {
