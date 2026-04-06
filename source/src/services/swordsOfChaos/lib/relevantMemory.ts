@@ -1,0 +1,33 @@
+import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
+import type { SwordsOfChaosSaveFile } from '../types/save.js'
+import { deriveSwordsOfChaosMemory } from './derivedMemory.js'
+
+function getRoadNotTakenHint(routes: string[]): string | undefined {
+  const allOpeners = ['draw-steel', 'bow-slightly', 'talk-like-you-belong']
+  const usedOpeners = new Set(routes.map(route => route.split(':')[0]))
+  const unused = allOpeners.find(opener => !usedOpeners.has(opener))
+
+  if (!unused) {
+    return undefined
+  }
+
+  switch (unused) {
+    case 'draw-steel':
+      return 'There is still a harder road through this alley that you never took.'
+    case 'bow-slightly':
+      return 'A more patient version of this moment still seems to be waiting somewhere nearby.'
+    case 'talk-like-you-belong':
+      return 'The alley still remembers a bluff you never tried.'
+  }
+}
+
+export function getSwordsOfChaosRelevantMemory(
+  save: SwordsOfChaosSaveFile,
+): SwordsOfChaosRelevantMemory {
+  const memory = deriveSwordsOfChaosMemory(save)
+  return {
+    familiarPlace: memory.familiarPlaces[0],
+    priorRoutes: memory.priorRoutes,
+    roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
+  }
+}

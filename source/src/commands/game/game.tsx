@@ -31,6 +31,7 @@ import {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
+  getSwordsOfChaosRelevantMemory,
   getSwordsOpeningLabel,
   renderSwordsOfChaosHybridScene,
   resolveSwordsOfChaosRoute,
@@ -68,14 +69,23 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
   const gameState = readCtGameState(projectRoot)
+  const swordsRuntimeSave = React.useMemo(() => ensureSwordsOfChaosRuntimeReady(), [])
+  const swordsRelevantMemory = React.useMemo(
+    () => getSwordsOfChaosRelevantMemory(swordsRuntimeSave),
+    [swordsRuntimeSave],
+  )
   const swordsOpeningScene = React.useMemo<SwordsOfChaosDmSceneResponse>(
-    () => renderSwordsOfChaosHybridScene({ stage: 'opening' }),
-    [],
+    () =>
+      renderSwordsOfChaosHybridScene({
+        stage: 'opening',
+        relevantMemory: swordsRelevantMemory,
+      }),
+    [swordsRelevantMemory],
   )
 
   React.useEffect(() => {
-    ensureSwordsOfChaosRuntimeReady()
-  }, [])
+    void swordsRuntimeSave
+  }, [swordsRuntimeSave])
 
   function showResult(result: string): void {
     setResultMessage(result)
@@ -283,6 +293,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       const secondBeatScene = renderSwordsOfChaosHybridScene({
         stage: 'second-beat',
         openingChoice,
+        relevantMemory: swordsRelevantMemory,
       })
 
       return (

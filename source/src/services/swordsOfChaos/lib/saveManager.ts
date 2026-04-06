@@ -4,6 +4,10 @@ import { writeFileSyncAndFlush_DEPRECATED } from '../../../utils/file.js'
 import { getFsImplementation } from '../../../utils/fsOperations.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
+import {
+  deriveSwordsOfChaosMemory,
+  saveSwordsOfChaosDerivedMemory,
+} from './derivedMemory.js'
 import { appendSwordsOfChaosEvent } from './eventHistory.js'
 import { migrateSwordsOfChaosSave } from './migrationRunner.js'
 import { getSwordsOfChaosPaths } from './paths.js'
@@ -96,5 +100,6 @@ export function saveSwordsOfChaosSave(
       encoding: 'utf-8',
     },
   )
+  saveSwordsOfChaosDerivedMemory(deriveSwordsOfChaosMemory(next))
   return next
 }
