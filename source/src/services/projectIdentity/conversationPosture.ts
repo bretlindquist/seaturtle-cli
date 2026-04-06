@@ -156,6 +156,37 @@ const TECHNICAL_CONTEXT_MARKERS = [
   'codebase',
 ] as const
 
+const UI_DESIGN_MARKERS = [
+  'ui',
+  'ux',
+  'frontend',
+  'front end',
+  'design',
+  'layout',
+  'landing page',
+  'onboarding',
+  'menu',
+  'theme',
+  'theming',
+  'responsive',
+  'mobile',
+  'desktop',
+  'spacing',
+  'hierarchy',
+  'legibility',
+  'empty state',
+  'loading state',
+  'error state',
+  'button alignment',
+  'transcript',
+  'visual polish',
+  'microcopy',
+  'interaction',
+  'interaction flow',
+  'color palette',
+  'typography',
+] as const
+
 const EXPLICIT_WORK_VERBS = [
   'implement',
   'fix',
@@ -341,6 +372,10 @@ function currentLooksBroadHumanTurn(text: string): boolean {
   return includesAny(text, broadMarkers)
 }
 
+function looksLikeUiDesignTurn(text: string): boolean {
+  return includesAny(text, UI_DESIGN_MARKERS)
+}
+
 export function classifyCtConversationPosture(input: {
   currentInput: string
   recentUserMessages?: readonly string[]
@@ -410,8 +445,22 @@ function getDispositionFlavor(disposition: CtDisposition): string {
 export function buildCtConversationPostureAddendum(input: {
   posture: CtConversationPosture
   disposition: CtDisposition
+  currentInput?: string
 }): string {
   const flavor = getDispositionFlavor(input.disposition)
+  const uiFocused = looksLikeUiDesignTurn(normalizeText(input.currentInput ?? ''))
+  const uiGuidance = uiFocused
+    ? `
+
+UI / design signal detected:
+
+- Look for high-leverage delight rather than generic prettiness.
+- Improve hierarchy, spacing, legibility, and flow before adding flourish.
+- Consider responsive behavior and important edge states.
+- Preserve the existing design language unless the user is clearly asking for a redesign.
+- Put extra effort where a modest improvement would create outsized user delight.
+- Avoid AI-slop patterns, decorative overreach, and color-only fixes when structure is weak.`
+    : ''
 
   switch (input.posture) {
     case 'supportive':
@@ -427,7 +476,7 @@ The user may be strained, discouraged, tired, or carrying something heavy.
 - Keep the response smaller and gentler than a full technical dump.
 - If a question helps, make it simple and humane.
 - Avoid piling jokes onto a difficult moment.
-- ${flavor}`
+- ${flavor}${uiGuidance}`
     case 'explore':
       return `# CT Conversation Posture
 
@@ -443,7 +492,7 @@ The user appears to want big-picture thinking, conversation, exploration, or phi
 - Allow tangents when the tangent is the point.
 - Do not flatten broad human or project questions into task triage, category menus, or productivity coaching.
 - Meet the idea first, then narrow only if the user wants to execute.
-- ${flavor}`
+- ${flavor}${uiGuidance}`
     case 'open':
       return `# CT Conversation Posture
 
@@ -456,7 +505,7 @@ The session is still orienting. Stay conversational first and let the work postu
 - Keep the response short, human, and easy to reply to.
 - If the user is vague, meet them with curiosity instead of forcing structure too early.
 - Do not jump straight to task triage unless the user explicitly asks for execution.
-- ${flavor}`
+- ${flavor}${uiGuidance}`
     case 'work':
       return `# CT Conversation Posture
 
@@ -466,7 +515,7 @@ Current SeaTurtle disposition: ${input.disposition}
 - Stay practical, compact, and useful first.
 - Keep warmth in the tone, but do not let personality bury the work.
 - Prefer the next clear step over an exhaustive monologue unless the user asks for depth.
-- ${flavor}`
+- ${flavor}${uiGuidance}`
   }
 }
 
@@ -494,6 +543,7 @@ export function getCtConversationPostureResult(input: {
     addendum: buildCtConversationPostureAddendum({
       posture,
       disposition,
+      currentInput: input.currentInput,
     }),
   }
 }

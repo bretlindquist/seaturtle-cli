@@ -6,6 +6,7 @@ repo.
 Use it when the user asks natural-language questions like:
 
 - how do I set up Telegram?
+- how should CT approach design or frontend work?
 - how do I use OpenAI OAuth here?
 - how does CT identity work in this project?
 - how do I make CT remind me about something after replies?
@@ -87,6 +88,31 @@ Important truth:
 - SeaTurtle brands the wrapper and user-facing UX as CT
 - compatibility-sensitive env vars, paths, and internal identifiers remain unchanged on purpose
 - this repo still carries a source-build compatibility boundary rather than a full internal rename
+
+## Design / Frontend / UI quality
+
+Keywords:
+
+- design
+- ui
+- ux
+- frontend
+- layout
+- transcript
+- responsive
+- theming
+- visual polish
+
+Next steps:
+
+- Ask CT directly for the UI improvement or redesign intent
+- When the task is UI-facing, CT should treat design quality as part of usability rather than decorative icing
+- Expect CT to look for high-leverage improvements in hierarchy, flow, legibility, responsiveness, and key states
+
+Important truth:
+
+- SeaTurtle is intended to go beyond the minimum acceptable frontend fix when a modest extra pass would create real user delight
+- that extra effort should stay grounded in the existing design language unless the user is explicitly asking for a redesign
 
 ## Telegram
 
