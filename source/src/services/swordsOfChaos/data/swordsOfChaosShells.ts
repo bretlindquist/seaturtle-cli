@@ -102,6 +102,15 @@ export const SWORDS_OF_CHAOS_FAE_REALM_OPENING_SHELL: SwordsOpeningShell = {
     'Some places test you with danger. Others test whether you can recognize danger wearing grace.',
 }
 
+export const SWORDS_OF_CHAOS_DARK_DUNGEON_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You wake in a cavernous dungeon where the dark is full of coaxing voices and every archway seems to remember a refusal you made elsewhere.',
+  sceneText:
+    'Cold stone sweats under green-black torchlight. Iron rings hang from the walls with no visible chain, and a stair descends into a lower dark that keeps trying to sound welcoming. Whatever thread followed you here has learned how to whisper.',
+  hintText:
+    'Some places threaten openly. Others ask so sweetly that saying no becomes the real trial.',
+}
+
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
   SwordsSecondBeat
@@ -676,6 +685,90 @@ export const SWORDS_OF_CHAOS_FAE_REALM_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the realm must either expose you or seat you at a table you never meant to find.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_DARK_DUNGEON_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'The dungeon takes the blade as an answer and lets the whispers turn admiring for all the wrong reasons.',
+    intro:
+      'Violence down here feels less like action and more like consent. The cavern wants to know whether your steel is a ward, a surrender, or the first note in a song it already knows.',
+    options: [
+      {
+        label: 'Strike the whispering chain',
+        value: 'cut-the-sign-chain',
+        description:
+          'Cut at the iron ring and listen for whether stone, voice, or memory screams first.',
+      },
+      {
+        label: 'Stand above the stair',
+        value: 'hold-the-line',
+        description:
+          'Hold the threshold and force the lower dark to come to you without the dignity of invitation.',
+      },
+      {
+        label: 'Lower the blade into shadow',
+        value: 'lower-the-blade',
+        description:
+          'Refuse to let the dungeon decide that every fear should end in steel.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The seductive voices soften, which is somehow more dangerous than when they were hungry.',
+    intro:
+      'Courtesy in a dungeon of whispers can be reverence, mockery, or an attempt to avoid being mistaken for prey. The echoing dark wants to know which one you intended.',
+    options: [
+      {
+        label: 'Keep the careful posture',
+        value: 'keep-bowing',
+        description:
+          'Hold the line of restraint until the whispers decide whether they are being honored or denied.',
+      },
+      {
+        label: 'Lift your eyes into the vault',
+        value: 'meet-the-gaze',
+        description:
+          'Answer the unseen speakers as if they were only the visible edge of something deeper below.',
+      },
+      {
+        label: 'Ask who keeps calling',
+        value: 'ask-the-price',
+        description:
+          'Treat the voices like a bargain trying to pretend it is company.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'The dungeon almost purrs. Confidence sounds dangerously compatible with this place.',
+    intro:
+      'Bluffing familiarity in a chamber like this risks becoming exactly what the whispers hoped you would be: someone who mistakes recognition for safety.',
+    options: [
+      {
+        label: 'Name the buried order',
+        value: 'name-a-false-title',
+        description:
+          'Claim to know who carved the archways and see whether the stone still respects rank.',
+      },
+      {
+        label: 'Laugh into the hollow',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Answer the coaxing dark as if you already know which part of it is theater.',
+      },
+      {
+        label: 'Keep talking down the stair',
+        value: 'double-down',
+        description:
+          'Push the bluff until the dungeon must either expose you or welcome you farther than wisdom would advise.',
       },
     ],
   },

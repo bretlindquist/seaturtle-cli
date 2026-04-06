@@ -87,4 +87,20 @@ export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
         'Every path not taken in the grove still glows faintly, unwilling to admit it has been abandoned.',
     },
   },
+  'dark-dungeon': {
+    connectiveWeight:
+      'The dungeon feels like the underside of every other place: the same questions sunk deeper until they learned to speak in echoes and temptation.',
+    threadEchoes: {
+      'half-shell-relic-trail':
+        'Shell-green glints in the mineral seams like a relic trail buried alive and still trying to surface.',
+      'broken-lamp-witnesses':
+        'The watchlight has become low phosphor and whispering sconces, but it still behaves like the same old witness.',
+      'alley-oath-keepers':
+        'Down here, promises sound less noble and more binding, as if every vow eventually needs a cellar.',
+      'sign-truth-fractures':
+        'The dungeon repeats names back wrong on purpose, turning cracked truth into a seduction rather than a glitch.',
+      'quiet-refusals':
+        'The seductive voices know exactly which doors you closed elsewhere and they keep trying the handles from the other side.',
+    },
+  },
 }

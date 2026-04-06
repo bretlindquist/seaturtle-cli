@@ -6,6 +6,7 @@ export type SwordsOfChaosRelevantMemory = {
     | 'ocean-ship'
     | 'space-station'
     | 'fae-realm'
+    | 'dark-dungeon'
   priorRoutes: string[]
   roadNotTakenHint?: string
   revisitCount: number
@@ -30,6 +31,7 @@ export type SwordsOfChaosDerivedMemory = {
     | 'ocean-ship'
     | 'space-station'
     | 'fae-realm'
+    | 'dark-dungeon'
   recentTitle?: string
   recentRelic?: string
   liveThread?: string

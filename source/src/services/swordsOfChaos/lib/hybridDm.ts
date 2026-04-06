@@ -95,6 +95,10 @@ function getSecondBeatLead(
     return `${openingChoice} got you this far on a station that sounds like it is remembering the wrong century. The air tastes like frost, current, and unfinished instructions.`
   }
 
+  if (relevantMemory?.encounterShift === 'dark-dungeon') {
+    return `${openingChoice} got you this far in a dungeon that sounds too interested in your choices. The dark keeps offering hospitality the way a snare offers comfort.`
+  }
+
   if (relevantMemory?.encounterShift === 'fae-realm') {
     return `${openingChoice} got you this far in a grove where courtesy feels armed and beauty behaves like jurisdiction. Even the light seems to be watching for procedural mistakes.`
   }
@@ -242,7 +246,9 @@ function renderDeterministicScene(
       payload.relevantMemory?.familiarPlace === 'trench-coat turtle alley'
     const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
     const openingShell =
-      payload.relevantMemory?.encounterShift === 'fae-realm'
+      payload.relevantMemory?.encounterShift === 'dark-dungeon'
+        ? getSwordsOpeningShellVariant('dark-dungeon')
+        : payload.relevantMemory?.encounterShift === 'fae-realm'
         ? getSwordsOpeningShellVariant('fae-realm')
         : payload.relevantMemory?.encounterShift === 'space-station'
         ? getSwordsOpeningShellVariant('space-station')
@@ -287,7 +293,9 @@ function renderDeterministicScene(
 
   const returningAgain = (payload.relevantMemory?.revisitCount ?? 0) > 1
   const secondBeat =
-    payload.relevantMemory?.encounterShift === 'fae-realm'
+    payload.relevantMemory?.encounterShift === 'dark-dungeon'
+      ? getSwordsSecondBeatVariant(payload.openingChoice, 'dark-dungeon')
+      : payload.relevantMemory?.encounterShift === 'fae-realm'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'fae-realm')
       : payload.relevantMemory?.encounterShift === 'space-station'
       ? getSwordsSecondBeatVariant(payload.openingChoice, 'space-station')
