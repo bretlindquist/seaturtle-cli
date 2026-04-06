@@ -22,6 +22,69 @@ import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosOpeningChoice } from '../types/outcomes.js'
 import type { SwordsOpeningOption, SwordsSecondBeatOption } from '../types/shells.js'
 
+function getBiomeRecallLanguage(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): {
+  place: string
+  witness: string
+  atmosphere: string
+  quietApproval: string
+} {
+  switch (relevantMemory?.encounterShift) {
+    case 'old-tree':
+      return {
+        place: 'the old tree',
+        witness: 'the roots',
+        atmosphere: 'Even the hanging roots seem to recognize the restraint.',
+        quietApproval:
+          ' Something in the leaves seems to approve of this quieter line.',
+      }
+    case 'ocean-ship':
+      return {
+        place: 'the ship',
+        witness: 'the deck',
+        atmosphere: 'Even the salt wind seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the lantern swing seems to approve of this quieter line.',
+      }
+    case 'space-station':
+      return {
+        place: 'the station',
+        witness: 'the corridor',
+        atmosphere:
+          'Even the strip-lights seem to recognize the restraint.',
+        quietApproval:
+          ' Something in the station hum seems to approve of this quieter line.',
+      }
+    case 'fae-realm':
+      return {
+        place: 'the grove',
+        witness: 'the foxfire',
+        atmosphere:
+          'Even the foxfire seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the watching glamour seems to approve of this quieter line.',
+      }
+    case 'dark-dungeon':
+      return {
+        place: 'the dungeon',
+        witness: 'the dark',
+        atmosphere:
+          'Even the whispering dark seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the listening dark seems to approve of this quieter line.',
+      }
+    default:
+      return {
+        place: 'the alley',
+        witness: 'the sign',
+        atmosphere: 'Even the rain seems to recognize the restraint.',
+        quietApproval:
+          ' Something in the rain seems to approve of this quieter line.',
+      }
+  }
+}
+
 function applyOpeningCallbackMemory(
   options: SwordsOpeningOption[],
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
@@ -33,6 +96,7 @@ function applyOpeningCallbackMemory(
   const priorOpeners = new Set(
     relevantMemory.priorRoutes.map(route => route.split(':')[0]),
   )
+  const recall = getBiomeRecallLanguage(relevantMemory)
 
   return options.map(option => {
     switch (option.value) {
@@ -41,7 +105,7 @@ function applyOpeningCallbackMemory(
           ? {
               ...option,
               description:
-                'The hard road again. The alley remembers how bright the steel looked last time.',
+                `The hard road again. ${recall.place} remembers how bright the steel looked last time.`,
             }
           : {
               ...option,
@@ -53,7 +117,7 @@ function applyOpeningCallbackMemory(
           ? {
               ...option,
               description:
-                'The patient road again. Even the rain seems to recognize the restraint.',
+                `The patient road again. ${recall.atmosphere}`,
             }
           : {
               ...option,
@@ -65,12 +129,12 @@ function applyOpeningCallbackMemory(
           ? {
               ...option,
               description:
-                'The bluff again. The sign crackles like it remembers your voice.',
+                `The bluff again. ${recall.witness.charAt(0).toUpperCase() + recall.witness.slice(1)} remembers your voice.`,
             }
           : {
               ...option,
               description:
-                'The road of nerve you never tried. The alley seems almost curious about it.',
+                `The road of nerve you never tried. ${recall.place.charAt(0).toUpperCase() + recall.place.slice(1)} seems almost curious about it.`,
             }
       default:
         return option
@@ -189,6 +253,7 @@ function applySecondBeatCallbackMemory(
   }
 
   const priorRoutes = new Set(relevantMemory.priorRoutes)
+  const recall = getBiomeRecallLanguage(relevantMemory)
 
   const rewritten = options.map(option => {
     const route = `${openingChoice}:${option.value}`
@@ -199,10 +264,10 @@ function applySecondBeatCallbackMemory(
     return {
       ...option,
       description: `${seen
-        ? `${option.description} The alley has watched you choose this road before.`
-        : `${option.description} This is one of the roads the alley kept from you last time.`}${
+        ? `${option.description} ${recall.place.charAt(0).toUpperCase() + recall.place.slice(1)} has watched you choose this road before.`
+        : `${option.description} This is one of the roads ${recall.place} kept from you last time.`}${
         seaTurtleFavored
-          ? ' Something in the rain seems to approve of this quieter line.'
+          ? recall.quietApproval
           : ''
       }`,
     }
