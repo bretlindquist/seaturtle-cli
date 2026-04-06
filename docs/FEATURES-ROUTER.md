@@ -269,6 +269,9 @@ Important truth:
 - different diagram intents use different Mermaid shapes
 - Mermaid C4 support is available and useful, but still experimental upstream
 - the point is architecture thinking and clarity, not decorative diagram spam
+- existing Swords of Chaos Mermaid docs:
+  - `docs/SWORDS-OF-CHAOS-ARCHITECTURE.md`
+  - `docs/SWORDS-OF-CHAOS-JOURNEY.md`
 
 ## GitHub Actions / install-github-app
 
