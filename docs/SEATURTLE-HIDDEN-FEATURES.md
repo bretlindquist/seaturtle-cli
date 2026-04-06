@@ -81,6 +81,8 @@ It is internal context meant to make the product steadier and more humane.
 One of SeaTurtle’s strongest hidden architectural features is context-domain
 separation.
 
+`Context Sanctity` is the internal suite name for this behavior.
+
 Internal domains:
 
 - `project_work`
@@ -96,7 +98,7 @@ What this does:
 - keeps `/game` richer without muddying the project transcript
 - helps project sessions stay sharp, resumable, and surgical
 
-It also now includes hidden mid-turn steering lanes:
+It also includes hidden steering lanes as part of Context Sanctity:
 
 - `same_task_steer`
 - `side_question`

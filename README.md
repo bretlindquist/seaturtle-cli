@@ -19,6 +19,8 @@ identity, role, user context, bootstrap ritual, and current session note.
 One of SeaTurtle's strongest product features is that it does not treat every
 interaction as one big undifferentiated session blob.
 
+`Context Sanctity` is the name of this suite of behaviors.
+
 SeaTurtle is designed to be:
 
 - fun and alive when you want play, chat, or surprise
@@ -34,6 +36,9 @@ In practice, that means SeaTurtle now treats context in domains:
 - `/btw` is for quick side questions specifically, not for steering the active task and not for parking unrelated follow-up work
 - `/game` keeps its archive progression and outcomes inside the hidden shell instead of spilling them back into ordinary project transcript flow
 - mid-turn input is also classified under the hood so related steer stays with the current task while unrelated ideas can wait their turn
+
+Inside that suite, hidden steering lanes help SeaTurtle stay on task without
+making the user do routing math.
 
 The goal is simple:
 
