@@ -403,6 +403,16 @@ export async function handlePromptSubmit(
       return
     }
 
+    if (midTurnIntent === 'same_task_steer') {
+      params.addNotification?.({
+        key: 'same-task-steer',
+        text: 'Steering current task…',
+        priority: 'medium',
+        timeoutMs: 2200,
+        fold: accumulator => accumulator,
+      })
+    }
+
     enqueue({
       ...queuedCommand,
     })
