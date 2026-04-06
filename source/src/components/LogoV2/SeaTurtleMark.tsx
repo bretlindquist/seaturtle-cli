@@ -3,6 +3,7 @@ import { Box, Text } from '../../ink.js'
 
 type SeaTurtleMarkProps = {
   size?: 'compact' | 'hero'
+  color?: string
 }
 
 const COMPACT_SEA_TURTLE = [
@@ -44,13 +45,14 @@ const HERO_SEA_TURTLE = [
 
 export function SeaTurtleMark({
   size = 'compact',
+  color = 'success',
 }: SeaTurtleMarkProps): React.ReactNode {
   const lines = size === 'hero' ? HERO_SEA_TURTLE : COMPACT_SEA_TURTLE
 
   return (
     <Box flexDirection="column">
       {lines.map((line, index) => (
-        <Text key={`${size}-${index}`} color="claude">
+        <Text key={`${size}-${index}`} color={color}>
           {line}
         </Text>
       ))}

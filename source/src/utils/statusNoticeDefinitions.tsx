@@ -243,7 +243,7 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
   }
 };
 
-const CT_GREETING_TYPING_DELAY_MS = 12;
+const CT_GREETING_TYPING_DELAY_MS = 18;
 
 function CtIdentityGreetingNoticeBody({
   canonCallback,

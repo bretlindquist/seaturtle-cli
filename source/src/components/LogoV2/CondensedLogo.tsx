@@ -1,6 +1,6 @@
 import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
-import { type ReactNode, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { stringWidth } from '../../ink/stringWidth.js';
@@ -8,14 +8,13 @@ import { Box, Text } from '../../ink.js';
 import { useAppState } from '../../state/AppState.js';
 import { getEffortSuffix } from '../../utils/effort.js';
 import { truncate } from '../../utils/format.js';
-import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import { formatModelAndBilling, getLogoDisplayData, truncatePath } from '../../utils/logoV2Utils.js';
 import { renderModelSetting } from '../../utils/model/model.js';
 import { OffscreenFreeze } from '../OffscreenFreeze.js';
 import { AnimatedSeaTurtle } from './AnimatedSeaTurtle.js';
 import { GuestPassesUpsell, incrementGuestPassesSeenCount, useShowGuestPassesUpsell } from './GuestPassesUpsell.js';
 import { incrementOverageCreditUpsellSeenCount, OverageCreditUpsell, useShowOverageCreditUpsell } from './OverageCreditUpsell.js';
-import { SeaTurtleMark, SeaTurtleWordmark } from './SeaTurtleMark.js';
+import { SeaTurtleWordmark } from './SeaTurtleMark.js';
 export function CondensedLogo() {
   const $ = _c(29);
   const {
@@ -81,7 +80,7 @@ export function CondensedLogo() {
   const truncatedCwd = truncatePath(cwd, Math.max(cwdAvailableWidth, 10));
   let t4;
   if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = isFullscreenEnvEnabled() ? <AnimatedSeaTurtle /> : <SeaTurtleMark size="compact" />;
+    t4 = <AnimatedSeaTurtle />;
     $[7] = t4;
   } else {
     t4 = $[7];
@@ -140,7 +139,7 @@ export function CondensedLogo() {
   }
   let t12;
   if ($[23] !== t10 || $[24] !== t11 || $[25] !== t6 || $[26] !== t7 || $[27] !== t9) {
-    t12 = <OffscreenFreeze><Box flexDirection="column" alignItems="center">{t4}<Box flexDirection="column" alignItems="center">{t6}{t7}{t9}</Box>{t10}{t11}</Box></OffscreenFreeze>;
+    t12 = <OffscreenFreeze><Box flexDirection="column"><Box flexDirection="row" gap={2} alignItems="flex-end">{t4}<Box flexDirection="column">{t6}{t7}{t9}</Box></Box>{t10}{t11}</Box></OffscreenFreeze>;
     $[23] = t10;
     $[24] = t11;
     $[25] = t6;
