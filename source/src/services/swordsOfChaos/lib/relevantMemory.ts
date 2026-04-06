@@ -37,6 +37,7 @@ export function getSwordsOfChaosRelevantMemory(
     recentRelic: memory.recentRelic,
     liveThread: memory.liveThread,
     canonThread: memory.canonThread,
+    threadOmen: memory.threadOmen,
     seaturtleGlimpsed: save.seaturtle.appearances > 0,
     seaturtleBond: save.seaturtle.bond,
   }

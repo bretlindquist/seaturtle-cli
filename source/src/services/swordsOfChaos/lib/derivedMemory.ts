@@ -11,6 +11,23 @@ function ensureParentDir(path: string): void {
   getFsImplementation().mkdirSync(dirname(path))
 }
 
+function getThreadOmen(thread: string | undefined): string | undefined {
+  switch (thread) {
+    case 'half-shell-relic-trail':
+      return 'A shell-green gleam keeps appearing where metal ought to be dull.'
+    case 'broken-lamp-witnesses':
+      return 'A watching light keeps finding the edge of the scene, even when there should be none.'
+    case 'alley-oath-keepers':
+      return 'Promises seem to settle into places like roots rather than words.'
+    case 'sign-truth-fractures':
+      return 'Wrong names and cracked messages keep surfacing as if reality is revising itself badly.'
+    case 'quiet-refusals':
+      return 'Refused outcomes leave a pressure behind, as if closed doors are still listening.'
+    default:
+      return undefined
+  }
+}
+
 export function deriveSwordsOfChaosMemory(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosDerivedMemory {
@@ -68,6 +85,7 @@ export function deriveSwordsOfChaosMemory(
     recentRelic,
     liveThread,
     canonThread,
+    threadOmen: getThreadOmen(canonThread ?? liveThread),
   }
 }
 

@@ -143,6 +143,10 @@ function getReturningWeight(
     return `For half a second there is another shape in the wet reflection beside yours: shell-green, patient, and gone before the eye can make a claim on it.`
   }
 
+  if (relevantMemory?.threadOmen) {
+    return relevantMemory.threadOmen
+  }
+
   if (relevantMemory?.canonThread) {
     return `One thread has started hardening into something the world intends to keep: ${relevantMemory.canonThread}.`
   }
