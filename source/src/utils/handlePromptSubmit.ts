@@ -371,7 +371,7 @@ export async function handlePromptSubmit(
           ? 'next'
           : 'later'
 
-    enqueue({
+    const queuedCommand: QueuedCommand = {
       value: finalInput.trim(),
       preExpansionValue: input.trim(),
       mode,
@@ -380,6 +380,31 @@ export async function handlePromptSubmit(
       pastedContents: hasImages ? pastedContents : undefined,
       skipSlashCommands,
       uuid,
+    }
+
+    if (midTurnIntent === 'park_for_later') {
+      setAppState(prev => ({
+        ...prev,
+        parkedPrompts: [...prev.parkedPrompts, queuedCommand],
+      }))
+
+      params.addNotification?.({
+        key: 'parked-prompt',
+        text: `Parked for later: ${finalInput.trim()}`,
+        priority: 'immediate',
+        timeoutMs: 3500,
+      })
+
+      onInputChange('')
+      setCursorOffset(0)
+      setPastedContents({})
+      resetHistory()
+      clearBuffer()
+      return
+    }
+
+    enqueue({
+      ...queuedCommand,
     })
 
     onInputChange('')

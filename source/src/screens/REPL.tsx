@@ -718,6 +718,7 @@ export function REPL({
   // /brief mid-session leaves the stale tool list (no SendUserMessage) and
   // the model emits plain text the brief filter hides.
   const isBriefOnly = useAppState(s => s.isBriefOnly);
+  const parkedPrompts = useAppState(s => s.parkedPrompts);
   const localTools = useMemo(() => getTools(toolPermissionContext), [toolPermissionContext, proactiveActive, isBriefOnly]);
   useKickOffCheckAndDisableBypassPermissionsIfNeeded();
   useKickOffCheckAndDisableAutoModeIfNeeded();
@@ -3945,6 +3946,26 @@ export function REPL({
     hasActiveLocalJsxUI: isShowingLocalJSXCommand,
     queryGuard
   });
+
+  useEffect(() => {
+    if (isQueryActive) return;
+    if (isShowingLocalJSXCommand) return;
+    if (queuedCommands.length > 0) return;
+    if (parkedPrompts.length === 0) return;
+
+    const [nextParked, ...remaining] = parkedPrompts;
+    if (!nextParked) return;
+
+    setAppState(prev => ({
+      ...prev,
+      parkedPrompts: remaining,
+    }));
+
+    enqueue({
+      ...nextParked,
+      priority: 'later',
+    });
+  }, [isQueryActive, isShowingLocalJSXCommand, queuedCommands.length, parkedPrompts, setAppState]);
 
   // We'll use the global lastInteractionTime from state.ts
 
