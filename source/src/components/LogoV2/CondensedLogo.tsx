@@ -139,7 +139,7 @@ export function CondensedLogo() {
   }
   let t12;
   if ($[23] !== t10 || $[24] !== t11 || $[25] !== t6 || $[26] !== t7 || $[27] !== t9) {
-    t12 = <OffscreenFreeze><Box flexDirection="column"><Box flexDirection="row" gap={1} alignItems="flex-start">{t4}<Box marginTop={1}><Text dimColor={true}>│</Text></Box><Box flexDirection="column" marginTop={1}>{t6}{t7}{t9}</Box></Box>{t10}{t11}</Box></OffscreenFreeze>;
+    t12 = <OffscreenFreeze><Box flexDirection="column"><Box flexDirection="row" gap={1} alignItems="flex-start">{t4}<Box marginTop={1} flexDirection="column"><Text dimColor={true}>│</Text><Text dimColor={true}>│</Text><Text dimColor={true}>│</Text></Box><Box flexDirection="column" marginTop={1}>{t6}{t7}{t9}</Box></Box>{t10}{t11}</Box></OffscreenFreeze>;
     $[23] = t10;
     $[24] = t11;
     $[25] = t6;
