@@ -237,7 +237,7 @@ async function executeLogout(target: LogoutTarget): Promise<string> {
 
   if (target === 'openai-codex') {
     await performOpenAiCodexLogout({ clearOnboarding: true })
-    return "Removed CT's OpenAI Codex linkage. Existing Codex CLI auth was left intact."
+    return "Removed CT's native OpenAI/Codex OAuth profile. Existing Codex CLI auth was left intact."
   }
 
   await performAnthropicLogout({ clearOnboarding: false })
@@ -328,7 +328,7 @@ function LogoutCommand({
           />
         )}
         <Text dimColor>
-          OpenAI logout removes CT&apos;s local linkage. If you also
+          OpenAI logout removes CT&apos;s native local linkage. If you also
           want to sign out of Codex itself, run <Text bold>codex logout</Text>.
         </Text>
       </Box>

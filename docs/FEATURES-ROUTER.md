@@ -57,6 +57,8 @@ Deep doc:
 Important truth:
 
 - OpenAI/Codex local runtime works in SeaTurtle
+- native SeaTurtle-owned OpenAI/Codex OAuth is now the preferred auth path
+- legacy `codex-cli` auth is still supported as a compatibility fallback
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs
 

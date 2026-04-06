@@ -7,7 +7,7 @@ import {
   normalizeOpenAiToolParameterSchema,
   shouldUseStrictOpenAiToolSchema,
 } from './openaiToolSchema.js'
-import { readExternalCodexCliAuth } from '../authProfiles/store.js'
+import { getUsableOpenAiCodexAuth } from '../authProfiles/openaiCodexOAuth.js'
 import type {
   AssistantMessage,
   Message,
@@ -1149,11 +1149,11 @@ async function runOpenAiCodexPlainText(params: {
   tools: Tools
   options: Options
 }): Promise<AssistantMessage> {
-  const auth = readExternalCodexCliAuth()
+  const auth = await getUsableOpenAiCodexAuth()
   if (!auth) {
     return createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex OAuth is not configured. Run `codex login` first, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex OAuth is not configured. Sign in through CT, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
     })
   }
 
@@ -1215,11 +1215,11 @@ export async function* queryOpenAiCodexWithStreaming(params: {
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  const auth = readExternalCodexCliAuth()
+  const auth = await getUsableOpenAiCodexAuth()
   if (!auth) {
     yield createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex OAuth is not configured. Run `codex login` first, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex OAuth is not configured. Sign in through CT, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
     })
     return
   }

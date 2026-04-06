@@ -135,8 +135,11 @@ At startup, CT can guide you through:
 - Anthropic Console auth
 - OpenAI Codex OAuth
 
-For OpenAI mode, CT uses local Codex auth and can launch `codex login` from the
-startup flow when needed.
+For OpenAI mode, CT now prefers native SeaTurtle-owned OpenAI/Codex OAuth
+profiles stored in secure storage.
+
+Legacy `codex-cli` auth in `~/.codex/auth.json` is still supported as a fallback
+compatibility source.
 
 ### 4. Use the app
 
@@ -229,10 +232,14 @@ The installer now checks those before it tries to build.
 
 ### Required For OpenAI/Codex OAuth
 
+- nothing extra for the primary native CT OAuth path
+
+Optional compatibility fallback:
+
 - `codex` CLI on your `PATH`
 
-CT can still install without `codex`, but OpenAI/Codex login/setup will remain
-unavailable until the Codex CLI is installed.
+CT can still reuse legacy Codex CLI auth when it exists, but the preferred path
+is now native CT-owned OpenAI/Codex OAuth.
 
 ### Install Commands
 

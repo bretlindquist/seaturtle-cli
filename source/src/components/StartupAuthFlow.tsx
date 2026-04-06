@@ -1,14 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { execa } from 'execa'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getOpenAiCodexAuthReadiness } from '../services/authProfiles/store.js'
+import { loginWithOpenAiCodexOAuth } from '../services/authProfiles/openaiCodexOAuth.js'
 import { Box, Link, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
+import { openBrowser } from '../utils/browser.js'
 import { Select } from './CustomSelect/select.js'
 import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
 import { Spinner } from './Spinner.js'
+import TextInput from './TextInput.js'
 
 type Props = {
   onDone(): void
@@ -39,6 +41,17 @@ function persistPreferredMainProvider(
 
 export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   const [screen, setScreen] = useState<Screen>({ state: 'choose' })
+  const openAiManualPromptResolverRef = useRef<((value: string) => void) | null>(
+    null,
+  )
+  const [openAiAuthUrl, setOpenAiAuthUrl] = useState<string | null>(null)
+  const [openAiAuthMessage, setOpenAiAuthMessage] = useState(
+    'Starting native OpenAI/Codex sign-in…',
+  )
+  const [openAiManualPrompt, setOpenAiManualPrompt] = useState<string | null>(
+    null,
+  )
+  const [openAiManualCode, setOpenAiManualCode] = useState('')
   const openAiReadiness = useMemo(() => getOpenAiCodexAuthReadiness(), [screen])
 
   useKeybinding(
@@ -61,18 +74,50 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     }
 
     let cancelled = false
+    setOpenAiAuthUrl(null)
+    setOpenAiManualPrompt(null)
+    setOpenAiManualCode('')
+    setOpenAiAuthMessage('Starting native OpenAI/Codex sign-in…')
 
     void (async () => {
       try {
         logEvent('tengu_openai_codex_login_start', {})
-        await execa('codex', ['login'], {
-          stdio: 'inherit',
+        await loginWithOpenAiCodexOAuth({
+          onAuth: info => {
+            setOpenAiAuthUrl(info.url)
+            setOpenAiAuthMessage(
+              info.instructions ??
+                'A browser should open. Complete sign-in to finish linking OpenAI/Codex.',
+            )
+            void openBrowser(info.url).then(opened => {
+              if (!opened && !cancelled) {
+                setOpenAiAuthMessage(
+                  "CT couldn't open the browser automatically. Visit the URL below to continue.",
+                )
+              }
+            })
+          },
+          onProgress: message => {
+            if (!cancelled) {
+              setOpenAiAuthMessage(message)
+            }
+          },
+          onPrompt: async prompt =>
+            await new Promise<string>(resolve => {
+              if (cancelled) {
+                resolve('')
+                return
+              }
+
+              openAiManualPromptResolverRef.current = resolve
+              setOpenAiManualPrompt(prompt.message)
+            }),
         })
 
         const readiness = getOpenAiCodexAuthReadiness()
         if (!readiness.ready) {
           throw new Error(
-            'Codex login completed, but no usable OpenAI/Codex auth was detected in ~/.codex/auth.json.',
+            'Native OpenAI/Codex login completed, but CT did not detect a usable provider auth profile afterward.',
           )
         }
 
@@ -82,9 +127,11 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
 
         persistPreferredMainProvider('openai-codex')
         logEvent('tengu_openai_codex_login_success', {
-          source: readiness.externalSources.includes('codex-cli')
-            ? 'codex-cli'
-            : 'provider-auth-profile',
+          source: readiness.hasAnyProfile
+            ? 'provider-auth-profile'
+            : readiness.externalSources.includes('codex-cli')
+              ? 'codex-cli'
+              : 'provider-auth-profile',
         })
         onDone()
       } catch (error) {
@@ -93,23 +140,31 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
           return
         }
         const message = (error as Error).message
-        const missingCodex =
-          message.includes('command not found') ||
-          message.includes('ENOENT') ||
-          message.includes('spawn codex')
         setScreen({
           state: 'openai-error',
-          message: missingCodex
-            ? '`codex` is not installed or not on PATH. Install the OpenAI Codex CLI first, then retry.'
-            : message,
+          message,
         })
       }
     })()
 
     return () => {
       cancelled = true
+      openAiManualPromptResolverRef.current?.('')
+      openAiManualPromptResolverRef.current = null
     }
   }, [onDone, screen])
+
+  function submitOpenAiManualCode(): void {
+    const value = openAiManualCode.trim()
+    if (!value) {
+      return
+    }
+
+    setOpenAiManualPrompt(null)
+    setOpenAiManualCode('')
+    openAiManualPromptResolverRef.current?.(value)
+    openAiManualPromptResolverRef.current = null
+  }
 
   if (screen.state === 'anthropic') {
     return (
@@ -175,10 +230,12 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
               {
                 label: (
                   <Text>
-                    Use existing Codex auth ·{' '}
+                    Use existing OpenAI/Codex auth ·{' '}
                     <Text dimColor>
-                      {openAiReadiness.ready
-                        ? 'Detected in ~/.codex/auth.json'
+                      {openAiReadiness.hasAnyProfile
+                        ? 'Detected in CT secure storage'
+                        : openAiReadiness.externalSources.includes('codex-cli')
+                          ? 'Detected in ~/.codex/auth.json'
                         : 'Not currently detected'}
                     </Text>
                     {'\n'}
@@ -190,8 +247,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
               {
                 label: (
                   <Text>
-                    Sign in with Codex now ·{' '}
-                    <Text dimColor>Runs `codex login`</Text>
+                    Sign in with ChatGPT now ·{' '}
+                    <Text dimColor>Native SeaTurtle OAuth</Text>
                     {'\n'}
                   </Text>
                 ),
@@ -223,12 +280,25 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
       <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
         <Box>
           <Spinner />
-          <Text>Starting OpenAI login through Codex…</Text>
+          <Text>{openAiAuthMessage}</Text>
         </Box>
+        {openAiAuthUrl ? (
+          <Text dimColor>Visit: {openAiAuthUrl}</Text>
+        ) : null}
+        {openAiManualPrompt ? (
+          <Box flexDirection="column" gap={1}>
+            <Text>{openAiManualPrompt}</Text>
+            <TextInput
+              value={openAiManualCode}
+              onChange={setOpenAiManualCode}
+              onSubmit={submitOpenAiManualCode}
+              placeholder="Paste the authorization code or full redirect URL"
+            />
+          </Box>
+        ) : null}
         <Text dimColor>
-          A browser may open. If you are on a headless machine, cancel and run
-          `codex login --device-auth`, then come back and choose “Use existing
-          Codex auth”.
+          A browser should open. If the callback cannot complete here, paste
+          the authorization code or full redirect URL when prompted.
         </Text>
       </Box>
     )
@@ -292,7 +362,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
                 <Text>
                   OpenAI Codex OAuth ·{' '}
                   <Text dimColor>
-                    Use existing auth or run codex login
+                    Native CT OAuth with Codex CLI fallback
                   </Text>
                   {'\n'}
                 </Text>

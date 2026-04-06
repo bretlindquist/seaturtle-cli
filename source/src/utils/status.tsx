@@ -366,6 +366,12 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Codex auth',
     value: codexAuthSourceLabel
   });
+  if (runtimeSnapshot.openAiCodexAccountLabel) {
+    properties.push({
+      label: 'Codex account',
+      value: runtimeSnapshot.openAiCodexAccountLabel
+    });
+  }
   if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
     const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
     properties.push({

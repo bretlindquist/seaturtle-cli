@@ -6,7 +6,10 @@ import {
   queryOpenAiCodexWithStreaming,
   queryOpenAiCodexWithoutStreaming,
 } from './openaiCodex.js'
-import { getOpenAiCodexAuthReadiness } from '../authProfiles/store.js'
+import {
+  getDefaultOpenAiCodexOAuthProfile,
+  getOpenAiCodexAuthReadiness,
+} from '../authProfiles/store.js'
 import {
   type APIProvider,
   getAPIProvider,
@@ -114,11 +117,13 @@ export type MainLoopProviderRuntimeSnapshot = {
   available: MainLoopProviderRuntime[]
   openAiCodexAuthReady: boolean
   openAiCodexAuthSource: string | null
+  openAiCodexAccountLabel: string | null
 }
 
 export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSnapshot {
   const anthropic = buildAnthropicMainLoopRuntime(getAPIProvider())
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
+  const openAiProfile = getDefaultOpenAiCodexOAuthProfile()
   const preferred = shouldPreferOpenAiCodexMainLoop() ? openAiCodex : anthropic
   const execution = preferred.executionEnabled ? preferred : anthropic
   const available = [anthropic]
@@ -133,6 +138,11 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     available,
     openAiCodexAuthReady: openAiCodex.authState !== 'not-configured',
     openAiCodexAuthSource: openAiCodex.authSource,
+    openAiCodexAccountLabel:
+      openAiProfile?.emailAddress ??
+      (typeof openAiProfile?.metadata?.accountId === 'string'
+        ? openAiProfile.metadata.accountId
+        : openAiProfile?.accountUuid ?? null),
   }
 }
 

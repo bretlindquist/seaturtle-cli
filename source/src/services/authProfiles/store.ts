@@ -31,6 +31,16 @@ export type ExternalCodexCliAuth = {
   accountId: string
 }
 
+export type OpenAiCodexOAuthCredentialFields = {
+  accessToken: string
+  refreshToken: string
+  expiresAt: number
+  accountId: string
+  emailAddress?: string
+  enterpriseUrl?: string
+  projectId?: string
+}
+
 function emptyStore(): ProviderAuthProfileStore {
   return {
     profiles: {},
@@ -97,6 +107,34 @@ export function buildAnthropicClaudeAiAuthProfile(params: {
       source: 'claude_ai_oauth',
       subscriptionType: params.subscriptionType ?? null,
       rateLimitTier: params.rateLimitTier ?? null,
+    },
+    updatedAt: Date.now(),
+  }
+}
+
+export function buildOpenAiCodexOAuthProfile(
+  params: OpenAiCodexOAuthCredentialFields,
+): ProviderOAuthProfile {
+  const profileName =
+    params.emailAddress?.trim() ||
+    params.accountId.trim() ||
+    'default'
+
+  return {
+    profileId: `${OPENAI_CODEX_PROVIDER}:${profileName}`,
+    provider: OPENAI_CODEX_PROVIDER,
+    mode: 'oauth',
+    accessToken: params.accessToken,
+    refreshToken: params.refreshToken,
+    expiresAt: params.expiresAt,
+    label: 'OpenAI Codex OAuth',
+    emailAddress: params.emailAddress,
+    accountUuid: params.accountId,
+    metadata: {
+      source: 'native_openai_codex_oauth',
+      accountId: params.accountId,
+      enterpriseUrl: params.enterpriseUrl ?? null,
+      projectId: params.projectId ?? null,
     },
     updatedAt: Date.now(),
   }
@@ -170,6 +208,13 @@ export function getDefaultProviderAuthProfile(
   const store = readProviderAuthProfileStore()
   const profileId = store.defaultProfiles?.[provider]
   return profileId ? store.profiles[profileId] : undefined
+}
+
+export function getDefaultProviderOAuthProfile(
+  provider: string,
+): ProviderOAuthProfile | undefined {
+  const profile = getDefaultProviderAuthProfile(provider)
+  return profile?.mode === 'oauth' ? profile : undefined
 }
 
 export function hasProviderAuthProfile(
@@ -263,6 +308,12 @@ export function getProviderAuthReadiness(
 
 export function getOpenAiCodexAuthReadiness(): ProviderAuthReadiness {
   return getProviderAuthReadiness(OPENAI_CODEX_PROVIDER)
+}
+
+export function getDefaultOpenAiCodexOAuthProfile():
+  | ProviderOAuthProfile
+  | undefined {
+  return getDefaultProviderOAuthProfile(OPENAI_CODEX_PROVIDER)
 }
 
 export function saveProviderAuthProfileStore(

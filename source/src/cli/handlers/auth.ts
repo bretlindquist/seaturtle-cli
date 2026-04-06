@@ -314,6 +314,9 @@ export async function authStatus(opts: {
     if (runtimeSnapshot.openAiCodexAuthSource) {
       output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource
     }
+    if (runtimeSnapshot.openAiCodexAccountLabel) {
+      output.openAiCodexAccount = runtimeSnapshot.openAiCodexAccountLabel
+    }
     if (resolvedApiKeySource) {
       output.apiKeySource = resolvedApiKeySource
     }

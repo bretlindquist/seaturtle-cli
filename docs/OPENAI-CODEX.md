@@ -59,8 +59,7 @@ Recommended local install:
 ./scripts/install-local-cli.sh --build
 ```
 
-That installer preflights `node`, `npm`, and `bun` for the build, then tells
-you when `codex` is still missing for OpenAI/Codex OAuth.
+That installer preflights `node`, `npm`, and `bun` for the build.
 
 Run on OpenAI/Codex:
 
@@ -85,8 +84,9 @@ Compatibility note:
 
 SeaTurtle is designed so auth does not live in the repo.
 
-- OpenAI/Codex auth is expected to come from local Codex CLI auth state and/or
-  secure storage
+- OpenAI/Codex auth now prefers native SeaTurtle provider-owned OAuth profiles
+  in secure storage
+- legacy local Codex CLI auth state remains supported as a fallback
 - repo-local secrets, token dumps, and machine-specific auth files should stay
   ignored
 - do not commit live credentials
