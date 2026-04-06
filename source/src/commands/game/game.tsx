@@ -31,6 +31,10 @@ import {
   TIDE_DICE_REWARDS,
   WAGER_REWARDS,
 } from '../../services/game/rewards.js'
+import {
+  applySwordsOfChaosHostEchoes,
+  ensureSwordsOfChaosSaveExists,
+} from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
   result?: string,
@@ -162,6 +166,10 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const canonCallback = getCtCanonCallback(projectRoot)
   const gameState = readCtGameState(projectRoot)
 
+  React.useEffect(() => {
+    ensureSwordsOfChaosSaveExists()
+  }, [])
+
   function showResult(result: string): void {
     setResultMessage(result)
     setScreen('result')
@@ -269,10 +277,15 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     )
 
     recordCtGameResult(outcome.gameResult, projectRoot)
-    addLegendEvent(outcome.legendEvent, projectRoot)
 
     if (outcome.key === 'relic') {
-      addInventoryItem(outcome.inventory, projectRoot)
+      applySwordsOfChaosHostEchoes(
+        [
+          { kind: 'legend', value: outcome.legendEvent },
+          { kind: 'relic', value: outcome.inventory },
+        ],
+        projectRoot,
+      )
       if (outcome.rarityUnlock) {
         addRarityUnlock(outcome.rarityUnlock, projectRoot)
       }
@@ -281,23 +294,45 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
 
     if (outcome.key === 'title') {
-      addTitle(outcome.title, projectRoot)
+      applySwordsOfChaosHostEchoes(
+        [
+          { kind: 'legend', value: outcome.legendEvent },
+          { kind: 'title', value: outcome.title },
+        ],
+        projectRoot,
+      )
       showResult(outcome.ending)
       return
     }
 
     if (outcome.key === 'oath') {
-      addOath(outcome.oath, projectRoot)
+      applySwordsOfChaosHostEchoes(
+        [
+          { kind: 'legend', value: outcome.legendEvent },
+          { kind: 'oath', value: outcome.oath },
+        ],
+        projectRoot,
+      )
       showResult(outcome.ending)
       return
     }
 
     if (outcome.key === 'truth') {
-      addUserTruth(outcome.truth, projectRoot)
+      applySwordsOfChaosHostEchoes(
+        [
+          { kind: 'legend', value: outcome.legendEvent },
+          { kind: 'truth', value: outcome.truth },
+        ],
+        projectRoot,
+      )
       showResult(outcome.ending)
       return
     }
 
+    applySwordsOfChaosHostEchoes(
+      [{ kind: 'legend', value: outcome.legendEvent }],
+      projectRoot,
+    )
     showResult(outcome.ending)
   }
 

@@ -1,6 +1,7 @@
 export { getSwordsOfChaosPaths } from './lib/paths.js'
 export {
   createDefaultSwordsOfChaosSave,
+  ensureSwordsOfChaosSaveExists,
   loadSwordsOfChaosSave,
   saveSwordsOfChaosSave,
 } from './lib/saveManager.js'

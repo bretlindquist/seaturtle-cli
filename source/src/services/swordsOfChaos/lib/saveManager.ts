@@ -63,6 +63,17 @@ export function loadSwordsOfChaosSave(): SwordsOfChaosSaveFile {
   return migrateSwordsOfChaosSave(safeParseJSON(raw))
 }
 
+export function ensureSwordsOfChaosSaveExists(): SwordsOfChaosSaveFile {
+  const { savePath } = getSwordsOfChaosPaths()
+  const fs = getFsImplementation()
+
+  if (!fs.existsSync(savePath)) {
+    return saveSwordsOfChaosSave(createDefaultSwordsOfChaosSave())
+  }
+
+  return loadSwordsOfChaosSave()
+}
+
 export function saveSwordsOfChaosSave(
   save: SwordsOfChaosSaveFile,
 ): SwordsOfChaosSaveFile {
