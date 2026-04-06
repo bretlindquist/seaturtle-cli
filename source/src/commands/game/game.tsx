@@ -32,6 +32,7 @@ import {
   applySwordsOfChaosEventBatchToSave,
   ensureSwordsOfChaosRuntimeReady,
   getSwordsEncounterLocus,
+  getSwordsEncounterPlaceName,
   getSwordsOfChaosRelevantMemory,
   getSwordsOfChaosRetreatNarration,
   getSwordsOpeningLabel,
@@ -85,6 +86,10 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }),
     [swordsRelevantMemory],
   )
+  const swordsEncounterLocus = getSwordsEncounterLocus(swordsRelevantMemory)
+  const swordsEncounterPlace = getSwordsEncounterPlaceName(swordsEncounterLocus)
+  const swordsEncounterPlaceLabel =
+    swordsEncounterPlace.charAt(0).toUpperCase() + swordsEncounterPlace.slice(1)
 
   React.useEffect(() => {
     void swordsRuntimeSave
@@ -335,9 +340,9 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               options={[
                 ...secondBeatScene.options,
                 {
-                  label: 'Step back out of the alley',
+                  label: `Step back out of ${swordsEncounterPlace}`,
                   value: 'back',
-                  description: 'Leave before the sign decides for you',
+                  description: 'Leave before the place decides for you',
                 },
               ]}
               onChange={value => {
@@ -383,7 +388,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               {
                 label: 'Retreat to safer waters',
                 value: 'back',
-                description: 'Leave the alley before the sign flickers again',
+                description: `Leave ${swordsEncounterPlace} before the moment closes around you`,
               },
             ]}
             onChange={value => {
@@ -454,7 +459,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     return (
       <Dialog
         title="Half-Shell Archives"
-        subtitle="The alley goes quiet again."
+        subtitle={`${swordsEncounterPlaceLabel} goes quiet again.`}
         onCancel={() => setScreen('menu')}
       >
         <Box flexDirection="column" gap={1}>
@@ -534,8 +539,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
                 label: 'Enter Swords of Chaos',
                 value: 'swords-of-chaos',
                 description: gameState.discoveries.swordsOfChaosPlayed
-                  ? 'Return to the trench-coat turtle alley'
-                  : 'A tiny BBS alley waits behind the static',
+                  ? `Return to ${swordsEncounterPlace}`
+                  : 'A tiny BBS world waits behind the static',
               },
               {
                 label: 'Study the archives',

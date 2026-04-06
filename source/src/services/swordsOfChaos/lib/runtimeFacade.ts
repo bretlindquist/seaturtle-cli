@@ -37,7 +37,7 @@ export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
           },
           {
             kind: 'world_flag_add',
-            flag: 'seaturtle:glimpsed-in-alley',
+            flag: 'seaturtle:glimpsed-in-swords-of-chaos',
           },
         ],
       }),

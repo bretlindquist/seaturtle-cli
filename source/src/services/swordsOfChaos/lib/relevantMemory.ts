@@ -3,10 +3,14 @@ import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import { deriveSwordsOfChaosMemory } from './memoryModel.js'
 import { getSwordsEncounterMemoryKey } from './worldMap.js'
 
-function getRoadNotTakenHint(routes: string[]): string | undefined {
+function getRoadNotTakenHint(
+  routes: string[],
+  encounterShift: SwordsOfChaosRelevantMemory['encounterShift'],
+): string | undefined {
   const allOpeners = ['draw-steel', 'bow-slightly', 'talk-like-you-belong']
   const usedOpeners = new Set(routes.map(route => route.split(':')[0]))
   const unused = allOpeners.find(opener => !usedOpeners.has(opener))
+  const place = encounterShift === 'alley' || !encounterShift ? 'this alley' : 'this place'
 
   if (!unused) {
     return undefined
@@ -14,11 +18,11 @@ function getRoadNotTakenHint(routes: string[]): string | undefined {
 
   switch (unused) {
     case 'draw-steel':
-      return 'There is still a harder road through this alley that you never took.'
+      return `There is still a harder road through ${place} that you never took.`
     case 'bow-slightly':
       return 'A more patient version of this moment still seems to be waiting somewhere nearby.'
     case 'talk-like-you-belong':
-      return 'The alley still remembers a bluff you never tried.'
+      return `${place.charAt(0).toUpperCase() + place.slice(1)} still remembers a bluff you never tried.`
   }
 }
 
@@ -32,7 +36,10 @@ export function getSwordsOfChaosRelevantMemory(
     familiarPlace: memory.familiarPlaces[0],
     encounterShift: memory.encounterShift,
     priorRoutes: memory.priorRoutes,
-    roadNotTakenHint: getRoadNotTakenHint(memory.priorRoutes),
+    roadNotTakenHint: getRoadNotTakenHint(
+      memory.priorRoutes,
+      memory.encounterShift,
+    ),
     revisitCount: activeEncounterMemory?.visits ?? 0,
     lastRoute: activeEncounterMemory?.lastRoute ?? undefined,
     recentTitle: memory.recentTitle,
