@@ -84,6 +84,15 @@ export const SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL: SwordsOpeningShell = {
     'Some callbacks do not bring you back. They carry you onward.',
 }
 
+export const SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL: SwordsOpeningShell = {
+  subtitle:
+    'You wake under failing strip-lights on a station ring that hums like a broken theorem trying to finish itself.',
+  sceneText:
+    'Frost clings to the inside of the bulkhead. One corridor is sealed by a sparking pressure door and another opens onto a dark observation blister where stars hang too still to trust. Somewhere in the metal, a fractured announcement repeats the wrong name for this place.',
+  hintText:
+    'Some places do not remember you as a person first. They remember you as a variable.',
+}
+
 export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   SwordsOfChaosOpeningChoice,
   SwordsSecondBeat
@@ -490,6 +499,90 @@ export const SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS: Record<
         value: 'double-down',
         description:
           'Push the bluff until the ship itself has to decide whether to call you captain or prey.',
+      },
+    ],
+  },
+}
+
+export const SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS: Record<
+  SwordsOfChaosOpeningChoice,
+  SwordsSecondBeat
+> = {
+  'draw-steel': {
+    subtitle:
+      'Emergency lights stutter red across the corridor. Something behind the pressure door answers the blade with a metallic click.',
+    intro:
+      'Steel aboard a station feels absurd right up until the hull starts sounding like a throat clearing. Here, force is either a key, a mistake, or the only honest language left.',
+    options: [
+      {
+        label: 'Cut the sparking seal',
+        value: 'cut-the-sign-chain',
+        description:
+          'Break the failing lock and let the sealed corridor decide whether it was containing danger or hiding it.',
+      },
+      {
+        label: 'Hold at the bulkhead',
+        value: 'hold-the-line',
+        description:
+          'Brace in the corridor and make whatever is cycling the lights show itself first.',
+      },
+      {
+        label: 'Lower the blade to the console',
+        value: 'lower-the-blade',
+        description:
+          'Refuse the station a bloodier answer and see whether it prefers signal to violence.',
+      },
+    ],
+  },
+  'bow-slightly': {
+    subtitle:
+      'The station answers the gesture with a soft chime from no visible speaker.',
+    intro:
+      'Courtesy on a station feels like protocol in a place that has forgotten its operators. The question now is whether the machine reads you as guest, override, or trespasser.',
+    options: [
+      {
+        label: 'Keep the formal stillness',
+        value: 'keep-bowing',
+        description:
+          'Let the posture become a protocol the room might recognize before you understand it.',
+      },
+      {
+        label: 'Meet the black glass',
+        value: 'meet-the-gaze',
+        description:
+          'Raise your head toward the observation blister as if the real witness is somewhere beyond the stars.',
+      },
+      {
+        label: 'Ask what system is failing',
+        value: 'ask-the-price',
+        description:
+          'Treat the station like a negotiation already in progress between malfunction and intent.',
+      },
+    ],
+  },
+  'talk-like-you-belong': {
+    subtitle:
+      'An old speaker crackles to life, then thinks better of it. The silence afterward feels supervised.',
+    intro:
+      'Bluffing on a station means claiming familiarity with a system that may once have had laws. The risk is no longer embarrassment. It is authentication.',
+    options: [
+      {
+        label: 'State the clearance anyway',
+        value: 'name-a-false-title',
+        description:
+          'Give the station a rank and see whether broken machines still honor hierarchy.',
+      },
+      {
+        label: 'Laugh at the warning tone',
+        value: 'laugh-like-you-mean-it',
+        description:
+          'Answer the glitch like you know which part of it is theater.',
+      },
+      {
+        label: 'Keep talking through the static',
+        value: 'double-down',
+        description:
+          'Push the bluff until the station has to decide whether you are operator, ghost, or error condition.',
       },
     ],
   },

@@ -9,6 +9,8 @@ import {
   SWORDS_OF_CHAOS_RETURNING_OPENING_SHELL,
   SWORDS_OF_CHAOS_RETURNING_SECOND_BEATS,
   SWORDS_OF_CHAOS_SEATURTLE_OPENING_SHELL,
+  SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL,
+  SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS,
   SWORDS_OF_CHAOS_SECOND_BEATS,
   SWORDS_OF_CHAOS_THREADMARKED_OPENING_SHELL,
   SWORDS_OF_CHAOS_THREADMARKED_SECOND_BEATS,
@@ -37,9 +39,12 @@ export function getSwordsOpeningShellVariant(
     | 'threadmarked'
     | 'seaturtle'
     | 'old-tree'
-    | 'ocean-ship',
+    | 'ocean-ship'
+    | 'space-station',
 ): SwordsOpeningShell {
   switch (variant) {
+    case 'space-station':
+      return SWORDS_OF_CHAOS_SPACE_STATION_OPENING_SHELL
     case 'ocean-ship':
       return SWORDS_OF_CHAOS_OCEAN_SHIP_OPENING_SHELL
     case 'old-tree':
@@ -68,9 +73,12 @@ export function getSwordsSecondBeatVariant(
     | 'returning'
     | 'threadmarked'
     | 'old-tree'
-    | 'ocean-ship',
+    | 'ocean-ship'
+    | 'space-station',
 ): SwordsSecondBeat {
   switch (variant) {
+    case 'space-station':
+      return SWORDS_OF_CHAOS_SPACE_STATION_SECOND_BEATS[choice]
     case 'ocean-ship':
       return SWORDS_OF_CHAOS_OCEAN_SHIP_SECOND_BEATS[choice]
     case 'old-tree':

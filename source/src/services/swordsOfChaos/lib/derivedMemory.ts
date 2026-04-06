@@ -32,6 +32,10 @@ export function deriveSwordsOfChaosMemory(
           alleyMemory.visits >= 4 &&
           canonThread === 'half-shell-relic-trail'
         ? 'ocean-ship'
+        : alleyMemory &&
+            alleyMemory.visits >= 4 &&
+            canonThread === 'sign-truth-fractures'
+          ? 'space-station'
         : 'alley'
   const liveThread = [...save.threadCandidates]
     .reverse()
