@@ -317,6 +317,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
+import { useTranscriptSearchModel } from './repl/useTranscriptSearchModel.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -1150,6 +1151,13 @@ export function REPL({
   // Frozen state for transcript mode - stores lengths instead of cloning arrays for memory efficiency
   const {
     frozenTranscriptState,
+    handleEnterTranscript,
+    handleExitTranscript
+  } = useTranscriptModeState({
+    messagesLength: messages.length,
+    streamingToolUsesLength: streamingToolUses.length
+  });
+  const {
     searchOpen,
     setSearchOpen,
     searchQuery,
@@ -1158,13 +1166,9 @@ export function REPL({
     setSearchCount,
     searchCurrent,
     setSearchCurrent,
-    handleEnterTranscript,
-    handleExitTranscript,
-    onSearchMatchesChange
-  } = useTranscriptModeState({
-    messagesLength: messages.length,
-    streamingToolUsesLength: streamingToolUses.length
-  });
+    onSearchMatchesChange,
+    searchBadge
+  } = useTranscriptSearchModel();
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
@@ -4093,7 +4097,6 @@ export function REPL({
   } = useSearchHighlight();
   const transcriptContentRef = useRef<DOMElement | null>(null);
   const {
-    searchBadge,
     handleSearchClose,
     handleSearchCancel
   } = useTranscriptSearchController({
