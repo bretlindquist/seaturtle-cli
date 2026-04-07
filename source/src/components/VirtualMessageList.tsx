@@ -104,14 +104,6 @@ type Props = {
    *  main tree (all providers). Message-relative positions (row 0 = el
    *  top). Works for any height — closes the tall-message gap. */
   scanElement?: (el: DOMElement) => MatchPosition[];
-  /** Position-based CURRENT highlight. Positions known upfront (from
-   *  scanElement), navigation = index arithmetic + scrollTo. rowOffset
-   *  = message's current screen-top; positions stay stable. */
-  setPositions?: (state: {
-    positions: MatchPosition[];
-    rowOffset: number;
-    currentIdx: number;
-  } | null) => void;
 };
 
 type ActiveTranscriptResult = {
@@ -404,8 +396,7 @@ export function VirtualMessageList({
   setCursor,
   jumpRef,
   searchProgress,
-  scanElement,
-  setPositions: _setPositions
+  scanElement
 }: Props): React.ReactNode {
   // Incremental key array. Streaming appends one message at a time; rebuilding
   // the full string array on every commit allocates O(n) per message (~1MB
@@ -656,9 +647,8 @@ export function VirtualMessageList({
   }
 
   // Highlight positions[ord]. Positions are MESSAGE-RELATIVE (row 0 =
-  // element top, from scanElement). Compute rowOffset = getItemTop -
-  // scrollTop fresh. If ord's position is off-viewport, scroll to bring
-  // it in, recompute rowOffset. setPositions triggers overlay write.
+  // element top, from scanElement). If ord's position is off-viewport,
+  // scroll to bring it in so the active matched row stays visible.
   function highlight(ord: number): void {
     const s = scrollRef.current;
     const {

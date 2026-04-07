@@ -250,13 +250,6 @@ type Props = {
   /** Paint an existing DOM subtree to fresh Screen, scan. Element comes
    *  from the main tree (all real providers). Message-relative positions. */
   scanElement?: (el: import('../ink/dom.js').DOMElement) => import('../ink/render-to-screen.js').MatchPosition[];
-  /** Position-based CURRENT highlight. positions stable (msg-relative),
-   *  rowOffset tracks scroll. null clears. */
-  setPositions?: (state: {
-    positions: import('../ink/render-to-screen.js').MatchPosition[];
-    rowOffset: number;
-    currentIdx: number;
-  } | null) => void;
   /** Bypass MAX_MESSAGES_WITHOUT_VIRTUALIZATION. For one-shot headless renders
    *  (e.g. /export via renderToString) where the memory concern doesn't apply
    *  and the "already in scrollback" justification doesn't hold. */
@@ -366,7 +359,6 @@ const MessagesImpl = ({
   jumpRef,
   searchProgress,
   scanElement,
-  setPositions,
   disableRenderCap = false,
   cursor = null,
   setCursor,
@@ -698,7 +690,7 @@ const MessagesImpl = ({
           passing the array would accumulate every historical version
           (~1-2MB over a 7-turn session). */}
       {virtualScrollRuntimeGate ? <InVirtualListContext.Provider value={true}>
-          <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} searchProgress={searchProgress} scanElement={scanElement} setPositions={setPositions} extractSearchText={extractSearchText} />
+          <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} searchProgress={searchProgress} scanElement={scanElement} extractSearchText={extractSearchText} />
         </InVirtualListContext.Provider> : renderableMessages.flatMap(renderMessageRow)}
 
       {streamingText && !isBriefOnly && <Box alignItems="flex-start" flexDirection="row" marginTop={1} width="100%">
@@ -742,7 +734,7 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
 export const Messages = React.memo(MessagesImpl, (prev, next) => {
   const keys = Object.keys(prev) as (keyof typeof prev)[];
   for (const key of keys) {
-    if (key === 'onOpenRateLimitOptions' || key === 'scrollRef' || key === 'trackStickyPrompt' || key === 'setCursor' || key === 'cursorNavRef' || key === 'jumpRef' || key === 'searchProgress' || key === 'scanElement' || key === 'setPositions') continue;
+    if (key === 'onOpenRateLimitOptions' || key === 'scrollRef' || key === 'trackStickyPrompt' || key === 'setCursor' || key === 'cursorNavRef' || key === 'jumpRef' || key === 'searchProgress' || key === 'scanElement') continue;
     if (prev[key] !== next[key]) {
       if (key === 'streamingToolUses') {
         const p = prev.streamingToolUses;

@@ -4093,8 +4093,7 @@ export function REPL({
   });
   const {
     setQuery: setHighlight,
-    scanElement,
-    setPositions
+    scanElement
   } = useSearchHighlight();
   const {
     handleSearchClose,
@@ -4132,7 +4131,6 @@ export function REPL({
   const inTranscript = screen === 'transcript';
   useTranscriptCleanupEffects({
     inTranscript,
-    searchQuery,
     editorGenRef,
     editorTimerRef,
     setSearchQuery,
@@ -4142,7 +4140,6 @@ export function REPL({
     setDumpMode,
     setEditorStatus,
     setHighlight,
-    setPositions,
   });
   const globalKeybindingProps = {
     screen,
@@ -4192,7 +4189,7 @@ export function REPL({
     // only one ScrollBox is ever mounted at a time.
     const transcriptScrollRef = transcriptVirtualScrollActive ? scrollRef : undefined;
     const transcriptMessagesElement = <Box flexDirection="column">
-        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
+        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} disableRenderCap={dumpMode} />
       </Box>;
     const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
         {toolJSX.jsx}
