@@ -6,6 +6,7 @@ prefix=""
 should_build=0
 install_default_claude=0
 prefix_explicit=0
+default_bun_bin="${HOME}/.bun/bin"
 
 MIN_NODE_MAJOR=18
 
@@ -34,6 +35,7 @@ Installs local branded wrappers for this fork:
   ct
   seaturtle
   ct-dev
+  buildct
 
 Options:
   --build               Build the local CLI first with --no-minify
@@ -168,6 +170,10 @@ done
 
 cd "$repo_root"
 
+if [[ -d "$default_bun_bin" && ":$PATH:" != *":$default_bun_bin:"* ]]; then
+  export PATH="$default_bun_bin:$PATH"
+fi
+
 if (( ! prefix_explicit )); then
   prefix="$(choose_default_prefix)"
 fi
@@ -196,6 +202,7 @@ mkdir -p "$prefix"
 ln -sf "$repo_root/bin/ct" "$prefix/ct"
 ln -sf "$repo_root/bin/seaturtle" "$prefix/seaturtle"
 ln -sf "$repo_root/bin/ct-dev" "$prefix/ct-dev"
+ln -sf "$repo_root/bin/buildct" "$prefix/buildct"
 
 if (( install_default_claude )); then
   ln -sf "$repo_root/bin/ct" "$prefix/claude"
@@ -204,8 +211,9 @@ fi
 installed_ct="$prefix/ct"
 installed_seaturtle="$prefix/seaturtle"
 installed_ct_dev="$prefix/ct-dev"
+installed_buildct="$prefix/buildct"
 
-if [[ ! -L "$installed_ct" || ! -L "$installed_seaturtle" || ! -L "$installed_ct_dev" ]]; then
+if [[ ! -L "$installed_ct" || ! -L "$installed_seaturtle" || ! -L "$installed_ct_dev" || ! -L "$installed_buildct" ]]; then
   echo "Install failed: expected wrapper symlinks were not created in $prefix" >&2
   exit 1
 fi
@@ -225,6 +233,7 @@ Step 2: Available commands:
   ct         Start CT with OpenAI/Codex enabled
   seaturtle  Same as ct, alternate branded entrypoint
   ct-dev     Run the repo-local development wrapper
+  buildct    Rebuild and reinstall local CT wrappers (use buildct -dev for dev-type)
 EOF
 
 if (( install_default_claude )); then
