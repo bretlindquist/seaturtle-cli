@@ -175,6 +175,7 @@ type VirtualItemProps = {
   idx: number;
   measureRef: (key: string) => (el: DOMElement | null) => void;
   expanded: boolean | undefined;
+  searchActive: boolean;
   hovered: boolean;
   clickable: boolean;
   onClickK: (msg: RenderableMessage, cellIsBlank: boolean) => void;
@@ -197,13 +198,14 @@ type VirtualItemProps = {
 // STALE closure on bail (wrong selection highlight, stale verbose). Including
 // renderItem in the comparator defeats memo since it's fresh each render.
 function VirtualItem(t0) {
-  const $ = _c(30);
+  const $ = _c(31);
   const {
     itemKey: k,
     msg,
     idx,
     measureRef,
     expanded,
+    searchActive,
     hovered,
     clickable,
     onClickK,
@@ -220,7 +222,7 @@ function VirtualItem(t0) {
   } else {
     t1 = $[2];
   }
-  const t2 = expanded ? "userMessageBackgroundHover" : undefined;
+  const t2 = expanded || searchActive ? "userMessageBackgroundHover" : undefined;
   const t3 = expanded ? 1 : undefined;
   let t4;
   if ($[3] !== clickable || $[4] !== msg || $[5] !== onClickK) {
@@ -487,9 +489,11 @@ export function VirtualMessageList({
       positions
     } = elementPositions.current;
     if (!s || positions.length === 0 || msgIdx < 0) {
+      setActiveMatchMsgIdx(null);
       setPositions?.(null);
       return;
     }
+    setActiveMatchMsgIdx(msgIdx);
     const idx = Math.max(0, Math.min(ord, positions.length - 1));
     const p = positions[idx]!;
     const top = jumpState.current.getItemTop(msgIdx);
@@ -707,6 +711,7 @@ export function VirtualMessageList({
         logForDebugging(`step: wrapped within ptr=${ptr} to ord=${wrapOrd}`);
         return;
       }
+      setActiveMatchMsgIdx(null);
       setPositions?.(null);
       startPtrRef.current = -1;
       logForDebugging(`step: wraparound at ptr=${ptr}, all ${matches.length} msgs phantoms`);
@@ -813,6 +818,7 @@ export function VirtualMessageList({
     refreshCurrentMatch: () => {
       const st = searchState.current;
       if (st.matches.length === 0) {
+        setActiveMatchMsgIdx(null);
         setPositions?.(null);
         return;
       }
@@ -834,6 +840,7 @@ export function VirtualMessageList({
       // Manual scroll invalidates screen-absolute positions.
       setPositions?.(null);
       scanRequestRef.current = null;
+      setActiveMatchMsgIdx(null);
       elementPositions.current = {
         msgIdx: -1,
         positions: []
@@ -886,6 +893,7 @@ export function VirtualMessageList({
     onItemClick,
     setHoveredKey
   });
+  const [activeMatchMsgIdx, setActiveMatchMsgIdx] = useState<number | null>(null);
   handlersRef.current = {
     onItemClick,
     setHoveredKey
@@ -908,7 +916,7 @@ export function VirtualMessageList({
       const clickable = !!onItemClick && (isItemClickable?.(msg) ?? true);
       const hovered = clickable && hoveredKey === k;
       const expanded = isItemExpanded?.(msg);
-      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
+      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchActive={activeMatchMsgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
     })}
       {bottomSpacer > 0 && <Box height={bottomSpacer} flexShrink={0} />}
       {trackStickyPrompt && <StickyTracker messages={messages} start={start} end={end} offsets={offsets} getItemTop={getItemTop} getItemElement={getItemElement} scrollRef={scrollRef} />}
