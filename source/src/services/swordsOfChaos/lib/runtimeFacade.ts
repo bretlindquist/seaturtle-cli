@@ -182,10 +182,20 @@ export function getSwordsSessionZeroScene(save: SwordsOfChaosSaveFile) {
 
 export function completeSwordsSessionZero(
   save: SwordsOfChaosSaveFile,
+  choiceId: string,
 ): SwordsOfChaosSaveFile {
   const scene = getSwordsSessionZeroScene(save)
   const next = saveSwordsOfChaosSave({
     ...save,
+    seaturtle:
+      scene.firstContact === 'measured-wink' && choiceId === 'follow-the-stranger'
+        ? {
+            bond: save.seaturtle.bond + 1,
+            favor: save.seaturtle.favor,
+            appearances: Math.max(save.seaturtle.appearances, 1),
+            lastAppearanceAt: Date.now(),
+          }
+        : save.seaturtle,
     sessionZero: {
       completed: true,
       originPlace: scene.originPlace,
@@ -200,6 +210,8 @@ export function completeSwordsSessionZero(
       name: next.character.name,
       originPlace: next.sessionZero.originPlace,
       firstContact: next.sessionZero.firstContact,
+      choiceId,
+      seaturtleBond: next.seaturtle.bond,
     },
   })
   return next

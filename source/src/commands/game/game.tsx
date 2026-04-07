@@ -1,5 +1,7 @@
 import * as React from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
+import TextInput from '../../components/TextInput.js'
+import type { OptionWithDescription } from '../../components/CustomSelect/select.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { Select } from '../../components/CustomSelect/select.js'
 import { Box, Text } from '../../ink.js'
@@ -30,15 +32,30 @@ import {
 import {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
+  buildSwordsProceduralOptions,
+  completeSwordsSessionZero,
   ensureSwordsOfChaosRuntimeReady,
+  finalizeSwordsCustomCharacter,
+  finalizeSwordsPremadeCharacter,
+  finalizeSwordsProceduralCharacter,
+  getSwordsCharacterCreationOptions,
+  getSwordsCustomCharacterFields,
   getSwordsEncounterLocus,
   getSwordsEncounterPlaceName,
   getSwordsOfChaosRelevantMemory,
   getSwordsOfChaosRetreatNarration,
   getSwordsOpeningLabel,
+  getSwordsPremadeCharacterOptions,
+  getSwordsSessionZeroPreludeCopy,
+  getSwordsSessionZeroScene,
   recordSwordsOfChaosRetreat,
   renderSwordsOfChaosHybridScene,
   resolveSwordsOfChaosRoute,
+  swordsNeedsCharacterCreation,
+  swordsNeedsSessionZero,
+  type SwordsCharacterCustomField,
+  type SwordsCharacterProceduralOption,
+  type SwordsOfChaosCreationMode,
   type SwordsOfChaosOpeningChoice,
   type SwordsOfChaosSecondChoice,
   type SwordsOfChaosDmSceneResponse,
@@ -55,6 +72,11 @@ type Screen =
   | 'menu'
   | 'wager'
   | 'tide-dice'
+  | 'swords-character-intro'
+  | 'swords-character-name'
+  | 'swords-character-sheet'
+  | 'swords-custom-character'
+  | 'swords-session-zero'
   | 'swords-of-chaos'
   | 'archives'
   | 'result'
@@ -63,12 +85,32 @@ type SwordsEncounter = {
   openingChoice: SwordsOfChaosOpeningChoice | null
 }
 
+type SwordsCharacterCreationState = {
+  mode: SwordsOfChaosCreationMode | null
+  name: string
+  nameCursorOffset: number
+  error: string | null
+  proceduralOptions: SwordsCharacterProceduralOption[]
+  customChoices: Partial<Record<SwordsCharacterCustomField, string>>
+  customFieldIndex: number
+}
+
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [screen, setScreen] = React.useState<Screen>('menu')
   const [swordsEncounter, setSwordsEncounter] = React.useState<SwordsEncounter>({
     openingChoice: null,
   })
   const [resultMessage, setResultMessage] = React.useState<string | null>(null)
+  const [swordsCreation, setSwordsCreation] =
+    React.useState<SwordsCharacterCreationState>({
+      mode: null,
+      name: '',
+      nameCursorOffset: 0,
+      error: null,
+      proceduralOptions: [],
+      customChoices: {},
+      customFieldIndex: 0,
+    })
   const projectRoot = getCtProjectRoot()
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
@@ -92,10 +134,179 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const swordsEncounterPlace = getSwordsEncounterPlaceName(swordsEncounterLocus)
   const swordsEncounterPlaceLabel =
     swordsEncounterPlace.charAt(0).toUpperCase() + swordsEncounterPlace.slice(1)
+  const swordsNeedsCreation = swordsNeedsCharacterCreation(swordsRuntimeSave)
+  const swordsNeedsPrelude = swordsNeedsSessionZero(swordsRuntimeSave)
+  const swordsSessionZeroPrelude = getSwordsSessionZeroPreludeCopy()
+  const swordsSessionZeroScene = React.useMemo(
+    () =>
+      swordsNeedsPrelude ? getSwordsSessionZeroScene(swordsRuntimeSave) : null,
+    [swordsNeedsPrelude, swordsRuntimeSave],
+  )
+  const swordsCustomFields = React.useMemo(
+    () => getSwordsCustomCharacterFields(),
+    [],
+  )
+  const activeCustomField = swordsCustomFields[swordsCreation.customFieldIndex]
+
+  function resetSwordsCreationState(mode: SwordsOfChaosCreationMode | null = null) {
+    setSwordsCreation({
+      mode,
+      name: '',
+      nameCursorOffset: 0,
+      error: null,
+      proceduralOptions: [],
+      customChoices: {},
+      customFieldIndex: 0,
+    })
+  }
 
   function showResult(result: string): void {
     setResultMessage(result)
     setScreen('result')
+  }
+
+  function beginSwordsOfChaos(): void {
+    setSwordsEncounter({
+      openingChoice: null,
+    })
+
+    if (swordsNeedsCreation) {
+      resetSwordsCreationState()
+      setScreen('swords-character-intro')
+      return
+    }
+
+    if (swordsNeedsPrelude) {
+      setScreen('swords-session-zero')
+      return
+    }
+
+    setScreen('swords-of-chaos')
+  }
+
+  function handleSwordsCreationMode(mode: SwordsOfChaosCreationMode): void {
+    resetSwordsCreationState(mode)
+    setScreen('swords-character-name')
+  }
+
+  function handleSwordsCharacterNameSubmit(value: string): void {
+    const trimmed = value.trim()
+    if (trimmed.length < 2) {
+      setSwordsCreation(current => ({
+        ...current,
+        error: 'Give the character at least a short true name.',
+      }))
+      return
+    }
+
+    if (!swordsCreation.mode) {
+      setSwordsCreation(current => ({
+        ...current,
+        error: 'Choose a creation path before naming the character.',
+      }))
+      setScreen('swords-character-intro')
+      return
+    }
+
+    if (swordsCreation.mode === 'procedural') {
+      setSwordsCreation(current => ({
+        ...current,
+        name: trimmed,
+        nameCursorOffset: trimmed.length,
+        error: null,
+        proceduralOptions: buildSwordsProceduralOptions(trimmed),
+      }))
+      setScreen('swords-character-sheet')
+      return
+    }
+
+    setSwordsCreation(current => ({
+      ...current,
+      name: trimmed,
+      nameCursorOffset: trimmed.length,
+      error: null,
+    }))
+    setScreen(
+      swordsCreation.mode === 'custom'
+        ? 'swords-custom-character'
+        : 'swords-character-sheet',
+    )
+  }
+
+  function finalizeSwordsCharacterFromSelection(value: string): void {
+    try {
+      if (swordsCreation.mode === 'premade') {
+        const next = finalizeSwordsPremadeCharacter(swordsCreation.name, value)
+        setSwordsRuntimeSave(next)
+        setScreen('swords-session-zero')
+        return
+      }
+
+      if (swordsCreation.mode === 'procedural') {
+        const option = swordsCreation.proceduralOptions.find(
+          item => item.id === value,
+        )
+        if (!option) {
+          throw new Error('That procedural life is no longer available.')
+        }
+        const next = finalizeSwordsProceduralCharacter(
+          swordsCreation.name,
+          option,
+        )
+        setSwordsRuntimeSave(next)
+        setScreen('swords-session-zero')
+      }
+    } catch (error) {
+      setSwordsCreation(current => ({
+        ...current,
+        error: error instanceof Error ? error.message : 'Failed to build character.',
+      }))
+    }
+  }
+
+  function finalizeSwordsCustomCharacterChoice(value: string): void {
+    if (!activeCustomField) {
+      return
+    }
+
+    const nextChoices = {
+      ...swordsCreation.customChoices,
+      [activeCustomField.field]: value,
+    }
+
+    const isLastField =
+      swordsCreation.customFieldIndex >= swordsCustomFields.length - 1
+
+    if (!isLastField) {
+      setSwordsCreation(current => ({
+        ...current,
+        customChoices: nextChoices,
+        customFieldIndex: current.customFieldIndex + 1,
+        error: null,
+      }))
+      return
+    }
+
+    try {
+      const next = finalizeSwordsCustomCharacter(
+        swordsCreation.name,
+        nextChoices as Record<SwordsCharacterCustomField, string>,
+      )
+      setSwordsRuntimeSave(next)
+      setScreen('swords-session-zero')
+    } catch (error) {
+      setSwordsCreation(current => ({
+        ...current,
+        customChoices: nextChoices,
+        error: error instanceof Error ? error.message : 'Failed to build character.',
+      }))
+    }
+  }
+
+  function finishSwordsSessionZero(choiceId: string): void {
+    const next = completeSwordsSessionZero(swordsRuntimeSave, choiceId)
+    setSwordsRuntimeSave(next)
+    setScreen('swords-of-chaos')
   }
 
   function finishWager(choice: 'ride-the-tide' | 'trust-the-shell'): void {
@@ -302,6 +513,254 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               }
 
               finishTideDiceRoll()
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'swords-character-intro') {
+    return (
+      <Dialog
+        title={swordsSessionZeroPrelude.title}
+        subtitle={swordsSessionZeroPrelude.subtitle}
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{swordsSessionZeroPrelude.sceneText}</Text>
+          <Text dimColor>{swordsSessionZeroPrelude.promptText}</Text>
+          <Select
+            options={[
+              ...getSwordsCharacterCreationOptions().map(option => ({
+                label: option.label,
+                value: option.mode,
+                description: option.description,
+              })),
+              {
+                label: 'Back away before the story starts',
+                value: 'back',
+                description: 'Return to the hidden shell without beginning a character',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen('menu')
+                return
+              }
+
+              handleSwordsCreationMode(value as SwordsOfChaosCreationMode)
+            }}
+            onCancel={() => setScreen('menu')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'swords-character-name') {
+    return (
+      <Dialog
+        title="Swords of Chaos"
+        subtitle="A true name is the first thing that belongs to the player."
+        onCancel={() => setScreen('swords-character-intro')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>
+            Give the character a name. The world can provide class, origin, and
+            omen, but this part should come from you.
+          </Text>
+          {swordsCreation.error ? (
+            <Text color="error">{swordsCreation.error}</Text>
+          ) : null}
+          <TextInput
+            value={swordsCreation.name}
+            onChange={value =>
+              setSwordsCreation(current => ({
+                ...current,
+                name: value,
+                nameCursorOffset: value.length,
+                error: null,
+              }))
+            }
+            onSubmit={handleSwordsCharacterNameSubmit}
+            placeholder="Name your character..."
+            columns={60}
+            cursorOffset={swordsCreation.nameCursorOffset}
+            onChangeCursorOffset={cursorOffset =>
+              setSwordsCreation(current => ({
+                ...current,
+                nameCursorOffset: cursorOffset,
+              }))
+            }
+            focus
+            showCursor
+          />
+          <Text dimColor>Press Enter to continue.</Text>
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'swords-character-sheet') {
+    const options: OptionWithDescription<string>[] =
+      swordsCreation.mode === 'procedural'
+        ? swordsCreation.proceduralOptions.map(option => ({
+            label: option.label,
+            value: option.id,
+            description: option.hook,
+          }))
+        : getSwordsPremadeCharacterOptions().map(option => ({
+            label: option.label,
+            value: option.id,
+            description: option.hook,
+          }))
+
+    return (
+      <Dialog
+        title="Swords of Chaos"
+        subtitle={
+          swordsCreation.mode === 'procedural'
+            ? `Choose which life ${swordsCreation.name} wakes into.`
+            : `Choose the archetype ${swordsCreation.name} will inhabit.`
+        }
+        onCancel={() => setScreen('swords-character-name')}
+      >
+        <Box flexDirection="column" gap={1}>
+          {swordsCreation.error ? (
+            <Text color="error">{swordsCreation.error}</Text>
+          ) : null}
+          <Text dimColor>
+            {swordsCreation.mode === 'procedural'
+              ? 'These are the lives the world offered after hearing the name.'
+              : 'Premades are curated for momentum. The name keeps them yours.'}
+          </Text>
+          <Select
+            options={[
+              ...options,
+              {
+                label: 'Choose a different creation path',
+                value: 'back',
+                description: 'Return to the previous step',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen('swords-character-name')
+                return
+              }
+              finalizeSwordsCharacterFromSelection(value)
+            }}
+            onCancel={() => setScreen('swords-character-name')}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'swords-custom-character' && activeCustomField) {
+    return (
+      <Dialog
+        title="Swords of Chaos"
+        subtitle={`${activeCustomField.label} · ${swordsCreation.customFieldIndex + 1}/${swordsCustomFields.length}`}
+        onCancel={() => {
+          if (swordsCreation.customFieldIndex === 0) {
+            setScreen('swords-character-name')
+            return
+          }
+
+          setSwordsCreation(current => ({
+            ...current,
+            customFieldIndex: current.customFieldIndex - 1,
+            error: null,
+          }))
+        }}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{activeCustomField.prompt}</Text>
+          {swordsCreation.error ? (
+            <Text color="error">{swordsCreation.error}</Text>
+          ) : null}
+          <Select
+            options={[
+              ...activeCustomField.options.map(option => ({
+                label: option.label,
+                value: option.id,
+                description: option.description,
+              })),
+              {
+                label: 'Back up one step',
+                value: 'back',
+                description: 'Change the previous piece of the sheet',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                if (swordsCreation.customFieldIndex === 0) {
+                  setScreen('swords-character-name')
+                  return
+                }
+                setSwordsCreation(current => ({
+                  ...current,
+                  customFieldIndex: current.customFieldIndex - 1,
+                  error: null,
+                }))
+                return
+              }
+
+              finalizeSwordsCustomCharacterChoice(value)
+            }}
+            onCancel={() => {
+              if (swordsCreation.customFieldIndex === 0) {
+                setScreen('swords-character-name')
+                return
+              }
+
+              setSwordsCreation(current => ({
+                ...current,
+                customFieldIndex: current.customFieldIndex - 1,
+                error: null,
+              }))
+            }}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen === 'swords-session-zero' && swordsSessionZeroScene) {
+    return (
+      <Dialog
+        title={swordsSessionZeroScene.title}
+        subtitle={swordsSessionZeroScene.subtitle}
+        onCancel={() => setScreen('menu')}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text dimColor>{swordsSessionZeroScene.sceneText}</Text>
+          {swordsSessionZeroScene.hintText ? (
+            <Text dimColor>{swordsSessionZeroScene.hintText}</Text>
+          ) : null}
+          <Select
+            options={[
+              ...swordsSessionZeroScene.options.map(option => ({
+                label: option.label,
+                value: option.id,
+                description: option.description,
+              })),
+              {
+                label: 'Back away before this becomes canon',
+                value: 'back',
+                description: 'Leave the character unbegun and return to the hidden shell',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen('menu')
+                return
+              }
+
+              finishSwordsSessionZero(value)
             }}
             onCancel={() => setScreen('menu')}
           />
@@ -570,10 +1029,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               }
 
               if (value === 'swords-of-chaos') {
-                setSwordsEncounter({
-                  openingChoice: null,
-                })
-                setScreen('swords-of-chaos')
+                beginSwordsOfChaos()
                 return
               }
 
