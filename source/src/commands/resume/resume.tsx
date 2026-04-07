@@ -33,7 +33,7 @@ function resumeHelpMessage(result: ResumeResult): string {
     case 'sessionNotFound':
       return `Session ${chalk.bold(result.arg)} was not found.`;
     case 'multipleMatches':
-      return `Found ${result.count} sessions matching ${chalk.bold(result.arg)}. Please use /resume to pick a specific session.`;
+      return `Found ${result.count} sessions matching ${chalk.bold(result.arg)}. Use /resume to pick one, or /continue for the most recent session in this directory.`;
   }
 }
 function ResumeError(t0) {
@@ -214,7 +214,8 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const worktreePaths = await getWorktreePaths(getOriginalCwd());
   const logs = await loadSameRepoMessageLogs(worktreePaths);
   if (logs.length === 0) {
-    const message = 'No conversations found to resume.';
+    const message =
+      'No conversations found to resume. /resume opens the picker when sessions exist, and /continue resumes the most recent session in this directory.';
     return <ResumeError message={message} args={arg} onDone={() => onDone(message)} />;
   }
 
