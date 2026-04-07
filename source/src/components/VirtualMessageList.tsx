@@ -482,6 +482,16 @@ export function VirtualMessageList({
       ordinal
     });
   }, []);
+  const resetSearchViewportState = useCallback(() => {
+    clearActiveResult();
+    elementPositions.current = {
+      msgIdx: -1,
+      positions: []
+    };
+  }, [clearActiveResult]);
+  const reportSearchProgress = useCallback((total: number, current: number) => {
+    searchProgress?.reportMatches(total, current);
+  }, [searchProgress]);
 
   // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
   // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
@@ -544,7 +554,7 @@ export function VirtualMessageList({
     const st = searchState.current;
     const total = st.prefixSum.at(-1) ?? 0;
     const current = (st.prefixSum[st.ptr] ?? 0) + idx + 1;
-    searchProgress?.reportMatches(total, current);
+    reportSearchProgress(total, current);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
   }
   highlightRef.current = highlight;
@@ -660,11 +670,7 @@ export function VirtualMessageList({
     if (i < 0 || i >= js.messages.length) return;
     // Clear stale highlight before scroll. Between now and the seek
     // effect's highlight, inverse-only from scan-highlight shows.
-    clearActiveResult();
-    elementPositions.current = {
-      msgIdx: -1,
-      positions: []
-    };
+    resetSearchViewportState();
     scanRequestRef.current = {
       idx: i,
       wantLast,
@@ -717,7 +723,7 @@ export function VirtualMessageList({
 
     // Exhausted visible. Advance ptr → jump → re-scan.
     const ptr = (st.ptr + delta + matches.length) % matches.length;
-      if (ptr === startPtrRef.current) {
+    if (ptr === startPtrRef.current) {
       if (positions.length > 0) {
         const wrapOrd = delta < 0 ? positions.length - 1 : 0;
         st.ptr = ptr;
@@ -740,7 +746,7 @@ export function VirtualMessageList({
     // The scan-effect's highlight will be the real value; this is a
     // pre-scan placeholder so the badge updates immediately.
     const placeholder = delta < 0 ? prefixSum[ptr + 1] ?? total : prefixSum[ptr]! + 1;
-    searchProgress?.reportMatches(total, placeholder);
+    reportSearchProgress(total, placeholder);
   }
   stepRef.current = step;
   useImperativeHandle(jumpRef, () => ({
@@ -752,12 +758,8 @@ export function VirtualMessageList({
     setSearchQuery: (q: string) => {
       // New search invalidates everything.
       scanRequestRef.current = null;
-      elementPositions.current = {
-        msgIdx: -1,
-        positions: []
-      };
       startPtrRef.current = -1;
-      clearActiveResult();
+      resetSearchViewportState();
       const lq = q.toLowerCase();
       // One entry per MESSAGE (deduplicated). Boolean "does this msg
       // contain the query". ~10ms for 9k messages with cached lowered.
@@ -826,7 +828,7 @@ export function VirtualMessageList({
       // scan will land on the last occurrence in matches[ptr]. Placeholder
       // = prefixSum[ptr+1] (count through this msg). highlight() updates
       // to the exact value after scan completes.
-      searchProgress?.reportMatches(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
+      reportSearchProgress(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
     },
     nextMatch: () => step(1),
     prevMatch: () => step(-1),
@@ -884,7 +886,7 @@ export function VirtualMessageList({
   // Closures over refs + callbacks. scrollRef stable; others are
   // useCallback([]) or prop-drilled from REPL (stable).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [clearActiveResult, scrollRef]);
+  [clearActiveResult, reportSearchProgress, resetSearchViewportState, scrollRef]);
 
   // StickyTracker goes AFTER the list content. It returns null (no DOM node)
   // so order shouldn't matter for layout — but putting it first means every
