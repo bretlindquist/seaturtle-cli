@@ -19,6 +19,7 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
+import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -112,28 +113,29 @@ type ActiveTranscriptResult = {
 };
 
 type SearchNavigationState = {
-  matches: number[];
+  snapshot: TranscriptSearchSnapshot;
   ptr: number;
   screenOrd: number;
-  prefixSum: number[];
 };
 
 function createEmptySearchNavigationState(): SearchNavigationState {
   return {
-    matches: [],
+    snapshot: {
+      query: '',
+      matches: [],
+    },
     ptr: 0,
     screenOrd: 0,
-    prefixSum: [],
   };
 }
 
 function getSearchTotal(state: SearchNavigationState): number {
-  return state.matches.length;
+  return getTranscriptSearchTotal(state.snapshot);
 }
 
 function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
   void matchOrdinal;
-  return state.ptr + 1;
+  return getTranscriptSearchCurrent(state.ptr);
 }
 
 function getPlaceholderSearchOrdinal(
@@ -144,39 +146,6 @@ function getPlaceholderSearchOrdinal(
   void state;
   void delta;
   return ptr + 1;
-}
-
-function buildSearchNavigationState(
-  query: string,
-  messages: RenderableMessage[],
-  extractSearchText: (msg: RenderableMessage) => string,
-): SearchNavigationState {
-  if (!query) {
-    return createEmptySearchNavigationState();
-  }
-
-  const matches: number[] = [];
-  const prefixSum: number[] = [0];
-  for (let i = 0; i < messages.length; i++) {
-    const text = extractSearchText(messages[i]!);
-    let pos = text.indexOf(query);
-    let count = 0;
-    while (pos >= 0) {
-      count += 1;
-      pos = text.indexOf(query, pos + query.length);
-    }
-    if (count > 0) {
-      matches.push(i);
-      prefixSum.push(prefixSum.at(-1)! + count);
-    }
-  }
-
-  return {
-    matches,
-    ptr: 0,
-    screenOrd: 0,
-    prefixSum,
-  };
 }
 
 function findNearestSearchMatchPtr(
@@ -569,7 +538,7 @@ export function VirtualMessageList({
   }, [searchProgress]);
   const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
     searchState.current = next;
-    setMatchedMessageIdxs(new Set(next.matches));
+    setMatchedMessageIdxs(new Set(next.snapshot.matches));
   }, []);
   const [seekGen, setSeekGen] = useState(0);
   const bumpSeek = useCallback(() => setSeekGen(g => g + 1), []);
@@ -769,7 +738,9 @@ export function VirtualMessageList({
   function step(delta: 1 | -1): void {
     const st = searchState.current;
     const {
-      matches
+      snapshot: {
+        matches
+      }
     } = st;
     const total = getSearchTotal(st);
     if (matches.length === 0) return;
@@ -793,7 +764,7 @@ export function VirtualMessageList({
     }
 
     // Exhausted visible. Advance ptr → jump → re-scan.
-    const ptr = (st.ptr + delta + matches.length) % matches.length;
+    const ptr = wrapTranscriptSearchPtr(st.ptr, delta, matches.length);
     if (ptr === startPtrRef.current) {
       if (positions.length > 0) {
         const wrapOrd = delta < 0 ? positions.length - 1 : 0;
@@ -829,8 +800,12 @@ export function VirtualMessageList({
       scanRequestRef.current = null;
       startPtrRef.current = -1;
       resetSearchViewportState();
-      const lq = q.toLowerCase();
-      const nextState = buildSearchNavigationState(lq, jumpState.current.messages, extractSearchText);
+      const snapshot = buildTranscriptSearchSnapshot(normalizeTranscriptSearchQuery(q), jumpState.current.messages, extractSearchText);
+      const nextState: SearchNavigationState = {
+        snapshot,
+        ptr: 0,
+        screenOrd: 0
+      };
       const total = getSearchTotal(nextState);
       // Nearest MESSAGE to the anchor. <= so ties go to later.
       let ptr = 0;
@@ -840,30 +815,30 @@ export function VirtualMessageList({
         start,
         getItemTop
       } = jumpState.current;
-      if (nextState.matches.length > 0 && s) {
+      if (nextState.snapshot.matches.length > 0 && s) {
         const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-        ptr = findNearestSearchMatchPtr(nextState.matches, offsets, start, getItemTop, curTop);
+        ptr = findNearestSearchMatchPtr(nextState.snapshot.matches, offsets, start, getItemTop, curTop);
         const firstTop = getItemTop(start);
         const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-        logForDebugging(`setSearchQuery('${q}'): ${nextState.matches.length} msgs · ptr=${ptr} ` + `msgIdx=${nextState.matches[ptr]} curTop=${curTop} origin=${origin}`);
+        logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${ptr} ` + `msgIdx=${nextState.snapshot.matches[ptr]} curTop=${curTop} origin=${origin}`);
       }
       setSearchNavigationState({
         ...nextState,
         ptr
       });
-      if (nextState.matches.length > 0) {
+      if (nextState.snapshot.matches.length > 0) {
         // wantLast=true: preview the LAST occurrence in the nearest
         // message. At sticky-bottom (common / entry), nearest is the
         // last msg; its last occurrence is closest to where the user
         // was — minimal view movement. n advances forward from there.
-        jump(nextState.matches[ptr]!, true);
+        jump(nextState.snapshot.matches[ptr]!, true);
       } else if (searchAnchor.current >= 0 && s) {
         // /foob → 0 matches → snap back to anchor. less/vim incsearch.
         s.scrollTo(searchAnchor.current);
       }
       // Badge reflects the current matched transcript block. wantLast=true
       // still controls which occurrence inside that block becomes active.
-      reportSearchProgress(total, nextState.matches.length > 0 ? getPlaceholderSearchOrdinal({
+      reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getPlaceholderSearchOrdinal({
         ...nextState,
         ptr
       }, ptr, -1) : 0);
@@ -872,7 +847,7 @@ export function VirtualMessageList({
     prevMatch: () => step(-1),
     refreshCurrentMatch: () => {
       const st = searchState.current;
-      if (st.matches.length === 0) {
+      if (st.snapshot.matches.length === 0) {
         clearActiveResult();
         return;
       }
@@ -880,11 +855,11 @@ export function VirtualMessageList({
         msgIdx,
         positions
       } = elementPositions.current;
-      if (msgIdx === st.matches[st.ptr] && positions.length > 0) {
+      if (msgIdx === st.snapshot.matches[st.ptr] && positions.length > 0) {
         highlightRef.current(st.screenOrd);
         return;
       }
-      jump(st.matches[st.ptr]!, st.screenOrd > 0);
+      jump(st.snapshot.matches[st.ptr]!, st.screenOrd > 0);
     },
     setAnchor: () => {
       const s = scrollRef.current;

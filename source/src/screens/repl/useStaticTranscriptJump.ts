@@ -4,6 +4,7 @@ import type { RenderableMessage } from '../../types/message.js';
 import { renderableSearchText } from '../../utils/transcriptSearch.js';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
+import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr } from './transcriptSearchModel.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
@@ -11,19 +12,6 @@ type UseStaticTranscriptJumpInput = {
   jumpRef: RefObject<JumpHandle | null>;
   searchProgress: TranscriptSearchProgressSink;
 };
-
-function countOccurrences(haystack: string, needle: string): number {
-  if (!needle) return 0;
-  let count = 0;
-  let from = 0;
-  while (from <= haystack.length) {
-    const idx = haystack.indexOf(needle, from);
-    if (idx === -1) break;
-    count += 1;
-    from = idx + Math.max(needle.length, 1);
-  }
-  return count;
-}
 
 export function useStaticTranscriptJump({
   enabled,
@@ -36,8 +24,8 @@ export function useStaticTranscriptJump({
 
   const stateRef = useRef({
     query: '',
-    count: 0,
-    current: 0,
+    matches: [] as number[],
+    ptr: 0,
   });
 
   const handle = useMemo<JumpHandle>(
@@ -47,50 +35,52 @@ export function useStaticTranscriptJump({
       warmSearchIndex: async () => 0,
       disarmSearch: () => {},
       setSearchQuery: (query: string) => {
-        const normalized = query.toLowerCase();
+        const normalized = normalizeTranscriptSearchQuery(query);
         if (!normalized) {
           stateRef.current = {
             query: '',
-            count: 0,
-            current: 0,
+            matches: [],
+            ptr: 0,
           };
           searchProgress.reportMatches(0, 0);
           return;
         }
 
-        const count = messagesRef.current.reduce(
-          (sum, msg) => sum + countOccurrences(renderableSearchText(msg), normalized),
-          0,
+        const snapshot = buildTranscriptSearchSnapshot(
+          normalized,
+          messagesRef.current,
+          renderableSearchText,
         );
-        const current =
+        const count = getTranscriptSearchTotal(snapshot);
+        const ptr =
           count === 0
             ? 0
-            : stateRef.current.query === normalized &&
-                stateRef.current.current > 0 &&
-                stateRef.current.current <= count
-              ? stateRef.current.current
-              : 1;
+            : stateRef.current.query === normalized && stateRef.current.ptr >= 0 && stateRef.current.ptr < count
+              ? stateRef.current.ptr
+              : 0;
 
         stateRef.current = {
           query: normalized,
-          count,
-          current,
+          matches: snapshot.matches,
+          ptr,
         };
-        searchProgress.reportMatches(count, current);
+        searchProgress.reportMatches(count, count > 0 ? getTranscriptSearchCurrent(ptr) : 0);
       },
       nextMatch: () => {
-        const { count, current } = stateRef.current;
+        const { matches, ptr } = stateRef.current;
+        const count = matches.length;
         if (count === 0) return;
-        const next = current >= count ? 1 : current + 1;
-        stateRef.current.current = next;
-        searchProgress.reportMatches(count, next);
+        const nextPtr = wrapTranscriptSearchPtr(ptr, 1, count);
+        stateRef.current.ptr = nextPtr;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(nextPtr));
       },
       prevMatch: () => {
-        const { count, current } = stateRef.current;
+        const { matches, ptr } = stateRef.current;
+        const count = matches.length;
         if (count === 0) return;
-        const next = current <= 1 ? count : current - 1;
-        stateRef.current.current = next;
-        searchProgress.reportMatches(count, next);
+        const nextPtr = wrapTranscriptSearchPtr(ptr, -1, count);
+        stateRef.current.ptr = nextPtr;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(nextPtr));
       },
     }),
     [searchProgress],
