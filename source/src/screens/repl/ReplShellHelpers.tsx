@@ -35,7 +35,7 @@ export function TranscriptModeFooter({
     'ctrl+e',
   )
   const tail = searchBadge
-    ? ' · n/N to navigate'
+    ? ' · n/N next/prev match'
     : virtualScroll
       ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · home/end top/bottom`
       : suppressShowAll
@@ -71,7 +71,7 @@ export function TranscriptModeFooter({
         <>
           <Box flexGrow={1} />
           <Text dimColor>
-            {searchBadge.current}/{searchBadge.count}{'  '}
+            match {searchBadge.current}/{searchBadge.count}{'  '}
           </Text>
         </>
       ) : null}

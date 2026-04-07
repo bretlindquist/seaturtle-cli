@@ -4211,10 +4211,10 @@ export function REPL({
       // g/G/j/k/ctrl+u/ctrl+d would eat keystrokes the search bar
       // wants. Off while searching.
       isModal={!searchOpen}
-      // Manual scroll exits the search context — clear the yellow
-      // current-match marker. Positions are (msg, rowOffset)-keyed;
-      // j/k changes scrollTop so rowOffset is stale → wrong row
-      // gets yellow. Next n/N re-establishes via step()→jump().
+      // Manual scroll exits the search context so the active matched
+      // row emphasis can be re-established from the current viewport
+      // on the next n/N action instead of pretending the old view is
+      // still authoritative.
       onScroll={() => jumpRef.current?.disarmSearch()} /> : null}
         <CancelRequestHandler {...cancelRequestProps} />
         {transcriptScrollRef ? <FullscreenLayout forceFullscreen={true} scrollRef={scrollRef} scrollable={<>
