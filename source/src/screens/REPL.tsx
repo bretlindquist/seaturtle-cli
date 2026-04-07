@@ -5,6 +5,7 @@ import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTo
 import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
 import { dirname } from 'path';
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
@@ -4164,6 +4165,7 @@ export function REPL({
     // first, fires first, bubbles).
     searchBarOpen: searchOpen
   };
+  const transcriptCols = useTerminalSize().columns;
 
   // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
