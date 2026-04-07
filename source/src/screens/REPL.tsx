@@ -7,6 +7,7 @@ import { count } from '../utils/array.js';
 import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
+import { nodeCache } from '../ink/node-cache.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
@@ -4180,7 +4181,7 @@ export function REPL({
       setHighlightRowRange(null);
       return;
     }
-    const top = Math.floor(el.yogaNode.getComputedTop());
+    const top = Math.floor(nodeCache.get(el)?.y ?? el.yogaNode.getComputedTop());
     const height = Math.ceil(el.yogaNode.getComputedHeight());
     if (height <= 0) {
       setHighlightRowRange(null);
