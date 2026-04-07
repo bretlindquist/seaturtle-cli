@@ -320,6 +320,7 @@ import {
   type FocusedInputDialog,
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
+import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1148,10 +1149,23 @@ export function REPL({
   }
 
   // Frozen state for transcript mode - stores lengths instead of cloning arrays for memory efficiency
-  const [frozenTranscriptState, setFrozenTranscriptState] = useState<{
-    messagesLength: number;
-    streamingToolUsesLength: number;
-  } | null>(null);
+  const {
+    frozenTranscriptState,
+    searchOpen,
+    setSearchOpen,
+    searchQuery,
+    setSearchQuery,
+    searchCount,
+    setSearchCount,
+    searchCurrent,
+    setSearchCurrent,
+    handleEnterTranscript,
+    handleExitTranscript,
+    onSearchMatchesChange
+  } = useTranscriptModeState({
+    messagesLength: messages.length,
+    streamingToolUsesLength: streamingToolUses.length
+  });
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
@@ -4054,19 +4068,6 @@ export function REPL({
     return total === 1 ? `running ${hookType} hook` : `running stop hooks… ${completedCount}/${total}`;
   }, [messages, isLoading]);
 
-  // Callback to capture frozen state when entering transcript mode
-  const handleEnterTranscript = useCallback(() => {
-    setFrozenTranscriptState({
-      messagesLength: messages.length,
-      streamingToolUsesLength: streamingToolUses.length
-    });
-  }, [messages.length, streamingToolUses.length]);
-
-  // Callback to clear frozen state when exiting transcript mode
-  const handleExitTranscript = useCallback(() => {
-    setFrozenTranscriptState(null);
-  }, []);
-
   // Props for GlobalKeybindingHandlers component (rendered inside KeybindingSetup)
   const virtualScrollActive = isFullscreenEnvEnabled() && !disableVirtualScroll;
 
@@ -4075,14 +4076,6 @@ export function REPL({
   // gates the useInput. Query persists across bar open/close so n/N keep
   // working after Enter dismisses the bar (less semantics).
   const jumpRef = useRef<JumpHandle | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchCount, setSearchCount] = useState(0);
-  const [searchCurrent, setSearchCurrent] = useState(0);
-  const onSearchMatchesChange = useCallback((count: number, current: number) => {
-    setSearchCount(count);
-    setSearchCurrent(current);
-  }, []);
   useInput((input, key, event) => {
     if (key.ctrl || key.meta) return;
     // No Esc handling here — less has no navigating mode. Search state
