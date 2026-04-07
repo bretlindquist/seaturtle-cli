@@ -5,6 +5,7 @@ import { useCallback, useContext, useEffect, useImperativeHandle, useRef, useSta
 import { useVirtualScroll } from '../hooks/useVirtualScroll.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import type { DOMElement } from '../ink/dom.js';
+import { nodeCache } from '../ink/node-cache.js';
 import type { MatchPosition } from '../ink/render-to-screen.js';
 import { Box } from '../ink.js';
 import type { RenderableMessage } from '../types/message.js';
@@ -492,6 +493,7 @@ export function VirtualMessageList({
     const idx = Math.max(0, Math.min(ord, positions.length - 1));
     const p = positions[idx]!;
     const top = jumpState.current.getItemTop(msgIdx);
+    const el = jumpState.current.getItemElement(msgIdx);
     // lo = item's position within scroll content (wrapper-relative).
     // viewportTop = where the scroll content starts on SCREEN (after
     // ScrollBox padding/border + any chrome above). Highlight writes to
@@ -501,17 +503,19 @@ export function VirtualMessageList({
     const vpTop = s.getViewportTop();
     let lo = top - s.getScrollTop();
     const vp = s.getViewportHeight();
-    let screenRow = vpTop + lo + p.row;
+    let rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
+    let screenRow = rowOffset + p.row;
     // Off viewport → scroll to bring it in (HEADROOM from top).
     // scrollTo commits sync; read-back after gives fresh lo.
     if (screenRow < vpTop || screenRow >= vpTop + vp) {
       s.scrollTo(Math.max(0, top + p.row - HEADROOM));
       lo = top - s.getScrollTop();
-      screenRow = vpTop + lo + p.row;
+      rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
+      screenRow = rowOffset + p.row;
     }
     setPositions?.({
       positions,
-      rowOffset: vpTop + lo,
+      rowOffset,
       currentIdx: idx
     });
     // Badge: global current = sum of occurrences before this msg + ord+1.
