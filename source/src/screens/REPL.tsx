@@ -5,7 +5,6 @@ import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTo
 import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
 import { dirname } from 'path';
-import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
@@ -317,6 +316,7 @@ import {
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
+import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -4092,36 +4092,23 @@ export function REPL({
     setPositions
   } = useSearchHighlight();
   const transcriptContentRef = useRef<DOMElement | null>(null);
-  const prevSearchOpenRef = useRef(searchOpen);
-
-  // Resize → abort search. Positions are (msg, query, WIDTH)-keyed —
-  // cached positions are stale after a width change (new layout, new
-  // wrapping). Clearing searchQuery triggers VML's setSearchQuery('')
-  // which clears positionsCache + setPositions(null). Bar closes.
-  // User hits / again → fresh everything.
-  const transcriptCols = useTerminalSize().columns;
-  const prevColsRef = React.useRef(transcriptCols);
-  React.useEffect(() => {
-    if (prevColsRef.current !== transcriptCols) {
-      prevColsRef.current = transcriptCols;
-      if (searchQuery || searchOpen) {
-        setSearchOpen(false);
-        setSearchQuery('');
-        setSearchCount(0);
-        setSearchCurrent(0);
-        jumpRef.current?.disarmSearch();
-        setHighlight('');
-      }
-    }
-  }, [transcriptCols, searchQuery, searchOpen, setHighlight]);
-  React.useEffect(() => {
-    const wasOpen = prevSearchOpenRef.current;
-    prevSearchOpenRef.current = searchOpen;
-    if (!wasOpen || searchOpen || screen !== 'transcript' || !searchQuery) {
-      return;
-    }
-    jumpRef.current?.refreshCurrentMatch?.();
-  }, [screen, searchOpen, searchQuery]);
+  const {
+    searchBadge,
+    handleSearchClose,
+    handleSearchCancel
+  } = useTranscriptSearchController({
+    screen,
+    searchOpen,
+    searchQuery,
+    searchCount,
+    searchCurrent,
+    jumpRef,
+    setSearchOpen,
+    setSearchQuery,
+    setSearchCount,
+    setSearchCurrent,
+    setHighlight
+  });
 
   useTranscriptEscapeHotkeys({
     screen,
@@ -4236,37 +4223,7 @@ export function REPL({
       // memory (cursor lands after 'foo', /hello → foohello).
       // Cancel-restore handles the 'don't lose prior search'
       // concern differently (onCancel re-applies searchQuery).
-      initialQuery="" count={searchCount} current={searchCurrent} onClose={q => {
-        // Enter — commit. 0-match guard: junk query shouldn't
-        // persist (badge hidden, n/N dead anyway).
-        const committedQuery = searchCount > 0 ? q : '';
-        setSearchQuery(committedQuery);
-        setSearchOpen(false);
-        setHighlight(committedQuery);
-        // onCancel path: bar unmounts before its useEffect([query])
-        // can fire with ''. Without this, searchCount stays stale
-        // (n guard at :4956 passes) and VML's matches[] too
-        // (nextMatch walks the old array). Phantom nav, no
-        // highlight. onExit (Enter, q non-empty) still commits.
-        if (!q) {
-          setSearchCount(0);
-          setSearchCurrent(0);
-          jumpRef.current?.setSearchQuery('');
-        }
-      }} onCancel={() => {
-        // Esc/ctrl+c/ctrl+g — undo. Bar's effect last fired
-        // with whatever was typed. searchQuery (REPL state)
-        // is unchanged since / (onClose = commit, didn't run).
-        // Two VML calls: '' restores anchor (0-match else-
-        // branch), then searchQuery re-scans from anchor's
-        // nearest. Both synchronous — one React batch.
-        // setHighlight explicit: REPL's sync-effect dep is
-        // searchQuery (unchanged), wouldn't re-fire.
-        setSearchOpen(false);
-        jumpRef.current?.setSearchQuery('');
-        jumpRef.current?.setSearchQuery(searchQuery);
-        setHighlight(searchQuery);
-      }} setHighlight={setHighlight} />;
+      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleSearchClose} onCancel={handleSearchCancel} setHighlight={setHighlight} />;
     const transcriptReturn = <KeybindingSetup>
         <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />
@@ -4294,17 +4251,11 @@ export function REPL({
                 {transcriptMessagesElement}
                 {transcriptToolJSX}
                 <SandboxViolationExpandedView />
-              </>} bottom={searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={true} status={editorStatus || undefined} searchBadge={searchQuery && searchCount > 0 ? {
-        current: searchCurrent,
-        count: searchCount
-      } : undefined} />} /> : <>
+              </>} bottom={searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={true} status={editorStatus || undefined} searchBadge={searchBadge} />} /> : <>
             {transcriptMessagesElement}
             {transcriptToolJSX}
             <SandboxViolationExpandedView />
-            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} searchBadge={searchQuery && searchCount > 0 ? {
-        current: searchCurrent,
-        count: searchCount
-      } : undefined} />}
+            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} searchBadge={searchBadge} />}
           </>}
       </KeybindingSetup>;
     // The virtual-scroll branch (FullscreenLayout above) needs
