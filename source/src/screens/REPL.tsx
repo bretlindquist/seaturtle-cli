@@ -317,6 +317,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
+import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
@@ -4164,6 +4165,13 @@ export function REPL({
   // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
+  useStaticTranscriptJump({
+    enabled: screen === 'transcript' && (!isFullscreenEnvEnabled() || disableVirtualScroll || dumpMode),
+    messages: transcriptMessages,
+    jumpRef,
+    setSearchCount,
+    setSearchCurrent,
+  });
 
   // Handle shift+down for teammate navigation and background task management.
   // Guard onOpenBackgroundTasks when a local-jsx dialog (e.g. /mcp) is open —
