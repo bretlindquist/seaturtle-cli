@@ -1,6 +1,5 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import type { QueuedCommand } from '../types/textInputTypes.js'
-import { extractTextContent } from './messages.js'
 
 const APPEND_TO_TASK_PATTERNS = [
   /\b(after this|later in this|once that's done|once thats done)\b/i,
@@ -9,7 +8,14 @@ const APPEND_TO_TASK_PATTERNS = [
 ] as const
 
 function getPromptText(value: string | Array<ContentBlockParam>): string {
-  return typeof value === 'string' ? value.trim() : extractTextContent(value, '\n').trim()
+  if (typeof value === 'string') {
+    return value.trim()
+  }
+
+  return value
+    .flatMap(block => (block.type === 'text' ? [block.text] : []))
+    .join('\n')
+    .trim()
 }
 
 function classifyBoundarySteer(input: {
