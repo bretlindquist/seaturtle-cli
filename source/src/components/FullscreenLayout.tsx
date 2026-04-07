@@ -64,6 +64,9 @@ type Props = {
   newMessageCount?: number;
   /** Called when the user clicks the "N new" pill. */
   onPillClick?: () => void;
+  /** Allow a caller like transcript mode to opt into the fullscreen
+   *  layout even when the global env gate is off. */
+  forceFullscreen?: boolean;
 };
 
 /**
@@ -281,11 +284,13 @@ export function FullscreenLayout(t0) {
     hidePill: t1,
     hideSticky: t2,
     newMessageCount: t3,
-    onPillClick
+    onPillClick,
+    forceFullscreen: t48
   } = t0;
   const hidePill = t1 === undefined ? false : t1;
   const hideSticky = t2 === undefined ? false : t2;
   const newMessageCount = t3 === undefined ? 0 : t3;
+  const forceFullscreen = t48 === undefined ? false : t48;
   const {
     rows: terminalRows,
     columns
@@ -335,7 +340,8 @@ export function FullscreenLayout(t0) {
     t7 = $[6];
   }
   useLayoutEffect(_temp3, t7);
-  if (isFullscreenEnvEnabled()) {
+  const fullscreenEnabled = forceFullscreen || isFullscreenEnvEnabled();
+  if (fullscreenEnabled) {
     const sticky = hideSticky ? null : stickyPrompt;
     const headerPrompt = sticky != null && sticky !== "clicked" && overlay == null ? sticky : null;
     const padCollapsed = sticky != null && overlay == null;

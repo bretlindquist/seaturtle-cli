@@ -4070,6 +4070,7 @@ export function REPL({
 
   // Props for GlobalKeybindingHandlers component (rendered inside KeybindingSetup)
   const virtualScrollActive = isFullscreenEnvEnabled() && !disableVirtualScroll;
+  const transcriptVirtualScrollActive = !disableVirtualScroll && !dumpMode;
 
   // Transcript search state. Hooks must be unconditional so they live here
   // (not inside the `if (screen === 'transcript')` branch below); isActive
@@ -4169,7 +4170,7 @@ export function REPL({
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
   React.useEffect(() => {
-    if (screen !== 'transcript' || virtualScrollActive) {
+    if (screen !== 'transcript' || transcriptVirtualScrollActive) {
       setHighlightRowRange(null);
       return;
     }
@@ -4188,9 +4189,9 @@ export function REPL({
       start: top,
       end: top + height - 1
     });
-  }, [screen, virtualScrollActive, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
+  }, [screen, transcriptVirtualScrollActive, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
   useStaticTranscriptJump({
-    enabled: screen === 'transcript' && (!isFullscreenEnvEnabled() || disableVirtualScroll || dumpMode),
+    enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
     jumpRef,
     setSearchCount,
@@ -4214,7 +4215,7 @@ export function REPL({
     // scrollback, 30-cap + Ctrl+E. Reusing scrollRef is safe — normal-mode
     // and transcript-mode are mutually exclusive (this early return), so
     // only one ScrollBox is ever mounted at a time.
-    const transcriptScrollRef = isFullscreenEnvEnabled() && !disableVirtualScroll && !dumpMode ? scrollRef : undefined;
+    const transcriptScrollRef = transcriptVirtualScrollActive ? scrollRef : undefined;
     const transcriptMessagesElement = <Box ref={transcriptContentRef} flexDirection="column">
         <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
       </Box>;
@@ -4280,7 +4281,7 @@ export function REPL({
       // gets yellow. Next n/N re-establishes via step()→jump().
       onScroll={() => jumpRef.current?.disarmSearch()} /> : null}
         <CancelRequestHandler {...cancelRequestProps} />
-        {transcriptScrollRef ? <FullscreenLayout scrollRef={scrollRef} scrollable={<>
+        {transcriptScrollRef ? <FullscreenLayout forceFullscreen={true} scrollRef={scrollRef} scrollable={<>
                 {transcriptMessagesElement}
                 {transcriptToolJSX}
                 <SandboxViolationExpandedView />
