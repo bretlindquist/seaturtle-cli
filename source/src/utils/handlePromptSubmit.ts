@@ -385,7 +385,7 @@ export async function handlePromptSubmit(
     if (midTurnIntent === 'park_for_later') {
       setAppState(prev => ({
         ...prev,
-        parkedPrompts: [...prev.parkedPrompts, queuedCommand],
+        parkedPrompts: [...(prev.parkedPrompts ?? []), queuedCommand],
       }))
 
       params.addNotification?.({
