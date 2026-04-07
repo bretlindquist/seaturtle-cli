@@ -9,6 +9,7 @@
     "soc-scene-probe": "bun ./scripts/soc-scene-probe.mjs",
     "soc-scene-check": "bun ./scripts/soc-scene-check.mjs",
     "soc-free-response-probe": "bun ./scripts/soc-free-response-probe.mjs",
+    "soc-free-response-check": "bun ./scripts/soc-free-response-check.mjs",
     "intent-probe": "bun ./scripts/intent-probe.mjs",
     "midturn-probe": "bun ./scripts/midturn-probe.mjs",
     "steering-probe": "bun ./scripts/steering-probe.mjs",
