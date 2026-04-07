@@ -85,6 +85,24 @@ function computeSearchText(msg: RenderableMessage): string {
       // unsearchable without this — [ dump finds it, / doesn't.
       if (msg.attachment.type === 'relevant_memories') {
         raw = msg.attachment.memories.map(m => m.content).join('\n')
+      } else if (msg.attachment.type === 'steer_checkpoint') {
+        const lines = [
+          `Steer checkpoint: step ${msg.attachment.stepNumber}`,
+          `Step description: ${msg.attachment.stepDescription}`,
+          `Tool just completed: ${msg.attachment.toolJustCompleted}`,
+          ...msg.attachment.queuedSteersReceived.map(
+            item => `Queued steer: ${item.prompt}`,
+          ),
+          ...msg.attachment.steerClassifications.map(
+            item => `Steer classification (${item.classification}): ${item.prompt}`,
+          ),
+          ...msg.attachment.appliedChangesToActiveTask.map(
+            item => `Applied to active task: ${item}`,
+          ),
+          ...msg.attachment.deferredItems.map(item => `Deferred item: ${item}`),
+          `Next step: ${msg.attachment.nextStep}`,
+        ]
+        raw = lines.join('\n')
       } else if (
         // Mid-turn prompts — queued while an agent is running. Render via
         // UserTextMessage (AttachmentMessage.tsx:~348). stickyPromptText

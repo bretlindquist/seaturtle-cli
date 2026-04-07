@@ -54,6 +54,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
     case 'attachment':
       switch (msg.attachment.type) {
         case 'queued_command':
+        case 'steer_checkpoint':
         case 'diagnostics':
         case 'hook_blocking_error':
         case 'hook_error_during_execution':
