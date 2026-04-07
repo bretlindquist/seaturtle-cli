@@ -152,6 +152,64 @@ function getPlaceholderSearchOrdinal(
   return delta < 0 ? state.prefixSum[ptr + 1] ?? total : (state.prefixSum[ptr] ?? 0) + 1;
 }
 
+function buildSearchNavigationState(
+  query: string,
+  messages: RenderableMessage[],
+  extractSearchText: (msg: RenderableMessage) => string,
+): SearchNavigationState {
+  if (!query) {
+    return createEmptySearchNavigationState();
+  }
+
+  const matches: number[] = [];
+  const prefixSum: number[] = [0];
+  for (let i = 0; i < messages.length; i++) {
+    const text = extractSearchText(messages[i]!);
+    let pos = text.indexOf(query);
+    let count = 0;
+    while (pos >= 0) {
+      count += 1;
+      pos = text.indexOf(query, pos + query.length);
+    }
+    if (count > 0) {
+      matches.push(i);
+      prefixSum.push(prefixSum.at(-1)! + count);
+    }
+  }
+
+  return {
+    matches,
+    ptr: 0,
+    screenOrd: 0,
+    prefixSum,
+  };
+}
+
+function findNearestSearchMatchPtr(
+  matches: number[],
+  offsets: Float64Array,
+  start: number,
+  getItemTop: (i: number) => number,
+  currentTop: number,
+): number {
+  if (matches.length === 0) {
+    return 0;
+  }
+
+  const firstTop = getItemTop(start);
+  const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
+  let ptr = 0;
+  let best = Infinity;
+  for (let k = 0; k < matches.length; k++) {
+    const distance = Math.abs(origin + offsets[matches[k]!]! - currentTop);
+    if (distance <= best) {
+      best = distance;
+      ptr = k;
+    }
+  }
+  return ptr;
+}
+
 /**
  * Returns the text of a real user prompt, or null for anything else.
  * "Real" = what the human typed: not tool results, not XML-wrapped payloads
@@ -785,31 +843,8 @@ export function VirtualMessageList({
       startPtrRef.current = -1;
       resetSearchViewportState();
       const lq = q.toLowerCase();
-      // One entry per MESSAGE (deduplicated). Boolean "does this msg
-      // contain the query". ~10ms for 9k messages with cached lowered.
-      const matches: number[] = [];
-      // Per-message occurrence count → prefixSum for global current
-      // index. Engine-counted (cheap indexOf loop); may differ from
-      // render-count (scanElement) for ghost/phantom messages but close
-      // enough for the badge. The badge is a rough location hint.
-      const prefixSum: number[] = [0];
-      if (lq) {
-        const msgs = jumpState.current.messages;
-        for (let i = 0; i < msgs.length; i++) {
-          const text = extractSearchText(msgs[i]!);
-          let pos = text.indexOf(lq);
-          let cnt = 0;
-          while (pos >= 0) {
-            cnt++;
-            pos = text.indexOf(lq, pos + lq.length);
-          }
-          if (cnt > 0) {
-            matches.push(i);
-            prefixSum.push(prefixSum.at(-1)! + cnt);
-          }
-        }
-      }
-      const total = prefixSum.at(-1)!;
+      const nextState = buildSearchNavigationState(lq, jumpState.current.messages, extractSearchText);
+      const total = getSearchTotal(nextState);
       // Nearest MESSAGE to the anchor. <= so ties go to later.
       let ptr = 0;
       const s = scrollRef.current;
@@ -818,32 +853,23 @@ export function VirtualMessageList({
         start,
         getItemTop
       } = jumpState.current;
-      const firstTop = getItemTop(start);
-      const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-      if (matches.length > 0 && s) {
+      if (nextState.matches.length > 0 && s) {
         const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-        let best = Infinity;
-        for (let k = 0; k < matches.length; k++) {
-          const d = Math.abs(origin + offsets[matches[k]!]! - curTop);
-          if (d <= best) {
-            best = d;
-            ptr = k;
-          }
-        }
-        logForDebugging(`setSearchQuery('${q}'): ${matches.length} msgs · ptr=${ptr} ` + `msgIdx=${matches[ptr]} curTop=${curTop} origin=${origin}`);
+        ptr = findNearestSearchMatchPtr(nextState.matches, offsets, start, getItemTop, curTop);
+        const firstTop = getItemTop(start);
+        const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
+        logForDebugging(`setSearchQuery('${q}'): ${nextState.matches.length} msgs · ptr=${ptr} ` + `msgIdx=${nextState.matches[ptr]} curTop=${curTop} origin=${origin}`);
       }
       setSearchNavigationState({
-        matches,
-        ptr,
-        screenOrd: 0,
-        prefixSum
+        ...nextState,
+        ptr
       });
-      if (matches.length > 0) {
+      if (nextState.matches.length > 0) {
         // wantLast=true: preview the LAST occurrence in the nearest
         // message. At sticky-bottom (common / entry), nearest is the
         // last msg; its last occurrence is closest to where the user
         // was — minimal view movement. n advances forward from there.
-        jump(matches[ptr]!, true);
+        jump(nextState.matches[ptr]!, true);
       } else if (searchAnchor.current >= 0 && s) {
         // /foob → 0 matches → snap back to anchor. less/vim incsearch.
         s.scrollTo(searchAnchor.current);
@@ -852,11 +878,9 @@ export function VirtualMessageList({
       // scan will land on the last occurrence in matches[ptr]. Placeholder
       // = prefixSum[ptr+1] (count through this msg). highlight() updates
       // to the exact value after scan completes.
-      reportSearchProgress(total, matches.length > 0 ? getPlaceholderSearchOrdinal({
-        matches,
-        ptr,
-        screenOrd: 0,
-        prefixSum
+      reportSearchProgress(total, nextState.matches.length > 0 ? getPlaceholderSearchOrdinal({
+        ...nextState,
+        ptr
       }, ptr, -1) : 0);
     },
     nextMatch: () => step(1),
