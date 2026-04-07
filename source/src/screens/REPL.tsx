@@ -4198,7 +4198,7 @@ export function REPL({
     enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
     jumpRef,
-    onSearchMatchesChange,
+    searchProgress: transcriptSearchProgress,
   });
 
   // Handle shift+down for teammate navigation and background task management.

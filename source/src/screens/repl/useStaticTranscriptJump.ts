@@ -3,12 +3,13 @@ import type { RefObject } from 'react';
 import type { RenderableMessage } from '../../types/message.js';
 import { renderableSearchText } from '../../utils/transcriptSearch.js';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
+import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
   messages: RenderableMessage[];
   jumpRef: RefObject<JumpHandle | null>;
-  onSearchMatchesChange: (count: number, current: number) => void;
+  searchProgress: TranscriptSearchProgressSink;
 };
 
 function countOccurrences(haystack: string, needle: string): number {
@@ -28,7 +29,7 @@ export function useStaticTranscriptJump({
   enabled,
   messages,
   jumpRef,
-  onSearchMatchesChange,
+  searchProgress,
 }: UseStaticTranscriptJumpInput): void {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -53,7 +54,7 @@ export function useStaticTranscriptJump({
             count: 0,
             current: 0,
           };
-          onSearchMatchesChange(0, 0);
+          searchProgress.reportMatches(0, 0);
           return;
         }
 
@@ -75,24 +76,24 @@ export function useStaticTranscriptJump({
           count,
           current,
         };
-        onSearchMatchesChange(count, current);
+        searchProgress.reportMatches(count, current);
       },
       nextMatch: () => {
         const { count, current } = stateRef.current;
         if (count === 0) return;
         const next = current >= count ? 1 : current + 1;
         stateRef.current.current = next;
-        onSearchMatchesChange(count, next);
+        searchProgress.reportMatches(count, next);
       },
       prevMatch: () => {
         const { count, current } = stateRef.current;
         if (count === 0) return;
         const next = current <= 1 ? count : current - 1;
         stateRef.current.current = next;
-        onSearchMatchesChange(count, next);
+        searchProgress.reportMatches(count, next);
       },
     }),
-    [onSearchMatchesChange],
+    [searchProgress],
   );
 
   useEffect(() => {
