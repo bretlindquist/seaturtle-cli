@@ -17,7 +17,6 @@ type UseTranscriptCleanupEffectsInput = {
 
 export function useTranscriptCleanupEffects({
   inTranscript,
-  searchQuery,
   editorGenRef,
   editorTimerRef,
   setSearchQuery,
@@ -43,7 +42,7 @@ export function useTranscriptCleanupEffects({
   }, [editorGenRef, editorTimerRef, inTranscript, setDumpMode, setEditorStatus, setSearchCount, setSearchCurrent, setSearchOpen, setSearchQuery]);
 
   useEffect(() => {
-    setHighlight(inTranscript ? searchQuery : '');
+    setHighlight('');
     if (!inTranscript) setPositions(null);
-  }, [inTranscript, searchQuery, setHighlight, setPositions]);
+  }, [inTranscript, setHighlight, setPositions]);
 }

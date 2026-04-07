@@ -85,7 +85,6 @@ type TranscriptSearchBarProps = {
   current: number
   onClose: (lastQuery: string) => void
   onCancel: () => void
-  setHighlight: (query: string) => void
   initialQuery: string
 }
 
@@ -95,7 +94,6 @@ export function TranscriptSearchBar({
   current,
   onClose,
   onCancel,
-  setHighlight,
   initialQuery,
 }: TranscriptSearchBarProps): React.ReactNode {
   const { query, cursorOffset } = useSearchInput({
@@ -138,7 +136,6 @@ export function TranscriptSearchBar({
   useEffect(() => {
     if (!warmDone) return
     jumpRef.current?.setSearchQuery(query)
-    setHighlight(query)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, warmDone])
 

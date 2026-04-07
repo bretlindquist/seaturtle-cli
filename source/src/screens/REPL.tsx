@@ -7,7 +7,6 @@ import { count } from '../utils/array.js';
 import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
-import { nodeCache } from '../ink/node-cache.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
@@ -303,7 +302,6 @@ import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.j
 import { useMessageActions, MessageActionsKeybindings, MessageActionsBar, type MessageActionsState, type MessageActionsNav, type MessageActionCaps } from '../components/messageActions.js';
 import { setClipboard } from '../ink/termio/osc.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
-import type { DOMElement } from '../ink/dom.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
 import {
   AnimatedTerminalTitle,
@@ -4095,11 +4093,9 @@ export function REPL({
   });
   const {
     setQuery: setHighlight,
-    setRowRange: setHighlightRowRange,
     scanElement,
     setPositions
   } = useSearchHighlight();
-  const transcriptContentRef = useRef<DOMElement | null>(null);
   const {
     handleSearchClose,
     handleSearchCancel
@@ -4111,8 +4107,7 @@ export function REPL({
     jumpRef,
     setSearchOpen,
     setSearchQuery,
-    clearSearchState,
-    setHighlight
+    clearSearchState
   });
 
   useTranscriptEscapeHotkeys({
@@ -4171,27 +4166,6 @@ export function REPL({
   // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
-  React.useEffect(() => {
-    if (screen !== 'transcript') {
-      setHighlightRowRange(null);
-      return;
-    }
-    const el = transcriptContentRef.current;
-    if (!el?.yogaNode) {
-      setHighlightRowRange(null);
-      return;
-    }
-    const top = Math.floor(nodeCache.get(el)?.y ?? el.yogaNode.getComputedTop());
-    const height = Math.ceil(el.yogaNode.getComputedHeight());
-    if (height <= 0) {
-      setHighlightRowRange(null);
-      return;
-    }
-    setHighlightRowRange({
-      start: top,
-      end: top + height - 1
-    });
-  }, [screen, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
   useStaticTranscriptJump({
     enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
@@ -4217,7 +4191,7 @@ export function REPL({
     // and transcript-mode are mutually exclusive (this early return), so
     // only one ScrollBox is ever mounted at a time.
     const transcriptScrollRef = transcriptVirtualScrollActive ? scrollRef : undefined;
-    const transcriptMessagesElement = <Box ref={transcriptContentRef} flexDirection="column">
+    const transcriptMessagesElement = <Box flexDirection="column">
         <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
       </Box>;
     const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
@@ -4228,7 +4202,7 @@ export function REPL({
       // memory (cursor lands after 'foo', /hello → foohello).
       // Cancel-restore handles the 'don't lose prior search'
       // concern differently (onCancel re-applies searchQuery).
-      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleSearchClose} onCancel={handleSearchCancel} setHighlight={setHighlight} />;
+      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleSearchClose} onCancel={handleSearchCancel} />;
     const transcriptReturn = <KeybindingSetup>
         <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />

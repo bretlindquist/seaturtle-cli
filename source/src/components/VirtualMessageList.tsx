@@ -271,6 +271,7 @@ type VirtualItemProps = {
   idx: number;
   measureRef: (key: string) => (el: DOMElement | null) => void;
   expanded: boolean | undefined;
+  searchMatched: boolean;
   searchActive: boolean;
   hovered: boolean;
   clickable: boolean;
@@ -301,6 +302,7 @@ function VirtualItem(t0) {
     idx,
     measureRef,
     expanded,
+    searchMatched,
     searchActive,
     hovered,
     clickable,
@@ -318,7 +320,7 @@ function VirtualItem(t0) {
   } else {
     t1 = $[2];
   }
-  const t2 = expanded || searchActive ? "userMessageBackgroundHover" : undefined;
+  const t2 = searchActive ? "messageActionsBackground" : expanded || searchMatched ? "userMessageBackgroundHover" : undefined;
   const t3 = expanded ? 1 : undefined;
   let t4;
   if ($[3] !== clickable || $[4] !== msg || $[5] !== onClickK) {
@@ -403,7 +405,7 @@ export function VirtualMessageList({
   jumpRef,
   searchProgress,
   scanElement,
-  setPositions
+  setPositions: _setPositions
 }: Props): React.ReactNode {
   // Incremental key array. Streaming appends one message at a time; rebuilding
   // the full string array on every commit allocates O(n) per message (~1MB
@@ -552,10 +554,10 @@ export function VirtualMessageList({
   const searchAnchor = useRef(-1);
   const indexWarmed = useRef(false);
   const [activeResult, setActiveResult] = useState<ActiveTranscriptResult | null>(null);
+  const [matchedMessageIdxs, setMatchedMessageIdxs] = useState<Set<number>>(() => new Set());
   const clearActiveResult = useCallback(() => {
     setActiveResult(null);
-    setPositions?.(null);
-  }, [setPositions]);
+  }, []);
   const setActiveResultMatch = useCallback((msgIdx: number, ordinal: number) => {
     setActiveResult({
       msgIdx,
@@ -574,6 +576,7 @@ export function VirtualMessageList({
   }, [searchProgress]);
   const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
     searchState.current = next;
+    setMatchedMessageIdxs(new Set(next.matches));
   }, []);
   const [seekGen, setSeekGen] = useState(0);
   const bumpSeek = useCallback(() => setSeekGen(g => g + 1), []);
@@ -690,11 +693,6 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    setPositions?.({
-      positions,
-      rowOffset,
-      currentIdx: idx
-    });
     // Badge: global current = sum of occurrences before this msg + ord+1.
     // prefixSum[ptr] is engine-counted (indexOf on extractSearchText);
     // may drift from render-count for ghost messages but close enough —
@@ -983,7 +981,7 @@ export function VirtualMessageList({
       const clickable = !!onItemClick && (isItemClickable?.(msg) ?? true);
       const hovered = clickable && hoveredKey === k;
       const expanded = isItemExpanded?.(msg);
-      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchActive={activeResult?.msgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
+      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchMatched={matchedMessageIdxs.has(idx)} searchActive={activeResult?.msgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
     })}
       {bottomSpacer > 0 && <Box height={bottomSpacer} flexShrink={0} />}
       {trackStickyPrompt && <StickyTracker messages={messages} start={start} end={end} offsets={offsets} getItemTop={getItemTop} getItemElement={getItemElement} scrollRef={scrollRef} />}

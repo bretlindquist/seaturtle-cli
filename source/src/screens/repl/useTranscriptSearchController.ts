@@ -12,7 +12,6 @@ type UseTranscriptSearchControllerInput = {
   setSearchOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
   clearSearchState: () => void
-  setHighlight: (query: string) => void
 }
 
 export function useTranscriptSearchController({
@@ -24,7 +23,6 @@ export function useTranscriptSearchController({
   setSearchOpen,
   setSearchQuery,
   clearSearchState,
-  setHighlight
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
   const prevColsRef = useRef(transcriptCols);
@@ -37,10 +35,9 @@ export function useTranscriptSearchController({
         setSearchOpen(false);
         clearSearchState();
         jumpRef.current?.disarmSearch();
-        setHighlight('');
       }
     }
-  }, [clearSearchState, jumpRef, searchOpen, searchQuery, setHighlight, setSearchOpen, transcriptCols]);
+  }, [clearSearchState, jumpRef, searchOpen, searchQuery, setSearchOpen, transcriptCols]);
 
   useEffect(() => {
     const wasOpen = prevSearchOpenRef.current;
@@ -55,7 +52,6 @@ export function useTranscriptSearchController({
     const committedQuery = searchCount > 0 ? q : '';
     setSearchQuery(committedQuery);
     setSearchOpen(false);
-    setHighlight(committedQuery);
     if (!q) {
       clearSearchState();
       jumpRef.current?.setSearchQuery('');
@@ -66,7 +62,6 @@ export function useTranscriptSearchController({
     setSearchOpen(false);
     jumpRef.current?.setSearchQuery('');
     jumpRef.current?.setSearchQuery(searchQuery);
-    setHighlight(searchQuery);
   };
   return {
     handleSearchClose,
