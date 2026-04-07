@@ -6,7 +6,7 @@ type UseTranscriptSearchHotkeysInput = {
   screen: 'prompt' | 'transcript'
   searchOpen: boolean
   dumpMode: boolean
-  searchCount: number
+  hasNavigableMatches: boolean
   jumpRef: RefObject<JumpHandle | null>
   setSearchOpen: (open: boolean) => void
 }
@@ -42,7 +42,7 @@ export function useTranscriptSearchHotkeys({
   screen,
   searchOpen,
   dumpMode,
-  searchCount,
+  hasNavigableMatches,
   jumpRef,
   setSearchOpen,
 }: UseTranscriptSearchHotkeysInput): void {
@@ -56,7 +56,7 @@ export function useTranscriptSearchHotkeys({
         return;
       }
 
-      if (searchCount > 0 && matchesLiteralKey(input, key, 'n')) {
+      if (hasNavigableMatches && matchesLiteralKey(input, key, 'n')) {
         const fn = jumpRef.current?.nextMatch;
         if (fn) {
           for (let i = 0; i < Math.max(input.length, 1); i++) fn();
@@ -65,7 +65,7 @@ export function useTranscriptSearchHotkeys({
         return;
       }
 
-      if (searchCount > 0 && matchesLiteralKey(input, key, 'N')) {
+      if (hasNavigableMatches && matchesLiteralKey(input, key, 'N')) {
         const fn = jumpRef.current?.prevMatch;
         if (fn) {
           for (let i = 0; i < Math.max(input.length, 1); i++) fn();

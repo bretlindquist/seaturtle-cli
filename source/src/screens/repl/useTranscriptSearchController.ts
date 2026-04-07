@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 
@@ -8,12 +8,10 @@ type UseTranscriptSearchControllerInput = {
   searchOpen: boolean
   searchQuery: string
   searchCount: number
-  searchCurrent: number
   jumpRef: RefObject<JumpHandle | null>
   setSearchOpen: (open: boolean) => void
   setSearchQuery: (query: string) => void
-  setSearchCount: (count: number) => void
-  setSearchCurrent: (current: number) => void
+  clearSearchState: () => void
   setHighlight: (query: string) => void
 }
 
@@ -22,12 +20,10 @@ export function useTranscriptSearchController({
   searchOpen,
   searchQuery,
   searchCount,
-  searchCurrent,
   jumpRef,
   setSearchOpen,
   setSearchQuery,
-  setSearchCount,
-  setSearchCurrent,
+  clearSearchState,
   setHighlight
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
@@ -39,14 +35,12 @@ export function useTranscriptSearchController({
       prevColsRef.current = transcriptCols;
       if (searchQuery || searchOpen) {
         setSearchOpen(false);
-        setSearchQuery('');
-        setSearchCount(0);
-        setSearchCurrent(0);
+        clearSearchState();
         jumpRef.current?.disarmSearch();
         setHighlight('');
       }
     }
-  }, [jumpRef, searchOpen, searchQuery, setHighlight, setSearchCount, setSearchCurrent, setSearchOpen, setSearchQuery, transcriptCols]);
+  }, [clearSearchState, jumpRef, searchOpen, searchQuery, setHighlight, setSearchOpen, transcriptCols]);
 
   useEffect(() => {
     const wasOpen = prevSearchOpenRef.current;
@@ -63,8 +57,7 @@ export function useTranscriptSearchController({
     setSearchOpen(false);
     setHighlight(committedQuery);
     if (!q) {
-      setSearchCount(0);
-      setSearchCurrent(0);
+      clearSearchState();
       jumpRef.current?.setSearchQuery('');
     }
   };
@@ -75,14 +68,7 @@ export function useTranscriptSearchController({
     jumpRef.current?.setSearchQuery(searchQuery);
     setHighlight(searchQuery);
   };
-
-  const searchBadge = useMemo(() => searchQuery && searchCount > 0 ? {
-    current: searchCurrent,
-    count: searchCount
-  } : undefined, [searchCount, searchCurrent, searchQuery]);
-
   return {
-    searchBadge,
     handleSearchClose,
     handleSearchCancel
   };

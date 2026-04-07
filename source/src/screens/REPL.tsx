@@ -317,7 +317,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
-import { useTranscriptSearchModel } from './repl/useTranscriptSearchModel.js';
+import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -1166,9 +1166,11 @@ export function REPL({
     setSearchCount,
     searchCurrent,
     setSearchCurrent,
+    hasNavigableMatches,
     onSearchMatchesChange,
+    clearSearchState,
     searchBadge
-  } = useTranscriptSearchModel();
+  } = useTranscriptSearchTracker();
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
@@ -4085,7 +4087,7 @@ export function REPL({
     screen,
     searchOpen,
     dumpMode,
-    searchCount,
+    hasNavigableMatches,
     jumpRef,
     setSearchOpen
   });
@@ -4104,12 +4106,10 @@ export function REPL({
     searchOpen,
     searchQuery,
     searchCount,
-    searchCurrent,
     jumpRef,
     setSearchOpen,
     setSearchQuery,
-    setSearchCount,
-    setSearchCurrent,
+    clearSearchState,
     setHighlight
   });
 
@@ -4193,8 +4193,7 @@ export function REPL({
     enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
     jumpRef,
-    setSearchCount,
-    setSearchCurrent,
+    onSearchMatchesChange,
   });
 
   // Handle shift+down for teammate navigation and background task management.
