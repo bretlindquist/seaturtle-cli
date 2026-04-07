@@ -119,6 +119,22 @@ type ActiveTranscriptResult = {
   ordinal: number;
 };
 
+type SearchNavigationState = {
+  matches: number[];
+  ptr: number;
+  screenOrd: number;
+  prefixSum: number[];
+};
+
+function createEmptySearchNavigationState(): SearchNavigationState {
+  return {
+    matches: [],
+    ptr: 0,
+    screenOrd: 0,
+    prefixSum: [],
+  };
+}
+
 /**
  * Returns the text of a real user prompt, or null for anything else.
  * "Real" = what the human typed: not tool results, not XML-wrapped payloads
@@ -455,18 +471,7 @@ export function VirtualMessageList({
   // closure-capture or deps churn.
   const stepRef = useRef<(d: 1 | -1) => void>(() => {});
   const highlightRef = useRef<(ord: number) => void>(() => {});
-  const searchState = useRef({
-    matches: [] as number[],
-    // deduplicated msg indices
-    ptr: 0,
-    screenOrd: 0,
-    // Cumulative engine-occurrence count before each matches[k]. Lets us
-    // compute a global current index: prefixSum[ptr] + screenOrd + 1.
-    // Engine-counted (indexOf on extractSearchText), not render-counted —
-    // close enough for the badge; exact counts would need scanElement on
-    // every matched message (~1-3ms × N). total = prefixSum[matches.length].
-    prefixSum: [] as number[]
-  });
+  const searchState = useRef<SearchNavigationState>(createEmptySearchNavigationState());
   // scrollTop at the moment / was pressed. Incsearch preview-jumps snap
   // back here when matches drop to 0. -1 = no anchor (before first /).
   const searchAnchor = useRef(-1);
@@ -492,6 +497,9 @@ export function VirtualMessageList({
   const reportSearchProgress = useCallback((total: number, current: number) => {
     searchProgress?.reportMatches(total, current);
   }, [searchProgress]);
+  const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
+    searchState.current = next;
+  }, []);
 
   // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
   // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
@@ -808,12 +816,12 @@ export function VirtualMessageList({
         }
         logForDebugging(`setSearchQuery('${q}'): ${matches.length} msgs · ptr=${ptr} ` + `msgIdx=${matches[ptr]} curTop=${curTop} origin=${origin}`);
       }
-      searchState.current = {
+      setSearchNavigationState({
         matches,
         ptr,
         screenOrd: 0,
         prefixSum
-      };
+      });
       if (matches.length > 0) {
         // wantLast=true: preview the LAST occurrence in the nearest
         // message. At sticky-bottom (common / entry), nearest is the
