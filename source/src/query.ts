@@ -124,6 +124,43 @@ const taskSummaryModule = feature('BG_SESSIONS')
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 
+function buildSteerCheckpointTranscriptLine(input: {
+  stepNumber: number
+  toolJustCompleted: string
+  steerClassifications: Array<{
+    classification:
+      | 'relevant_now'
+      | 'append_to_task'
+      | 'defer_adjacent'
+      | 'ignore'
+  }>
+}): string {
+  const relevantNowCount = input.steerClassifications.filter(
+    item => item.classification === 'relevant_now',
+  ).length
+  const appendCount = input.steerClassifications.filter(
+    item => item.classification === 'append_to_task',
+  ).length
+  const deferCount = input.steerClassifications.filter(
+    item => item.classification === 'defer_adjacent',
+  ).length
+  const ignoreCount = input.steerClassifications.filter(
+    item => item.classification === 'ignore',
+  ).length
+
+  const parts = [
+    `Steer checkpoint: step ${input.stepNumber}`,
+    `after ${input.toolJustCompleted}`,
+  ]
+
+  if (relevantNowCount > 0) parts.push(`${relevantNowCount} now`)
+  if (appendCount > 0) parts.push(`${appendCount} append`)
+  if (deferCount > 0) parts.push(`${deferCount} deferred`)
+  if (ignoreCount > 0) parts.push(`${ignoreCount} ignored`)
+
+  return parts.join(' · ')
+}
+
 function* yieldMissingToolResultBlocks(
   assistantMessages: AssistantMessage[],
   errorMessage: string,
@@ -1605,6 +1642,18 @@ async function* queryLoop(
       const checkpointMessage = createAttachmentMessage(steerCheckpoint)
       yield checkpointMessage
       toolResults.push(checkpointMessage)
+
+      const transcriptCheckpointMessage = createUserMessage({
+        content: buildSteerCheckpointTranscriptLine({
+          stepNumber: steerCheckpoint.stepNumber,
+          toolJustCompleted: steerCheckpoint.toolJustCompleted,
+          steerClassifications: steerCheckpoint.steerClassifications,
+        }),
+        isVisibleInTranscriptOnly: true,
+        isVirtual: true,
+      })
+      yield transcriptCheckpointMessage
+      toolResults.push(transcriptCheckpointMessage)
     }
 
     const { attachNow: boundaryCommandsToAttach } =
