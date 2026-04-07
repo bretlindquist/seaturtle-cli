@@ -698,6 +698,15 @@ export function VirtualMessageList({
     // Exhausted visible. Advance ptr → jump → re-scan.
     const ptr = (st.ptr + delta + matches.length) % matches.length;
     if (ptr === startPtrRef.current) {
+      if (positions.length > 0) {
+        const wrapOrd = delta < 0 ? positions.length - 1 : 0;
+        st.ptr = ptr;
+        st.screenOrd = wrapOrd;
+        highlight(wrapOrd);
+        startPtrRef.current = -1;
+        logForDebugging(`step: wrapped within ptr=${ptr} to ord=${wrapOrd}`);
+        return;
+      }
       setPositions?.(null);
       startPtrRef.current = -1;
       logForDebugging(`step: wraparound at ptr=${ptr}, all ${matches.length} msgs phantoms`);
