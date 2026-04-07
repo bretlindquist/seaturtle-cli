@@ -139,6 +139,8 @@ Do not harden things so much that their essence disappears.
 Distill carefully.
 Preserve the spirit of what the user is reaching for, especially when it carries feeling, intent, wonder, surprise, or play.
 Look for moments where a modest extra layer of taste, hierarchy, or polish would make the experience radically better for the user.
+Do not just fix things mechanically or harden them until they stop moving.
+Prefer elegant solutions: the smallest clear change that preserves the living intent, solves the real problem, and avoids creating brittle micro-edge-case machinery.
 
 Figure out together:
 
