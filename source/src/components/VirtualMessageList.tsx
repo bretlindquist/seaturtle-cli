@@ -471,6 +471,17 @@ export function VirtualMessageList({
   // back here when matches drop to 0. -1 = no anchor (before first /).
   const searchAnchor = useRef(-1);
   const indexWarmed = useRef(false);
+  const [activeResult, setActiveResult] = useState<ActiveTranscriptResult | null>(null);
+  const clearActiveResult = useCallback(() => {
+    setActiveResult(null);
+    setPositions?.(null);
+  }, [setPositions]);
+  const setActiveResultMatch = useCallback((msgIdx: number, ordinal: number) => {
+    setActiveResult({
+      msgIdx,
+      ordinal
+    });
+  }, []);
 
   // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
   // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
@@ -881,17 +892,6 @@ export function VirtualMessageList({
   // a leaf reconcile. Defensive: also avoids any Yoga child-index quirks if
   // the Ink reconciler ever materializes a placeholder for null returns.
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
-  const [activeResult, setActiveResult] = useState<ActiveTranscriptResult | null>(null);
-  const clearActiveResult = useCallback(() => {
-    setActiveResult(null);
-    setPositions?.(null);
-  }, [setPositions]);
-  const setActiveResultMatch = useCallback((msgIdx: number, ordinal: number) => {
-    setActiveResult({
-      msgIdx,
-      ordinal
-    });
-  }, []);
   // Stable click/hover handlers — called with k, dispatch from a ref so
   // closure identity doesn't change per render. The per-item handler
   // closures (`e => ...`, `() => setHoveredKey(k)`) were the
