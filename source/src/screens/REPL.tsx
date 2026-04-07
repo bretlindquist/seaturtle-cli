@@ -1266,14 +1266,6 @@ export function REPL({
   const [exitFlow, setExitFlow] = useState<React.ReactNode>(null);
   const [isExiting, setIsExiting] = useState(false);
 
-  useDirectModeHotkeys({
-    disabled,
-    isExiting,
-    screen,
-    focusedInputDialog,
-    isLocalJSXCommand: toolJSX?.isLocalJSXCommand,
-    setInputMode
-  });
   // Ref instead of state to avoid triggering React re-renders on every
   // streaming text_delta. The spinner reads this via its animation timer.
   const responseLengthRef = useRef(0);
@@ -1895,6 +1887,15 @@ export function REPL({
     hasWorkerSandboxPermission: Boolean(workerSandboxPermissions.queue[0]),
     hasElicitation: Boolean(elicitation.queue[0]),
     showingCostDialog,
+  });
+
+  useDirectModeHotkeys({
+    disabled,
+    isExiting,
+    screen,
+    focusedInputDialog,
+    isLocalJSXCommand: toolJSX?.isLocalJSXCommand,
+    setInputMode
   });
 
   // Keep ref in sync so timer callbacks can read the current value
