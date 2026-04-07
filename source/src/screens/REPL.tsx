@@ -58,7 +58,6 @@ import type { DirectConnectConfig } from '../server/directConnectManager.js';
 import { useSSHSession } from '../hooks/useSSHSession.js';
 import { useAssistantHistory } from '../hooks/useAssistantHistory.js';
 import type { SSHSession } from '../ssh/createSSHSession.js';
-import { SkillImprovementSurvey } from '../components/SkillImprovementSurvey.js';
 import { useSkillImprovementSurvey } from '../hooks/useSkillImprovementSurvey.js';
 import { useMoreRight } from '../moreright/useMoreRight.js';
 import { SpinnerWithVerb, BriefIdleStatus, type SpinnerMode } from '../components/Spinner.js';
@@ -213,9 +212,7 @@ import { EffortCallout, shouldShowEffortCallout } from '../components/EffortCall
 import type { EffortValue } from '../utils/effort.js';
 import { RemoteCallout } from '../components/RemoteCallout.js';
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-const AntModelSwitchCallout = "external" === 'ant' ? require('../components/AntModelSwitchCallout.js').AntModelSwitchCallout : null;
 const shouldShowAntModelSwitch = "external" === 'ant' ? require('../components/AntModelSwitchCallout.js').shouldShowModelSwitchCallout : (): boolean => false;
-const UndercoverAutoCallout = "external" === 'ant' ? require('../components/UndercoverAutoCallout.js').UndercoverAutoCallout : null;
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import { activityManager } from '../utils/activityManager.js';
 import { createAbortController } from '../utils/abortController.js';
@@ -289,7 +286,6 @@ const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/We
 import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
 import { CompanionSprite, CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/CompanionSprite.js';
-import { DevBar } from '../components/DevBar.js';
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
 import { REMOTE_SAFE_COMMANDS } from '../commands.js';
@@ -315,6 +311,7 @@ import {
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
+import { ReplAntChrome } from './repl/ReplAntChrome.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
 import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js';
@@ -4464,17 +4461,6 @@ export function REPL({
             });
           }} />}
                 {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
-                {"external" === 'ant' && focusedInputDialog === 'model-switch' && AntModelSwitchCallout && <AntModelSwitchCallout onDone={(selection: string, modelAlias?: string) => {
-            setShowModelSwitchCallout(false);
-            if (selection === 'switch' && modelAlias) {
-              setAppState(prev => ({
-                ...prev,
-                mainLoopModel: modelAlias,
-                mainLoopModelForSession: null
-              }));
-            }
-          }} />}
-                {"external" === 'ant' && focusedInputDialog === 'undercover-callout' && UndercoverAutoCallout && <UndercoverAutoCallout onDone={() => setShowUndercoverCallout(false)} />}
                 {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
             setShowEffortCallout(false);
             if (selection !== 'dismiss') {
@@ -4556,8 +4542,6 @@ export function REPL({
                       {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} message="How well did CT use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={didAutoRunIssueRef.current ? undefined : handleSurveyRequestFeedback} />}
                       {/* Frustration-triggered transcript sharing prompt */}
                       {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => {}} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-                      {/* Skill improvement survey - appears when improvements detected (ant-only) */}
-                      {"external" === 'ant' && skillImprovementSurvey.suggestion && <SkillImprovementSurvey isOpen={skillImprovementSurvey.isOpen} skillName={skillImprovementSurvey.suggestion.skillName} updates={skillImprovementSurvey.suggestion.updates} handleSelect={skillImprovementSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} />}
                       {showIssueFlagBanner && <IssueFlagBanner />}
                       {}
                       <PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
@@ -4650,7 +4634,7 @@ export function REPL({
             setIsMessageSelectorVisible(false);
             setMessageSelectorPreselect(undefined);
           }} />}
-                {"external" === 'ant' && <DevBar />}
+                <ReplAntChrome focusedInputDialog={focusedInputDialog} setAppState={setAppState} setShowModelSwitchCallout={setShowModelSwitchCallout} setShowUndercoverCallout={setShowUndercoverCallout} skillImprovementSurvey={skillImprovementSurvey} inputValue={inputValue} setInputValue={setInputValue} />
               </Box>
               {feature('BUDDY') && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
             </Box>} />
