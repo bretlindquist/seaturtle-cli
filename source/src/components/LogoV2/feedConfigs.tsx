@@ -20,7 +20,10 @@ export function createRecentActivityFeed(activities: LogOption[]): FeedConfig {
   return {
     title: 'Recent activity',
     lines,
-    footer: lines.length > 0 ? '/resume for more' : undefined,
+    footer:
+      lines.length > 0
+        ? '/continue for last · /resume for picker'
+        : undefined,
     emptyMessage: 'No recent activity'
   };
 }
