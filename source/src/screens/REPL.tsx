@@ -4263,7 +4263,10 @@ export function REPL({
             {transcriptMessagesElement}
             {transcriptToolJSX}
             <SandboxViolationExpandedView />
-            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} />}
+            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} searchBadge={searchQuery && searchCount > 0 ? {
+        current: searchCurrent,
+        count: searchCount
+      } : undefined} />}
           </>}
       </KeybindingSetup>;
     // The virtual-scroll branch (FullscreenLayout above) needs
