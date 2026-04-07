@@ -28,7 +28,7 @@ import Output from './output.js';
 import type { ParsedKey } from './parse-keypress.js';
 import reconciler, { dispatcher, getLastCommitMs, getLastYogaMs, isDebugRepaintsEnabled, recordYogaMs, resetProfileCounters } from './reconciler.js';
 import renderNodeToOutput, { consumeFollowScroll, didLayoutShift } from './render-node-to-output.js';
-import { applyPositionedHighlight, type MatchPosition, scanPositions } from './render-to-screen.js';
+import { type MatchPosition, scanPositions } from './render-to-screen.js';
 import createRenderer, { type Renderer } from './renderer.js';
 import { CellWidth, CharPool, cellAt, createScreen, HyperlinkPool, isEmptyCellAt, migrateScreenPools, StylePool } from './screen.js';
 import { applySearchHighlight } from './searchHighlight.js';
@@ -550,14 +550,10 @@ export default class Ink {
     // This is useful in both alt-screen transcript mode and the plain
     // transcript path rendered into normal terminal scrollback.
     hlActive = applySearchHighlight(frame.screen, this.searchHighlightQuery, this.stylePool, this.searchHighlightRowRange);
-    if (this.altScreenActive && this.searchPositions) {
-      // Position-based CURRENT: write yellow at positions[currentIdx] +
-      // rowOffset. No scanning — positions came from a prior scan when
-      // the message first mounted. Message-relative + rowOffset = screen.
-      const sp = this.searchPositions;
-      const posApplied = applyPositionedHighlight(frame.screen, this.stylePool, sp.positions, sp.rowOffset, sp.currentIdx);
-      hlActive = hlActive || posApplied;
-    }
+    // Keep transcript search on the stable visible-match layer for now.
+    // The separate positioned current-match overlay has been too brittle
+    // across viewport jumps because it depends on cached per-message screen
+    // coordinates staying perfectly in sync with the rendered frame.
 
     // Full-damage backstop: applies on BOTH alt-screen and main-screen.
     // Layout shifts (spinner appears, status line resizes) can leave stale
