@@ -33,7 +33,6 @@ import { setMemberActive } from '../utils/swarm/teamHelpers.js';
 import { isSwarmWorker, generateSandboxRequestId, sendSandboxPermissionRequestViaMailbox, sendSandboxPermissionResponseViaMailbox } from '../utils/swarm/permissionSync.js';
 import { registerSandboxPermissionCallback } from '../hooks/useSwarmPermissionPoller.js';
 import { getTeamName, getAgentName } from '../utils/teammate.js';
-import { WorkerPendingPermission } from '../components/permissions/WorkerPendingPermission.js';
 import { injectUserMessageToTeammate, getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { isLocalAgentTask, queuePendingMessage, appendMessageToLocalAgent, type LocalAgentTaskState } from '../tasks/LocalAgentTask/LocalAgentTask.js';
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
@@ -45,7 +44,6 @@ import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInput
 import { MessageSelector, selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
-import { PromptDialog } from '../components/hooks/PromptDialog.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { PromptInputQueuedCommands } from '../components/PromptInput/PromptInputQueuedCommands.js';
@@ -181,7 +179,7 @@ const useScheduledTasks = feature('AGENT_TRIGGERS') ? require('../hooks/useSched
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { useTaskListWatcher } from '../hooks/useTaskListWatcher.js';
-import type { SandboxAskCallback, NetworkHostPattern } from '../utils/sandbox/sandbox-adapter.js';
+import type { SandboxAskCallback } from '../utils/sandbox/sandbox-adapter.js';
 import { type IDEExtensionInstallationStatus, closeOpenDiffs, getConnectedIdeClient, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import exit from '../commands/exit/index.js';
@@ -233,7 +231,6 @@ import { checkAndDisableBypassPermissionsIfNeeded, checkAndDisableAutoModeIfNeed
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from 'src/cli/structuredIO.js';
 import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit.js';
-import { SandboxPermissionRequest } from 'src/components/permissions/SandboxPermissionRequest.js';
 import { SandboxViolationExpandedView } from 'src/components/SandboxViolationExpandedView.js';
 import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
 import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
@@ -291,6 +288,7 @@ import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
 import { ReplFocusedDialogs } from './repl/ReplFocusedDialogs.js';
+import { ReplPermissionOverlays } from './repl/ReplPermissionOverlays.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
@@ -4247,7 +4245,7 @@ export function REPL({
                 {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
                       <TaskListV2 tasks={tasksV2} isStandalone={true} />
                     </Box>}
-                {focusedInputDialog === 'sandbox-permission' && <SandboxPermissionRequest key={sandboxPermissionRequestQueue[0]!.hostPattern.host} hostPattern={sandboxPermissionRequestQueue[0]!.hostPattern} onUserResponse={(response: {
+                <ReplPermissionOverlays focusedInputDialog={focusedInputDialog} sandboxHostPattern={sandboxPermissionRequestQueue[0]?.hostPattern} onSandboxPermissionResponse={(response: {
             allow: boolean;
             persistToSettings: boolean;
           }) => {
@@ -4273,21 +4271,12 @@ export function REPL({
                 toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
               }));
               persistPermissionUpdate(update);
-
-              // Immediately update sandbox in-memory config to prevent race conditions
-              // where pending requests slip through before settings change is detected
               SandboxManager.refreshConfig();
             }
-
-            // Resolve ALL pending requests for the same host (not just the first one)
-            // This handles the case where multiple parallel requests came in for the same domain
             setSandboxPermissionRequestQueue(queue => {
               queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
               return queue.filter(item => item.hostPattern.host !== approvedHost);
             });
-
-            // Clean up bridge subscriptions and cancel remote prompts
-            // for this host since the local user already responded.
             const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
             if (cleanups) {
               for (const fn of cleanups) {
@@ -4295,8 +4284,7 @@ export function REPL({
               }
               sandboxBridgeCleanupRef.current.delete(approvedHost);
             }
-          }} />}
-                {focusedInputDialog === 'prompt' && <PromptDialog key={promptQueue[0]!.request.prompt} title={promptQueue[0]!.title} toolInputSummary={promptQueue[0]!.toolInputSummary} request={promptQueue[0]!.request} onRespond={selectedKey => {
+          }} promptItem={promptQueue[0]} onPromptRespond={selectedKey => {
             const item = promptQueue[0];
             if (!item) return;
             item.resolve({
@@ -4304,21 +4292,12 @@ export function REPL({
               selected: selectedKey
             });
             setPromptQueue(([, ...tail]) => tail);
-          }} onAbort={() => {
+          }} onPromptAbort={() => {
             const item = promptQueue[0];
             if (!item) return;
             item.reject(new Error('Prompt cancelled by user'));
             setPromptQueue(([, ...tail]) => tail);
-          }} />}
-                {/* Show pending indicator on worker while waiting for leader approval */}
-                {pendingWorkerRequest && <WorkerPendingPermission toolName={pendingWorkerRequest.toolName} description={pendingWorkerRequest.description} />}
-                {/* Show pending indicator for sandbox permission on worker side */}
-                {pendingSandboxRequest && <WorkerPendingPermission toolName="Network Access" description={`Waiting for leader to approve network access to ${pendingSandboxRequest.host}`} />}
-                {/* Worker sandbox permission requests from swarm workers */}
-                {focusedInputDialog === 'worker-sandbox-permission' && <SandboxPermissionRequest key={workerSandboxPermissions.queue[0]!.requestId} hostPattern={{
-            host: workerSandboxPermissions.queue[0]!.host,
-            port: undefined
-          } as NetworkHostPattern} onUserResponse={(response: {
+          }} pendingWorkerRequest={pendingWorkerRequest} pendingSandboxRequest={pendingSandboxRequest} workerSandboxRequest={workerSandboxPermissions.queue[0]} onWorkerSandboxPermissionResponse={(response: {
             allow: boolean;
             persistToSettings: boolean;
           }) => {
@@ -4358,7 +4337,7 @@ export function REPL({
                 queue: prev.workerSandboxPermissions.queue.slice(1)
               }
             }));
-          }} />}
+          }} />
                 <ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={(action, content) => {
             const currentRequest = elicitation.queue[0];
             if (!currentRequest) return;
