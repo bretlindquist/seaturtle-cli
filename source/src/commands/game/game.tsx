@@ -562,14 +562,14 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   if (screen === 'swords-character-name') {
     return (
       <Dialog
-        title="Swords of Chaos"
-        subtitle="A true name is the first thing that belongs to the player."
+        title="Swords of Chaos ⚔️🐉🏆"
+        subtitle="Every legend starts with a name someone chooses to answer to."
         onCancel={() => setScreen('swords-character-intro')}
       >
         <Box flexDirection="column" gap={1}>
           <Text dimColor>
-            Give the character a name. The world can provide class, origin, and
-            omen, but this part should come from you.
+            Give your character a name. Class, origin, and omen can come from
+            the world. This part should come from you.
           </Text>
           {swordsCreation.error ? (
             <Text color="error">{swordsCreation.error}</Text>
@@ -619,11 +619,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
     return (
       <Dialog
-        title="Swords of Chaos"
+        title="Swords of Chaos ⚔️🐉🏆"
         subtitle={
           swordsCreation.mode === 'procedural'
-            ? `Choose which life ${swordsCreation.name} wakes into.`
-            : `Choose the archetype ${swordsCreation.name} will inhabit.`
+            ? `Choose which life opens its door to ${swordsCreation.name}.`
+            : `Choose the life ${swordsCreation.name} is stepping into.`
         }
         onCancel={() => setScreen('swords-character-name')}
       >
@@ -633,8 +633,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           ) : null}
           <Text dimColor>
             {swordsCreation.mode === 'procedural'
-              ? 'These are the lives the world offered after hearing the name.'
-              : 'Premades are curated for momentum. The name keeps them yours.'}
+              ? 'The world heard the name and answered with these possibilities.'
+              : 'These premade lives are meant to get you moving fast without feeling borrowed.'}
           </Text>
           <Select
             options={[

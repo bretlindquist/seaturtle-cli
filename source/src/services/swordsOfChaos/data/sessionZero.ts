@@ -1,13 +1,13 @@
 import type { SwordsOfChaosSessionZeroPrelude } from '../types/sessionZero.js'
 
 export const SWORDS_SESSION_ZERO_PRELUDE: SwordsOfChaosSessionZeroPrelude = {
-  title: 'Swords of Chaos',
+  title: 'Swords of Chaos ⚔️🐉🏆',
   subtitle:
     'Before a name, before a blade, before the world decides what to make of you.',
   sceneText:
-    'The first thing is weather. Not the kind you measure, the kind that arrives as mood. A city of wet lamps, narrow thresholds, salt in old brick, and one sense that the night has been waiting for someone it has not met yet.\n\nYou are not in danger yet. You are in atmosphere, which is often how danger introduces itself when it wants to be remembered.',
+    'Night has already settled over the city by the time you arrive. Lamps hiss in the wet. Alley mouths shine black between brick walls, and somewhere beyond them the docks keep their own counsel.\n\nThis is not the kind of beginning that announces itself with trumpets. It begins the way trouble usually does: with a road open in front of you, a little bad luck in the air, and the feeling that if you take three more steps your life may finally become a story worth following.',
   promptText:
-    'Choose how this character enters the world. The details can come after the air around them does.',
+    'Choose how your character enters the story. You can take a forged life, let the world deal you one, or build your own.',
 }
 
 export const SWORDS_SESSION_ZERO_ORIGIN_PLACES = [

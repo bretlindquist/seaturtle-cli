@@ -10,17 +10,17 @@ export const SWORDS_CHARACTER_CREATION_MODES: SwordsCharacterCreationModeOption[
     {
       mode: 'premade',
       label: 'Premade',
-      description: 'Take a strong archetype, then give them your own name.',
+      description: 'Start with a strong archetype, then make it yours with a true name.',
     },
     {
       mode: 'procedural',
       label: 'Procedural',
-      description: 'Pick from a short list of strange lives the world offers you.',
+      description: 'Let the world deal you a short list of dangerous possible lives.',
     },
     {
       mode: 'custom',
       label: 'Custom',
-      description: 'Choose each part yourself and build the sheet piece by piece.',
+      description: 'Choose each part yourself and build the character piece by piece.',
     },
   ]
 
@@ -28,7 +28,7 @@ export const SWORDS_PREMADE_ARCHETYPES: SwordsCharacterArchetype[] = [
   {
     id: 'ash-knife',
     label: 'Ash Knife',
-    hook: 'A street duelist who learned to smile before the blade arrives.',
+    hook: 'A street duelist who smiles when the other hand goes for steel.',
     sheet: {
       archetype: 'Ash Knife',
       className: 'Duelist',
@@ -44,7 +44,7 @@ export const SWORDS_PREMADE_ARCHETYPES: SwordsCharacterArchetype[] = [
   {
     id: 'salt-witness',
     label: 'Salt Witness',
-    hook: 'A listener from the coast who keeps hearing the same wrong tide in every room.',
+    hook: 'A coast-born watcher who can tell when a room is about to go bad.',
     sheet: {
       archetype: 'Salt Witness',
       className: 'Witness',
@@ -60,7 +60,7 @@ export const SWORDS_PREMADE_ARCHETYPES: SwordsCharacterArchetype[] = [
   {
     id: 'latch-born-pilgrim',
     label: 'Latch-Born Pilgrim',
-    hook: 'A threshold walker who trusts doors less than the things that call from behind them.',
+    hook: 'A road-worn threshold walker who never trusts a closed door at first sight.',
     sheet: {
       archetype: 'Latch-Born Pilgrim',
       className: 'Pilgrim',
@@ -76,7 +76,7 @@ export const SWORDS_PREMADE_ARCHETYPES: SwordsCharacterArchetype[] = [
   {
     id: 'glass-quarter-duelist',
     label: 'Glass Quarter Duelist',
-    hook: 'A polished survivor who learned elegance in places built to cut it away.',
+    hook: 'A graceful survivor from a hard district where style was one more weapon.',
     sheet: {
       archetype: 'Glass Quarter Duelist',
       className: 'Duelist',
@@ -108,7 +108,7 @@ export const SWORDS_PREMADE_ARCHETYPES: SwordsCharacterArchetype[] = [
   {
     id: 'thorn-court-apostate',
     label: 'Thorn Court Apostate',
-    hook: 'A former court speaker who left with their voice and almost nothing else.',
+    hook: 'A fallen court speaker who escaped with their voice and very little else.',
     sheet: {
       archetype: 'Thorn Court Apostate',
       className: 'Speaker',
