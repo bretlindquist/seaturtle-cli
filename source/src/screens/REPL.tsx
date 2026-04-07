@@ -320,6 +320,7 @@ import {
   type FocusedInputDialog,
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
+import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
@@ -4077,34 +4078,14 @@ export function REPL({
   // gates the useInput. Query persists across bar open/close so n/N keep
   // working after Enter dismisses the bar (less semantics).
   const jumpRef = useRef<JumpHandle | null>(null);
-  useInput((input, key, event) => {
-    if (key.ctrl || key.meta) return;
-    // No Esc handling here — less has no navigating mode. Search state
-    // (highlights, n/N) is just state. Esc/q/ctrl+c → transcript:exit
-    // (ungated). Highlights clear on exit via the screen-change effect.
-    if (input === '/') {
-      // Capture scrollTop NOW — typing is a preview, 0-matches snaps
-      // back here. Synchronous ref write, fires before the bar's
-      // mount-effect calls setSearchQuery.
-      jumpRef.current?.setAnchor();
-      setSearchOpen(true);
-      event.stopImmediatePropagation();
-      return;
-    }
-    // Held-key batching: tokenizer coalesces to 'nnn'. Same uniform-batch
-    // pattern as modalPagerAction in ScrollKeybindingHandler.tsx. Each
-    // repeat is a step (n isn't idempotent like g).
-    const c = input[0];
-    if ((c === 'n' || c === 'N') && input === c.repeat(input.length) && searchCount > 0) {
-      const fn = c === 'n' ? jumpRef.current?.nextMatch : jumpRef.current?.prevMatch;
-      if (fn) for (let i = 0; i < input.length; i++) fn();
-      event.stopImmediatePropagation();
-    }
-  },
-  // Search needs virtual scroll (jumpRef drives VirtualMessageList). [
-  // kills it, so !dumpMode — after [ there's nothing to jump in.
-  {
-    isActive: screen === 'transcript' && virtualScrollActive && !searchOpen && !dumpMode
+  useTranscriptSearchHotkeys({
+    screen,
+    virtualScrollActive,
+    searchOpen,
+    dumpMode,
+    searchCount,
+    jumpRef,
+    setSearchOpen
   });
   const {
     setQuery: setHighlight,
