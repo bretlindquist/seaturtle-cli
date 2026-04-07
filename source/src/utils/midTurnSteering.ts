@@ -1,6 +1,9 @@
 import type { Message } from '../types/message.js'
 import type { MidTurnSteeringIntent } from '../types/textInputTypes.js'
-import { extractTextContent } from './messages.js'
+import {
+  classifyCtConversationPosture,
+  looksLikeExplicitWorkInvitation,
+} from '../services/projectIdentity/conversationPosture.js'
 
 const STOPWORDS = new Set([
   'about',
@@ -45,7 +48,7 @@ const INTERRUPT_PATTERNS = [
 ]
 
 const PARK_PATTERNS = [
-  /\b(after this|later on|for later|park this|park that|come back to this)\b/i,
+  /\b(later on|for later|park this|park that|come back to this)\b/i,
   /\b(unrelated|separate|something else|different function|different feature)\b/i,
   /\b(i have an idea|another idea|separate idea|unrelated idea)\b/i,
 ]
@@ -54,6 +57,24 @@ const QUESTION_PREFIX = /^(what|why|how|when|where|who|does|is|are|can|could|wou
 const SAME_TASK_CONTINUATION = /\b(also|and|plus|for that|for this|on that|on this|it should|that should|this should|while you're in there)\b/i
 const SAME_TASK_REFERENCE = /\b(it|that|this|same|current)\b/i
 
+function referencesActiveTask(current: string, overlap: number): boolean {
+  return (
+    SAME_TASK_CONTINUATION.test(current) ||
+    SAME_TASK_REFERENCE.test(current) ||
+    overlap >= 2
+  )
+}
+
+function extractInlineTextContent(
+  blocks: readonly { readonly type: string }[],
+  separator = '',
+): string {
+  return blocks
+    .filter((block): block is { type: 'text'; text: string } => block.type === 'text')
+    .map(block => block.text)
+    .join(separator)
+}
+
 function getRecentUserTexts(messages: Message[]): string[] {
   const recent = messages.filter(
     message => message.type === 'user' && !message.isMeta,
@@ -61,7 +82,7 @@ function getRecentUserTexts(messages: Message[]): string[] {
 
   return recent
     .slice(-4)
-    .map(message => extractTextContent(message.message.content, '\n'))
+    .map(message => extractInlineTextContent(message.message.content, '\n'))
     .map(text => text.trim())
     .filter(Boolean)
 }
@@ -110,19 +131,28 @@ export function classifyMidTurnSteering(input: {
 
   const recentUserTexts = getRecentUserTexts(input.messages)
   const overlap = countKeywordOverlap(current, recentUserTexts)
+  const posture = classifyCtConversationPosture({
+    currentInput: current,
+    recentUserMessages: recentUserTexts,
+  })
+  const explicitWorkInvitation = looksLikeExplicitWorkInvitation(current)
+  const activeTaskReference = referencesActiveTask(current, overlap)
+  const questionWithoutTaskReference =
+    QUESTION_PREFIX.test(current) &&
+    !activeTaskReference &&
+    !SAME_TASK_REFERENCE.test(current)
 
-  if (QUESTION_PREFIX.test(current) && overlap < 2 && !SAME_TASK_REFERENCE.test(current)) {
+  if (questionWithoutTaskReference && posture === 'open') {
     return 'side_question'
   }
 
-  if (
-    SAME_TASK_CONTINUATION.test(current) ||
-    SAME_TASK_REFERENCE.test(current) ||
-    overlap >= 2
-  ) {
+  if (activeTaskReference || explicitWorkInvitation || posture === 'work') {
     return 'same_task_steer'
+  }
+
+  if (questionWithoutTaskReference && posture === 'explore') {
+    return explicitWorkInvitation ? 'same_task_steer' : 'side_question'
   }
 
   return 'park_for_later'
 }
-
