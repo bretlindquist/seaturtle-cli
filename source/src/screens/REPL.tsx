@@ -4129,7 +4129,7 @@ export function REPL({
   // unrelated normal-mode text (overlay is alt-screen-global) and avoids
   // surprise n/N on re-entry. Same exit resets [ dump mode — each ctrl+o
   // entry is a fresh instance.
-  const inTranscript = screen === 'transcript' && virtualScrollActive;
+  const inTranscript = screen === 'transcript';
   useTranscriptCleanupEffects({
     inTranscript,
     searchQuery,
