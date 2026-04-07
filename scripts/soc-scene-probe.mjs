@@ -1,12 +1,11 @@
-import { writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
-import { mkdirSync } from 'node:fs'
 import { getSwordsOfChaosRelevantMemory } from '../source/src/services/swordsOfChaos/lib/relevantMemory.ts'
 import { processSwordsOfChaosEventBatch } from '../source/src/services/swordsOfChaos/lib/eventProcessor.ts'
 import { resolveSwordsOfChaosRoute } from '../source/src/services/swordsOfChaos/lib/resolution.ts'
 import { renderSwordsOfChaosHybridScene } from '../source/src/services/swordsOfChaos/lib/hybridDm.ts'
 
-function createDefaultSave() {
+export function createDefaultSave() {
   return {
     version: 1,
     player: {
@@ -48,7 +47,7 @@ function createDefaultSave() {
   }
 }
 
-function applyRoute(save, openingChoice, secondChoice, options = {}) {
+export function applyRoute(save, openingChoice, secondChoice, options = {}) {
   const beforeRelevant = getSwordsOfChaosRelevantMemory(save)
   const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
     encounterLocus: beforeRelevant.encounterShift ?? 'alley',
@@ -57,7 +56,7 @@ function applyRoute(save, openingChoice, secondChoice, options = {}) {
   return processSwordsOfChaosEventBatch(save, resolution.eventBatch)
 }
 
-function repeatRoute(save, route, times, options = {}) {
+export function repeatRoute(save, route, times, options = {}) {
   let next = save
   for (let i = 0; i < times; i += 1) {
     next = applyRoute(next, route[0], route[1], options)
@@ -65,7 +64,7 @@ function repeatRoute(save, route, times, options = {}) {
   return next
 }
 
-function buildSceneSnapshot(label, save, openingChoice) {
+export function buildSceneSnapshot(label, save, openingChoice) {
   const relevantMemory = getSwordsOfChaosRelevantMemory(save)
   const saveSummary = {
     level: save.player.level,
@@ -102,7 +101,7 @@ function buildSceneSnapshot(label, save, openingChoice) {
   }
 }
 
-function formatOptions(options) {
+export function formatOptions(options) {
   return options
     .map(
       (option, index) =>
@@ -111,7 +110,7 @@ function formatOptions(options) {
     .join('\n')
 }
 
-function renderSnapshot(snapshot) {
+export function renderSnapshot(snapshot) {
   return [
     `# ${snapshot.label}`,
     '',
@@ -145,78 +144,90 @@ function renderSnapshot(snapshot) {
   ].join('\n')
 }
 
-const base = createDefaultSave()
-const returningAlley = repeatRoute(
-  createDefaultSave(),
-  ['talk-like-you-belong', 'laugh-like-you-mean-it'],
-  1,
-)
-const threadmarkedAlley = repeatRoute(
-  createDefaultSave(),
-  ['talk-like-you-belong', 'laugh-like-you-mean-it'],
-  3,
-)
-const oldTree = repeatRoute(
-  createDefaultSave(),
-  ['draw-steel', 'lower-the-blade'],
-  4,
-)
-const oceanShip = repeatRoute(
-  createDefaultSave(),
-  ['talk-like-you-belong', 'laugh-like-you-mean-it'],
-  4,
-)
-const faeRealm = repeatRoute(
-  createDefaultSave(),
-  ['bow-slightly', 'meet-the-gaze'],
-  4,
-)
-const seaTurtleTouched = {
-  ...repeatRoute(
+export function buildSceneSnapshots() {
+  const base = createDefaultSave()
+  const returningAlley = repeatRoute(
     createDefaultSave(),
-    ['bow-slightly', 'keep-bowing'],
+    ['talk-like-you-belong', 'laugh-like-you-mean-it'],
+    1,
+  )
+  const threadmarkedAlley = repeatRoute(
+    createDefaultSave(),
+    ['talk-like-you-belong', 'laugh-like-you-mean-it'],
     3,
-  ),
-  seaturtle: {
-    bond: 2,
-    favor: 1,
-    appearances: 1,
-    lastAppearanceAt: Date.now(),
-  },
+  )
+  const oldTree = repeatRoute(
+    createDefaultSave(),
+    ['draw-steel', 'lower-the-blade'],
+    4,
+  )
+  const oceanShip = repeatRoute(
+    createDefaultSave(),
+    ['talk-like-you-belong', 'laugh-like-you-mean-it'],
+    4,
+  )
+  const faeRealm = repeatRoute(
+    createDefaultSave(),
+    ['bow-slightly', 'meet-the-gaze'],
+    4,
+  )
+  const seaTurtleTouched = {
+    ...repeatRoute(
+      createDefaultSave(),
+      ['bow-slightly', 'keep-bowing'],
+      3,
+    ),
+    seaturtle: {
+      bond: 2,
+      favor: 1,
+      appearances: 1,
+      lastAppearanceAt: Date.now(),
+    },
+  }
+
+  return [
+    buildSceneSnapshot('Fresh Alley Bluff', base, 'talk-like-you-belong'),
+    buildSceneSnapshot(
+      'Returning Alley Bluff',
+      returningAlley,
+      'talk-like-you-belong',
+    ),
+    buildSceneSnapshot(
+      'Canon Thread Alley Bluff',
+      threadmarkedAlley,
+      'talk-like-you-belong',
+    ),
+    buildSceneSnapshot('Old Tree Callback', oldTree, 'draw-steel'),
+    buildSceneSnapshot(
+      'Ocean Ship Callback',
+      oceanShip,
+      'talk-like-you-belong',
+    ),
+    buildSceneSnapshot('Fae Realm Callback', faeRealm, 'bow-slightly'),
+    buildSceneSnapshot(
+      'SeaTurtle-Touched Alley',
+      seaTurtleTouched,
+      'bow-slightly',
+    ),
+  ]
 }
 
-const snapshots = [
-  buildSceneSnapshot('Fresh Alley Bluff', base, 'talk-like-you-belong'),
-  buildSceneSnapshot(
-    'Returning Alley Bluff',
-    returningAlley,
-    'talk-like-you-belong',
-  ),
-  buildSceneSnapshot(
-    'Canon Thread Alley Bluff',
-    threadmarkedAlley,
-    'talk-like-you-belong',
-  ),
-  buildSceneSnapshot('Old Tree Callback', oldTree, 'draw-steel'),
-  buildSceneSnapshot('Ocean Ship Callback', oceanShip, 'talk-like-you-belong'),
-  buildSceneSnapshot('Fae Realm Callback', faeRealm, 'bow-slightly'),
-  buildSceneSnapshot(
-    'SeaTurtle-Touched Alley',
-    seaTurtleTouched,
-    'bow-slightly',
-  ),
-]
+export function renderSceneProbeOutput() {
+  return buildSceneSnapshots().map(renderSnapshot).join('\n')
+}
 
-const output = snapshots.map(renderSnapshot).join('\n')
-console.log(output)
+if (import.meta.main) {
+  const output = renderSceneProbeOutput()
+  console.log(output)
 
-if (process.argv.includes('--write')) {
-  const writeIndex = process.argv.indexOf('--write')
-  const target = process.argv[writeIndex + 1]
-  if (target) {
-    const absoluteTarget = resolve(process.cwd(), target)
-    mkdirSync(dirname(absoluteTarget), { recursive: true })
-    writeFileSync(absoluteTarget, output)
-    console.error(`Wrote ${absoluteTarget}`)
+  if (process.argv.includes('--write')) {
+    const writeIndex = process.argv.indexOf('--write')
+    const target = process.argv[writeIndex + 1]
+    if (target) {
+      const absoluteTarget = resolve(process.cwd(), target)
+      mkdirSync(dirname(absoluteTarget), { recursive: true })
+      writeFileSync(absoluteTarget, output)
+      console.error(`Wrote ${absoluteTarget}`)
+    }
   }
 }

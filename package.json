@@ -7,6 +7,7 @@
     "install:local-cli": "./scripts/install-local-cli.sh",
     "soc-probe": "bun ./scripts/soc-runtime-probe.mjs",
     "soc-scene-probe": "bun ./scripts/soc-scene-probe.mjs",
+    "soc-scene-check": "bun ./scripts/soc-scene-check.mjs",
     "intent-probe": "bun ./scripts/intent-probe.mjs",
     "midturn-probe": "bun ./scripts/midturn-probe.mjs",
     "steering-probe": "bun ./scripts/steering-probe.mjs",
