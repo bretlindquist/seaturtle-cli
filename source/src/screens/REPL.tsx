@@ -1163,9 +1163,7 @@ export function REPL({
     searchQuery,
     setSearchQuery,
     searchCount,
-    setSearchCount,
     searchCurrent,
-    setSearchCurrent,
     hasNavigableMatches,
     searchProgress: transcriptSearchProgress,
     clearSearchState,
@@ -4092,7 +4090,6 @@ export function REPL({
     setSearchOpen
   });
   const {
-    setQuery: setHighlight,
     scanElement
   } = useSearchHighlight();
   const {
@@ -4133,13 +4130,10 @@ export function REPL({
     inTranscript,
     editorGenRef,
     editorTimerRef,
-    setSearchQuery,
-    setSearchCount,
-    setSearchCurrent,
+    clearSearchState,
     setSearchOpen,
     setDumpMode,
     setEditorStatus,
-    setHighlight,
   });
   const globalKeybindingProps = {
     screen,
