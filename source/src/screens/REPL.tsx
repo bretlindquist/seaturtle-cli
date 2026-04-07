@@ -4203,8 +4203,10 @@ export function REPL({
       initialQuery="" count={searchCount} current={searchCurrent} onClose={q => {
         // Enter — commit. 0-match guard: junk query shouldn't
         // persist (badge hidden, n/N dead anyway).
-        setSearchQuery(searchCount > 0 ? q : '');
+        const committedQuery = searchCount > 0 ? q : '';
+        setSearchQuery(committedQuery);
         setSearchOpen(false);
+        setHighlight(committedQuery);
         // onCancel path: bar unmounts before its useEffect([query])
         // can fire with ''. Without this, searchCount stays stale
         // (n guard at :4956 passes) and VML's matches[] too
