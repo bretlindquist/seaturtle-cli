@@ -104,6 +104,7 @@ const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useV
   handleKeyEvent: () => {},
   resetAnchor: () => {}
 });
+const EMPTY_PARKED_PROMPTS: QueuedCommand[] = [];
 const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Frustration detection is ant-only (dogfooding). Conditional require so external
 // builds eliminate the module entirely (including its two O(n) useMemos that run
@@ -718,7 +719,8 @@ export function REPL({
   // /brief mid-session leaves the stale tool list (no SendUserMessage) and
   // the model emits plain text the brief filter hides.
   const isBriefOnly = useAppState(s => s.isBriefOnly);
-  const parkedPrompts = useAppState(s => s.parkedPrompts ?? []);
+  const parkedPromptsFromState = useAppState(s => s.parkedPrompts);
+  const parkedPrompts = parkedPromptsFromState ?? EMPTY_PARKED_PROMPTS;
   const localTools = useMemo(() => getTools(toolPermissionContext), [toolPermissionContext, proactiveActive, isBriefOnly]);
   useKickOffCheckAndDisableBypassPermissionsIfNeeded();
   useKickOffCheckAndDisableAutoModeIfNeeded();
