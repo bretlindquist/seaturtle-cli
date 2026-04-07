@@ -510,7 +510,7 @@ export function VirtualMessageList({
     }
     setPositions?.({
       positions,
-      rowOffset: vpTop + lo,
+      rowOffset: lo,
       currentIdx: idx
     });
     // Badge: global current = sum of occurrences before this msg + ord+1.
