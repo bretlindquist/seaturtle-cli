@@ -302,6 +302,7 @@ import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.j
 import { useMessageActions, MessageActionsKeybindings, MessageActionsBar, type MessageActionsState, type MessageActionsNav, type MessageActionCaps } from '../components/messageActions.js';
 import { setClipboard } from '../ink/termio/osc.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
+import type { DOMElement } from '../ink/dom.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
 import {
   AnimatedTerminalTitle,
@@ -4085,9 +4086,11 @@ export function REPL({
   });
   const {
     setQuery: setHighlight,
+    setRowRange: setHighlightRowRange,
     scanElement,
     setPositions
   } = useSearchHighlight();
+  const transcriptContentRef = useRef<DOMElement | null>(null);
 
   // Resize → abort search. Positions are (msg, query, WIDTH)-keyed —
   // cached positions are stale after a width change (new layout, new
@@ -4165,6 +4168,27 @@ export function REPL({
   // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
+  React.useEffect(() => {
+    if (screen !== 'transcript' || virtualScrollActive) {
+      setHighlightRowRange(null);
+      return;
+    }
+    const el = transcriptContentRef.current;
+    if (!el?.yogaNode) {
+      setHighlightRowRange(null);
+      return;
+    }
+    const top = Math.floor(el.yogaNode.getComputedTop());
+    const height = Math.ceil(el.yogaNode.getComputedHeight());
+    if (height <= 0) {
+      setHighlightRowRange(null);
+      return;
+    }
+    setHighlightRowRange({
+      start: top,
+      end: top + height - 1
+    });
+  }, [screen, virtualScrollActive, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
   useStaticTranscriptJump({
     enabled: screen === 'transcript' && (!isFullscreenEnvEnabled() || disableVirtualScroll || dumpMode),
     messages: transcriptMessages,
@@ -4191,7 +4215,9 @@ export function REPL({
     // and transcript-mode are mutually exclusive (this early return), so
     // only one ScrollBox is ever mounted at a time.
     const transcriptScrollRef = isFullscreenEnvEnabled() && !disableVirtualScroll && !dumpMode ? scrollRef : undefined;
-    const transcriptMessagesElement = <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />;
+    const transcriptMessagesElement = <Box ref={transcriptContentRef} flexDirection="column">
+        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
+      </Box>;
     const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
         {toolJSX.jsx}
       </Box>;

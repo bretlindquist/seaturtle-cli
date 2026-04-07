@@ -28,6 +28,7 @@ export function applySearchHighlight(
   screen: Screen,
   query: string,
   stylePool: StylePool,
+  rowRange?: { start: number; end: number } | null,
 ): boolean {
   if (!query) return false
   const lq = query.toLowerCase()
@@ -35,9 +36,11 @@ export function applySearchHighlight(
   const w = screen.width
   const noSelect = screen.noSelect
   const height = screen.height
+  const startRow = rowRange ? Math.max(0, rowRange.start) : 0
+  const endRow = rowRange ? Math.min(height - 1, rowRange.end) : height - 1
 
   let applied = false
-  for (let row = 0; row < height; row++) {
+  for (let row = startRow; row <= endRow; row++) {
     const rowOff = row * w
     // Build row text (already lowercased) + code-unit→cell-index map.
     // Three skip conditions, all aligned with setCellStyleId /

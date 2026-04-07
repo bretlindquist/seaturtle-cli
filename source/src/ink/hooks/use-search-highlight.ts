@@ -17,6 +17,7 @@ import type { MatchPosition } from '../render-to-screen.js'
  */
 export function useSearchHighlight(): {
   setQuery: (query: string) => void
+  setRowRange: (range: { start: number; end: number } | null) => void
   /** Paint an existing DOM subtree (from the MAIN tree) to a fresh
    *  Screen at its natural height, scan. Element-relative positions
    *  (row 0 = element top). Zero context duplication — the element
@@ -40,12 +41,14 @@ export function useSearchHighlight(): {
     if (!ink) {
       return {
         setQuery: () => {},
+        setRowRange: () => {},
         scanElement: () => [],
         setPositions: () => {},
       }
     }
     return {
       setQuery: (query: string) => ink.setSearchHighlight(query),
+      setRowRange: range => ink.setSearchHighlightRowRange(range),
       scanElement: (el: DOMElement) => ink.scanElementSubtree(el),
       setPositions: state => ink.setSearchPositions(state),
     }
