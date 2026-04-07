@@ -31,6 +31,7 @@ export {
   getSwordsSecondBeatVariant,
 } from './lib/shells.js'
 export { renderSwordsOfChaosHybridScene } from './lib/hybridDm.js'
+export { adjudicateSwordsFreeResponse, classifySwordsFreeResponse } from './lib/liveDm.js'
 export { getSwordsOfChaosRelevantMemory } from './lib/relevantMemory.js'
 export { getSwordsOfChaosRetreatNarration } from './lib/edgeNarration.js'
 export { recordSwordsOfChaosRetreat } from './lib/retreats.js'
@@ -84,3 +85,14 @@ export type {
   SwordsOfChaosDerivedMemory,
   SwordsOfChaosRelevantMemory,
 } from './types/memory.js'
+export type {
+  SwordsDmAction,
+  SwordsDmActionKind,
+  SwordsDmAdjudication,
+  SwordsFreeResponseIntent,
+  SwordsFreeResponseRisk,
+  SwordsFreeResponseTactic,
+  SwordsFreeResponseTarget,
+  SwordsFreeResponseTone,
+  SwordsFreeResponseTruthfulness,
+} from './types/liveDm.js'

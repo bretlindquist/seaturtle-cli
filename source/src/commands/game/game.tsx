@@ -30,6 +30,7 @@ import {
   WAGER_REWARDS,
 } from '../../services/game/rewards.js'
 import {
+  adjudicateSwordsFreeResponse,
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
   buildSwordsProceduralOptions,
@@ -55,6 +56,7 @@ import {
   swordsNeedsSessionZero,
   type SwordsCharacterCustomField,
   type SwordsCharacterProceduralOption,
+  type SwordsDramaticBeatLine,
   type SwordsOfChaosCreationMode,
   type SwordsOfChaosOpeningChoice,
   type SwordsOfChaosSecondChoice,
@@ -108,7 +110,7 @@ type SwordsFreeResponseState = {
 type SwordsDramaticBeatState = {
   title: string
   subtitle: string
-  lines: string[]
+  lines: SwordsDramaticBeatLine[]
   revealed: number
   followup:
     | {
@@ -227,75 +229,41 @@ function buildSwordsSecondBeat(
   }
 }
 
-function resolveSwordsOpeningFreeResponse(
-  text: string,
-): SwordsOfChaosOpeningChoice {
-  const lower = text.toLowerCase()
-  if (/(draw|blade|sword|steel|attack|strike|fight|cut)/.test(lower)) {
-    return 'draw-steel'
-  }
-  if (/(bow|nod|kneel|respect|courtesy|calm|wait|still)/.test(lower)) {
-    return 'bow-slightly'
-  }
-  if (/(talk|say|speak|name|bluff|laugh|joke|smile|charm|banter)/.test(lower)) {
-    return 'talk-like-you-belong'
-  }
-  return 'talk-like-you-belong'
-}
-
-function resolveSwordsSecondFreeResponse(
-  openingChoice: SwordsOfChaosOpeningChoice,
-  text: string,
-): SwordsOfChaosSecondChoice {
-  const lower = text.toLowerCase()
-
-  if (openingChoice === 'draw-steel') {
-    if (/(cut|chain|sign|latch|hatch|cable|slash)/.test(lower)) {
-      return 'cut-the-sign-chain'
-    }
-    if (/(hold|stand|brace|wait|guard|line)/.test(lower)) {
-      return 'hold-the-line'
-    }
-    return 'lower-the-blade'
-  }
-
-  if (openingChoice === 'bow-slightly') {
-    if (/(keep|bow|kneel|still|hold)/.test(lower)) {
-      return 'keep-bowing'
-    }
-    if (/(look|gaze|meet|eye|watch)/.test(lower)) {
-      return 'meet-the-gaze'
-    }
-    return 'ask-the-price'
-  }
-
-  if (/(title|name|claim|captain|order|rank)/.test(lower)) {
-    return 'name-a-false-title'
-  }
-  if (/(laugh|joke|smile|grin)/.test(lower)) {
-    return 'laugh-like-you-mean-it'
-  }
-  return 'double-down'
-}
-
-function renderBeatLine(line: string, index: number): React.ReactNode {
-  if (line === '') {
+function renderBeatLine(
+  line: SwordsDramaticBeatLine,
+  index: number,
+): React.ReactNode {
+  if (line.text === '') {
     return <Text key={`blank-${index}`}>{' '}</Text>
   }
 
-  if (line.startsWith('*') && line.endsWith('*')) {
+  const key = `${index}-${line.text}`
+
+  if (line.tone === 'sound') {
     return (
-      <Text key={`${index}-${line}`} color="warning">
-        {line}
+      <Text key={key} color="warning">
+        {line.text}
       </Text>
     )
   }
 
-  return (
-    <Text key={`${index}-${line}`} dimColor>
-      {line}
-    </Text>
-  )
+  if (line.tone === 'accent') {
+    return (
+      <Text key={key} color="primary">
+        {line.text}
+      </Text>
+    )
+  }
+
+  if (line.tone === 'quiet') {
+    return (
+      <Text key={key} dimColor italic>
+        {line.text}
+      </Text>
+    )
+  }
+
+  return <Text key={key} dimColor>{line.text}</Text>
 }
 
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
@@ -413,7 +381,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
   function beginSwordsDramaticBeat(input: {
     subtitle: string
-    lines: string[]
+    lines: SwordsDramaticBeatLine[]
     followup: SwordsDramaticBeatState['followup']
   }): void {
     setSwordsDramaticBeat({
@@ -729,10 +697,22 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
 
     if (swordsFreeResponse.stage === 'opening') {
-      const interpretedChoice = resolveSwordsOpeningFreeResponse(trimmed)
+      const adjudication = adjudicateSwordsFreeResponse({
+        stage: 'opening',
+        text: trimmed,
+        relevantMemory: swordsRelevantMemory,
+      })
+      const interpretedChoice = adjudication.openingChoice
+      if (!interpretedChoice) {
+        setSwordsFreeResponse(current => ({
+          ...current,
+          error: 'The DM could not settle on how that move entered the scene.',
+        }))
+        return
+      }
       beginSwordsDramaticBeat({
-        subtitle: `You choose your own line through ${swordsEncounterPlace}.`,
-        lines: buildSwordsOpeningBeat(interpretedChoice, swordsEncounterPlace),
+        subtitle: adjudication.subtitle,
+        lines: adjudication.beatScript.lines,
         followup: {
           type: 'opening',
           openingChoice: interpretedChoice,
@@ -749,13 +729,23 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       return
     }
 
-    const interpretedChoice = resolveSwordsSecondFreeResponse(
-      swordsFreeResponse.openingChoice,
-      trimmed,
-    )
+    const adjudication = adjudicateSwordsFreeResponse({
+      stage: 'second-beat',
+      text: trimmed,
+      openingChoice: swordsFreeResponse.openingChoice,
+      relevantMemory: swordsRelevantMemory,
+    })
+    const interpretedChoice = adjudication.secondChoice
+    if (!interpretedChoice) {
+      setSwordsFreeResponse(current => ({
+        ...current,
+        error: 'The DM could not tell what kind of second move that was.',
+      }))
+      return
+    }
     beginSwordsDramaticBeat({
-      subtitle: 'The scene answers the move you actually made.',
-      lines: buildSwordsSecondBeat(interpretedChoice, swordsEncounterPlace),
+      subtitle: adjudication.subtitle,
+      lines: adjudication.beatScript.lines,
       followup: {
         type: 'result',
         openingChoice: swordsFreeResponse.openingChoice,
@@ -1210,7 +1200,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
               options={[
                 ...secondBeatScene.options,
                 {
-                  label: 'Say / do your own thing',
+                  label: 'Make your own move',
                   value: 'free-response',
                   description: 'Answer the scene in your own words',
                 },
@@ -1274,7 +1264,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             options={[
               ...swordsOpeningScene.options,
               {
-                label: 'Say / do your own thing',
+                  label: 'Make your own move',
                 value: 'free-response',
                 description: 'Answer the opening in your own words',
               },

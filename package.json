@@ -8,6 +8,7 @@
     "soc-probe": "bun ./scripts/soc-runtime-probe.mjs",
     "soc-scene-probe": "bun ./scripts/soc-scene-probe.mjs",
     "soc-scene-check": "bun ./scripts/soc-scene-check.mjs",
+    "soc-free-response-probe": "bun ./scripts/soc-free-response-probe.mjs",
     "intent-probe": "bun ./scripts/intent-probe.mjs",
     "midturn-probe": "bun ./scripts/midturn-probe.mjs",
     "steering-probe": "bun ./scripts/steering-probe.mjs",
