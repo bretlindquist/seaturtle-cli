@@ -135,6 +135,23 @@ function createEmptySearchNavigationState(): SearchNavigationState {
   };
 }
 
+function getSearchTotal(state: SearchNavigationState): number {
+  return state.prefixSum.at(-1) ?? 0;
+}
+
+function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
+  return (state.prefixSum[state.ptr] ?? 0) + matchOrdinal + 1;
+}
+
+function getPlaceholderSearchOrdinal(
+  state: SearchNavigationState,
+  ptr: number,
+  delta: 1 | -1,
+): number {
+  const total = getSearchTotal(state);
+  return delta < 0 ? state.prefixSum[ptr + 1] ?? total : (state.prefixSum[ptr] ?? 0) + 1;
+}
+
 /**
  * Returns the text of a real user prompt, or null for anything else.
  * "Real" = what the human typed: not tool results, not XML-wrapped payloads
@@ -560,8 +577,8 @@ export function VirtualMessageList({
     // may drift from render-count for ghost messages but close enough —
     // badge is a rough location hint, not a proof.
     const st = searchState.current;
-    const total = st.prefixSum.at(-1) ?? 0;
-    const current = (st.prefixSum[st.ptr] ?? 0) + idx + 1;
+    const total = getSearchTotal(st);
+    const current = getCurrentSearchOrdinal(st, idx);
     reportSearchProgress(total, current);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
   }
@@ -705,10 +722,9 @@ export function VirtualMessageList({
   function step(delta: 1 | -1): void {
     const st = searchState.current;
     const {
-      matches,
-      prefixSum
+      matches
     } = st;
-    const total = prefixSum.at(-1) ?? 0;
+    const total = getSearchTotal(st);
     if (matches.length === 0) return;
 
     // Seek in-flight — queue this press (one-deep, latest overwrites).
@@ -753,7 +769,7 @@ export function VirtualMessageList({
     // for n (first pos), prefixSum[ptr+1] for N (last pos = count-1).
     // The scan-effect's highlight will be the real value; this is a
     // pre-scan placeholder so the badge updates immediately.
-    const placeholder = delta < 0 ? prefixSum[ptr + 1] ?? total : prefixSum[ptr]! + 1;
+    const placeholder = getPlaceholderSearchOrdinal(st, ptr, delta);
     reportSearchProgress(total, placeholder);
   }
   stepRef.current = step;
@@ -836,7 +852,12 @@ export function VirtualMessageList({
       // scan will land on the last occurrence in matches[ptr]. Placeholder
       // = prefixSum[ptr+1] (count through this msg). highlight() updates
       // to the exact value after scan completes.
-      reportSearchProgress(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
+      reportSearchProgress(total, matches.length > 0 ? getPlaceholderSearchOrdinal({
+        matches,
+        ptr,
+        screenOrd: 0,
+        prefixSum
+      }, ptr, -1) : 0);
     },
     nextMatch: () => step(1),
     prevMatch: () => step(-1),
