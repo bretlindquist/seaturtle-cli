@@ -203,6 +203,23 @@ const EXPLICIT_WORK_VERBS = [
   'run',
 ] as const
 
+const LIGHT_BANTER_MARKERS = [
+  'good question',
+  'lol',
+  'lmao',
+  'haha',
+  'ha ha',
+  'just kidding',
+  'joking',
+  'riffing',
+  'vibing',
+  'nothing but love',
+  'ridiculous',
+  'beautiful',
+  'what a mess',
+  'what a world',
+] as const
+
 function hashSeed(seed: string): number {
   let score = 0
   for (const char of seed) {
@@ -324,6 +341,37 @@ function looksLikeExploratoryTurn(text: string): boolean {
   )
 }
 
+function looksLikeLightBanterTurn(text: string): boolean {
+  if (!text || looksLikeExplicitExecutionTurn(text)) {
+    return false
+  }
+
+  const rhetoricalStarts = [
+    'where shouldnt we',
+    "where shouldn't we",
+    'where wouldnt we',
+    "where wouldn't we",
+    'why would we',
+    'why wouldnt we',
+    "why wouldn't we",
+    'what could possibly',
+    'surely not',
+    'probably not',
+    'maybe not',
+  ] as const
+
+  return (
+    includesAny(text, LIGHT_BANTER_MARKERS) ||
+    rhetoricalStarts.some(marker => text.startsWith(marker)) ||
+    (text.endsWith('?') &&
+      (text.includes("shouldn't") ||
+        text.includes('shouldnt') ||
+        text.includes("wouldn't") ||
+        text.includes('wouldnt'))) ||
+    (text.includes('.') && text.includes('?') && !looksLikeExploratoryTurn(text))
+  )
+}
+
 function currentLooksPhilosophicalQuestion(text: string): boolean {
   return (
     text.endsWith('?') &&
@@ -400,6 +448,10 @@ export function classifyCtConversationPosture(input: {
       countMatches(recent, STRONG_WORK_MARKERS) === 0
   ) {
     return 'supportive'
+  }
+
+  if (looksLikeLightBanterTurn(current)) {
+    return 'open'
   }
 
   if (looksLikeExploratoryTurn(current)) {
@@ -505,6 +557,8 @@ The session is still orienting. Stay conversational first and let the work postu
 - Keep the response short, human, and easy to reply to.
 - If the user is vague, meet them with curiosity instead of forcing structure too early.
 - Do not jump straight to task triage unless the user explicitly asks for execution.
+- If the user is riffing, joking, being rhetorical, or lightly playful, answer in that mode first.
+- Inside a repo, do not infer project guidance solely from ambiguity when the actual turn reads like banter.
 - ${flavor}${uiGuidance}`
     case 'work':
       return `# CT Conversation Posture

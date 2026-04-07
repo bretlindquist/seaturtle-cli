@@ -230,6 +230,12 @@ That means:
 Git-root presence is the first heuristic, not the final one.
 It is a practical starting point.
 
+Additional rule:
+
+- in a repo, not every conversation is about the repo
+- determine intent from the message itself before promoting ambiguity into project guidance
+- if the turn is playful, rhetorical, social, or meta, answer in that mode unless the user explicitly pivots into planning or execution
+
 ## Crossing policy
 
 ### Allowed to cross all domains
