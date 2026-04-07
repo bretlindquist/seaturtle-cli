@@ -4,6 +4,15 @@ const bannedPhrases = [
   'The alley seems interested now.',
   'The second move reveals what kind of trouble this really is.',
   'something larger that keeps surfacing elsewhere in other materials',
+  'You are not in danger yet. You are in atmosphere.',
+  'The place no longer feels like a single place.',
+]
+
+const bannedAbstractLeadPhrases = [
+  'the first thing is',
+  'you are not in danger yet',
+  'the place no longer feels',
+  'the world decides what to make of you',
 ]
 
 function countOccurrences(haystack, needle) {
@@ -32,6 +41,22 @@ function countParagraphs(text) {
     .filter(Boolean).length
 }
 
+function getFirstSentence(text) {
+  const trimmed = text.trim()
+  if (!trimmed) {
+    return ''
+  }
+  const match = trimmed.match(/^[^.!?]+[.!?]?/)
+  return (match ? match[0] : trimmed).trim()
+}
+
+function getLowercaseOptions(snapshot) {
+  return [
+    ...snapshot.opening.options.map(option => option.description),
+    ...snapshot.secondBeat.options.map(option => option.description),
+  ].join('\n').toLowerCase()
+}
+
 function validateSnapshot(snapshot) {
   const failures = []
   const sections = [
@@ -49,6 +74,13 @@ function validateSnapshot(snapshot) {
     }
   }
 
+  const openingLead = getFirstSentence(snapshot.opening.sceneText).toLowerCase()
+  for (const phrase of bannedAbstractLeadPhrases) {
+    if (openingLead.includes(phrase)) {
+      failures.push(`opening scene starts too abstractly with "${phrase}"`)
+    }
+  }
+
   const combinedSceneText = [
     snapshot.opening.sceneText,
     snapshot.secondBeat.sceneText,
@@ -57,6 +89,13 @@ function validateSnapshot(snapshot) {
   const duplicateSignals = findDuplicateSignals(combinedSceneText)
   for (const signal of duplicateSignals) {
     failures.push(`scene text repeats connective signal "${signal}"`)
+  }
+
+  const combinedParagraphCount = countParagraphs(combinedSceneText)
+  if (combinedParagraphCount > 5) {
+    failures.push(
+      `combined scene text is too stacked (${combinedParagraphCount} paragraphs)`,
+    )
   }
 
   if (snapshot.meta.encounterShift !== 'alley') {
@@ -68,13 +107,31 @@ function validateSnapshot(snapshot) {
     }
   }
 
-  const allOptionDescriptions = [
-    ...snapshot.opening.options.map(option => option.description),
-    ...snapshot.secondBeat.options.map(option => option.description),
-  ].join('\n')
+  const allOptionDescriptions = getLowercaseOptions(snapshot)
 
-  if (countOccurrences(allOptionDescriptions.toLowerCase(), 'reality') > 1) {
+  if (countOccurrences(allOptionDescriptions, 'reality') > 1) {
     failures.push('option descriptions overuse abstract "reality" language')
+  }
+
+  if (
+    snapshot.meta.encounterShift !== 'alley' &&
+    countOccurrences(allOptionDescriptions, 'step into the alley') > 0
+  ) {
+    failures.push('non-alley options still refer to stepping into the alley')
+  }
+
+  if (
+    snapshot.meta.encounterShift !== 'alley' &&
+    countOccurrences(allOptionDescriptions, 'let the alley') > 0
+  ) {
+    failures.push('non-alley options still rely on alley-specific route language')
+  }
+
+  if (
+    countOccurrences(combinedSceneText.toLowerCase(), 'same ') > 2 &&
+    countOccurrences(combinedSceneText.toLowerCase(), 'feels like the same') > 0
+  ) {
+    failures.push('scene text leans too hard on explicit sameness instead of implied recurrence')
   }
 
   return failures
