@@ -314,6 +314,7 @@ import {
   type FocusedInputDialog,
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
+import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -4130,25 +4131,20 @@ export function REPL({
   // surprise n/N on re-entry. Same exit resets [ dump mode — each ctrl+o
   // entry is a fresh instance.
   const inTranscript = screen === 'transcript' && virtualScrollActive;
-  useEffect(() => {
-    if (!inTranscript) {
-      setSearchQuery('');
-      setSearchCount(0);
-      setSearchCurrent(0);
-      setSearchOpen(false);
-      editorGenRef.current++;
-      clearTimeout(editorTimerRef.current);
-      setDumpMode(false);
-      setEditorStatus('');
-    }
-  }, [inTranscript]);
-  useEffect(() => {
-    setHighlight(inTranscript ? searchQuery : '');
-    // Clear the position-based CURRENT (yellow) overlay too. setHighlight
-    // only clears the scan-based inverse. Without this, the yellow box
-    // persists at its last screen coords after ctrl-c exits transcript.
-    if (!inTranscript) setPositions(null);
-  }, [inTranscript, searchQuery, setHighlight, setPositions]);
+  useTranscriptCleanupEffects({
+    inTranscript,
+    searchQuery,
+    editorGenRef,
+    editorTimerRef,
+    setSearchQuery,
+    setSearchCount,
+    setSearchCurrent,
+    setSearchOpen,
+    setDumpMode,
+    setEditorStatus,
+    setHighlight,
+    setPositions,
+  });
   const globalKeybindingProps = {
     screen,
     setScreen,
