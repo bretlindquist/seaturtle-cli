@@ -1,5 +1,3 @@
-import { getCtArchives } from './archives.js'
-
 export type CtConversationPosture =
   | 'open'
   | 'explore'
@@ -504,6 +502,10 @@ export function classifyCtConversationPosture(input: {
     return 'open'
   }
 
+  if (looksLikeExplicitWorkInvitation(current)) {
+    return 'explore'
+  }
+
   if (looksLikeExploratoryTurn(current)) {
     return 'explore'
   }
@@ -633,6 +635,10 @@ export function getCtConversationPostureResult(input: {
     currentInput: input.currentInput,
     recentUserMessages: input.recentUserMessages,
   })
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { getCtArchives } =
+    require('./archives.js') as typeof import('./archives.js')
+  /* eslint-enable @typescript-eslint/no-require-imports */
   const temperament = getCtArchives().temperament
   const disposition = pickCtDisposition(
     input.seed ?? `${input.currentInput}:${Date.now()}`,
