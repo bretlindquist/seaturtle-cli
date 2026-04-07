@@ -203,6 +203,33 @@ const EXPLICIT_WORK_VERBS = [
   'run',
 ] as const
 
+const EXPLICIT_WORK_INVITATION_PHRASES = [
+  'can you help',
+  'help me',
+  'what should we do',
+  'what should i do',
+  'what should we build',
+  'what should this be',
+  'how should we',
+  'how do we',
+  'how do i',
+  'can you diagnose',
+  'can you debug',
+  'can you review',
+  'can you plan',
+  'should we fix',
+  'should we change',
+  'should we refactor',
+  'let us plan',
+  "let's plan",
+  'let us figure out',
+  "let's figure out",
+  'help me figure out',
+  'recommend a plan',
+  'give me a plan',
+  'give me the next step',
+] as const
+
 const LIGHT_BANTER_MARKERS = [
   'good question',
   'lol',
@@ -339,6 +366,29 @@ function looksLikeExploratoryTurn(text: string): boolean {
     text.startsWith('what if ') ||
     text.startsWith('help me think through ')
   )
+}
+
+export function looksLikeExplicitWorkInvitation(text: string): boolean {
+  const normalized = normalizeText(text)
+  if (!normalized) {
+    return false
+  }
+
+  if (looksLikeExplicitExecutionTurn(normalized)) {
+    return true
+  }
+
+  const asksForHelp = EXPLICIT_WORK_INVITATION_PHRASES.some(phrase =>
+    normalized.includes(phrase),
+  )
+  const asksProjectQuestion =
+    normalized.endsWith('?') &&
+    includesAny(normalized, TECHNICAL_CONTEXT_MARKERS) &&
+    /^(what|how|why|where|when|can|could|should|would|do|does|is|are)\b/.test(
+      normalized,
+    )
+
+  return asksForHelp || asksProjectQuestion
 }
 
 function looksLikeLightBanterTurn(text: string): boolean {
@@ -544,6 +594,7 @@ The user appears to want big-picture thinking, conversation, exploration, or phi
 - Allow tangents when the tangent is the point.
 - Do not flatten broad human or project questions into task triage, category menus, or productivity coaching.
 - Meet the idea first, then narrow only if the user wants to execute.
+- Treat research and exploration as real discovery, not as soft execution pressure.
 - ${flavor}${uiGuidance}`
     case 'open':
       return `# CT Conversation Posture

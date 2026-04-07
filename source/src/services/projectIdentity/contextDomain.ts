@@ -1,6 +1,7 @@
 import { findGitRoot } from '../../utils/git.js'
 import {
   classifyCtConversationPosture,
+  looksLikeExplicitWorkInvitation,
   type CtConversationPosture,
 } from './conversationPosture.js'
 
@@ -28,6 +29,9 @@ function getDomainForTurn(input: {
     currentInput: input.currentInput,
     recentUserMessages: input.recentUserMessages,
   })
+  const explicitWorkInvitation = looksLikeExplicitWorkInvitation(
+    input.currentInput,
+  )
 
   if (findGitRoot(input.cwd) === null) {
     return {
@@ -44,7 +48,7 @@ function getDomainForTurn(input: {
       }
     case 'explore':
       return {
-        domain: 'project_explore',
+        domain: explicitWorkInvitation ? 'project_explore' : 'companion_chat',
         posture,
       }
     case 'open':
@@ -75,14 +79,16 @@ Do not let unrelated banter, gameplay, or side-channel residue steer the working
     case 'project_explore':
       return `Current context domain: project_explore
 
-This is a git-backed project session and the current turn is exploratory but still project-bound.
-Keep the discussion broad enough to think well, but do not let gameplay, casual chat, or side-question residue muddy project planning.`
+This is a git-backed project session and the current turn is exploratory with an explicit project invitation.
+Keep the discussion broad enough to think well, but do not let gameplay, casual chat, or side-question residue muddy project planning.
+Research and ideation should stay discovery-shaped until the user clearly promotes them into execution.`
     case 'companion_chat':
       return `Current context domain: companion_chat
 
 This turn is conversational inside a git-backed project.
 Be present, thoughtful, or supportive as needed, but keep active project-working context separate unless the user explicitly promotes this back into the project thread.
-Do not quietly convert this turn into new project assumptions or implementation state on its own.`
+Do not quietly convert this turn into new project assumptions or implementation state on its own.
+Repo context is ambience here, not compulsory interpretation.`
   }
 }
 
