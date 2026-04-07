@@ -82,7 +82,7 @@ import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
 import { useDeferredHookMessages } from '../hooks/useDeferredHookMessages.js';
 import { addToHistory, removeLastFromHistory, expandPastedTextRefs, parseReferences } from '../history.js';
-import { prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
+import { isPromptLikeInputMode, prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
 import { prependToShellHistoryCache } from '../utils/suggestions/shellHistoryCompletion.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
@@ -3371,6 +3371,7 @@ export function REPL({
     if (!options?.fromKeybinding) {
       addToHistory({
         display: speculationAccept ? input : prependModeCharacterToInput(input, inputMode),
+        mode: inputMode === 'prompt' ? undefined : inputMode,
         pastedContents: speculationAccept ? {} : pastedContents
       });
       // Add the just-submitted command to the front of the ghost-text
@@ -3420,7 +3421,7 @@ export function REPL({
       // Show the placeholder in the same React batch as setInputValue('').
       // Skip for slash/bash (they have their own echo), speculation and remote
       // mode (both setMessages directly with no gap to bridge).
-      if (!isSlashCommand && inputMode === 'prompt' && !speculationAccept && !activeRemote.isRemoteMode) {
+      if (!isSlashCommand && isPromptLikeInputMode(inputMode) && !speculationAccept && !activeRemote.isRemoteMode) {
         setUserInputOnProcessing(input);
         // showSpinner includes userInputOnProcessing, so the spinner appears
         // on this render. Reset timing refs now (before queryGuard.reserve()
@@ -4080,7 +4081,11 @@ export function REPL({
     // Read from the module-level store at call time (not the render-time
     // snapshot) to avoid a stale closure — this callback's deps don't
     // include the queue.
-    if (getCommandQueue().some(cmd => cmd.mode === 'prompt' || cmd.mode === 'bash')) {
+    if (
+      getCommandQueue().some(
+        cmd => isPromptLikeInputMode(cmd.mode) || cmd.mode === 'bash',
+      )
+    ) {
       return false;
     }
     const newAbortController = createAbortController();

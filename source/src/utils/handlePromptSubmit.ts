@@ -34,6 +34,7 @@ import { processUserInput } from './processUserInput/processUserInput.js'
 import type { QueryGuard } from './QueryGuard.js'
 import { queryCheckpoint, startQueryProfile } from './queryProfiler.js'
 import { runWithWorkload } from './workloadContext.js'
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js'
 
 function exit(): void {
   gracefulShutdownSync(0)
@@ -339,7 +340,7 @@ export async function handlePromptSubmit(
 
   if (queryGuard.isActive || isExternalLoading) {
     // Only allow prompt and bash mode commands to be queued
-    if (mode !== 'prompt' && mode !== 'bash') {
+    if (!isPromptLikeInputMode(mode) && mode !== 'bash') {
       return
     }
 
@@ -635,7 +636,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           primaryCmd && typeof primaryCmd.value === 'string'
             ? primaryCmd.value
             : undefined
-        const shouldCallBeforeQuery = primaryMode === 'prompt'
+        const shouldCallBeforeQuery = isPromptLikeInputMode(primaryMode)
         await onQuery(
           newMessages,
           abortController,
@@ -665,10 +666,10 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
       }
 
       // Handle nextInput from commands that want to chain (e.g., /discover activation)
-      if (nextInput) {
+      if (nextInput !== undefined || nextInputMode !== undefined) {
         const restoredMode = nextInputMode ?? 'prompt'
         const restoredPastedContents = nextPastedContents ?? {}
-        if (submitNextInput) {
+        if (nextInput !== undefined && submitNextInput) {
           enqueue({
             value: nextInput,
             mode: restoredMode,
@@ -679,8 +680,10 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           })
         } else {
           params.onModeChange(restoredMode)
-          params.onInputChange(nextInput)
-          params.setPastedContents(restoredPastedContents)
+          if (nextInput !== undefined) {
+            params.onInputChange(nextInput)
+            params.setPastedContents(restoredPastedContents)
+          }
         }
       }
     }) // end runWithWorkload — ALS context naturally scoped, no finally needed

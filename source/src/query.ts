@@ -114,6 +114,7 @@ import {
   buildSteerCheckpoint,
   partitionQueuedCommandsForBoundary,
 } from './utils/steerCheckpoint.js'
+import { isPromptLikeInputMode } from './components/PromptInput/inputModes.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1712,7 +1713,8 @@ async function* queryLoop(
     // Remove only commands that were actually consumed as attachments.
     // Prompt and task-notification commands are converted to attachments above.
     const consumedCommands = boundaryCommandsToAttach.filter(
-      cmd => cmd.mode === 'prompt' || cmd.mode === 'task-notification',
+      cmd =>
+        isPromptLikeInputMode(cmd.mode) || cmd.mode === 'task-notification',
     )
     if (consumedCommands.length > 0) {
       for (const cmd of consumedCommands) {

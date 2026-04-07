@@ -42,6 +42,7 @@ import { useHasSelection, useSelection } from '../../ink/hooks/use-selection.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { getPlatform } from '../../utils/platform.js';
 import { PrBadge } from '../PrBadge.js';
+import { getPromptInputModeLabel, isPromptLikeInputMode } from './inputModes.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -370,6 +371,13 @@ function ModeIndicator({
   // Build parts array - exclude BackgroundTaskStatus when we have teammate pills
   // (teammate pills get their own row)
   const parts = [
+  ...(isPromptLikeInputMode(mode) && mode !== 'prompt'
+      ? [
+          <Text dimColor key="input-mode">
+            /mode · {getPromptInputModeLabel(mode)} lane
+          </Text>,
+        ]
+      : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
             <Text color="ide">{figures.circleDouble} remote</Text>

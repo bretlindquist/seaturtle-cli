@@ -67,11 +67,13 @@ export type PastedContent = {
 
 export interface SerializedStructuredHistoryEntry {
   display: string
+  mode?: string
   pastedContents?: Record<number, PastedContent>
   pastedText?: string
 }
 export interface HistoryEntry {
   display: string
+  mode?: string
   pastedContents: Record<number, PastedContent>
 }
 

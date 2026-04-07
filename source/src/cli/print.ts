@@ -40,6 +40,7 @@ import {
 } from 'src/tools/AgentTool/loadAgentsDir.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
+import { isPromptLikeInputMode } from 'src/components/PromptInput/inputModes.js'
 import {
   dequeue,
   dequeueAllMatching,
@@ -446,7 +447,8 @@ export function canBatchWith(
 ): boolean {
   return (
     next !== undefined &&
-    next.mode === 'prompt' &&
+    isPromptLikeInputMode(next.mode) &&
+    isPromptLikeInputMode(head.mode) &&
     next.priority === head.priority &&
     next.workload === head.workload &&
     next.isMeta === head.isMeta &&
@@ -1937,7 +1939,7 @@ function runHeadlessStreaming(
       const drainCommandQueue = async () => {
         while ((command = dequeue(isMainThread))) {
           if (
-            command.mode !== 'prompt' &&
+            !isPromptLikeInputMode(command.mode) &&
             command.mode !== 'orphaned-permission' &&
             command.mode !== 'task-notification'
           ) {
@@ -1950,7 +1952,7 @@ function runHeadlessStreaming(
           // side effects or orphanedPermission state, so they process singly.
           // Prompt commands greedily collect followers with matching workload.
           const batch: QueuedCommand[] = [command]
-          if (command.mode === 'prompt') {
+          if (isPromptLikeInputMode(command.mode)) {
             while (canBatchWith(command, peek(isMainThread))) {
               batch.push(dequeue(isMainThread)!)
             }
@@ -2098,7 +2100,10 @@ function runHeadlessStreaming(
 
           const input = command.value
 
-          if (structuredIO instanceof RemoteIO && command.mode === 'prompt') {
+          if (
+            structuredIO instanceof RemoteIO &&
+            isPromptLikeInputMode(command.mode)
+          ) {
             logEvent('tengu_bridge_message_received', {
               is_repl: false,
             })
@@ -2110,7 +2115,7 @@ function runHeadlessStreaming(
           suggestionState.pendingSuggestion = null
           suggestionState.pendingLastEmittedEntry = null
           if (suggestionState.lastEmitted) {
-            if (command.mode === 'prompt') {
+            if (isPromptLikeInputMode(command.mode)) {
               // SDK user messages enqueue ContentBlockParam[], not a plain string
               const inputText =
                 typeof input === 'string'

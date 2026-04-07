@@ -60,6 +60,7 @@ import {
 } from '../ultraplan/keyword.js'
 import { processTextPrompt } from './processTextPrompt.js'
 import type { EditablePromptInputMode } from '../../types/textInputTypes.js'
+import { isPromptLikeInputMode } from '../../components/PromptInput/inputModes.js'
 export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
@@ -145,7 +146,7 @@ export async function processUserInput({
   // Immediately show the user input prompt while we are still processing the input.
   // Skip for isMeta (system-generated prompts like scheduled tasks) — those
   // should run invisibly.
-  if (mode === 'prompt' && inputString !== null && !isMeta) {
+  if (isPromptLikeInputMode(mode) && inputString !== null && !isMeta) {
     setUserInputOnProcessing?.(inputString)
   }
 
@@ -347,7 +348,7 @@ async function processUserInputBase(
     }
   }
 
-  if (inputString === null && mode !== 'prompt') {
+  if (inputString === null && !isPromptLikeInputMode(mode)) {
     throw new Error(`Mode: ${mode} requires a string input.`)
   }
 
@@ -469,7 +470,7 @@ async function processUserInputBase(
   // React batches both into one render, no flash).
   if (
     feature('ULTRAPLAN') &&
-    mode === 'prompt' &&
+    isPromptLikeInputMode(mode) &&
     !context.options.isNonInteractiveSession &&
     inputString !== null &&
     !effectiveSkipSlash &&
@@ -499,7 +500,9 @@ async function processUserInputBase(
   const shouldExtractAttachments =
     !skipAttachments &&
     inputString !== null &&
-    (mode !== 'prompt' || effectiveSkipSlash || !inputString.startsWith('/'))
+    (!isPromptLikeInputMode(mode) ||
+      effectiveSkipSlash ||
+      !inputString.startsWith('/'))
 
   queryCheckpoint('query_attachment_loading_start')
   const attachmentMessages = shouldExtractAttachments
@@ -554,7 +557,7 @@ async function processUserInputBase(
   }
 
   // Log agent mention queries for analysis
-  if (inputString !== null && mode === 'prompt') {
+  if (inputString !== null && isPromptLikeInputMode(mode)) {
     const trimmedInput = inputString.trim()
 
     const agentMention = attachmentMessages.find(

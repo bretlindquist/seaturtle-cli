@@ -91,6 +91,7 @@ export function PromptInputHelpMenu({
     <Box paddingX={paddingX} flexDirection="row" gap={gap}>
       <Box flexDirection="column" width={leftWidth}>
         <Hint dimColor={dimColor}>! for bash mode</Hint>
+        <Hint dimColor={dimColor}>/mode for chat lane</Hint>
         <Hint dimColor={dimColor}>/ for commands</Hint>
         <Hint dimColor={dimColor}>@ for file paths</Hint>
         <Hint dimColor={dimColor}>&amp; for background</Hint>
@@ -102,9 +103,7 @@ export function PromptInputHelpMenu({
 
       <Box flexDirection="column" width={middleWidth}>
         <Hint dimColor={dimColor}>double tap esc to clear input</Hint>
-        <Hint dimColor={dimColor}>
-          {cycleModeShortcut} to auto-accept edits
-        </Hint>
+        <Hint dimColor={dimColor}>{cycleModeShortcut} to cycle permission mode</Hint>
         <Hint dimColor={dimColor}>
           {transcriptShortcut} for verbose output
         </Hint>

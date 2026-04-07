@@ -6,6 +6,7 @@ import {
   Select,
 } from '../../components/CustomSelect/select.js'
 import { Pane } from '../../components/design-system/Pane.js'
+import { getPromptInputModeLabel } from '../../components/PromptInput/inputModes.js'
 import { useCommandQueue } from '../../hooks/useCommandQueue.js'
 import { Box, Text } from '../../ink.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
@@ -68,7 +69,9 @@ function summarizeQueuedCommand(
   return {
     label: text === '' ? '(empty queued message)' : truncate(text, 72),
     description: [
-      command.mode === 'bash' ? 'bash mode' : 'prompt mode',
+      command.mode === 'bash'
+        ? 'bash mode'
+        : `${getPromptInputModeLabel(command.mode)} lane`,
       imageCount > 0 ? `${imageCount} image${imageCount === 1 ? '' : 's'}` : '',
     ]
       .filter(Boolean)

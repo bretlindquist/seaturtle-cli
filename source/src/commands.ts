@@ -23,6 +23,7 @@ import ctx_viz from './commands/ctx_viz/index.js'
 import doctor from './commands/doctor/index.js'
 import autowork from './commands/autowork/index.js'
 import memory from './commands/memory/index.js'
+import mode from './commands/mode/index.js'
 import help from './commands/help/index.js'
 import haiku from './commands/haiku/index.js'
 import ide from './commands/ide/index.js'
@@ -303,6 +304,7 @@ const COMMANDS = memoize((): Command[] => [
   lolcat,
   mcp,
   memory,
+  mode,
   mobile,
   model,
   outputStyle,
@@ -662,6 +664,7 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   statusline, // Status line toggle
   stickers, // Stickers
   mobile, // Mobile QR code
+  mode, // Input lane picker
 ])
 
 /**

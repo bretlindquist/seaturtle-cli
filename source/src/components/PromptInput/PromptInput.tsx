@@ -109,7 +109,7 @@ import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js';
 import { shouldHideTasksFooter } from '../tasks/taskStatusUtils.js';
 import { TeamsDialog } from '../teams/TeamsDialog.js';
 import VimTextInput from '../VimTextInput.js';
-import { getModeFromInput, getValueFromInput } from './inputModes.js';
+import { getModeFromInput, getValueFromInput, isPromptLikeInputMode } from './inputModes.js';
 import { FOOTER_TEMPORARY_STATUS_TIMEOUT, Notifications } from './Notifications.js';
 import PromptInputFooter from './PromptInputFooter.js';
 import type { SuggestionItem } from './PromptInputFooterSuggestions.js';
@@ -870,7 +870,7 @@ function PromptInput({
     const isSingleCharInsertion = value.length === input.length + 1;
     const insertedAtStart = cursorOffset === 0;
     const mode = getModeFromInput(value);
-    if (insertedAtStart && mode !== 'prompt') {
+    if (insertedAtStart && !isPromptLikeInputMode(mode)) {
       if (isSingleCharInsertion) {
         onModeChange(mode);
         return;
@@ -1127,7 +1127,7 @@ function PromptInput({
 
   // Track if prompt suggestion should be shown (computed later with terminal width).
   // Hidden in teammate view — suggestion is leader-context only.
-  const showPromptSuggestion = mode === 'prompt' && suggestions.length === 0 && promptSuggestion && !viewingAgentTaskId;
+  const showPromptSuggestion = isPromptLikeInputMode(mode) && suggestions.length === 0 && promptSuggestion && !viewingAgentTaskId;
   if (showPromptSuggestion) {
     markShown();
   }
@@ -1150,7 +1150,7 @@ function PromptInput({
   }
   function onImagePaste(image: string, mediaType?: string, filename?: string, dimensions?: ImageDimensions, sourcePath?: string) {
     logEvent('tengu_paste_image', {});
-    onModeChange('prompt');
+    onModeChange(isPromptLikeInputMode(mode) ? mode : 'prompt');
     const pasteId = nextPasteIdRef.current++;
     const newContent: PastedContent = {
       id: pasteId,
@@ -1206,7 +1206,7 @@ function PromptInput({
     // Match typed/auto-suggest: `!cmd` pasted into empty input enters bash mode.
     if (input.length === 0) {
       const pastedMode = getModeFromInput(text);
-      if (pastedMode !== 'prompt') {
+      if (!isPromptLikeInputMode(pastedMode)) {
         onModeChange(pastedMode);
         text = getValueFromInput(text);
       }
@@ -1260,7 +1260,7 @@ function PromptInput({
       return false;
     }
     trackAndSetInput(result.text);
-    onModeChange('prompt'); // Always prompt mode for queued commands
+    onModeChange('prompt');
     setCursorOffset(result.cursorOffset);
 
     // Restore images from queued commands to pastedContents
@@ -1319,7 +1319,7 @@ function PromptInput({
 
   const handleQueueMessage = useCallback(() => {
     const queuedValue = input.trim();
-    if (queuedValue === '' || (mode !== 'prompt' && mode !== 'bash')) {
+    if (queuedValue === '' || (!isPromptLikeInputMode(mode) && mode !== 'bash')) {
       return;
     }
 
@@ -2300,7 +2300,7 @@ function PromptInput({
             {textInputElement}
           </Box>
         </Box>}
-      <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} canQueueMessage={input.trim().length > 0 && !isLoading && (mode === 'prompt' || mode === 'bash')} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
+      <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} canQueueMessage={input.trim().length > 0 && !isLoading && (isPromptLikeInputMode(mode) || mode === 'bash')} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
       {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
       {isFullscreenEnvEnabled() ?
     // position=absolute takes zero layout height so the spinner

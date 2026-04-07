@@ -1,5 +1,6 @@
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import type { QueuedCommand } from '../types/textInputTypes.js'
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js'
 
 const APPEND_TO_TASK_PATTERNS = [
   /\b(after this|later in this|once that's done|once thats done)\b/i,
@@ -71,7 +72,7 @@ export function classifyBoundaryQueuedCommand(
       reason: string
     }
   | null {
-  if (cmd.mode !== 'prompt') {
+  if (!isPromptLikeInputMode(cmd.mode)) {
     return null
   }
 
@@ -129,7 +130,7 @@ export function buildSteerCheckpoint(input: {
     }
   | null {
   const queuedSteers = input.queuedCommands
-    .filter(cmd => cmd.mode === 'prompt')
+    .filter(cmd => isPromptLikeInputMode(cmd.mode))
     .map(cmd => ({
       prompt: getPromptText(cmd.value),
       sourceUuid: cmd.uuid,
@@ -194,7 +195,7 @@ export function partitionQueuedCommandsForBoundary(
   const leaveQueued: QueuedCommand[] = []
 
   for (const cmd of queuedCommands) {
-    if (cmd.mode !== 'prompt') {
+    if (!isPromptLikeInputMode(cmd.mode)) {
       attachNow.push(cmd)
       continue
     }
