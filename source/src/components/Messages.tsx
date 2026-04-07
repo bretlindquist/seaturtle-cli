@@ -43,6 +43,7 @@ import { OffscreenFreeze } from './OffscreenFreeze.js';
 import type { ToolUseConfirm } from './permissions/PermissionRequest.js';
 import { StatusNotices } from './StatusNotices.js';
 import type { JumpHandle } from './VirtualMessageList.js';
+import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
 
 // Memoed logo header: this box is the FIRST sibling before all MessageRows
 // in main-screen mode. If it becomes dirty on every Messages re-render,
@@ -244,8 +245,8 @@ type Props = {
   trackStickyPrompt?: boolean;
   /** Transcript search: jump-to-index + setSearchQuery/nextMatch/prevMatch. */
   jumpRef?: RefObject<JumpHandle | null>;
-  /** Transcript search: fires when match count/position changes. */
-  onSearchMatchesChange?: (count: number, current: number) => void;
+  /** Transcript search: receives match-count/current updates. */
+  searchProgress?: TranscriptSearchProgressSink;
   /** Paint an existing DOM subtree to fresh Screen, scan. Element comes
    *  from the main tree (all real providers). Message-relative positions. */
   scanElement?: (el: import('../ink/dom.js').DOMElement) => import('../ink/render-to-screen.js').MatchPosition[];
@@ -363,7 +364,7 @@ const MessagesImpl = ({
   scrollRef,
   trackStickyPrompt,
   jumpRef,
-  onSearchMatchesChange,
+  searchProgress,
   scanElement,
   setPositions,
   disableRenderCap = false,
@@ -697,7 +698,7 @@ const MessagesImpl = ({
           passing the array would accumulate every historical version
           (~1-2MB over a 7-turn session). */}
       {virtualScrollRuntimeGate ? <InVirtualListContext.Provider value={true}>
-          <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} onSearchMatchesChange={onSearchMatchesChange} scanElement={scanElement} setPositions={setPositions} extractSearchText={extractSearchText} />
+          <VirtualMessageList messages={renderableMessages} scrollRef={scrollRef} columns={columns} itemKey={messageKey} renderItem={renderMessageRow} onItemClick={onItemClick} isItemClickable={isItemClickable} isItemExpanded={isItemExpanded} trackStickyPrompt={trackStickyPrompt} selectedIndex={selectedIdx >= 0 ? selectedIdx : undefined} cursorNavRef={cursorNavRef} setCursor={setCursor} jumpRef={jumpRef} searchProgress={searchProgress} scanElement={scanElement} setPositions={setPositions} extractSearchText={extractSearchText} />
         </InVirtualListContext.Provider> : renderableMessages.flatMap(renderMessageRow)}
 
       {streamingText && !isBriefOnly && <Box alignItems="flex-start" flexDirection="row" marginTop={1} width="100%">
@@ -741,7 +742,7 @@ function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
 export const Messages = React.memo(MessagesImpl, (prev, next) => {
   const keys = Object.keys(prev) as (keyof typeof prev)[];
   for (const key of keys) {
-    if (key === 'onOpenRateLimitOptions' || key === 'scrollRef' || key === 'trackStickyPrompt' || key === 'setCursor' || key === 'cursorNavRef' || key === 'jumpRef' || key === 'onSearchMatchesChange' || key === 'scanElement' || key === 'setPositions') continue;
+    if (key === 'onOpenRateLimitOptions' || key === 'scrollRef' || key === 'trackStickyPrompt' || key === 'setCursor' || key === 'cursorNavRef' || key === 'jumpRef' || key === 'searchProgress' || key === 'scanElement' || key === 'setPositions') continue;
     if (prev[key] !== next[key]) {
       if (key === 'streamingToolUses') {
         const p = prev.streamingToolUses;

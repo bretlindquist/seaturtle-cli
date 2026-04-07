@@ -18,6 +18,7 @@ import { logForDebugging } from '../utils/debug.js';
 import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
+import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -97,9 +98,8 @@ type Props = {
   cursorNavRef?: React.Ref<MessageActionsNav>;
   setCursor?: (c: MessageActionsState | null) => void;
   jumpRef?: RefObject<JumpHandle | null>;
-  /** Fires when search matches change (query edit, n/N). current is
-   *  1-based for "3/47" display; 0 means no matches. */
-  onSearchMatchesChange?: (count: number, current: number) => void;
+  /** Receives match-count/current updates from transcript search. */
+  searchProgress?: TranscriptSearchProgressSink;
   /** Paint existing DOM subtree to fresh Screen, scan. Element from the
    *  main tree (all providers). Message-relative positions (row 0 = el
    *  top). Works for any height — closes the tall-message gap. */
@@ -303,7 +303,7 @@ export function VirtualMessageList({
   cursorNavRef,
   setCursor,
   jumpRef,
-  onSearchMatchesChange,
+  searchProgress,
   scanElement,
   setPositions
 }: Props): React.ReactNode {
@@ -525,7 +525,7 @@ export function VirtualMessageList({
     const st = searchState.current;
     const total = st.prefixSum.at(-1) ?? 0;
     const current = (st.prefixSum[st.ptr] ?? 0) + idx + 1;
-    onSearchMatchesChange?.(total, current);
+    searchProgress?.reportMatches(total, current);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
   }
   highlightRef.current = highlight;
@@ -720,7 +720,7 @@ export function VirtualMessageList({
     // The scan-effect's highlight will be the real value; this is a
     // pre-scan placeholder so the badge updates immediately.
     const placeholder = delta < 0 ? prefixSum[ptr + 1] ?? total : prefixSum[ptr]! + 1;
-    onSearchMatchesChange?.(total, placeholder);
+    searchProgress?.reportMatches(total, placeholder);
   }
   stepRef.current = step;
   useImperativeHandle(jumpRef, () => ({
@@ -806,7 +806,7 @@ export function VirtualMessageList({
       // scan will land on the last occurrence in matches[ptr]. Placeholder
       // = prefixSum[ptr+1] (count through this msg). highlight() updates
       // to the exact value after scan completes.
-      onSearchMatchesChange?.(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
+      searchProgress?.reportMatches(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
     },
     nextMatch: () => step(1),
     prevMatch: () => step(-1),
