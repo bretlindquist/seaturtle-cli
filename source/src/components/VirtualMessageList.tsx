@@ -575,6 +575,13 @@ export function VirtualMessageList({
   const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
     searchState.current = next;
   }, []);
+  const beginSeek = useCallback((idx: number, wantLast: boolean, tries: number) => {
+    scanRequestRef.current = {
+      idx,
+      wantLast,
+      tries
+    };
+  }, []);
 
   // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
   // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
@@ -679,11 +686,7 @@ export function VirtualMessageList({
         stepRef.current(wantLast ? -1 : 1);
         return;
       }
-      scanRequestRef.current = {
-        idx,
-        wantLast,
-        tries: tries + 1
-      };
+      beginSeek(idx, wantLast, tries + 1);
       scrollToIndex(idx);
       bumpSeek();
       return;
@@ -700,11 +703,7 @@ export function VirtualMessageList({
       // After a real viewport move that rect is stale until the next
       // render, so re-arm the seek and let the next pass highlight.
       if (tries < 3) {
-        scanRequestRef.current = {
-          idx,
-          wantLast,
-          tries: tries + 1
-        };
+        beginSeek(idx, wantLast, tries + 1);
         bumpSeek();
         return;
       }
@@ -736,7 +735,7 @@ export function VirtualMessageList({
       stepRef.current(pending);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seekGen]);
+  }, [beginSeek, seekGen]);
 
   // Scroll to message i's top, arm scanPending. scan-effect reads fresh
   // screen next tick. wantLast: N-into-message — screenOrd = length-1.
@@ -754,11 +753,7 @@ export function VirtualMessageList({
     // Clear stale highlight before scroll. Between now and the seek
     // effect's highlight, inverse-only from scan-highlight shows.
     resetSearchViewportState();
-    scanRequestRef.current = {
-      idx: i,
-      wantLast,
-      tries: 0
-    };
+    beginSeek(i, wantLast, 0);
     const el = getItemElement(i);
     const h = el?.yogaNode?.getComputedHeight() ?? 0;
     // Mounted → precise scrollTo. Unmounted → scrollToIndex mounts it
