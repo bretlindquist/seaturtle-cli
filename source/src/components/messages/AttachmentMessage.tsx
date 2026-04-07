@@ -263,6 +263,7 @@ export function AttachmentMessage({
     case 'command_permissions':
       // The skill success message is rendered by SkillTool's renderToolResultMessage,
       // so we don't render anything here to avoid duplicate messages.
+    case 'steer_checkpoint':
       return null;
     case 'async_hook_response':
       {

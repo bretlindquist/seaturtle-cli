@@ -3794,6 +3794,12 @@ Read the team config to discover your teammates' names. Check the task list peri
         }),
       ])
     }
+    case 'steer_checkpoint': {
+      // Deterministic steering checkpoints are a transcript/debugging surface.
+      // They intentionally contribute no prompt bytes yet; a later wave will
+      // decide how much of the structured checkpoint to expose to the model.
+      return []
+    }
     case 'output_style': {
       const outputStyle =
         OUTPUT_STYLE_CONFIG[

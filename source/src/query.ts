@@ -1545,7 +1545,20 @@ async function* queryLoop(
     })
 
     // Get queued commands snapshot before processing attachments.
-    // These will be sent as attachments so Claude can respond to them in the current turn.
+    // These are currently sent as generic queued-command attachments so the
+    // model can react within the same turn.
+    //
+    // Queue/steering refinement seam:
+    // this is the exact post-tool boundary where deterministic steer
+    // checkpointing should be inserted. The future checkpoint layer should sit
+    // between:
+    //   1. queuedCommandsSnapshot creation
+    //   2. attachment emission
+    //   3. queue removal
+    //
+    // That lets us preserve current timing while adding structured boundary
+    // semantics (applied / appended / deferred / ignored) without asking the
+    // model to infer the entire steer history from freeform queued attachments.
     //
     // Drain pending notifications. LocalShellTask completions are 'next'
     // (when MONITOR_TOOL is on) and drain without Sleep. Other task types
