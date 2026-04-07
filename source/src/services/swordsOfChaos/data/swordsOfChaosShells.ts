@@ -42,7 +42,7 @@ export const SWORDS_OF_CHAOS_OPENING_SHELL: SwordsOpeningShell = {
 }
 
 export const SWORDS_OF_CHAOS_RETURNING_OPENING_SHELL: SwordsOpeningShell = {
-  subtitle: 'The alley seems to know you now. The broken lamp does too.',
+  subtitle: 'The alley is familiar now, but not settled.',
   sceneText:
     'Neon rain again. The humming sign is where you left it, but something about the alley feels closer than memory should allow.',
   hintText: 'A familiar place rarely offers the same meaning twice.',
@@ -193,12 +193,12 @@ export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
       {
         label: 'Laugh like you mean it',
         value: 'laugh-like-you-mean-it',
-        description: 'Treat the alley like an old joke that finally landed',
+        description: 'Treat the moment like a joke that somehow worked',
       },
       {
         label: 'Double down',
         value: 'double-down',
-        description: 'Keep the bit alive until reality has to pick a side',
+        description: 'Keep talking until someone finally calls the bluff',
       },
     ],
   },

@@ -36,9 +36,9 @@ export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
 > = {
   alley: {
     connectiveWeight:
-      'The alley no longer feels like a single place. It feels like the narrow mouth of something larger that keeps surfacing elsewhere in other materials.',
+      'For a moment the alley feels less self-contained than it should, as if this corner belongs to a larger pattern you have only started to notice.',
     recurringSymbol:
-      'A broken lamp, a shell-green seam, and one wrong name keep reappearing as if the whole world were revising the same scene in different matter.',
+      'A broken lamp, a shell-green seam, and the feeling of a name almost said wrong brush the scene, then slip away before they can become an explanation.',
     threadEchoes: {
       'half-shell-relic-trail':
         'A shell-green sheen keeps finding the chain, the lamp, and the wet brick as if some relic path passes through here before it goes elsewhere.',

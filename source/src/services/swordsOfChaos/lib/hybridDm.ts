@@ -205,7 +205,14 @@ function getSecondBeatLead(
   }
 
   if (!relevantMemory?.familiarPlace) {
-    return `${openingChoice} got you this far. The alley seems interested now.`
+    switch (openingChoice) {
+      case 'draw-steel':
+        return 'Steel got you this far. The turtle has not moved, which is its own kind of answer.'
+      case 'bow-slightly':
+        return 'Courtesy got you this far. Nothing in the alley has relaxed, but nothing has thrown you out either.'
+      case 'talk-like-you-belong':
+        return 'The bluff got you this far. The turtle is still listening, which is more dangerous than interruption.'
+    }
   }
 
   const priorOpeners = new Set(
@@ -217,6 +224,102 @@ function getSecondBeatLead(
   }
 
   return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
+}
+
+function getOpeningAtmosphereLine(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+  locus: ReturnType<typeof getSwordsEncounterLocus>,
+): string | undefined {
+  if (!relevantMemory) {
+    return undefined
+  }
+
+  if (locus !== 'alley') {
+    return getSwordsWorldMapWeight(locus)
+  }
+
+  if (relevantMemory.canonThread) {
+    return (
+      getSwordsThreadEcho({
+        locus,
+        thread: relevantMemory.canonThread,
+      }) ?? getSwordsWorldMapWeight(locus)
+    )
+  }
+
+  if (relevantMemory.familiarPlace && relevantMemory.liveThread) {
+    return (
+      getSwordsThreadEcho({
+        locus,
+        thread: relevantMemory.liveThread,
+      }) ?? relevantMemory.threadOmen
+    )
+  }
+
+  return undefined
+}
+
+function getSecondBeatAtmosphereLine(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+  locus: ReturnType<typeof getSwordsEncounterLocus>,
+): string | undefined {
+  if (!relevantMemory) {
+    return undefined
+  }
+
+  if (relevantMemory.canonThread) {
+    return (
+      getSwordsThreadEcho({
+        locus,
+        thread: relevantMemory.canonThread,
+      }) ?? getSwordsThreadPressureText(relevantMemory.canonThread)
+    )
+  }
+
+  if (locus !== 'alley') {
+    return getSwordsWorldMapWeight(locus)
+  }
+
+  if (relevantMemory.familiarPlace && relevantMemory.liveThread) {
+    return (
+      getSwordsThreadEcho({
+        locus,
+        thread: relevantMemory.liveThread,
+      }) ?? relevantMemory.threadOmen
+    )
+  }
+
+  return undefined
+}
+
+function getSecondBeatHint(
+  openingChoice: SwordsOfChaosOpeningChoice,
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): string {
+  if (relevantMemory?.familiarPlace) {
+    if (relevantMemory.seaturtleGlimpsed) {
+      if (relevantMemory.seaturtleBond > 1) {
+        return 'This next choice is being watched by more than the place itself.'
+      }
+
+      if (relevantMemory.seaturtleFavor > 0) {
+        return 'One quieter line has already earned a little favor. The place has not forgotten.'
+      }
+
+      return 'The place remembers you. Something quieter just beyond it may remember you too.'
+    }
+
+    return 'Pick the road that changes the scene, not just the wording.'
+  }
+
+  switch (openingChoice) {
+    case 'draw-steel':
+      return 'Now decide whether the blade was a threat, a test, or a mistake.'
+    case 'bow-slightly':
+      return 'Now decide whether the courtesy was caution, discipline, or nerve.'
+    case 'talk-like-you-belong':
+      return 'Now find out whether the bluff lands or breaks.'
+  }
 }
 
 function getCanonThreadPressure(
@@ -356,17 +459,20 @@ function renderDeterministicScene(
         : familiar
           ? getSwordsOpeningShellVariant('returning')
           : getSwordsOpeningShellVariant('default')
+    const atmosphereLine = getOpeningAtmosphereLine(payload.relevantMemory, locus)
+    const openingTail = [
+      familiar
+        ? payload.relevantMemory?.roadNotTakenHint ??
+          'The place waits to see what you do differently this time.'
+        : undefined,
+      getReturningWeight(payload.relevantMemory),
+      atmosphereLine,
+      locus !== 'alley' && recurringSymbol ? recurringSymbol : undefined,
+      locus !== 'alley' ? threadEcho : undefined,
+    ].filter(Boolean)
     return {
       subtitle: openingShell.subtitle,
-      sceneText: `${openingShell.sceneText}${
-        familiar
-          ? `\n\n${payload.relevantMemory?.roadNotTakenHint ?? 'The place waits to see what you do differently this time.'}`
-          : ''
-      }${getReturningWeight(payload.relevantMemory) ? `\n\n${getReturningWeight(payload.relevantMemory)}` : ''}\n\n${worldWeight}${
-        recurringSymbol ? `\n\n${recurringSymbol}` : ''
-      }${
-        threadEcho ? `\n\n${threadEcho}` : ''
-      }`,
+      sceneText: [openingShell.sceneText, ...openingTail].join('\n\n'),
       options: applyOpeningCallbackMemory(
         getSwordsOpeningOptions(),
         payload.relevantMemory,
@@ -406,30 +512,32 @@ function renderDeterministicScene(
         ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
         : getSwordsSecondBeat(payload.openingChoice)
   const canonPressure = getCanonThreadPressure(payload.relevantMemory)
+  const atmosphereLine = getSecondBeatAtmosphereLine(payload.relevantMemory, locus)
+  const secondBeatTail = [
+    canonPressure,
+    atmosphereLine,
+    locus !== 'alley' && recurringSymbol ? recurringSymbol : undefined,
+    locus !== 'alley' ? threadEcho : undefined,
+  ].filter(Boolean)
   return {
     subtitle:
       payload.relevantMemory?.canonThread && returningAgain
         ? `${secondBeat.subtitle} The air behind it feels occupied.`
         : secondBeat.subtitle,
-    sceneText: `${getSecondBeatLead(payload.openingChoice, payload.relevantMemory)}\n\n${secondBeat.intro}${canonPressure ? `\n\n${canonPressure}` : ''}\n\n${worldWeight}${
-      recurringSymbol ? `\n\n${recurringSymbol}` : ''
-    }${
-      threadEcho ? `\n\n${threadEcho}` : ''
-    }`,
+    sceneText: [
+      getSecondBeatLead(payload.openingChoice, payload.relevantMemory),
+      secondBeat.intro,
+      ...secondBeatTail,
+    ].join('\n\n'),
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
       secondBeat.options,
       payload.relevantMemory,
     ),
-    hintText: payload.relevantMemory?.familiarPlace
-      ? payload.relevantMemory.seaturtleGlimpsed
-        ? payload.relevantMemory.seaturtleBond > 1
-          ? 'The second move now carries three pressures: the place, the road you left unopened, and a shell-green patience that has started to choose sides.'
-          : payload.relevantMemory.seaturtleFavor > 0
-            ? 'The second move now carries a quiet bias. Something shell-green has already approved one of your softer answers and may do so again.'
-          : 'The second move now carries two kinds of witness: the place itself, and something quieter standing just outside it.'
-        : 'The second move reveals whether you repeat yourself or take the road this place saved for later.'
-      : 'The second move reveals what kind of trouble this really is.',
+    hintText: getSecondBeatHint(
+      payload.openingChoice,
+      payload.relevantMemory,
+    ),
   }
 }
 
