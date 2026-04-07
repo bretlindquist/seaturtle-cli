@@ -78,7 +78,6 @@ import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { CommandKeybindingHandlers } from '../hooks/useCommandKeybindings.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
-import { getShortcutDisplay } from '../keybindings/shortcutFormat.js';
 import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
 import { useBackgroundTaskNavigation } from '../hooks/useBackgroundTaskNavigation.js';
 import { useSwarmInitialization } from '../hooks/useSwarmInitialization.js';
@@ -119,7 +118,7 @@ import { getGlobalConfig, saveGlobalConfig, getGlobalConfigWriteCount } from '..
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { textForResubmit, handleMessageFromStream, type StreamingToolUse, type StreamingThinking, isCompactBoundaryMessage, getMessagesAfterCompactBoundary, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createApiMetricsMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
+import { handleMessageFromStream, type StreamingToolUse, type StreamingThinking, isCompactBoundaryMessage, getMessagesAfterCompactBoundary, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createApiMetricsMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
@@ -130,7 +129,7 @@ import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { useTelegramBridge } from '../hooks/useTelegramBridge.js';
 import { queryCheckpoint, logQueryProfileReport } from '../utils/queryProfiler.js';
-import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMessage, PartialCompactDirection } from '../types/message.js';
+import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMessage } from '../types/message.js';
 import { query } from '../query.js';
 import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
 import { getQuerySourceForREPL } from '../utils/promptCategory.js';
@@ -163,12 +162,10 @@ import { copyPlanForFork, copyPlanForResume, getPlanSlug, setPlanSlug } from '..
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, removeTranscriptMessage, restoreSessionMetadata, getCurrentSessionTitle, isEphemeralToolProgress, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
-import { runPostCompactCleanup } from '../services/compact/postCompactCleanup.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
-import { partialCompactConversation } from '../services/compact/compact.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
-import { fileHistoryMakeSnapshot, type FileHistoryState, fileHistoryRewind, type FileHistorySnapshot, copyFileHistoryForResume, fileHistoryEnabled } from '../utils/fileHistory.js';
+import { fileHistoryMakeSnapshot, type FileHistoryState, type FileHistorySnapshot, copyFileHistoryForResume, fileHistoryEnabled } from '../utils/fileHistory.js';
 import { type AttributionState, incrementPromptCount } from '../utils/commitAttribution.js';
 import { recordAttributionSnapshot } from '../utils/sessionStorage.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
@@ -300,6 +297,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
+import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
@@ -3508,6 +3506,23 @@ export function REPL({
     contextCollapseEnabled: feature('CONTEXT_COLLAPSE')
   });
   restoreMessageSyncRef.current = restoreMessageSync;
+  const {
+    handleRestoreCode,
+    handleSummarize,
+    closeMessageSelector,
+  } = useMessageSelectorActions({
+    messages: messages as UserMessage[],
+    setMessages: setMessages as (updater: UserMessage[] | ((prev: UserMessage[]) => UserMessage[])) => void,
+    setAppState,
+    getToolUseContext,
+    mainLoopModel,
+    setConversationId,
+    setInputValue,
+    setInputMode,
+    addNotification,
+    setIsMessageSelectorVisible,
+    setMessageSelectorPreselect,
+  });
 
   const messageActionCaps: MessageActionCaps = {
     copy: text =>
@@ -4519,88 +4534,7 @@ export function REPL({
                 {cursor &&
           // inputValue is REPL state; typed text survives the round-trip.
           <MessageActionsBar cursor={cursor} />}
-                {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={async (message: UserMessage) => {
-            await fileHistoryRewind((updater: (prev: FileHistoryState) => FileHistoryState) => {
-              setAppState(prev => ({
-                ...prev,
-                fileHistory: updater(prev.fileHistory)
-              }));
-            }, message.uuid);
-          }} onSummarize={async (message: UserMessage, feedback?: string, direction: PartialCompactDirection = 'from') => {
-            // Project snipped messages so the compact model
-            // doesn't summarize content that was intentionally removed.
-            const compactMessages = getMessagesAfterCompactBoundary(messages);
-            const messageIndex = compactMessages.indexOf(message);
-            if (messageIndex === -1) {
-              // Selected a snipped or pre-compact message that the
-              // selector still shows (REPL keeps full history for
-              // scrollback). Surface why nothing happened instead
-              // of silently no-oping.
-              setMessages(prev => [...prev, createSystemMessage('That message is no longer in the active context (snipped or pre-compact). Choose a more recent message.', 'warning')]);
-              return;
-            }
-            const newAbortController = createAbortController();
-            const context = getToolUseContext(compactMessages, [], newAbortController, mainLoopModel);
-            const appState = context.getAppState();
-            const defaultSysPrompt = await getSystemPrompt(context.options.tools, context.options.mainLoopModel, Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys()), context.options.mcpClients);
-            const systemPrompt = buildEffectiveSystemPrompt({
-              mainThreadAgentDefinition: undefined,
-              toolUseContext: context,
-              customSystemPrompt: context.options.customSystemPrompt,
-              defaultSystemPrompt: defaultSysPrompt,
-              appendSystemPrompt: context.options.appendSystemPrompt
-            });
-            const [userContext, systemContext] = await Promise.all([getUserContext(), getSystemContext()]);
-            const result = await partialCompactConversation(compactMessages, messageIndex, context, {
-              systemPrompt,
-              userContext,
-              systemContext,
-              toolUseContext: context,
-              forkContextMessages: compactMessages
-            }, feedback, direction);
-            const kept = result.messagesToKeep ?? [];
-            const ordered = direction === 'up_to' ? [...result.summaryMessages, ...kept] : [...kept, ...result.summaryMessages];
-            const postCompact = [result.boundaryMarker, ...ordered, ...result.attachments, ...result.hookResults];
-            // Fullscreen 'from' keeps scrollback; 'up_to' must not
-            // (old[0] unchanged + grown array means incremental
-            // useLogMessages path, so boundary never persisted).
-            // Find by uuid since old is raw REPL history and snipped
-            // entries can shift the projected messageIndex.
-            if (isFullscreenEnvEnabled() && direction === 'from') {
-              setMessages(old => {
-                const rawIdx = old.findIndex(m => m.uuid === message.uuid);
-                return [...old.slice(0, rawIdx === -1 ? 0 : rawIdx), ...postCompact];
-              });
-            } else {
-              setMessages(postCompact);
-            }
-            // Partial compact bypasses handleMessageFromStream — clear
-            // the context-blocked flag so proactive ticks resume.
-            if (feature('PROACTIVE') || feature('KAIROS')) {
-              proactiveModule?.setContextBlocked(false);
-            }
-            setConversationId(randomUUID());
-            runPostCompactCleanup(context.options.querySource);
-            if (direction === 'from') {
-              const r = textForResubmit(message);
-              if (r) {
-                setInputValue(r.text);
-                setInputMode(r.mode);
-              }
-            }
-
-            // Show notification with ctrl+o hint
-            const historyShortcut = getShortcutDisplay('app:toggleTranscript', 'Global', 'ctrl+o');
-            addNotification({
-              key: 'summarize-ctrl-o-hint',
-              text: `Conversation summarized (${historyShortcut} for history)`,
-              priority: 'medium',
-              timeoutMs: 8000
-            });
-          }} onRestoreMessage={handleRestoreMessage} onClose={() => {
-            setIsMessageSelectorVisible(false);
-            setMessageSelectorPreselect(undefined);
-          }} />}
+                {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={handleRestoreCode} onSummarize={handleSummarize} onRestoreMessage={handleRestoreMessage} onClose={closeMessageSelector} />}
                 <ReplAntChrome focusedInputDialog={focusedInputDialog} setAppState={setAppState} setShowModelSwitchCallout={setShowModelSwitchCallout} setShowUndercoverCallout={setShowUndercoverCallout} skillImprovementSurvey={skillImprovementSurvey} inputValue={inputValue} setInputValue={setInputValue} />
               </Box>
               {feature('BUDDY') && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
