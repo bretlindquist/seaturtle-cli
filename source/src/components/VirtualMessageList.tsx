@@ -128,11 +128,12 @@ function createEmptySearchNavigationState(): SearchNavigationState {
 }
 
 function getSearchTotal(state: SearchNavigationState): number {
-  return state.prefixSum.at(-1) ?? 0;
+  return state.matches.length;
 }
 
 function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
-  return (state.prefixSum[state.ptr] ?? 0) + matchOrdinal + 1;
+  void matchOrdinal;
+  return state.ptr + 1;
 }
 
 function getPlaceholderSearchOrdinal(
@@ -140,8 +141,9 @@ function getPlaceholderSearchOrdinal(
   ptr: number,
   delta: 1 | -1,
 ): number {
-  const total = getSearchTotal(state);
-  return delta < 0 ? state.prefixSum[ptr + 1] ?? total : (state.prefixSum[ptr] ?? 0) + 1;
+  void state;
+  void delta;
+  return ptr + 1;
 }
 
 function buildSearchNavigationState(
@@ -683,10 +685,9 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    // Badge: global current = sum of occurrences before this msg + ord+1.
-    // prefixSum[ptr] is engine-counted (indexOf on extractSearchText);
-    // may drift from render-count for ghost messages but close enough —
-    // badge is a rough location hint, not a proof.
+    // Badge now tracks matched transcript blocks, not individual word
+    // occurrences. That matches the current renderer-owned search UX:
+    // row-level emphasis plus block-to-block n/N navigation.
     const st = searchState.current;
     const total = getSearchTotal(st);
     const current = getCurrentSearchOrdinal(st, idx);
@@ -811,10 +812,8 @@ export function VirtualMessageList({
     st.ptr = ptr;
     st.screenOrd = 0; // resolved after scan (wantLast → length-1)
     jump(matches[ptr]!, delta < 0);
-    // screenOrd will resolve after scan. Best-effort: prefixSum[ptr] + 0
-    // for n (first pos), prefixSum[ptr+1] for N (last pos = count-1).
-    // The scan-effect's highlight will be the real value; this is a
-    // pre-scan placeholder so the badge updates immediately.
+    // screenOrd will resolve after scan. The badge mirrors block-to-block
+    // navigation, so the placeholder is just the destination matched block.
     const placeholder = getPlaceholderSearchOrdinal(st, ptr, delta);
     reportSearchProgress(total, placeholder);
   }
@@ -862,10 +861,8 @@ export function VirtualMessageList({
         // /foob → 0 matches → snap back to anchor. less/vim incsearch.
         s.scrollTo(searchAnchor.current);
       }
-      // Global occurrence count + 1-based current. wantLast=true so the
-      // scan will land on the last occurrence in matches[ptr]. Placeholder
-      // = prefixSum[ptr+1] (count through this msg). highlight() updates
-      // to the exact value after scan completes.
+      // Badge reflects the current matched transcript block. wantLast=true
+      // still controls which occurrence inside that block becomes active.
       reportSearchProgress(total, nextState.matches.length > 0 ? getPlaceholderSearchOrdinal({
         ...nextState,
         ptr
