@@ -1,13 +1,28 @@
 import type { SwordsOfChaosHostEcho } from '../types/echoes.js'
 import type { SwordsOfChaosEventBatch } from '../types/events.js'
+import type {
+  SwordsCharacterCustomField,
+  SwordsCharacterProceduralOption,
+} from '../types/character.js'
 import type { SwordsOfChaosSaveFile } from '../types/save.js'
 import { applySwordsOfChaosHostEchoes } from './archiveEchoBridge.js'
+import {
+  buildSwordsCharacterSheetFromCustomChoices,
+  buildSwordsCharacterSheetFromPremade,
+  buildSwordsCharacterSheetFromProcedural,
+  buildSwordsProceduralCharacterChoices,
+  getSwordsCharacterCreationModes,
+  getSwordsCharacterSheetSeed,
+  getSwordsCustomCharacterFields as getSwordsCustomCharacterFieldDefinitions,
+  getSwordsPremadeArchetypes,
+} from './characterCreation.js'
 import { appendSwordsOfChaosEvent } from './eventHistory.js'
 import { processSwordsOfChaosEventBatch } from './eventProcessor.js'
 import {
   ensureSwordsOfChaosSaveExists,
   saveSwordsOfChaosSave,
 } from './saveManager.js'
+import { buildSwordsSessionZeroScene, getSwordsSessionZeroPrelude } from './sessionZero.js'
 
 function shouldTriggerSeaTurtleGlimpse(save: SwordsOfChaosSaveFile): boolean {
   if (save.seaturtle.appearances > 0) {
@@ -61,6 +76,133 @@ export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
     },
   })
   return save
+}
+
+export function swordsNeedsCharacterCreation(
+  save: SwordsOfChaosSaveFile,
+): boolean {
+  return !save.character.name
+}
+
+export function swordsNeedsSessionZero(save: SwordsOfChaosSaveFile): boolean {
+  return !!save.character.name && !save.sessionZero.completed
+}
+
+export function getSwordsCharacterCreationOptions() {
+  return getSwordsCharacterCreationModes()
+}
+
+export function getSwordsPremadeCharacterOptions() {
+  return getSwordsPremadeArchetypes()
+}
+
+export function getSwordsCustomCharacterFields() {
+  return getSwordsCustomCharacterFieldDefinitions()
+}
+
+export function buildSwordsProceduralOptions(name: string) {
+  return buildSwordsProceduralCharacterChoices(
+    getSwordsCharacterSheetSeed('procedural', name),
+  )
+}
+
+export function finalizeSwordsPremadeCharacter(
+  name: string,
+  archetypeId: string,
+): SwordsOfChaosSaveFile {
+  const current = ensureSwordsOfChaosSaveExists()
+  const next = saveSwordsOfChaosSave({
+    ...current,
+    character: buildSwordsCharacterSheetFromPremade(name, archetypeId),
+  })
+  appendSwordsOfChaosEvent({
+    at: Date.now(),
+    kind: 'character_created',
+    detail: {
+      mode: 'premade',
+      name: next.character.name,
+      archetype: next.character.archetype,
+    },
+  })
+  return next
+}
+
+export function finalizeSwordsProceduralCharacter(
+  name: string,
+  option: SwordsCharacterProceduralOption,
+): SwordsOfChaosSaveFile {
+  const current = ensureSwordsOfChaosSaveExists()
+  const next = saveSwordsOfChaosSave({
+    ...current,
+    character: buildSwordsCharacterSheetFromProcedural(name, option),
+  })
+  appendSwordsOfChaosEvent({
+    at: Date.now(),
+    kind: 'character_created',
+    detail: {
+      mode: 'procedural',
+      name: next.character.name,
+      archetype: option.label,
+    },
+  })
+  return next
+}
+
+export function finalizeSwordsCustomCharacter(
+  name: string,
+  choices: Record<SwordsCharacterCustomField, string>,
+): SwordsOfChaosSaveFile {
+  const current = ensureSwordsOfChaosSaveExists()
+  const next = saveSwordsOfChaosSave({
+    ...current,
+    character: buildSwordsCharacterSheetFromCustomChoices(name, choices),
+  })
+  appendSwordsOfChaosEvent({
+    at: Date.now(),
+    kind: 'character_created',
+    detail: {
+      mode: 'custom',
+      name: next.character.name,
+      archetype: next.character.className,
+    },
+  })
+  return next
+}
+
+export function getSwordsSessionZeroPreludeCopy() {
+  return getSwordsSessionZeroPrelude()
+}
+
+export function getSwordsSessionZeroScene(save: SwordsOfChaosSaveFile) {
+  return buildSwordsSessionZeroScene({
+    character: save.character,
+    seed: `${save.character.name ?? 'nameless'}:${save.character.origin ?? 'unknown'}:${save.character.className ?? 'wanderer'}`,
+  })
+}
+
+export function completeSwordsSessionZero(
+  save: SwordsOfChaosSaveFile,
+): SwordsOfChaosSaveFile {
+  const scene = getSwordsSessionZeroScene(save)
+  const next = saveSwordsOfChaosSave({
+    ...save,
+    sessionZero: {
+      completed: true,
+      originPlace: scene.originPlace,
+      firstContact: scene.firstContact,
+      completedAt: Date.now(),
+    },
+  })
+  appendSwordsOfChaosEvent({
+    at: Date.now(),
+    kind: 'session_zero_completed',
+    detail: {
+      name: next.character.name,
+      originPlace: next.sessionZero.originPlace,
+      firstContact: next.sessionZero.firstContact,
+    },
+  })
+  return next
 }
 
 export function applySwordsOfChaosOutcomeEchoes(

@@ -4,6 +4,8 @@ export type SwordsOfChaosHistoryEventRecord = {
     | 'save_initialized'
     | 'host_echo_applied'
     | 'game_opened'
+    | 'character_created'
+    | 'session_zero_completed'
     | 'outcome_recorded'
     | 'retreated'
     | 'seaturtle_glimpsed'

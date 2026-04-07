@@ -8,7 +8,19 @@ export {
 export {
   applySwordsOfChaosOutcomeEchoes,
   applySwordsOfChaosEventBatchToSave,
+  buildSwordsProceduralOptions,
+  completeSwordsSessionZero,
   ensureSwordsOfChaosRuntimeReady,
+  finalizeSwordsCustomCharacter,
+  finalizeSwordsPremadeCharacter,
+  finalizeSwordsProceduralCharacter,
+  getSwordsCharacterCreationOptions,
+  getSwordsCustomCharacterFields,
+  getSwordsPremadeCharacterOptions,
+  getSwordsSessionZeroPreludeCopy,
+  getSwordsSessionZeroScene,
+  swordsNeedsCharacterCreation,
+  swordsNeedsSessionZero,
 } from './lib/runtimeFacade.js'
 export { getSwordsOfChaosOutcome } from './lib/outcomes.js'
 export { resolveSwordsOfChaosRoute } from './lib/resolution.js'
@@ -30,6 +42,14 @@ export {
 } from './lib/worldMap.js'
 export type { SwordsOfChaosRuntime } from './types/runtime.js'
 export type { SwordsOfChaosSaveFile } from './types/save.js'
+export type {
+  SwordsCharacterArchetype,
+  SwordsCharacterChoiceOption,
+  SwordsCharacterCreationModeOption,
+  SwordsCharacterCustomField,
+  SwordsCharacterCustomFieldDefinition,
+  SwordsCharacterProceduralOption,
+} from './types/character.js'
 export type { SwordsOfChaosHostEcho } from './types/echoes.js'
 export type {
   SwordsOfChaosEventBatch,
@@ -54,6 +74,12 @@ export type {
   SwordsOfChaosSceneOption,
   SwordsOfChaosSceneStage,
 } from './types/dm.js'
+export type {
+  SwordsOfChaosSeaTurtleCharacterCanon,
+  SwordsOfChaosSessionZeroBuildOptions,
+  SwordsOfChaosSessionZeroPrelude,
+  SwordsOfChaosSessionZeroScene,
+} from './types/sessionZero.js'
 export type {
   SwordsOfChaosDerivedMemory,
   SwordsOfChaosRelevantMemory,
