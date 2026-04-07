@@ -4171,7 +4171,7 @@ export function REPL({
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
   React.useEffect(() => {
-    if (screen !== 'transcript' || transcriptVirtualScrollActive) {
+    if (screen !== 'transcript') {
       setHighlightRowRange(null);
       return;
     }
@@ -4190,7 +4190,7 @@ export function REPL({
       start: top,
       end: top + height - 1
     });
-  }, [screen, transcriptVirtualScrollActive, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
+  }, [screen, transcriptMessages.length, transcriptStreamingToolUses.length, searchOpen, setHighlightRowRange]);
   useStaticTranscriptJump({
     enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
