@@ -146,6 +146,8 @@ compatibility source.
 Inside CT, the next-step commands to know first are:
 
 - `/login`
+- `/continue`
+- `/resume`
 - `/model`
 - `/effort`
 - `/status`
@@ -156,6 +158,12 @@ Inside CT, the next-step commands to know first are:
 - `/haiku`
 - `/mermaid`
 - `/ct`
+
+Session posture:
+
+- plain `ct` starts fresh by default
+- `/continue` resumes the most recent session in the current directory
+- `/resume` opens the session picker or resumes a specific session when you pass an ID or search term
 
 ### CT Private Layer
 

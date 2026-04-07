@@ -74,6 +74,12 @@ ct auth status --json
 ct -p "say hello in five words"
 ```
 
+Session behavior:
+
+- plain `ct` starts a fresh session by default
+- use `/continue` for the most recent session in the current directory
+- use `/resume` to open the picker or resume a specific prior session
+
 Compatibility note:
 
 - the underlying runtime still uses `dist/cli.js`
