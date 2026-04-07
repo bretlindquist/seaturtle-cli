@@ -5,6 +5,29 @@ export type SwordsOfChaosPlayerState = {
   stats: Record<string, number>
 }
 
+export type SwordsOfChaosCreationMode = 'premade' | 'procedural' | 'custom'
+
+export type SwordsOfChaosCharacterSheet = {
+  name: string | null
+  creationMode: SwordsOfChaosCreationMode | null
+  archetype: string | null
+  className: string | null
+  species: string | null
+  origin: string | null
+  strength: string | null
+  flaw: string | null
+  keepsake: string | null
+  drive: string | null
+  omen: string | null
+}
+
+export type SwordsOfChaosSessionZeroState = {
+  completed: boolean
+  originPlace: string | null
+  firstContact: string | null
+  completedAt: number | null
+}
+
 export type SwordsOfChaosSeaTurtleState = {
   bond: number
   favor: number
@@ -34,6 +57,8 @@ export type SwordsOfChaosThreadMemory = {
 export type SwordsOfChaosSaveFile = {
   version: 1
   player: SwordsOfChaosPlayerState
+  character: SwordsOfChaosCharacterSheet
+  sessionZero: SwordsOfChaosSessionZeroState
   inventory: string[]
   conditions: string[]
   progression: {

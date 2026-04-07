@@ -4,6 +4,53 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every(item => typeof item === 'string')
 }
 
+function isNullableString(value: unknown): value is string | null {
+  return typeof value === 'string' || value === null
+}
+
+function isCharacterSheet(
+  value: unknown,
+): value is SwordsOfChaosSaveFile['character'] {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const character = value as SwordsOfChaosSaveFile['character']
+  return (
+    isNullableString(character.name) &&
+    (character.creationMode === 'premade' ||
+      character.creationMode === 'procedural' ||
+      character.creationMode === 'custom' ||
+      character.creationMode === null) &&
+    isNullableString(character.archetype) &&
+    isNullableString(character.className) &&
+    isNullableString(character.species) &&
+    isNullableString(character.origin) &&
+    isNullableString(character.strength) &&
+    isNullableString(character.flaw) &&
+    isNullableString(character.keepsake) &&
+    isNullableString(character.drive) &&
+    isNullableString(character.omen)
+  )
+}
+
+function isSessionZeroState(
+  value: unknown,
+): value is SwordsOfChaosSaveFile['sessionZero'] {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const sessionZero = value as SwordsOfChaosSaveFile['sessionZero']
+  return (
+    typeof sessionZero.completed === 'boolean' &&
+    isNullableString(sessionZero.originPlace) &&
+    isNullableString(sessionZero.firstContact) &&
+    (typeof sessionZero.completedAt === 'number' ||
+      sessionZero.completedAt === null)
+  )
+}
+
 function isEncounterMemoryRecord(
   value: unknown,
 ): value is SwordsOfChaosSaveFile['encounterMemory'] {
@@ -63,6 +110,8 @@ export function isSwordsOfChaosSaveFile(
     typeof value.player.maxHp === 'number' &&
     !!value.player.stats &&
     typeof value.player.stats === 'object' &&
+    isCharacterSheet(value.character) &&
+    isSessionZeroState(value.sessionZero) &&
     isStringArray(value.inventory) &&
     isStringArray(value.conditions) &&
     !!value.progression &&
