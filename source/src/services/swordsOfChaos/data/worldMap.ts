@@ -10,23 +10,23 @@ export const SWORDS_OF_CHAOS_THREAD_PRESENTATION: Record<
 > = {
   'half-shell-relic-trail': {
     title: 'the relic trail',
-    pressure: 'The relic trail has stopped behaving like drift. It now presses against each place like an itinerary the world refuses to lose.',
+    pressure: 'The relic trail no longer feels accidental. Something has been carrying it from place to place.',
   },
   'broken-lamp-witnesses': {
     title: 'the witness light',
-    pressure: 'The witness light no longer feels local. It has started moving through places like a system that expects to find you.',
+    pressure: 'The witness light keeps turning up where it should not, as if one watcher keeps finding new windows.',
   },
   'alley-oath-keepers': {
     title: 'the oathkeepers',
-    pressure: 'The oathkeepers now feel less like a rumor and more like a structure the world has decided to keep standing.',
+    pressure: 'The oathkeepers have stopped sounding like rumor. Something keeps building around their promises.',
   },
   'sign-truth-fractures': {
     title: 'the fractured sign',
-    pressure: 'The fractured sign has stopped acting like a glitch. It now behaves like a law that keeps rewriting the world slightly wrong.',
+    pressure: 'The fractured sign keeps returning as if bad naming were trying to become law.',
   },
   'quiet-refusals': {
     title: 'the refused doors',
-    pressure: 'The refused doors no longer feel like private moments. They have started following you like a doctrine with hinges.',
+    pressure: 'The refused doors keep following you. Some choices do not stay behind once made.',
   },
 }
 
@@ -36,146 +36,146 @@ export const SWORDS_OF_CHAOS_WORLD_MAP: Record<
 > = {
   alley: {
     connectiveWeight:
-      'For a moment the alley feels less self-contained than it should, as if this corner belongs to a larger pattern you have only started to notice.',
+      'The broken lamp catches a shell-green glint, then loses it.',
     recurringSymbol:
-      'A broken lamp, a shell-green seam, and the feeling of a name almost said wrong brush the scene, then slip away before they can become an explanation.',
+      'The sign hums, the lamp stutters, and for a moment the alley almost says the wrong name for itself.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'A shell-green sheen keeps finding the chain, the lamp, and the wet brick as if some relic path passes through here before it goes elsewhere.',
+        'A shell-green sheen keeps finding the lamp chain and the wet brick.',
       'broken-lamp-witnesses':
-        'The broken lamp has stopped acting like local weather. It feels like one watchlight in a system of them.',
+        'The broken lamp watches too patiently to feel local.',
       'alley-oath-keepers':
-        'The brickwork holds vows the way wood might hold rings, as if promises made here are only one root of a deeper structure.',
+        'The brickwork feels heavy with promises nobody fully kept.',
       'sign-truth-fractures':
-        'The sign crackles with the same wrongness that later turns up in metal announcements and older names.',
+        'The sign crackles like it is trying to say the wrong name on purpose.',
       'quiet-refusals':
-        'Every refusal here leaves a pressure ridge behind, as if the alley archives what people decline to become.',
+        'Old refusals seem to linger here longer than footsteps should.',
     },
   },
   'old-tree': {
     connectiveWeight:
-      'The tree does not feel separate from the alley. It feels like the same question translated into root, thorn, and damp soil.',
+      'Something metal hides under the moss where no metal should be.',
     recurringSymbol:
-      'The bramble latch hides the same shell-green seam and wrong-name pressure that once lived under neon.',
+      'The latch under the bramble shows a shell-green seam where clean brass should be.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Something shell-green lives in the latch under the bramble, the same hue that keeps haunting metal in other places.',
+        'Something shell-green lives in the latch under the bramble.',
       'broken-lamp-witnesses':
-        'Light finds you here the way it did under the broken lamp, as if the world keeps assigning the same witness a new perch.',
+        'Light keeps catching the latch like a signal trying to stay seen.',
       'alley-oath-keepers':
-        'The roots feel full of kept words. What the alley stored in posture, this place stores in growth.',
+        'The roots feel full of words people meant to keep.',
       'sign-truth-fractures':
-        'Names here feel half-right in the same way the station announcements will later feel wrong, as if truth keeps cracking along the same grain.',
+        'The tree almost answers to one name and then another.',
       'quiet-refusals':
-        'The unopened latch feels like a refusal that learned to flower thorns around itself.',
+        'The unopened latch looks like a refusal grown old and dangerous.',
     },
   },
   'ocean-ship': {
     connectiveWeight:
-      'The ship feels like the same old pressure set loose in motion, carrying the alley and the tree forward under salt and iron.',
+      'Lantern light swings over wet boards and catches green corrosion at the hatch.',
     recurringSymbol:
-      'The lantern swing, green corrosion, and the ship’s half-true name all feel like shipborne versions of the same old sign and lamp.',
+      'The ship carries a wrong name in its timbers and green corrosion at the seams.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Green corrosion blooms along the hatch like the relic trail finally found a place willing to move with it.',
+        'Green corrosion blooms along the hatch seam.',
       'broken-lamp-witnesses':
-        'The lantern light watches with the same patience as the alley lamp, only now the witness sways with the sea.',
+        'The lantern watches with the same patience as the broken lamp, only it sways.',
       'alley-oath-keepers':
-        'The deck feels full of vows made far inland and kept badly at sea.',
+        'The deck feels full of promises that crossed water badly.',
       'sign-truth-fractures':
-        'Even the hull seems to repeat the wrong name for itself, as if the same fracture keeps crossing materials.',
+        'The hull sounds wrong when someone speaks the ship’s name aloud.',
       'quiet-refusals':
-        'Below deck, the knocking sounds like something refused entry too many times and no longer accepts the answer.',
+        'The knocking below deck sounds like something still refusing to stay shut out.',
     },
   },
   'post-apocalyptic-ruin': {
     connectiveWeight:
-      'The ruin feels like the ship after land remembered it badly: the same shell-green trail and broken warnings, only now they sit under ash, collapse, and the long patience of failed survival.',
+      'A cracked siren tower leans over the street and keeps threatening to wake.',
     recurringSymbol:
-      'A cracked siren tower, shell-green corrosion in the rubble, and a district name spoken wrong by dead speakers make the ruin feel like the relic trail after the world gave up pretending it was local.',
+      'A district speaker says the wrong name through ash and shell-green corrosion.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Shell-green corrosion has climbed the ruin like ivy made of circuitry, as if the relic path finally found the graveyard it was always walking toward.',
+        'Shell-green corrosion has climbed the ruin like bad ivy.',
       'broken-lamp-witnesses':
-        'A watchlight still blinks in the ruin in the same rhythm as the lamp and the beacon, stubborn enough to make witness feel like a curse.',
+        'One watchlight still blinks in the ruin and refuses to die quietly.',
       'alley-oath-keepers':
-        'The broken walls feel full of promises people made to outlast collapse and then failed to keep together.',
+        'The broken walls feel full of promises made too late.',
       'sign-truth-fractures':
-        'Every district marker here says the wrong name with total confidence, as if truth has been cracked long enough to fossilize.',
+        'Every district marker says the wrong name with perfect confidence.',
       'quiet-refusals':
-        'The sealed bunkers and half-open doors suggest a history of refusals mistaken for strategy until the city learned to bury them.',
+        'Sealed bunkers and half-open doors make refusal feel like local architecture.',
     },
   },
   'space-station': {
     connectiveWeight:
-      'The station does not replace the alley. It feels like the same structure expressed as pressure doors, frost, and failing light.',
+      'The corridor hums under failing strip-lights and a pressure door sparks at the edge of sight.',
     recurringSymbol:
-      'A failing strip-light, a shell-green fault in the conduit, and a wrong announcement suggest the alley survived translation into orbit.',
+      'A strip-light flickers, a conduit shows shell-green damage, and an old speaker says the wrong thing.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'A shell-green shimmer sits inside the frost and cable housings, the relic trail translated into circuitry and cold.',
+        'A shell-green shimmer sits inside the frost and cable housings.',
       'broken-lamp-witnesses':
-        'The strip-lights fail in the same rhythm the broken lamp once hummed, as if the same witness climbed into orbit.',
+        'The strip-lights fail in a rhythm that feels almost watchful.',
       'alley-oath-keepers':
         'The station holds promises like sealed air: invisible until something ruptures.',
       'sign-truth-fractures':
-        'Wrong names and broken announcements belong here with unnatural confidence, as if this is where that fracture finally learned to speak.',
+        'The wrong announcement keeps coming back as if the station trusts it.',
       'quiet-refusals':
-        'Every sealed door on the ring feels like an old refusal given hardware, pressure, and time.',
+        'Every sealed door on the ring feels like an answer that has held too long.',
     },
   },
   'mars-outpost': {
     connectiveWeight:
-      'The outpost feels like the station after history and weather got hold of it: the same fracture translated into dust, heat-scarred metal, and old emergency myths.',
+      'A cracked beacon works at its warning while red dust rasps across the tents.',
     recurringSymbol:
-      'A shell-green glint in the dust, a cracked beacon, and a designation spoken wrong over dead speakers make Mars feel like the same wound wearing red silence.',
+      'The speakers get the designation wrong, and shell-green grit has worked into every seam.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Shell-green dust gathers in the outpost seams like a relic trail that finally learned how to survive without water.',
+        'Shell-green dust gathers in every seam that should have stayed tight.',
       'broken-lamp-witnesses':
-        'The beacon stutters with the same watchful patience as the broken lamp, only now the witness lives in dry static and horizon glare.',
+        'The beacon stutters with the patience of something still on watch.',
       'alley-oath-keepers':
-        'The outpost feels full of promises made to survive one more night and then left to fossilize in red dust.',
+        'The outpost feels full of promises made one night at a time.',
       'sign-truth-fractures':
-        'Every designation here sounds one syllable wrong, as if the old station fracture came down to Mars and learned how to haunt a colony instead of a corridor.',
+        'Every designation here sounds one syllable wrong.',
       'quiet-refusals':
-        'Sealed hatches and abandoned pressure tents suggest a chain of refusals that kept being mistaken for strategy until the desert learned their real names.',
+        'Sealed hatches and abandoned tents make refusal feel like a survival tactic grown stale.',
     },
   },
   'fae-realm': {
     connectiveWeight:
-      'The fae grove does not break the map. It feels like the same world slipping into glamour, witness, and older bargains.',
+      'Foxfire hangs low over black water, and the grove seems to be listening.',
     recurringSymbol:
-      'The foxfire carries the same witness-light, shell-green sheen, and naming trouble that once lived in brick and metal.',
+      'Foxfire, moth-lanterns, and a half-missed name make the grove feel politely dangerous.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Shell-green glints in dew and enamel alike, as if the relic trail can teach even petals how to corrode.',
+        'A shell-green glint keeps turning up in dew and enamel alike.',
       'broken-lamp-witnesses':
-        'The watching light has become foxfire and moth-lantern, but it is still the same witness changing masks.',
+        'The foxfire watches the way a patient witness watches a lie form.',
       'alley-oath-keepers':
-        'Promises here bind like old courtesy: beautiful until you realize beauty is just another enforcement layer.',
+        'Promises here bind like courtesy sharpened to a law.',
       'sign-truth-fractures':
-        'Names slip a little sideways here too, as if glamour and broken signage learned the same trick from different tutors.',
+        'Names slip sideways here if spoken too confidently.',
       'quiet-refusals':
-        'Every path not taken in the grove still glows faintly, unwilling to admit it has been abandoned.',
+        'Unchosen paths keep glowing as if they resent being left behind.',
     },
   },
   'dark-dungeon': {
     connectiveWeight:
-      'The dungeon feels like the underside of every other place: the same questions sunk deeper until they learned to speak in echoes and temptation.',
+      'The dungeon breathes through its torchlight and waits for someone to answer back.',
     recurringSymbol:
-      'Torch phosphor, shell-green mineral seams, and names repeated wrong in the dark make the dungeon feel like every other place turned inside out.',
+      'Torch phosphor, shell-green seams, and names repeated wrong in the dark make the place hard to trust.',
     threadEchoes: {
       'half-shell-relic-trail':
-        'Shell-green glints in the mineral seams like a relic trail buried alive and still trying to surface.',
+        'Shell-green glints in the mineral seams like something trying to surface.',
       'broken-lamp-witnesses':
-        'The watchlight has become low phosphor and whispering sconces, but it still behaves like the same old witness.',
+        'The low phosphor behaves less like light and more like watchfulness.',
       'alley-oath-keepers':
-        'Down here, promises sound less noble and more binding, as if every vow eventually needs a cellar.',
+        'Down here, promises sound less noble and more binding.',
       'sign-truth-fractures':
-        'The dungeon repeats names back wrong on purpose, turning cracked truth into a seduction rather than a glitch.',
+        'The dungeon repeats names back wrong on purpose.',
       'quiet-refusals':
-        'The seductive voices know exactly which doors you closed elsewhere and they keep trying the handles from the other side.',
+        'The voices sound like they remember which doors you closed elsewhere.',
     },
   },
 }

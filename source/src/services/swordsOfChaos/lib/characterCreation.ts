@@ -41,6 +41,27 @@ function getFieldOptionOrThrow(
   return option
 }
 
+function buildProceduralHook(input: {
+  className: SwordsCharacterChoiceOption
+  origin: SwordsCharacterChoiceOption
+  strength: SwordsCharacterChoiceOption
+  flaw: SwordsCharacterChoiceOption
+  keepsake: SwordsCharacterChoiceOption
+  drive: SwordsCharacterChoiceOption
+}): string {
+  const classLead: Record<string, string> = {
+    Duelist: 'A hard-eyed fighter',
+    Pilgrim: 'A road-worn pilgrim',
+    Speaker: 'A dangerous talker',
+    Runner: 'A courier who knows when to flee and when not to',
+    Witness: 'A watcher who notices what decent people miss',
+  }
+
+  const lead = classLead[input.className.label] ?? `A ${input.className.label.toLowerCase()}`
+
+  return `${lead} from ${input.origin.label}, carrying ${input.keepsake.label} and relying on ${input.strength.label} even when ${input.flaw.label}. They are still trying to ${input.drive.label}.`
+}
+
 export function getSwordsCharacterCreationModes(): SwordsCharacterCreationModeOption[] {
   return SWORDS_CHARACTER_CREATION_MODES
 }
@@ -89,7 +110,14 @@ export function buildSwordsProceduralCharacterChoices(
     return {
       id: `procedural-${index + 1}`,
       label: `${className.label} of ${origin.label}`,
-      hook: `${species.label} ${className.label.toLowerCase()} with ${strength.label} and ${flaw.label}.`,
+      hook: buildProceduralHook({
+        className,
+        origin,
+        strength,
+        flaw,
+        keepsake,
+        drive,
+      }),
       sheet: {
         className: className.label,
         species: species.label,

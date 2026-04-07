@@ -5,6 +5,7 @@ import {
 } from './dmPromptBuilder.js'
 import {
   getSwordsOpeningOptions,
+  getSwordsOpeningLabel,
   getSwordsOpeningShellVariant,
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
@@ -24,6 +25,97 @@ import type {
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosOpeningChoice } from '../types/outcomes.js'
 import type { SwordsOpeningOption, SwordsSecondBeatOption } from '../types/shells.js'
+
+function getOpeningChoiceLeadLabel(
+  openingChoice: SwordsOfChaosOpeningChoice,
+): string {
+  return getSwordsOpeningLabel(openingChoice).toLowerCase()
+}
+
+function limitSceneAccents(
+  locus: ReturnType<typeof getSwordsEncounterLocus>,
+  lines: Array<string | undefined>,
+): string[] {
+  const filtered = lines.filter(
+    (line, index, arr): line is string =>
+      Boolean(line) && arr.findIndex(other => other === line) === index,
+  )
+
+  return filtered.slice(0, 1)
+}
+
+function getOpeningOptionsForLocus(
+  locus: ReturnType<typeof getSwordsEncounterLocus>,
+): SwordsOpeningOption[] {
+  const options = getSwordsOpeningOptions()
+
+  if (locus === 'alley') {
+    return options
+  }
+
+  return options.map(option => {
+    switch (locus) {
+      case 'old-tree':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Rest your hand on the hilt and step under the hanging roots' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Offer the old tree the courtesy you would give an armed host' }
+        }
+        return { ...option, description: 'Speak like you have crossed this threshold before and expect to pass again' }
+      case 'ocean-ship':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Set your stance on the wet deck and let the crew see you are ready' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Give the ship a sailor’s courtesy and see what answers it' }
+        }
+        return { ...option, description: 'Talk like you belong on this vessel and were merely late to the watch' }
+      case 'fae-realm':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Let your hand drift toward steel and see whether the grove calls it rude' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Offer precise courtesy and wait to see who claims it' }
+        }
+        return { ...option, description: 'Speak as if you know the old forms and expect the grove to remember you' }
+      case 'space-station':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Square up in the corridor with the blade ready for whatever opens first' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Give the failing station a formal nod and see if protocol survives' }
+        }
+        return { ...option, description: 'Talk like you know this ring, this corridor, and the machine listening behind it' }
+      case 'mars-outpost':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Set yourself against the dust and let the outpost see you are not soft' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Offer the cracked beacon a small respect and wait for the answer' }
+        }
+        return { ...option, description: 'Speak like a survivor who has already done a season in this dead place' }
+      case 'post-apocalyptic-ruin':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Step through the ash with the blade ready and the street in view' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Give the ruined district the courtesy of treating its dead as present' }
+        }
+        return { ...option, description: 'Talk like you know who used to rule this street and why it fell' }
+      case 'dark-dungeon':
+        if (option.value === 'draw-steel') {
+          return { ...option, description: 'Raise steel before the whispering dark decides you are prey' }
+        }
+        if (option.value === 'bow-slightly') {
+          return { ...option, description: 'Offer the dark a measured calm and see whether it mistakes that for permission' }
+        }
+        return { ...option, description: 'Speak into the dungeon like you have answered its questions before' }
+      default:
+        return option
+    }
+  })
+}
 
 function getBiomeRecallLanguage(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
@@ -177,31 +269,31 @@ function getSecondBeatLead(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string {
   if (relevantMemory?.encounterShift === 'space-station') {
-    return `${openingChoice} got you this far on a station that sounds like it is remembering the wrong century. The air tastes like frost, current, and unfinished instructions.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far on a station that sounds like it is remembering the wrong century. The air tastes like frost, current, and unfinished instructions.`
   }
 
   if (relevantMemory?.encounterShift === 'post-apocalyptic-ruin') {
-    return `${openingChoice} got you this far in a ruin that still thinks warning and prophecy are the same job. Ash, shell-green corrosion, and bad signage make the whole district feel like a shipwreck dragged onto land and left to memorize its own failure.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far in a ruin that still thinks warning and prophecy are the same job. Ash, shell-green corrosion, and bad signage make the whole district feel like a shipwreck dragged onto land and left to memorize its own failure.`
   }
 
   if (relevantMemory?.encounterShift === 'mars-outpost') {
-    return `${openingChoice} got you this far in a Mars outpost that sounds abandoned until the speakers misname you. Dust keeps finding shell-green seams in the metal as if orbit's old fracture finally fell to ground.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far in a Mars outpost that sounds abandoned until the speakers misname you. Dust keeps finding shell-green seams in the metal as if orbit's old fracture finally fell to ground.`
   }
 
   if (relevantMemory?.encounterShift === 'dark-dungeon') {
-    return `${openingChoice} got you this far in a dungeon that sounds too interested in your choices. The dark keeps offering hospitality the way a snare offers comfort.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far in a dungeon that sounds too interested in your choices. The dark keeps offering hospitality the way a snare offers comfort.`
   }
 
   if (relevantMemory?.encounterShift === 'fae-realm') {
-    return `${openingChoice} got you this far in a grove where courtesy feels armed and beauty behaves like jurisdiction. Even the light seems to be watching for procedural mistakes.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far in a grove where courtesy feels armed and beauty behaves like jurisdiction. Even the light seems to be watching for procedural mistakes.`
   }
 
   if (relevantMemory?.encounterShift === 'ocean-ship') {
-    return `${openingChoice} got you this far on a ship that should not know your name. The salt air feels like a verdict delivered before the trial.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far on a ship that should not know your name. The salt air feels like a verdict delivered before the trial.`
   }
 
   if (relevantMemory?.encounterShift === 'old-tree') {
-    return `${openingChoice} got you this far beneath the old tree. The place feels like a memory that learned how to grow bark over metal.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far beneath the old tree. The place feels like a memory that learned how to grow bark over metal.`
   }
 
   if (!relevantMemory?.familiarPlace) {
@@ -220,10 +312,10 @@ function getSecondBeatLead(
   )
 
   if (priorOpeners.has(openingChoice)) {
-    return `${openingChoice} got you this far again. The alley settles into the posture it remembers.`
+    return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far again. The alley settles into the posture it remembers.`
   }
 
-  return `${openingChoice} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
+  return `${getOpeningChoiceLeadLabel(openingChoice)} got you this far by a road you left unopened last time. The alley seems almost pleased that you finally chose differently.`
 }
 
 function getOpeningAtmosphereLine(
@@ -460,21 +552,20 @@ function renderDeterministicScene(
           ? getSwordsOpeningShellVariant('returning')
           : getSwordsOpeningShellVariant('default')
     const atmosphereLine = getOpeningAtmosphereLine(payload.relevantMemory, locus)
-    const openingTail = [
+    const openingTail = limitSceneAccents(locus, [
       familiar
         ? payload.relevantMemory?.roadNotTakenHint ??
           'The place waits to see what you do differently this time.'
         : undefined,
       getReturningWeight(payload.relevantMemory),
       atmosphereLine,
-      locus !== 'alley' && recurringSymbol ? recurringSymbol : undefined,
-      locus !== 'alley' ? threadEcho : undefined,
-    ].filter(Boolean)
+      threadEcho ?? (locus !== 'alley' ? recurringSymbol : undefined),
+    ])
     return {
       subtitle: openingShell.subtitle,
       sceneText: [openingShell.sceneText, ...openingTail].join('\n\n'),
       options: applyOpeningCallbackMemory(
-        getSwordsOpeningOptions(),
+        getOpeningOptionsForLocus(locus),
         payload.relevantMemory,
       ),
       hintText:
@@ -512,13 +603,12 @@ function renderDeterministicScene(
         ? getSwordsSecondBeatVariant(payload.openingChoice, 'returning')
         : getSwordsSecondBeat(payload.openingChoice)
   const canonPressure = getCanonThreadPressure(payload.relevantMemory)
-  const atmosphereLine = getSecondBeatAtmosphereLine(payload.relevantMemory, locus)
-  const secondBeatTail = [
-    canonPressure,
-    atmosphereLine,
-    locus !== 'alley' && recurringSymbol ? recurringSymbol : undefined,
-    locus !== 'alley' ? threadEcho : undefined,
-  ].filter(Boolean)
+  const secondBeatTail =
+    locus === 'alley'
+      ? canonPressure
+        ? [canonPressure]
+        : []
+      : []
   return {
     subtitle:
       payload.relevantMemory?.canonThread && returningAgain

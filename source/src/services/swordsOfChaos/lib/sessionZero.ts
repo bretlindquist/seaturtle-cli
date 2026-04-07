@@ -42,36 +42,36 @@ export function buildSwordsSessionZeroScene({
   const firstContact = seaTurtleCrossing ? 'measured-wink' : null
 
   const crossingText = seaTurtleCrossing
-    ? `On the stair you pass someone with ${SWORDS_SEATURTLE_CHARACTER_CANON.bearing}. For a second the face reads strangely from the edge of your vision, almost turtled in its calm. ${SWORDS_SEATURTLE_CHARACTER_CANON.name} notices your stare and answers it with a measured wink, as if the two of you have just agreed not to explain something yet.`
-    : `Someone pauses in the hall outside your door as if listening for a name not yet spoken, then moves on before the boards can testify to it.`
+    ? `On the stair you pass someone with ${SWORDS_SEATURTLE_CHARACTER_CANON.bearing}. At the edge of your vision the face reads oddly calm, almost shelled in the way it holds itself. ${SWORDS_SEATURTLE_CHARACTER_CANON.name} catches you looking and answers with a measured wink, as if the two of you have just shared a secret neither of you plans to explain.`
+    : `Someone pauses in the hall outside your door, then moves on before the old boards can give them away.`
 
   return {
     title: `${character.name ?? 'Nameless'}: Session 0`,
     subtitle:
-      'The world takes a first look. You do not have to impress it yet, only arrive.',
+      'The world takes its first look at you. All you have to do is arrive with your eyes open.',
     originPlace,
     firstContact,
-    sceneText: `${character.name ?? 'You'} wake in ${originPlace}. You are ${character.className?.toLowerCase() ?? 'someone half-made'} enough to know the room by its sounds before its edges: rain at the sill, a pipe knocking somewhere two walls away, the small patient weight of ${character.keepsake ?? 'a keepsake'} where you left it last night.\n\nYou come from ${character.origin ?? 'somewhere difficult'}. That origin has not released you. It still shows up in the way you favor ${character.strength ?? 'your best quality'} and in the way ${character.flaw ?? 'your worst habit'} keeps asking for a vote.\n\nThis morning the world seems willing to start with atmosphere instead of violence. That is almost never free.\n\n${crossingText}`,
+    sceneText: `${character.name ?? 'You'} wake in ${originPlace}. Rain works the sill. A pipe knocks somewhere behind the wall. ${character.keepsake ?? 'Your keepsake'} is where you left it, which counts as mercy in a world that likes to move things when people sleep.\n\nYou come from ${character.origin ?? 'somewhere difficult'}, and it still shows in the way you lean on ${character.strength ?? 'your best quality'} whenever ${character.flaw ?? 'your worst habit'} starts arguing for a turn at the wheel.\n\nBy the time you step to the door, the day already feels like it has made room for you on purpose. That is either luck, danger, or the sort of invitation wise people learn to fear too late.\n\n${crossingText}`,
     hintText:
-      'Session 0 should place your feet somewhere real before the pattern starts moving under them.',
+      'Choose the first move that tells the world what kind of trouble you are likely to become.',
     options: [
       {
         id: 'step-into-the-street',
         label: 'Step into the street',
-        description: `Carry ${character.drive ?? 'your private reason'} into the weather and let the day admit you.`,
+        description: `Carry ${character.drive ?? 'your private reason'} into the weather and see what notices first.`,
       },
       {
         id: 'linger-at-the-threshold',
         label: 'Linger at the threshold',
         description:
-          'Stay one breath longer and notice what the room seems reluctant to forget.',
+          'Stay one breath longer and catch whatever the room almost kept from you.',
       },
       {
         id: 'follow-the-stranger',
         label: seaTurtleCrossing ? 'Follow the stranger a little way' : 'Follow the sound downstairs',
         description: seaTurtleCrossing
-          ? 'Do not call attention to it. Just see where that composed figure vanishes.'
-          : 'Move toward the first thing in the building that sounds more awake than you are.',
+          ? 'Do not call out. Just see where that composed figure goes and whether they expected you to notice.'
+          : 'Go toward the first sound in the building that seems more awake than the rest.',
       },
     ],
   }
