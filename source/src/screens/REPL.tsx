@@ -4076,7 +4076,6 @@ export function REPL({
   const jumpRef = useRef<JumpHandle | null>(null);
   useTranscriptSearchHotkeys({
     screen,
-    virtualScrollActive,
     searchOpen,
     dumpMode,
     searchCount,
@@ -4112,7 +4111,6 @@ export function REPL({
 
   useTranscriptEscapeHotkeys({
     screen,
-    virtualScrollActive,
     searchOpen,
     dumpMode,
     deferredMessages,

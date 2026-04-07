@@ -9,7 +9,6 @@ import { renderMessagesToPlainText } from '../../utils/exportRenderer.js';
 
 type UseTranscriptEscapeHotkeysInput = {
   screen: 'prompt' | 'transcript'
-  virtualScrollActive: boolean
   searchOpen: boolean
   dumpMode: boolean
   deferredMessages: Parameters<typeof renderMessagesToPlainText>[0]
@@ -52,7 +51,6 @@ function matchesLiteralKey(
 
 export function useTranscriptEscapeHotkeys({
   screen,
-  virtualScrollActive,
   searchOpen,
   dumpMode,
   deferredMessages,
@@ -108,7 +106,7 @@ export function useTranscriptEscapeHotkeys({
       }
     },
     {
-      isActive: screen === 'transcript' && virtualScrollActive && !searchOpen,
+      isActive: screen === 'transcript' && !searchOpen,
     },
   );
 }

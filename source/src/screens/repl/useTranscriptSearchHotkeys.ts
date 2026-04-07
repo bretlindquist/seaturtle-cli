@@ -4,7 +4,6 @@ import type { RefObject } from 'react';
 
 type UseTranscriptSearchHotkeysInput = {
   screen: 'prompt' | 'transcript'
-  virtualScrollActive: boolean
   searchOpen: boolean
   dumpMode: boolean
   searchCount: number
@@ -41,7 +40,6 @@ function matchesLiteralKey(
 
 export function useTranscriptSearchHotkeys({
   screen,
-  virtualScrollActive,
   searchOpen,
   dumpMode,
   searchCount,
@@ -76,11 +74,7 @@ export function useTranscriptSearchHotkeys({
       }
     },
     {
-      isActive:
-        screen === 'transcript' &&
-        virtualScrollActive &&
-        !searchOpen &&
-        !dumpMode,
+      isActive: screen === 'transcript' && !searchOpen && !dumpMode,
     },
   );
 }
