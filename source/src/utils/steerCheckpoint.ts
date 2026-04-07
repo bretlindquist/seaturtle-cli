@@ -57,6 +57,24 @@ function classifyBoundarySteer(input: {
   }
 }
 
+export function classifyBoundaryQueuedCommand(
+  cmd: QueuedCommand,
+):
+  | {
+      classification: 'relevant_now' | 'append_to_task' | 'defer_adjacent' | 'ignore'
+      reason: string
+    }
+  | null {
+  if (cmd.mode !== 'prompt') {
+    return null
+  }
+
+  return classifyBoundarySteer({
+    prompt: getPromptText(cmd.value),
+    midTurnIntent: cmd.midTurnIntent,
+  })
+}
+
 function getStepDescription(input: {
   lastAssistantText?: string
   toolNames: string[]
@@ -158,4 +176,34 @@ export function buildSteerCheckpoint(input: {
           : 'Continue active task',
     boundaryTimestamp: new Date().toISOString(),
   }
+}
+
+export function partitionQueuedCommandsForBoundary(
+  queuedCommands: QueuedCommand[],
+): {
+  attachNow: QueuedCommand[]
+  leaveQueued: QueuedCommand[]
+} {
+  const attachNow: QueuedCommand[] = []
+  const leaveQueued: QueuedCommand[] = []
+
+  for (const cmd of queuedCommands) {
+    if (cmd.mode !== 'prompt') {
+      attachNow.push(cmd)
+      continue
+    }
+
+    const result = classifyBoundaryQueuedCommand(cmd)
+    if (
+      result?.classification === 'relevant_now' ||
+      result?.classification === 'append_to_task'
+    ) {
+      attachNow.push(cmd)
+      continue
+    }
+
+    leaveQueued.push(cmd)
+  }
+
+  return { attachNow, leaveQueued }
 }

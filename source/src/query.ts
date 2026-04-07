@@ -110,7 +110,10 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
-import { buildSteerCheckpoint } from './utils/steerCheckpoint.js'
+import {
+  buildSteerCheckpoint,
+  partitionQueuedCommandsForBoundary,
+} from './utils/steerCheckpoint.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1604,11 +1607,14 @@ async function* queryLoop(
       toolResults.push(checkpointMessage)
     }
 
+    const { attachNow: boundaryCommandsToAttach } =
+      partitionQueuedCommandsForBoundary(queuedCommandsSnapshot)
+
     for await (const attachment of getAttachmentMessages(
       null,
       updatedToolUseContext,
       null,
-      queuedCommandsSnapshot,
+      boundaryCommandsToAttach,
       [...messagesForQuery, ...assistantMessages, ...toolResults],
       querySource,
     )) {
@@ -1656,7 +1662,7 @@ async function* queryLoop(
 
     // Remove only commands that were actually consumed as attachments.
     // Prompt and task-notification commands are converted to attachments above.
-    const consumedCommands = queuedCommandsSnapshot.filter(
+    const consumedCommands = boundaryCommandsToAttach.filter(
       cmd => cmd.mode === 'prompt' || cmd.mode === 'task-notification',
     )
     if (consumedCommands.length > 0) {
