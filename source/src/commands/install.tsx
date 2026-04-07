@@ -210,12 +210,12 @@ function Install({
   useEffect(() => {
     if (state.type === 'success') {
       // Give success message time to render before exiting
-      setTimeout(onDone, 2000, 'Claude Code installation completed successfully', {
+      setTimeout(onDone, 2000, 'CT installation completed successfully', {
         display: 'system' as const
       });
     } else if (state.type === 'error') {
       // Give error message time to render before exiting
-      setTimeout(onDone, 3000, 'Claude Code installation failed', {
+      setTimeout(onDone, 3000, 'CT installation failed', {
         display: 'system' as const
       });
     }
