@@ -4187,34 +4187,7 @@ export function REPL({
     const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
         {toolJSX.jsx}
       </Box>;
-    const transcriptReturn = <KeybindingSetup>
-        <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
-        <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        {feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null}
-        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
-        {transcriptScrollRef ?
-      // ScrollKeybindingHandler must mount before CancelRequestHandler so
-      // ctrl+c-with-selection copies instead of cancelling the active task.
-      // Its raw useInput handler only stops propagation when a selection
-      // exists — without one, ctrl+c falls through to CancelRequestHandler.
-      <ScrollKeybindingHandler scrollRef={scrollRef}
-      // Yield wheel/ctrl+u/d to UltraplanChoiceDialog's own scroll
-      // handler while the modal is showing.
-      isActive={focusedInputDialog !== 'ultraplan-choice'}
-      // g/G/j/k/ctrl+u/ctrl+d would eat keystrokes the search bar
-      // wants. Off while searching.
-      isModal={!searchOpen}
-      // Manual scroll exits the search context — clear the yellow
-      // current-match marker. Positions are (msg, rowOffset)-keyed;
-      // j/k changes scrollTop so rowOffset is stale → wrong row
-      // gets yellow. Next n/N re-establishes via step()→jump().
-      onScroll={() => jumpRef.current?.disarmSearch()} /> : null}
-        <CancelRequestHandler {...cancelRequestProps} />
-        {transcriptScrollRef ? <FullscreenLayout scrollRef={scrollRef} scrollable={<>
-                {transcriptMessagesElement}
-                {transcriptToolJSX}
-                <SandboxViolationExpandedView />
-              </>} bottom={searchOpen ? <TranscriptSearchBar jumpRef={jumpRef}
+    const transcriptSearchElement = <TranscriptSearchBar jumpRef={jumpRef}
       // Seed was tried (c01578c8) — broke /hello muscle
       // memory (cursor lands after 'foo', /hello → foohello).
       // Cancel-restore handles the 'don't lose prior search'
@@ -4247,14 +4220,42 @@ export function REPL({
         jumpRef.current?.setSearchQuery('');
         jumpRef.current?.setSearchQuery(searchQuery);
         setHighlight(searchQuery);
-      }} setHighlight={setHighlight} /> : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={true} status={editorStatus || undefined} searchBadge={searchQuery && searchCount > 0 ? {
+      }} setHighlight={setHighlight} />;
+    const transcriptReturn = <KeybindingSetup>
+        <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
+        <GlobalKeybindingHandlers {...globalKeybindingProps} />
+        {feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null}
+        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
+        {transcriptScrollRef ?
+      // ScrollKeybindingHandler must mount before CancelRequestHandler so
+      // ctrl+c-with-selection copies instead of cancelling the active task.
+      // Its raw useInput handler only stops propagation when a selection
+      // exists — without one, ctrl+c falls through to CancelRequestHandler.
+      <ScrollKeybindingHandler scrollRef={scrollRef}
+      // Yield wheel/ctrl+u/d to UltraplanChoiceDialog's own scroll
+      // handler while the modal is showing.
+      isActive={focusedInputDialog !== 'ultraplan-choice'}
+      // g/G/j/k/ctrl+u/ctrl+d would eat keystrokes the search bar
+      // wants. Off while searching.
+      isModal={!searchOpen}
+      // Manual scroll exits the search context — clear the yellow
+      // current-match marker. Positions are (msg, rowOffset)-keyed;
+      // j/k changes scrollTop so rowOffset is stale → wrong row
+      // gets yellow. Next n/N re-establishes via step()→jump().
+      onScroll={() => jumpRef.current?.disarmSearch()} /> : null}
+        <CancelRequestHandler {...cancelRequestProps} />
+        {transcriptScrollRef ? <FullscreenLayout scrollRef={scrollRef} scrollable={<>
+                {transcriptMessagesElement}
+                {transcriptToolJSX}
+                <SandboxViolationExpandedView />
+              </>} bottom={searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={true} status={editorStatus || undefined} searchBadge={searchQuery && searchCount > 0 ? {
         current: searchCurrent,
         count: searchCount
       } : undefined} />} /> : <>
             {transcriptMessagesElement}
             {transcriptToolJSX}
             <SandboxViolationExpandedView />
-            <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} />
+            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} />}
           </>}
       </KeybindingSetup>;
     // The virtual-scroll branch (FullscreenLayout above) needs
