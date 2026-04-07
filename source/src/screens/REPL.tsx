@@ -1460,6 +1460,9 @@ export function REPL({
   const activeRemote = sshRemote.isRemoteMode ? sshRemote : directConnect.isRemoteMode ? directConnect : remoteSession;
   const [pastedContents, setPastedContents] = useState<Record<number, PastedContent>>({});
   const [submitCount, setSubmitCount] = useState(0);
+  // State for exit feedback flow
+  const [exitFlow, setExitFlow] = useState<React.ReactNode>(null);
+  const [isExiting, setIsExiting] = useState(false);
 
   useInput((input, key, event) => {
     if (!key.ctrl || key.meta) return;
@@ -2057,10 +2060,6 @@ export function REPL({
   // so we can suppress the [1] follow-up prompt even after
   // autoRunIssueReason is cleared.
   const didAutoRunIssueRef = useRef(false);
-
-  // State for exit feedback flow
-  const [exitFlow, setExitFlow] = useState<React.ReactNode>(null);
-  const [isExiting, setIsExiting] = useState(false);
 
   // Calculate if cost dialog should be shown
   const showingCostDialog = !isLoading && showCostDialog;
