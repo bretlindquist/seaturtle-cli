@@ -1168,13 +1168,10 @@ export function REPL({
     searchCurrent,
     setSearchCurrent,
     hasNavigableMatches,
-    onSearchMatchesChange,
+    searchProgress: transcriptSearchProgress,
     clearSearchState,
     searchBadge
   } = useTranscriptSearchTracker();
-  const transcriptSearchProgress = useMemo(() => ({
-    reportMatches: onSearchMatchesChange
-  }), [onSearchMatchesChange]);
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());

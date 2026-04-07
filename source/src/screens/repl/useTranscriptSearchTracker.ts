@@ -1,5 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
 
+export type TranscriptSearchProgressSink = {
+  reportMatches: (count: number, current: number) => void;
+};
+
 export function useTranscriptSearchTracker() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,6 +21,10 @@ export function useTranscriptSearchTracker() {
     setSearchCurrent(0);
   }, []);
 
+  const searchProgress = useMemo<TranscriptSearchProgressSink>(() => ({
+    reportMatches: onSearchMatchesChange
+  }), [onSearchMatchesChange]);
+
   const searchBadge = useMemo(() => searchQuery && searchCount > 0 ? {
     current: searchCurrent,
     count: searchCount
@@ -33,6 +41,7 @@ export function useTranscriptSearchTracker() {
     setSearchCurrent,
     hasNavigableMatches: searchCount > 0,
     onSearchMatchesChange,
+    searchProgress,
     clearSearchState,
     searchBadge
   };
