@@ -624,6 +624,7 @@ export function VirtualMessageList({
     logForDebugging(`seek(i=${idx} t=${tries}): ${positions.length} positions`);
     if (positions.length === 0) {
       // Phantom — engine matched, render didn't. Auto-advance.
+      clearActiveResult();
       if (++phantomBurstRef.current > 20) {
         phantomBurstRef.current = 0;
         return;
@@ -659,7 +660,7 @@ export function VirtualMessageList({
     if (i < 0 || i >= js.messages.length) return;
     // Clear stale highlight before scroll. Between now and the seek
     // effect's highlight, inverse-only from scan-highlight shows.
-    setPositions?.(null);
+    clearActiveResult();
     elementPositions.current = {
       msgIdx: -1,
       positions: []
@@ -756,7 +757,7 @@ export function VirtualMessageList({
         positions: []
       };
       startPtrRef.current = -1;
-      setPositions?.(null);
+      clearActiveResult();
       const lq = q.toLowerCase();
       // One entry per MESSAGE (deduplicated). Boolean "does this msg
       // contain the query". ~10ms for 9k messages with cached lowered.
