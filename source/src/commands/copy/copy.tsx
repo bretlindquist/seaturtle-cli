@@ -125,7 +125,7 @@ function CopyPicker(t0) {
     messageAge,
     onDone
   } = t0;
-  const focusedRef = useRef("full");
+  const focusedRef = useRef<PickerSelection>(codeBlocks.length > 0 ? 0 : "full");
   const t1 = `${fullText.length} chars, ${countCharInString(fullText, "\n") + 1} lines`;
   let t2;
   if ($[0] !== t1) {
@@ -152,7 +152,7 @@ function CopyPicker(t0) {
     } else {
       t4 = $[5];
     }
-    t3 = [t2, ...codeBlocks.map(_temp), t4];
+    t3 = codeBlocks.length > 0 ? [codeBlocks.map(_temp)[0], t2, ...codeBlocks.map(_temp).slice(1), t4] : [t2, t4];
     $[2] = codeBlocks;
     $[3] = t2;
     $[4] = t3;
