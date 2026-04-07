@@ -12,6 +12,33 @@ type UseTranscriptSearchHotkeysInput = {
   setSearchOpen: (open: boolean) => void
 }
 
+function matchesLiteralKey(
+  input: string,
+  key: { name?: string; sequence?: string; shift?: boolean },
+  target: string,
+): boolean {
+  if (input === target) {
+    return true
+  }
+
+  if (key.name === target || key.sequence === target) {
+    return true
+  }
+
+  if (target.length === 1) {
+    const lower = target.toLowerCase()
+    const upper = target.toUpperCase()
+    if (target === lower && key.name === lower && !key.shift) {
+      return true
+    }
+    if (target === upper && key.name === lower && key.shift) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function useTranscriptSearchHotkeys({
   screen,
   virtualScrollActive,
@@ -24,22 +51,26 @@ export function useTranscriptSearchHotkeys({
   useInput(
     (input, key, event) => {
       if (key.ctrl || key.meta) return;
-      if (input === '/') {
+      if (matchesLiteralKey(input, key, '/')) {
         jumpRef.current?.setAnchor();
         setSearchOpen(true);
         event.stopImmediatePropagation();
         return;
       }
 
-      const c = input[0];
-      if (
-        (c === 'n' || c === 'N') &&
-        input === c.repeat(input.length) &&
-        searchCount > 0
-      ) {
-        const fn = c === 'n' ? jumpRef.current?.nextMatch : jumpRef.current?.prevMatch;
+      if (searchCount > 0 && matchesLiteralKey(input, key, 'n')) {
+        const fn = jumpRef.current?.nextMatch;
         if (fn) {
-          for (let i = 0; i < input.length; i++) fn();
+          for (let i = 0; i < Math.max(input.length, 1); i++) fn();
+        }
+        event.stopImmediatePropagation();
+        return;
+      }
+
+      if (searchCount > 0 && matchesLiteralKey(input, key, 'N')) {
+        const fn = jumpRef.current?.prevMatch;
+        if (fn) {
+          for (let i = 0; i < Math.max(input.length, 1); i++) fn();
         }
         event.stopImmediatePropagation();
       }

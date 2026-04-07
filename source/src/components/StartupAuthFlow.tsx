@@ -55,7 +55,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   const openAiReadiness = useMemo(() => getOpenAiCodexAuthReadiness(), [screen])
 
   useKeybinding(
-    'confirm:yes',
+    'confirm:no',
     () => {
       setScreen({ state: 'choose' })
     },

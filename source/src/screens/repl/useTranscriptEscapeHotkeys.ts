@@ -23,6 +23,33 @@ type UseTranscriptEscapeHotkeysInput = {
   setEditorStatus: Dispatch<SetStateAction<string>>
 }
 
+function matchesLiteralKey(
+  input: string,
+  key: { name?: string; sequence?: string; shift?: boolean },
+  target: string,
+): boolean {
+  if (input === target) {
+    return true
+  }
+
+  if (key.name === target || key.sequence === target) {
+    return true
+  }
+
+  if (target.length === 1) {
+    const lower = target.toLowerCase()
+    const upper = target.toUpperCase()
+    if (target === lower && key.name === lower && !key.shift) {
+      return true
+    }
+    if (target === upper && key.name === lower && key.shift) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function useTranscriptEscapeHotkeys({
   screen,
   virtualScrollActive,
@@ -41,17 +68,17 @@ export function useTranscriptEscapeHotkeys({
   useInput(
     (input, key, event) => {
       if (key.ctrl || key.meta) return;
-      if (input === 'q') {
+      if (matchesLiteralKey(input, key, 'q')) {
         handleExitTranscript();
         event.stopImmediatePropagation();
         return;
       }
 
-      if (input === '[' && !dumpMode) {
+      if (matchesLiteralKey(input, key, '[') && !dumpMode) {
         setDumpMode(true);
         setShowAllInTranscript(true);
         event.stopImmediatePropagation();
-      } else if (input === 'v') {
+      } else if (matchesLiteralKey(input, key, 'v')) {
         event.stopImmediatePropagation();
         if (editorRenderingRef.current) return;
         editorRenderingRef.current = true;
