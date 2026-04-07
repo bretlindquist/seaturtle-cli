@@ -318,10 +318,13 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   return (
     <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
       <Text bold>
-        CT can be used with subscription access, billed API access, 3rd-party
-        Anthropic platforms, or OpenAI Codex OAuth.
+        Sign in with your provider to use CT.
       </Text>
-      <Text>Select login method:</Text>
+      <Text>
+        CT supports Anthropic subscription access, billed API access,
+        3rd-party Anthropic platforms, and OpenAI Codex OAuth.
+      </Text>
+      <Text>Select provider:</Text>
       <Box>
         <Select
           options={[

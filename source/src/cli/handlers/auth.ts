@@ -291,9 +291,7 @@ export async function authStatus(opts: {
       process.stdout.write('API key: ANTHROPIC_API_KEY\n')
     }
     if (!loggedIn) {
-      process.stdout.write(
-        'Not logged in. Run claude auth login to authenticate.\n',
-      )
+      process.stdout.write('Not logged in. Run /login or ct auth login.\n')
     }
   } else {
     const apiProvider = getAPIProvider()
@@ -346,6 +344,6 @@ export async function authLogout(): Promise<void> {
     process.stderr.write('Failed to log out.\n')
     process.exit(1)
   }
-  process.stdout.write('Successfully logged out from your Anthropic account.\n')
+  process.stdout.write('Successfully logged out from CT provider auth.\n')
   process.exit(0)
 }
