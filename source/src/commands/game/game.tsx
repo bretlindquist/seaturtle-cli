@@ -57,6 +57,7 @@ import {
   type SwordsCharacterCustomField,
   type SwordsCharacterProceduralOption,
   type SwordsDramaticBeatLine,
+  type SwordsDramaticBeatScript,
   type SwordsOfChaosCreationMode,
   type SwordsOfChaosOpeningChoice,
   type SwordsOfChaosSecondChoice,
@@ -110,6 +111,7 @@ type SwordsFreeResponseState = {
 type SwordsDramaticBeatState = {
   title: string
   subtitle: string
+  focus: SwordsDramaticBeatScript['focus']
   lines: SwordsDramaticBeatLine[]
   revealed: number
   followup:
@@ -128,104 +130,155 @@ type SwordsDramaticBeatState = {
 function buildSwordsOpeningBeat(
   openingChoice: SwordsOfChaosOpeningChoice,
   place: string,
-): string[] {
+): SwordsDramaticBeatScript {
   switch (openingChoice) {
     case 'draw-steel':
-      return [
-        `Your hand finds the hilt before ${place} decides whether it knows you.`,
-        '',
-        'Rain ticks against metal.',
-        '',
-        '*tink*',
-        '',
-        'A blade meets yours sooner than it should. Someone here was faster than the moment.',
-      ]
+      return {
+        focus: 'strike',
+        lines: [
+          { text: `Your hand finds the hilt before ${place} decides whether it knows you.`, tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'Rain ticks against metal.', tone: 'quiet' },
+          { text: '', tone: 'quiet' },
+          { text: '*tink*', tone: 'sound' },
+          { text: '', tone: 'quiet' },
+          {
+            text: 'A blade meets yours sooner than it should. Someone here was faster than the moment.',
+            tone: 'accent',
+          },
+        ],
+      }
     case 'bow-slightly':
-      return [
-        `You dip your head just enough to make the gesture deliberate.`,
-        '',
-        `For one suspended breath, ${place} answers by holding still with you.`,
-        '',
-        'Then the room remembers it is dangerous.',
-      ]
+      return {
+        focus: 'hold',
+        lines: [
+          { text: 'You dip your head just enough to make the gesture deliberate.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: `For one suspended breath, ${place} answers by holding still with you.`, tone: 'quiet' },
+          { text: '', tone: 'quiet' },
+          { text: 'Then the room remembers it is dangerous.', tone: 'accent' },
+        ],
+      }
     case 'talk-like-you-belong':
-      return [
-        'The words leave your mouth with more confidence than permission.',
-        '',
-        'No one interrupts.',
-        '',
-        'Which is worse.',
-        '',
-        `Something in ${place} lets you keep talking just to hear what you will dare next.`,
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'The words leave your mouth with more confidence than permission.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'No one interrupts.', tone: 'quiet' },
+          { text: '', tone: 'quiet' },
+          { text: 'Which is worse.', tone: 'accent' },
+          { text: '', tone: 'quiet' },
+          {
+            text: `Something in ${place} lets you keep talking just to hear what you will dare next.`,
+            tone: 'accent',
+          },
+        ],
+      }
   }
 }
 
 function buildSwordsSecondBeat(
   secondChoice: SwordsOfChaosSecondChoice,
   place: string,
-): string[] {
+): SwordsDramaticBeatScript {
   switch (secondChoice) {
     case 'cut-the-sign-chain':
-      return [
-        `You move first, and ${place} answers at once.`,
-        '',
-        'Metal protests. Something hidden wakes up angry.',
-      ]
+      return {
+        focus: 'strike',
+        lines: [
+          { text: `You move first, and ${place} answers at once.`, tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'Metal protests. Something hidden wakes up angry.', tone: 'accent' },
+        ],
+      }
     case 'hold-the-line':
-      return [
-        'You hold your ground.',
-        '',
-        `That is when ${place} has to reveal whether it wanted your fear or your steadiness.`,
-      ]
+      return {
+        focus: 'hold',
+        lines: [
+          { text: 'You hold your ground.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          {
+            text: `That is when ${place} has to reveal whether it wanted your fear or your steadiness.`,
+            tone: 'accent',
+          },
+        ],
+      }
     case 'lower-the-blade':
-      return [
-        'You refuse the obvious script.',
-        '',
-        'The moment wobbles. Something that expected violence has to improvise.',
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'You refuse the obvious script.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'The moment wobbles. Something that expected violence has to improvise.', tone: 'accent' },
+        ],
+      }
     case 'keep-bowing':
-      return [
-        'You stay with the gesture longer than comfort would advise.',
-        '',
-        `That is long enough for ${place} to understand you meant it.`,
-      ]
+      return {
+        focus: 'hold',
+        lines: [
+          { text: 'You stay with the gesture longer than comfort would advise.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: `That is long enough for ${place} to understand you meant it.`, tone: 'accent' },
+        ],
+      }
     case 'meet-the-gaze':
-      return [
-        'You lift your eyes instead of your guard.',
-        '',
-        'Whatever was watching has to decide whether that counts as courage or invitation.',
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'You lift your eyes instead of your guard.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          {
+            text: 'Whatever was watching has to decide whether that counts as courage or invitation.',
+            tone: 'accent',
+          },
+        ],
+      }
     case 'ask-the-price':
-      return [
-        'You ask the question that turns a mood into a bargain.',
-        '',
-        `In ${place}, that is usually when the real danger starts listening.`,
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'You ask the question that turns a mood into a bargain.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: `In ${place}, that is usually when the real danger starts listening.`, tone: 'accent' },
+        ],
+      }
     case 'name-a-false-title':
-      return [
-        'You give the lie a proper name and let it stand upright.',
-        '',
-        'For a second, even the room seems tempted to believe you.',
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'You give the lie a proper name and let it stand upright.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'For a second, even the room seems tempted to believe you.', tone: 'accent' },
+        ],
+      }
     case 'laugh-like-you-mean-it':
-      return [
-        'You laugh at exactly the wrong moment.',
-        '',
-        'Which is sometimes the closest thing to a key the world will accept.',
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'You laugh at exactly the wrong moment.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'Which is sometimes the closest thing to a key the world will accept.', tone: 'accent' },
+        ],
+      }
     case 'double-down':
-      return [
-        'You keep going past the point where caution would have shut up.',
-        '',
-        `Now ${place} has to decide whether to expose you or take your side.`,
-      ]
+      return {
+        focus: 'strike',
+        lines: [
+          { text: 'You keep going past the point where caution would have shut up.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: `Now ${place} has to decide whether to expose you or take your side.`, tone: 'accent' },
+        ],
+      }
     default:
-      return [
-        'The scene shifts under the weight of what you chose.',
-        '',
-        'Whatever happens next belongs to the choice now.',
-      ]
+      return {
+        focus: 'tighten',
+        lines: [
+          { text: 'The scene shifts under the weight of what you chose.', tone: 'plain' },
+          { text: '', tone: 'quiet' },
+          { text: 'Whatever happens next belongs to the choice now.', tone: 'accent' },
+        ],
+      }
   }
 }
 
@@ -294,6 +347,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     React.useState<SwordsDramaticBeatState>({
       title: 'Swords of Chaos ⚔️🐉🏆',
       subtitle: 'The game holds its breath.',
+      focus: 'hold',
       lines: [],
       revealed: 0,
       followup: null,
@@ -344,7 +398,11 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     },
     screen === 'swords-dramatic-beat' &&
       swordsDramaticBeat.revealed < swordsDramaticBeat.lines.length
-      ? 260
+      ? swordsDramaticBeat.focus === 'strike'
+        ? 170
+        : swordsDramaticBeat.focus === 'tighten'
+          ? 230
+          : 300
       : null,
   )
 
@@ -381,13 +439,14 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
   function beginSwordsDramaticBeat(input: {
     subtitle: string
-    lines: SwordsDramaticBeatLine[]
+    script: SwordsDramaticBeatScript
     followup: SwordsDramaticBeatState['followup']
   }): void {
     setSwordsDramaticBeat({
       title: 'Swords of Chaos ⚔️🐉🏆',
       subtitle: input.subtitle,
-      lines: input.lines,
+      focus: input.script.focus,
+      lines: input.script.lines,
       revealed: 0,
       followup: input.followup,
     })
@@ -712,7 +771,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       }
       beginSwordsDramaticBeat({
         subtitle: adjudication.subtitle,
-        lines: adjudication.beatScript.lines,
+        script: adjudication.beatScript,
         followup: {
           type: 'opening',
           openingChoice: interpretedChoice,
@@ -745,7 +804,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     }
     beginSwordsDramaticBeat({
       subtitle: adjudication.subtitle,
-      lines: adjudication.beatScript.lines,
+      script: adjudication.beatScript,
       followup: {
         type: 'result',
         openingChoice: swordsFreeResponse.openingChoice,
@@ -1226,7 +1285,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
                 beginSwordsDramaticBeat({
                   subtitle: `${getSwordsOpeningLabel(openingChoice)} changes the room.`,
-                  lines: buildSwordsSecondBeat(
+                  script: buildSwordsSecondBeat(
                     value as SwordsOfChaosSecondChoice,
                     swordsEncounterPlace,
                   ),
@@ -1264,7 +1323,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
             options={[
               ...swordsOpeningScene.options,
               {
-                  label: 'Make your own move',
+                label: 'Make your own move',
                 value: 'free-response',
                 description: 'Answer the opening in your own words',
               },
@@ -1287,7 +1346,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
 
               beginSwordsDramaticBeat({
                 subtitle: `${getSwordsOpeningLabel(value as SwordsOfChaosOpeningChoice)} begins the trouble.`,
-                lines: buildSwordsOpeningBeat(
+                script: buildSwordsOpeningBeat(
                   value as SwordsOfChaosOpeningChoice,
                   swordsEncounterPlace,
                 ),
