@@ -4,16 +4,10 @@ import { spawnSync } from 'child_process';
 import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTokens, getBudgetContinuationCount, getTotalInputTokens } from '../bootstrap/state.js';
 import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
-import { dirname, join } from 'path';
-import { tmpdir } from 'os';
-// eslint-disable-next-line custom-rules/prefer-use-keybindings -- / n N Esc [ v are bare letters in transcript modal context, same class as g/G/j/k in ScrollKeybindingHandler
-import { useInput } from '../ink.js';
+import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
-import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
-import { openFileInExternalEditor } from '../utils/editor.js';
-import { writeFile } from 'fs/promises';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
@@ -320,6 +314,7 @@ import {
   type FocusedInputDialog,
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
+import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 
@@ -4114,74 +4109,20 @@ export function REPL({
     }
   }, [transcriptCols, searchQuery, searchOpen, setHighlight]);
 
-  // Transcript escape hatches. Bare letters in modal context (no prompt
-  // competing for input) — same class as g/G/j/k in ScrollKeybindingHandler.
-  useInput((input, key, event) => {
-    if (key.ctrl || key.meta) return;
-    if (input === 'q') {
-      // less: q quits the pager. ctrl+o toggles; q is the lineage exit.
-      handleExitTranscript();
-      event.stopImmediatePropagation();
-      return;
-    }
-    if (input === '[' && !dumpMode) {
-      // Force dump-to-scrollback. Also expand + uncap — no point dumping
-      // a subset. Terminal/tmux cmd-F can now find anything. Guard here
-      // (not in isActive) so v still works post-[ — dump-mode footer at
-      // ~4898 wires editorStatus, confirming v is meant to stay live.
-      setDumpMode(true);
-      setShowAllInTranscript(true);
-      event.stopImmediatePropagation();
-    } else if (input === 'v') {
-      // less-style: v opens the file in $VISUAL/$EDITOR. Render the full
-      // transcript (same path /export uses), write to tmp, hand off.
-      // openFileInExternalEditor handles alt-screen suspend/resume for
-      // terminal editors; GUI editors spawn detached.
-      event.stopImmediatePropagation();
-      // Drop double-taps: the render is async and a second press before it
-      // completes would run a second parallel render (double memory, two
-      // tempfiles, two editor spawns). editorGenRef only guards
-      // transcript-exit staleness, not same-session concurrency.
-      if (editorRenderingRef.current) return;
-      editorRenderingRef.current = true;
-      // Capture generation + make a staleness-aware setter. Each write
-      // checks gen (transcript exit bumps it → late writes from the
-      // async render go silent).
-      const gen = editorGenRef.current;
-      const setStatus = (s: string): void => {
-        if (gen !== editorGenRef.current) return;
-        clearTimeout(editorTimerRef.current);
-        setEditorStatus(s);
-      };
-      setStatus(`rendering ${deferredMessages.length} messages…`);
-      void (async () => {
-        try {
-          // Width = terminal minus vim's line-number gutter (4 digits +
-          // space + slack). Floor at 80. PassThrough has no .columns so
-          // without this Ink defaults to 80. Trailing-space strip: right-
-          // aligned timestamps still leave a flexbox spacer run at EOL.
-          // eslint-disable-next-line custom-rules/prefer-use-terminal-size -- one-shot at keypress time, not a reactive render dep
-          const w = Math.max(80, (process.stdout.columns ?? 80) - 6);
-          const raw = await renderMessagesToPlainText(deferredMessages, tools, w);
-          const text = raw.replace(/[ \t]+$/gm, '');
-          const path = join(tmpdir(), `cc-transcript-${Date.now()}.txt`);
-          await writeFile(path, text);
-          const opened = openFileInExternalEditor(path);
-          setStatus(opened ? `opening ${path}` : `wrote ${path} · no $VISUAL/$EDITOR set`);
-        } catch (e) {
-          setStatus(`render failed: ${e instanceof Error ? e.message : String(e)}`);
-        }
-        editorRenderingRef.current = false;
-        if (gen !== editorGenRef.current) return;
-        editorTimerRef.current = setTimeout(s => s(''), 4000, setEditorStatus);
-      })();
-    }
-  },
-  // !searchOpen: typing 'v' or '[' in the search bar is search input, not
-  // a command. No !dumpMode here — v should work after [ (the [ handler
-  // guards itself inline).
-  {
-    isActive: screen === 'transcript' && virtualScrollActive && !searchOpen
+  useTranscriptEscapeHotkeys({
+    screen,
+    virtualScrollActive,
+    searchOpen,
+    dumpMode,
+    deferredMessages,
+    tools,
+    handleExitTranscript,
+    setDumpMode,
+    setShowAllInTranscript,
+    editorGenRef,
+    editorTimerRef,
+    editorRenderingRef,
+    setEditorStatus,
   });
 
   // Fresh `less` per transcript entry. Prevents stale highlights matching
