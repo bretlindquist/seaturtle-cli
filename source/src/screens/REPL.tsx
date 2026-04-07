@@ -1168,10 +1168,13 @@ export function REPL({
     searchCurrent,
     setSearchCurrent,
     hasNavigableMatches,
-    reportMatches,
+    onSearchMatchesChange,
     clearSearchState,
     searchBadge
   } = useTranscriptSearchTracker();
+  const transcriptSearchProgress = useMemo(() => ({
+    reportMatches: onSearchMatchesChange
+  }), [onSearchMatchesChange]);
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
@@ -4195,9 +4198,7 @@ export function REPL({
     enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
     messages: transcriptMessages,
     jumpRef,
-    searchProgress: {
-      reportMatches
-    },
+    onSearchMatchesChange,
   });
 
   // Handle shift+down for teammate navigation and background task management.
@@ -4219,9 +4220,7 @@ export function REPL({
     // only one ScrollBox is ever mounted at a time.
     const transcriptScrollRef = transcriptVirtualScrollActive ? scrollRef : undefined;
     const transcriptMessagesElement = <Box ref={transcriptContentRef} flexDirection="column">
-        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={{
-        reportMatches
-      }} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
+        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} setPositions={setPositions} disableRenderCap={dumpMode} />
       </Box>;
     const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
         {toolJSX.jsx}
