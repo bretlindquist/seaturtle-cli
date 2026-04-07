@@ -382,7 +382,7 @@ export function buildAPIProviderProperties(): Property[] {
   if (runtimeSnapshot.execution.family === 'openai') {
     properties.push({
       label: 'OpenAI/Codex gates',
-      value: ['auto-mode safety classifier', 'permission explainer', 'Claude in Chrome lightning']
+      value: ['auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
     });
   }
   const proxyUrl = getProxyUrl();
