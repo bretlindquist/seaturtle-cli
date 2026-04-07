@@ -114,6 +114,11 @@ type Props = {
   } | null) => void;
 };
 
+type ActiveTranscriptResult = {
+  msgIdx: number;
+  ordinal: number;
+};
+
 /**
  * Returns the text of a real user prompt, or null for anything else.
  * "Real" = what the human typed: not tool results, not XML-wrapped payloads
@@ -489,12 +494,11 @@ export function VirtualMessageList({
       positions
     } = elementPositions.current;
     if (!s || positions.length === 0 || msgIdx < 0) {
-      setActiveMatchMsgIdx(null);
-      setPositions?.(null);
+      clearActiveResult();
       return;
     }
-    setActiveMatchMsgIdx(msgIdx);
     const idx = Math.max(0, Math.min(ord, positions.length - 1));
+    setActiveResultMatch(msgIdx, idx);
     const p = positions[idx]!;
     const top = jumpState.current.getItemTop(msgIdx);
     const el = jumpState.current.getItemElement(msgIdx);
@@ -701,7 +705,7 @@ export function VirtualMessageList({
 
     // Exhausted visible. Advance ptr → jump → re-scan.
     const ptr = (st.ptr + delta + matches.length) % matches.length;
-    if (ptr === startPtrRef.current) {
+      if (ptr === startPtrRef.current) {
       if (positions.length > 0) {
         const wrapOrd = delta < 0 ? positions.length - 1 : 0;
         st.ptr = ptr;
@@ -711,8 +715,7 @@ export function VirtualMessageList({
         logForDebugging(`step: wrapped within ptr=${ptr} to ord=${wrapOrd}`);
         return;
       }
-      setActiveMatchMsgIdx(null);
-      setPositions?.(null);
+      clearActiveResult();
       startPtrRef.current = -1;
       logForDebugging(`step: wraparound at ptr=${ptr}, all ${matches.length} msgs phantoms`);
       return;
@@ -818,8 +821,7 @@ export function VirtualMessageList({
     refreshCurrentMatch: () => {
       const st = searchState.current;
       if (st.matches.length === 0) {
-        setActiveMatchMsgIdx(null);
-        setPositions?.(null);
+        clearActiveResult();
         return;
       }
       const {
@@ -838,9 +840,8 @@ export function VirtualMessageList({
     },
     disarmSearch: () => {
       // Manual scroll invalidates screen-absolute positions.
-      setPositions?.(null);
+      clearActiveResult();
       scanRequestRef.current = null;
-      setActiveMatchMsgIdx(null);
       elementPositions.current = {
         msgIdx: -1,
         positions: []
@@ -871,7 +872,7 @@ export function VirtualMessageList({
   // Closures over refs + callbacks. scrollRef stable; others are
   // useCallback([]) or prop-drilled from REPL (stable).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [scrollRef]);
+  [clearActiveResult, scrollRef]);
 
   // StickyTracker goes AFTER the list content. It returns null (no DOM node)
   // so order shouldn't matter for layout — but putting it first means every
@@ -880,6 +881,17 @@ export function VirtualMessageList({
   // a leaf reconcile. Defensive: also avoids any Yoga child-index quirks if
   // the Ink reconciler ever materializes a placeholder for null returns.
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+  const [activeResult, setActiveResult] = useState<ActiveTranscriptResult | null>(null);
+  const clearActiveResult = useCallback(() => {
+    setActiveResult(null);
+    setPositions?.(null);
+  }, [setPositions]);
+  const setActiveResultMatch = useCallback((msgIdx: number, ordinal: number) => {
+    setActiveResult({
+      msgIdx,
+      ordinal
+    });
+  }, []);
   // Stable click/hover handlers — called with k, dispatch from a ref so
   // closure identity doesn't change per render. The per-item handler
   // closures (`e => ...`, `() => setHoveredKey(k)`) were the
@@ -893,7 +905,6 @@ export function VirtualMessageList({
     onItemClick,
     setHoveredKey
   });
-  const [activeMatchMsgIdx, setActiveMatchMsgIdx] = useState<number | null>(null);
   handlersRef.current = {
     onItemClick,
     setHoveredKey
@@ -916,7 +927,7 @@ export function VirtualMessageList({
       const clickable = !!onItemClick && (isItemClickable?.(msg) ?? true);
       const hovered = clickable && hoveredKey === k;
       const expanded = isItemExpanded?.(msg);
-      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchActive={activeMatchMsgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
+      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchActive={activeResult?.msgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
     })}
       {bottomSpacer > 0 && <Box height={bottomSpacer} flexShrink={0} />}
       {trackStickyPrompt && <StickyTracker messages={messages} start={start} end={end} offsets={offsets} getItemTop={getItemTop} getItemElement={getItemElement} scrollRef={scrollRef} />}
