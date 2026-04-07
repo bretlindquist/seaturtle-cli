@@ -50,6 +50,7 @@ export type JumpHandle = {
   setSearchQuery: (q: string) => void;
   nextMatch: () => void;
   prevMatch: () => void;
+  refreshCurrentMatch: () => void;
   /** Capture current scrollTop as the incsearch anchor. Typing jumps
    *  around as preview; 0-matches snaps back here. Enter/n/N never
    *  restore (they don't call setSearchQuery with empty). Next / call
@@ -780,6 +781,22 @@ export function VirtualMessageList({
     },
     nextMatch: () => step(1),
     prevMatch: () => step(-1),
+    refreshCurrentMatch: () => {
+      const st = searchState.current;
+      if (st.matches.length === 0) {
+        setPositions?.(null);
+        return;
+      }
+      const {
+        msgIdx,
+        positions
+      } = elementPositions.current;
+      if (msgIdx === st.matches[st.ptr] && positions.length > 0) {
+        highlightRef.current(st.screenOrd);
+        return;
+      }
+      jump(st.matches[st.ptr]!, st.screenOrd > 0);
+    },
     setAnchor: () => {
       const s = scrollRef.current;
       if (s) searchAnchor.current = s.getScrollTop();

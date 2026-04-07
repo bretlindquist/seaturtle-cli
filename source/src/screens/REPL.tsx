@@ -4092,6 +4092,7 @@ export function REPL({
     setPositions
   } = useSearchHighlight();
   const transcriptContentRef = useRef<DOMElement | null>(null);
+  const prevSearchOpenRef = useRef(searchOpen);
 
   // Resize → abort search. Positions are (msg, query, WIDTH)-keyed —
   // cached positions are stale after a width change (new layout, new
@@ -4113,6 +4114,14 @@ export function REPL({
       }
     }
   }, [transcriptCols, searchQuery, searchOpen, setHighlight]);
+  React.useEffect(() => {
+    const wasOpen = prevSearchOpenRef.current;
+    prevSearchOpenRef.current = searchOpen;
+    if (!wasOpen || searchOpen || screen !== 'transcript' || !searchQuery) {
+      return;
+    }
+    jumpRef.current?.refreshCurrentMatch?.();
+  }, [screen, searchOpen, searchQuery]);
 
   useTranscriptEscapeHotkeys({
     screen,
