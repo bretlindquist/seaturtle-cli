@@ -582,6 +582,50 @@ export function VirtualMessageList({
       tries
     };
   }, []);
+  const finishSeekAtMountedElement = useCallback((idx: number, wantLast: boolean, tries: number, el: DOMElement) => {
+    const s = scrollRef.current;
+    if (!s) return false;
+    const {
+      getItemTop
+    } = jumpState.current;
+    scanRequestRef.current = null;
+    const targetTop = Math.max(0, getItemTop(idx) - HEADROOM);
+    const beforeTop = s.getScrollTop();
+    if (beforeTop !== targetTop) {
+      s.scrollTo(targetTop);
+      if (tries < 3) {
+        beginSeek(idx, wantLast, tries + 1);
+        bumpSeek();
+        return true;
+      }
+    }
+    const positions = scanElement?.(el) ?? [];
+    elementPositions.current = {
+      msgIdx: idx,
+      positions
+    };
+    logForDebugging(`seek(i=${idx} t=${tries}): ${positions.length} positions`);
+    if (positions.length === 0) {
+      clearActiveResult();
+      if (++phantomBurstRef.current > 20) {
+        phantomBurstRef.current = 0;
+        return true;
+      }
+      stepRef.current(wantLast ? -1 : 1);
+      return true;
+    }
+    phantomBurstRef.current = 0;
+    const ord = wantLast ? positions.length - 1 : 0;
+    searchState.current.screenOrd = ord;
+    startPtrRef.current = -1;
+    highlightRef.current(ord);
+    const pending = pendingStepRef.current;
+    if (pending) {
+      pendingStepRef.current = 0;
+      stepRef.current(pending);
+    }
+    return true;
+  }, [beginSeek, bumpSeek, clearActiveResult, scanElement]);
 
   // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
   // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
@@ -671,7 +715,6 @@ export function VirtualMessageList({
     if (!s) return;
     const {
       getItemElement,
-      getItemTop,
       scrollToIndex
     } = jumpState.current;
     const el = getItemElement(idx);
@@ -691,51 +734,9 @@ export function VirtualMessageList({
       bumpSeek();
       return;
     }
-    scanRequestRef.current = null;
-    // Precise scrollTo — scrollToIndex got us in the neighborhood
-    // (item is mounted, maybe a few-dozen rows off due to overscan
-    // estimate drift). Now land it at top-HEADROOM.
-    const targetTop = Math.max(0, getItemTop(idx) - HEADROOM);
-    const beforeTop = s.getScrollTop();
-    if (beforeTop !== targetTop) {
-      s.scrollTo(targetTop);
-      // The current-match overlay anchors to Ink's rendered node rect.
-      // After a real viewport move that rect is stale until the next
-      // render, so re-arm the seek and let the next pass highlight.
-      if (tries < 3) {
-        beginSeek(idx, wantLast, tries + 1);
-        bumpSeek();
-        return;
-      }
-    }
-    const positions = scanElement?.(el) ?? [];
-    elementPositions.current = {
-      msgIdx: idx,
-      positions
-    };
-    logForDebugging(`seek(i=${idx} t=${tries}): ${positions.length} positions`);
-    if (positions.length === 0) {
-      // Phantom — engine matched, render didn't. Auto-advance.
-      clearActiveResult();
-      if (++phantomBurstRef.current > 20) {
-        phantomBurstRef.current = 0;
-        return;
-      }
-      stepRef.current(wantLast ? -1 : 1);
-      return;
-    }
-    phantomBurstRef.current = 0;
-    const ord = wantLast ? positions.length - 1 : 0;
-    searchState.current.screenOrd = ord;
-    startPtrRef.current = -1;
-    highlightRef.current(ord);
-    const pending = pendingStepRef.current;
-    if (pending) {
-      pendingStepRef.current = 0;
-      stepRef.current(pending);
-    }
+    finishSeekAtMountedElement(idx, wantLast, tries, el);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beginSeek, seekGen]);
+  }, [beginSeek, finishSeekAtMountedElement, seekGen]);
 
   // Scroll to message i's top, arm scanPending. scan-effect reads fresh
   // screen next tick. wantLast: N-into-message — screenOrd = length-1.
