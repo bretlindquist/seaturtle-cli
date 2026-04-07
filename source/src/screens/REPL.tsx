@@ -30,7 +30,7 @@ import { formatTokens, truncateToWidth } from '../utils/format.js';
 import { getCwd } from '../utils/cwd.js';
 import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { setMemberActive } from '../utils/swarm/teamHelpers.js';
-import { isSwarmWorker, generateSandboxRequestId, sendSandboxPermissionRequestViaMailbox, sendSandboxPermissionResponseViaMailbox } from '../utils/swarm/permissionSync.js';
+import { isSwarmWorker, generateSandboxRequestId, sendSandboxPermissionRequestViaMailbox } from '../utils/swarm/permissionSync.js';
 import { registerSandboxPermissionCallback } from '../hooks/useSwarmPermissionPoller.js';
 import { getTeamName, getAgentName } from '../utils/teammate.js';
 import { injectUserMessageToTeammate, getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
@@ -101,11 +101,10 @@ const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import useCanUseTool from '../hooks/useCanUseTool.js';
 import type { ToolPermissionContext, Tool } from '../Tool.js';
-import { applyPermissionUpdate, applyPermissionUpdates, persistPermissionUpdate } from '../utils/permissions/PermissionUpdate.js';
+import { applyPermissionUpdates } from '../utils/permissions/PermissionUpdate.js';
 import { buildPermissionUpdates } from '../components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.js';
 import { stripDangerousPermissionsForAutoMode } from '../utils/permissions/permissionSetup.js';
 import { getScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js';
-import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js';
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
 import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
 import type { AutoUpdaterResult } from '../utils/autoUpdater.js';
@@ -298,6 +297,7 @@ import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
+import { useReplDialogActions } from './repl/useReplDialogActions.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -3515,6 +3515,57 @@ export function REPL({
     setIsMessageSelectorVisible,
     setMessageSelectorPreselect,
   });
+  const clearConversationForIdleReturn = useCallback(async () => {
+    const { clearConversation } = await import('../commands/clear/conversation.js');
+    await clearConversation({
+      setMessages,
+      readFileState: readFileState.current,
+      discoveredSkillNames: discoveredSkillNamesRef.current,
+      loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
+      getAppState: () => store.getState(),
+      setAppState,
+      setConversationId,
+    });
+    haikuTitleAttemptedRef.current = false;
+    setHaikuTitle(undefined);
+    bashTools.current.clear();
+    bashToolsProcessedIdx.current = 0;
+  }, [setAppState, setConversationId, setMessages, store]);
+  const {
+    handleSandboxPermissionResponse,
+    handlePromptRespond,
+    handlePromptAbort,
+    handleWorkerSandboxPermissionResponse,
+    handleElicitationResponse,
+    handleElicitationWaitingDismiss,
+    handleCostDone,
+    handleIdleReturnDone,
+    handleIdeOnboardingDone,
+    handleEffortCalloutDone,
+    handleRemoteCalloutDone,
+    handleDesktopUpsellDone,
+  } = useReplDialogActions({
+    sandboxPermissionRequestQueue,
+    setSandboxPermissionRequestQueue,
+    sandboxBridgeCleanupRef,
+    setPromptQueue,
+    promptQueue,
+    workerSandboxPermissions,
+    teamName: teamContext?.teamName,
+    setAppState,
+    elicitationQueue: elicitation.queue,
+    setShowCostDialog,
+    setHaveShownCostDialog,
+    idleReturnPending,
+    setIdleReturnPending,
+    getTotalInputTokens,
+    messagesRef,
+    setInputValue,
+    clearConversation: clearConversationForIdleReturn,
+    setShowIdeOnboarding,
+    setShowEffortCallout,
+    setShowDesktopUpsellStartup,
+  });
 
   const messageActionCaps: MessageActionCaps = {
     copy: text =>
@@ -4245,201 +4296,18 @@ export function REPL({
                 {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
                       <TaskListV2 tasks={tasksV2} isStandalone={true} />
                     </Box>}
-                <ReplPermissionOverlays focusedInputDialog={focusedInputDialog} sandboxHostPattern={sandboxPermissionRequestQueue[0]?.hostPattern} onSandboxPermissionResponse={(response: {
-            allow: boolean;
-            persistToSettings: boolean;
-          }) => {
-            const {
-              allow,
-              persistToSettings
-            } = response;
-            const currentRequest = sandboxPermissionRequestQueue[0];
-            if (!currentRequest) return;
-            const approvedHost = currentRequest.hostPattern.host;
-            if (persistToSettings) {
-              const update = {
-                type: 'addRules' as const,
-                rules: [{
-                  toolName: WEB_FETCH_TOOL_NAME,
-                  ruleContent: `domain:${approvedHost}`
-                }],
-                behavior: (allow ? 'allow' : 'deny') as 'allow' | 'deny',
-                destination: 'localSettings' as const
-              };
-              setAppState(prev => ({
-                ...prev,
-                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-              }));
-              persistPermissionUpdate(update);
-              SandboxManager.refreshConfig();
-            }
-            setSandboxPermissionRequestQueue(queue => {
-              queue.filter(item => item.hostPattern.host === approvedHost).forEach(item => item.resolvePromise(allow));
-              return queue.filter(item => item.hostPattern.host !== approvedHost);
-            });
-            const cleanups = sandboxBridgeCleanupRef.current.get(approvedHost);
-            if (cleanups) {
-              for (const fn of cleanups) {
-                fn();
-              }
-              sandboxBridgeCleanupRef.current.delete(approvedHost);
-            }
-          }} promptItem={promptQueue[0]} onPromptRespond={selectedKey => {
-            const item = promptQueue[0];
-            if (!item) return;
-            item.resolve({
-              prompt_response: item.request.prompt,
-              selected: selectedKey
-            });
-            setPromptQueue(([, ...tail]) => tail);
-          }} onPromptAbort={() => {
-            const item = promptQueue[0];
-            if (!item) return;
-            item.reject(new Error('Prompt cancelled by user'));
-            setPromptQueue(([, ...tail]) => tail);
-          }} pendingWorkerRequest={pendingWorkerRequest} pendingSandboxRequest={pendingSandboxRequest} workerSandboxRequest={workerSandboxPermissions.queue[0]} onWorkerSandboxPermissionResponse={(response: {
-            allow: boolean;
-            persistToSettings: boolean;
-          }) => {
-            const {
-              allow,
-              persistToSettings
-            } = response;
-            const currentRequest = workerSandboxPermissions.queue[0];
-            if (!currentRequest) return;
-            const approvedHost = currentRequest.host;
-
-            // Send response via mailbox to the worker
-            void sendSandboxPermissionResponseViaMailbox(currentRequest.workerName, currentRequest.requestId, approvedHost, allow, teamContext?.teamName);
-            if (persistToSettings && allow) {
-              const update = {
-                type: 'addRules' as const,
-                rules: [{
-                  toolName: WEB_FETCH_TOOL_NAME,
-                  ruleContent: `domain:${approvedHost}`
-                }],
-                behavior: 'allow' as const,
-                destination: 'localSettings' as const
-              };
-              setAppState(prev => ({
-                ...prev,
-                toolPermissionContext: applyPermissionUpdate(prev.toolPermissionContext, update)
-              }));
-              persistPermissionUpdate(update);
-              SandboxManager.refreshConfig();
-            }
-
-            // Remove from queue
-            setAppState(prev => ({
-              ...prev,
-              workerSandboxPermissions: {
-                ...prev.workerSandboxPermissions,
-                queue: prev.workerSandboxPermissions.queue.slice(1)
-              }
-            }));
-          }} />
-                <ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={(action, content) => {
-            const currentRequest = elicitation.queue[0];
-            if (!currentRequest) return;
-            currentRequest.respond({
-              action,
-              content
-            });
-            const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
-            if (!isUrlAccept) {
-              setAppState(prev => ({
-                ...prev,
-                elicitation: {
-                  queue: prev.elicitation.queue.slice(1)
-                }
-              }));
-            }
-          }} onElicitationWaitingDismiss={action => {
-            const currentRequest = elicitation.queue[0];
-            setAppState(prev => ({
-              ...prev,
-              elicitation: {
-                queue: prev.elicitation.queue.slice(1)
-              }
-            }));
-            currentRequest?.onWaitingDismiss?.(action);
-          }} onCostDone={() => {
-            setShowCostDialog(false);
-            setHaveShownCostDialog(true);
-            saveGlobalConfig(current => ({
-              ...current,
-              hasAcknowledgedCostThreshold: true
-            }));
-            logEvent('tengu_cost_threshold_acknowledged', {});
-          }} idleReturnPending={idleReturnPending} totalInputTokens={getTotalInputTokens()} onIdleReturnDone={async action => {
-            const pending = idleReturnPending;
-            if (!pending) return;
-            setIdleReturnPending(null);
-            logEvent('tengu_idle_return_action', {
-              action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-              idleMinutes: Math.round(pending.idleMinutes),
-              messageCount: messagesRef.current.length,
-              totalInputTokens: getTotalInputTokens()
-            });
-            if (action === 'dismiss') {
-              setInputValue(pending.input);
-              return;
-            }
-            if (action === 'never') {
-              saveGlobalConfig(current => {
-                if (current.idleReturnDismissed) return current;
-                return {
-                  ...current,
-                  idleReturnDismissed: true
-                };
-              });
-            }
-            if (action === 'clear') {
-              const {
-                clearConversation
-              } = await import('../commands/clear/conversation.js');
-              await clearConversation({
-                setMessages,
-                readFileState: readFileState.current,
-                discoveredSkillNames: discoveredSkillNamesRef.current,
-                loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
-                getAppState: () => store.getState(),
-                setAppState,
-                setConversationId
-              });
-              haikuTitleAttemptedRef.current = false;
-              setHaikuTitle(undefined);
-              bashTools.current.clear();
-              bashToolsProcessedIdx.current = 0;
-            }
+                <ReplPermissionOverlays focusedInputDialog={focusedInputDialog} sandboxHostPattern={sandboxPermissionRequestQueue[0]?.hostPattern} onSandboxPermissionResponse={handleSandboxPermissionResponse} promptItem={promptQueue[0]} onPromptRespond={handlePromptRespond} onPromptAbort={handlePromptAbort} pendingWorkerRequest={pendingWorkerRequest} pendingSandboxRequest={pendingSandboxRequest} workerSandboxRequest={workerSandboxPermissions.queue[0]} onWorkerSandboxPermissionResponse={handleWorkerSandboxPermissionResponse} />
+                <ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={handleElicitationResponse} onElicitationWaitingDismiss={handleElicitationWaitingDismiss} onCostDone={handleCostDone} idleReturnPending={idleReturnPending} totalInputTokens={getTotalInputTokens()} onIdleReturnDone={async action => {
+            const pendingInput = idleReturnPending?.input;
+            await handleIdleReturnDone(action);
+            if (action === 'dismiss' || !pendingInput) return;
             skipIdleCheckRef.current = true;
-            void onSubmitRef.current(pending.input, {
+            void onSubmitRef.current(pendingInput, {
               setCursorOffset: () => {},
               clearBuffer: () => {},
               resetHistory: () => {}
             });
-          }} onIdeOnboardingDone={() => setShowIdeOnboarding(false)} ideInstallationStatus={ideInstallationStatus} mainLoopModel={mainLoopModel} onEffortCalloutDone={selection => {
-            setShowEffortCallout(false);
-            if (selection !== 'dismiss') {
-              setAppState(prev => ({
-                ...prev,
-                effortValue: selection
-              }));
-            }
-          }} onRemoteCalloutDone={selection => {
-            setAppState(prev => {
-              if (!prev.showRemoteCallout) return prev;
-              return {
-                ...prev,
-                showRemoteCallout: false,
-                ...(selection === 'enable' && {
-                  replBridgeEnabled: true,
-                  replBridgeExplicit: true,
-                  replBridgeOutboundOnly: false
-                })
-              };
-            });
-          }} exitFlow={exitFlow} hintRecommendation={hintRecommendation} onHintResponse={handleHintResponse} lspRecommendation={lspRecommendation} onLspResponse={handleLspResponse} onDesktopUpsellDone={() => setShowDesktopUpsellStartup(false)} />
+          }} onIdeOnboardingDone={handleIdeOnboardingDone} ideInstallationStatus={ideInstallationStatus} mainLoopModel={mainLoopModel} onEffortCalloutDone={handleEffortCalloutDone} onRemoteCalloutDone={handleRemoteCalloutDone} exitFlow={exitFlow} hintRecommendation={hintRecommendation} onHintResponse={handleHintResponse} lspRecommendation={lspRecommendation} onLspResponse={handleLspResponse} onDesktopUpsellDone={handleDesktopUpsellDone} />
 
                 {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
 
