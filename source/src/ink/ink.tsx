@@ -538,17 +538,18 @@ export default class Ink {
       if (selActive) {
         applySelectionOverlay(frame.screen, this.selection, this.stylePool);
       }
-      // Scan-highlight: inverse on ALL visible matches (less/vim style).
-      // Position-highlight (below) overlays CURRENT (yellow) on top.
-      hlActive = applySearchHighlight(frame.screen, this.searchHighlightQuery, this.stylePool);
+    }
+    // Scan-highlight: inverse on ALL visible matches (less/vim style).
+    // This is useful in both alt-screen transcript mode and the plain
+    // transcript path rendered into normal terminal scrollback.
+    hlActive = applySearchHighlight(frame.screen, this.searchHighlightQuery, this.stylePool);
+    if (this.altScreenActive && this.searchPositions) {
       // Position-based CURRENT: write yellow at positions[currentIdx] +
       // rowOffset. No scanning — positions came from a prior scan when
       // the message first mounted. Message-relative + rowOffset = screen.
-      if (this.searchPositions) {
-        const sp = this.searchPositions;
-        const posApplied = applyPositionedHighlight(frame.screen, this.stylePool, sp.positions, sp.rowOffset, sp.currentIdx);
-        hlActive = hlActive || posApplied;
-      }
+      const sp = this.searchPositions;
+      const posApplied = applyPositionedHighlight(frame.screen, this.stylePool, sp.positions, sp.rowOffset, sp.currentIdx);
+      hlActive = hlActive || posApplied;
     }
 
     // Full-damage backstop: applies on BOTH alt-screen and main-screen.
