@@ -105,6 +105,16 @@ const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useV
   resetAnchor: () => {}
 });
 const EMPTY_PARKED_PROMPTS: QueuedCommand[] = [];
+const DIRECT_MODE_HOTKEYS: Record<string, PromptInputMode> = {
+  '1': 'prompt',
+  '2': 'convo',
+  '3': 'discovery',
+  '4': 'research',
+  '5': 'planning',
+  '6': 'execution',
+  '7': 'review',
+  '8': 'debug',
+};
 const VoiceKeybindingHandler: typeof import('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').VoiceKeybindingHandler : () => null;
 // Frustration detection is ant-only (dogfooding). Conditional require so external
 // builds eliminate the module entirely (including its two O(n) useMemos that run
@@ -1450,6 +1460,23 @@ export function REPL({
   const activeRemote = sshRemote.isRemoteMode ? sshRemote : directConnect.isRemoteMode ? directConnect : remoteSession;
   const [pastedContents, setPastedContents] = useState<Record<number, PastedContent>>({});
   const [submitCount, setSubmitCount] = useState(0);
+
+  useInput((input, key, event) => {
+    if (!key.ctrl || key.meta) return;
+    if (screen === 'transcript' || focusedInputDialog || toolJSX?.isLocalJSXCommand) {
+      return;
+    }
+
+    const nextMode = DIRECT_MODE_HOTKEYS[input];
+    if (!nextMode) {
+      return;
+    }
+
+    setInputMode(nextMode);
+    event.stopImmediatePropagation();
+  }, {
+    isActive: !disabled && !isExiting
+  });
   // Ref instead of state to avoid triggering React re-renders on every
   // streaming text_delta. The spinner reads this via its animation timer.
   const responseLengthRef = useRef(0);

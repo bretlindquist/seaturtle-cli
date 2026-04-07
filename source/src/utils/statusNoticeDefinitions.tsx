@@ -300,7 +300,7 @@ function CtIdentityGreetingNoticeBody({
     };
   }, [display.kind, prompt]);
 
-  return <Box flexDirection="column">
+  return <Box flexDirection="column" gap={1}>
       <Text dimColor>
         Use /ct to edit `.ct/session.md`, /haiku to tune the rare creative tide, or retune CT whenever you want to
         steer the project.
