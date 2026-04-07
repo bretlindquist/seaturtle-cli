@@ -575,6 +575,8 @@ export function VirtualMessageList({
   const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
     searchState.current = next;
   }, []);
+  const [seekGen, setSeekGen] = useState(0);
+  const bumpSeek = useCallback(() => setSeekGen(g => g + 1), []);
   const beginSeek = useCallback((idx: number, wantLast: boolean, tries: number) => {
     scanRequestRef.current = {
       idx,
@@ -713,8 +715,6 @@ export function VirtualMessageList({
   //
   // Dep is ONLY seekGen — effect doesn't re-run on random renders
   // (onSearchMatchesChange churn during incsearch).
-  const [seekGen, setSeekGen] = useState(0);
-  const bumpSeek = useCallback(() => setSeekGen(g => g + 1), []);
   useEffect(() => {
     const req = scanRequestRef.current;
     if (!req) return;
