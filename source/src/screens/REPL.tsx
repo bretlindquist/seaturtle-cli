@@ -164,20 +164,19 @@ import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js';
 import { resumeAgentBackground } from '../tools/AgentTool/resumeAgent.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
-import type { ContentBlockParam, ImageBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs';
 import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
 import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume, getPlanSlug, setPlanSlug } from '../utils/plans.js';
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, removeTranscriptMessage, restoreSessionMetadata, getCurrentSessionTitle, isEphemeralToolProgress, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
-import { resetMicrocompactState } from '../services/compact/microCompact.js';
 import { runPostCompactCleanup } from '../services/compact/postCompactCleanup.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import { partialCompactConversation } from '../services/compact/compact.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
-import { fileHistoryMakeSnapshot, type FileHistoryState, fileHistoryRewind, type FileHistorySnapshot, copyFileHistoryForResume, fileHistoryEnabled, fileHistoryHasAnyChanges } from '../utils/fileHistory.js';
+import { fileHistoryMakeSnapshot, type FileHistoryState, fileHistoryRewind, type FileHistorySnapshot, copyFileHistoryForResume, fileHistoryEnabled } from '../utils/fileHistory.js';
 import { type AttributionState, incrementPromptCount } from '../utils/commitAttribution.js';
 import { recordAttributionSnapshot } from '../utils/sessionStorage.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
@@ -315,6 +314,7 @@ import {
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
+import { useConversationRestore } from './repl/useConversationRestore.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
 import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js';
@@ -3516,105 +3516,27 @@ export function REPL({
     setIsMessageSelectorVisible(prev => !prev);
   }, []);
 
-  // Rewind conversation state to just before `message`: slice messages,
-  // reset conversation ID, microcompact state, permission mode, prompt suggestion.
-  // Does NOT touch the prompt input. Index is computed from messagesRef (always
-  // fresh via the setMessages wrapper) so callers don't need to worry about
-  // stale closures.
-  const rewindConversationTo = useCallback((message: UserMessage) => {
-    const prev = messagesRef.current;
-    const messageIndex = prev.lastIndexOf(message);
-    if (messageIndex === -1) return;
-    logEvent('tengu_conversation_rewind', {
-      preRewindMessageCount: prev.length,
-      postRewindMessageCount: messageIndex,
-      messagesRemoved: prev.length - messageIndex,
-      rewindToMessageIndex: messageIndex
-    });
-    setMessages(prev.slice(0, messageIndex));
-    // Careful, this has to happen after setMessages
-    setConversationId(randomUUID());
-    // Reset cached microcompact state so stale pinned cache edits
-    // don't reference tool_use_ids from truncated messages
-    resetMicrocompactState();
-    if (feature('CONTEXT_COLLAPSE')) {
-      // Rewind truncates the REPL array. Commits whose archived span
-      // was past the rewind point can't be projected anymore
-      // (projectView silently skips them) but the staged queue and ID
-      // maps reference stale uuids. Simplest safe reset: drop
-      // everything. The ctx-agent will re-stage on the next
-      // threshold crossing.
-      /* eslint-disable @typescript-eslint/no-require-imports */
-      ;
-      (require('../services/contextCollapse/index.js') as typeof import('../services/contextCollapse/index.js')).resetContextCollapse();
-      /* eslint-enable @typescript-eslint/no-require-imports */
-    }
-
-    // Restore state from the message we're rewinding to
-    setAppState(prev => ({
-      ...prev,
-      // Restore permission mode from the message
-      toolPermissionContext: message.permissionMode && prev.toolPermissionContext.mode !== message.permissionMode ? {
-        ...prev.toolPermissionContext,
-        mode: message.permissionMode
-      } : prev.toolPermissionContext,
-      // Clear stale prompt suggestion from previous conversation state
-      promptSuggestion: {
-        text: null,
-        promptId: null,
-        shownAt: 0,
-        acceptedAt: 0,
-        generationRequestId: null
-      }
-    }));
-  }, [setMessages, setAppState]);
-
-  // Synchronous rewind + input population. Used directly by auto-restore on
-  // interrupt (so React batches with the abort's setMessages → single render,
-  // no flicker). MessageSelector wraps this in setImmediate via handleRestoreMessage.
-  const restoreMessageSync = useCallback((message: UserMessage) => {
-    rewindConversationTo(message);
-    const r = textForResubmit(message);
-    if (r) {
-      setInputValue(r.text);
-      setInputMode(r.mode);
-    }
-
-    // Restore pasted images
-    if (Array.isArray(message.message.content) && message.message.content.some(block => block.type === 'image')) {
-      const imageBlocks: Array<ImageBlockParam> = message.message.content.filter(block => block.type === 'image');
-      if (imageBlocks.length > 0) {
-        const newPastedContents: Record<number, PastedContent> = {};
-        imageBlocks.forEach((block, index) => {
-          if (block.source.type === 'base64') {
-            const id = message.imagePasteIds?.[index] ?? index + 1;
-            newPastedContents[id] = {
-              id,
-              type: 'image',
-              content: block.source.data,
-              mediaType: block.source.media_type
-            };
-          }
-        });
-        setPastedContents(newPastedContents);
-      }
-    }
-  }, [rewindConversationTo, setInputValue]);
+  const {
+    restoreMessageSync,
+    handleRestoreMessage,
+    editMessage,
+  } = useConversationRestore({
+    messagesRef,
+    messages,
+    setMessages,
+    setConversationId,
+    setAppState,
+    setInputValue,
+    setInputMode,
+    setPastedContents,
+    fileHistory,
+    onCancel,
+    setMessageSelectorPreselect,
+    setIsMessageSelectorVisible,
+    contextCollapseEnabled: feature('CONTEXT_COLLAPSE')
+  });
   restoreMessageSyncRef.current = restoreMessageSync;
 
-  // MessageSelector path: defer via setImmediate so the "Interrupted" message
-  // renders to static output before rewind — otherwise it remains vestigial
-  // at the top of the screen.
-  const handleRestoreMessage = useCallback(async (message: UserMessage) => {
-    setImmediate((restore, message) => restore(message), restoreMessageSync, message);
-  }, [restoreMessageSync]);
-
-  // Not memoized — hook stores caps via ref, reads latest closure at dispatch.
-  // 24-char prefix: deriveUUID preserves first 24, renderable uuid prefix-matches raw source.
-  const findRawIndex = (uuid: string) => {
-    const prefix = uuid.slice(0, 24);
-    return messages.findIndex(m => m.uuid.slice(0, 24) === prefix);
-  };
   const messageActionCaps: MessageActionCaps = {
     copy: text =>
     // setClipboard RETURNS OSC 52 — caller must stdout.write (tmux side-effects load-buffer, but that's tmux-only).
@@ -3629,24 +3551,7 @@ export function REPL({
         timeoutMs: 2000
       });
     }),
-    edit: async msg => {
-      // Same skip-confirm check as /rewind: lossless → direct, else confirm dialog.
-      const rawIdx = findRawIndex(msg.uuid);
-      const raw = rawIdx >= 0 ? messages[rawIdx] : undefined;
-      if (!raw || !selectableUserMessagesFilter(raw)) return;
-      const noFileChanges = !(await fileHistoryHasAnyChanges(fileHistory, raw.uuid));
-      const onlySynthetic = messagesAfterAreOnlySynthetic(messages, rawIdx);
-      if (noFileChanges && onlySynthetic) {
-        // rewindConversationTo's setMessages races stream appends — cancel first (idempotent).
-        onCancel();
-        // handleRestoreMessage also restores pasted images.
-        void handleRestoreMessage(raw);
-      } else {
-        // Dialog path: onPreRestore (= onCancel) fires when user CONFIRMS, not on nevermind.
-        setMessageSelectorPreselect(raw);
-        setIsMessageSelectorVisible(true);
-      }
-    }
+    edit: async msg => { if (selectableUserMessagesFilter(msg)) await editMessage(msg); }
   };
   const {
     enter: enterMessageActions,
