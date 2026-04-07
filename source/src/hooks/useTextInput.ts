@@ -229,6 +229,7 @@ export function useTextInput({
     ['e', () => cursor.endOfLine()],
     ['f', () => cursor.right()],
     ['h', () => cursor.deleteTokenBefore() ?? cursor.backspace()],
+    ['j', () => (multiline ? cursor.insert('\n') : cursor)],
     ['k', killToLineEnd],
     ['n', () => downOrHistoryDown()],
     ['p', () => upOrHistoryUp()],
