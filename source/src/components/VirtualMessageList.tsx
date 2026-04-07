@@ -582,6 +582,18 @@ export function VirtualMessageList({
       tries
     };
   }, []);
+  const retryUnmountedSeek = useCallback((idx: number, wantLast: boolean, tries: number, scrollToIndex: (index: number) => void) => {
+    if (tries > 1) {
+      scanRequestRef.current = null;
+      logForDebugging(`seek(i=${idx}): no mount after scrollToIndex, skip`);
+      stepRef.current(wantLast ? -1 : 1);
+      return true;
+    }
+    beginSeek(idx, wantLast, tries + 1);
+    scrollToIndex(idx);
+    bumpSeek();
+    return true;
+  }, [beginSeek, bumpSeek]);
   const finishSeekAtMountedElement = useCallback((idx: number, wantLast: boolean, tries: number, el: DOMElement) => {
     const s = scrollRef.current;
     if (!s) return false;
@@ -723,20 +735,12 @@ export function VirtualMessageList({
       // Not mounted after scrollToIndex. Shouldn't happen — scrollToIndex
       // guarantees mount by construction (scrollTop and topSpacer agree
       // via the same offsets value). Sanity: retry once, then skip.
-      if (tries > 1) {
-        scanRequestRef.current = null;
-        logForDebugging(`seek(i=${idx}): no mount after scrollToIndex, skip`);
-        stepRef.current(wantLast ? -1 : 1);
-        return;
-      }
-      beginSeek(idx, wantLast, tries + 1);
-      scrollToIndex(idx);
-      bumpSeek();
+      retryUnmountedSeek(idx, wantLast, tries, scrollToIndex);
       return;
     }
     finishSeekAtMountedElement(idx, wantLast, tries, el);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [beginSeek, finishSeekAtMountedElement, seekGen]);
+  }, [finishSeekAtMountedElement, retryUnmountedSeek, seekGen]);
 
   // Scroll to message i's top, arm scanPending. scan-effect reads fresh
   // screen next tick. wantLast: N-into-message — screenOrd = length-1.
