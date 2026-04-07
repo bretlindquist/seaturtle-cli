@@ -210,7 +210,6 @@ import { MCPConnectionManager } from 'src/services/mcp/MCPConnectionManager.js';
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
 import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js';
 import { usePostCompactSurvey } from 'src/components/FeedbackSurvey/usePostCompactSurvey.js';
-import { FeedbackSurvey } from 'src/components/FeedbackSurvey/FeedbackSurvey.js';
 import { useInstallMessages } from 'src/hooks/notifs/useInstallMessages.js';
 import { useAwaySummary } from 'src/hooks/useAwaySummary.js';
 import { useChromeExtensionNotification } from 'src/hooks/useChromeExtensionNotification.js';
@@ -267,13 +266,12 @@ import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrati
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js';
 import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js';
-import { AutoRunIssueNotification, shouldAutoRunIssue, getAutoRunIssueReasonText, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
+import { shouldAutoRunIssue, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 import { TungstenLiveMonitor } from '../tools/TungstenTool/TungstenLiveMonitor.js';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
 /* eslint-enable @typescript-eslint/no-require-imports */
-import { IssueFlagBanner } from '../components/PromptInput/IssueFlagBanner.js';
 import { useIssueFlagBanner } from '../hooks/useIssueFlagBanner.js';
 import { CompanionSprite, CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/CompanionSprite.js';
 // Session manager removed - using AppState now
@@ -302,6 +300,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
+import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
@@ -4513,18 +4512,10 @@ export function REPL({
 
                 {mrRender()}
 
-                {!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor && <>
-                      {autoRunIssueReason && <AutoRunIssueNotification onRun={handleAutoRunIssue} onCancel={handleCancelAutoRunIssue} reason={getAutoRunIssueReasonText(autoRunIssueReason)} />}
-                      {postCompactSurvey.state !== 'closed' ? <FeedbackSurvey state={postCompactSurvey.state} lastResponse={postCompactSurvey.lastResponse} handleSelect={postCompactSurvey.handleSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} /> : memorySurvey.state !== 'closed' ? <FeedbackSurvey state={memorySurvey.state} lastResponse={memorySurvey.lastResponse} handleSelect={memorySurvey.handleSelect} handleTranscriptSelect={memorySurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} message="How well did CT use its memory? (optional)" /> : <FeedbackSurvey state={feedbackSurvey.state} lastResponse={feedbackSurvey.lastResponse} handleSelect={feedbackSurvey.handleSelect} handleTranscriptSelect={feedbackSurvey.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={didAutoRunIssueRef.current ? undefined : handleSurveyRequestFeedback} />}
-                      {/* Frustration-triggered transcript sharing prompt */}
-                      {frustrationDetection.state !== 'closed' && <FeedbackSurvey state={frustrationDetection.state} lastResponse={null} handleSelect={() => {}} handleTranscriptSelect={frustrationDetection.handleTranscriptSelect} inputValue={inputValue} setInputValue={setInputValue} />}
-                      {showIssueFlagBanner && <IssueFlagBanner />}
-                      {}
-                      <PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
+                <ReplPromptChrome isVisible={!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor} autoRunIssueReason={autoRunIssueReason} onRunAutoIssue={handleAutoRunIssue} onCancelAutoIssue={handleCancelAutoRunIssue} postCompactSurvey={postCompactSurvey} memorySurvey={memorySurvey} feedbackSurvey={feedbackSurvey} frustrationDetection={frustrationDetection} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} didAutoRunIssue={didAutoRunIssueRef.current} showIssueFlagBanner={showIssueFlagBanner} promptInput={<PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
             // Works during isLoading — edit cancels first; uuid selection survives appends.
             feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
-                      <SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />
-                    </>}
+                      } sessionBackgroundHint={<SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />} />
                 {cursor &&
           // inputValue is REPL state; typed text survives the round-trip.
           <MessageActionsBar cursor={cursor} />}
