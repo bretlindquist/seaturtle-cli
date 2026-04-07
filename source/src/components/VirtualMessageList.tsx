@@ -580,7 +580,23 @@ export function VirtualMessageList({
     // Precise scrollTo — scrollToIndex got us in the neighborhood
     // (item is mounted, maybe a few-dozen rows off due to overscan
     // estimate drift). Now land it at top-HEADROOM.
-    s.scrollTo(Math.max(0, getItemTop(idx) - HEADROOM));
+    const targetTop = Math.max(0, getItemTop(idx) - HEADROOM);
+    const beforeTop = s.getScrollTop();
+    if (beforeTop !== targetTop) {
+      s.scrollTo(targetTop);
+      // The current-match overlay anchors to Ink's rendered node rect.
+      // After a real viewport move that rect is stale until the next
+      // render, so re-arm the seek and let the next pass highlight.
+      if (tries < 3) {
+        scanRequestRef.current = {
+          idx,
+          wantLast,
+          tries: tries + 1
+        };
+        bumpSeek();
+        return;
+      }
+    }
     const positions = scanElement?.(el) ?? [];
     elementPositions.current = {
       msgIdx: idx,
