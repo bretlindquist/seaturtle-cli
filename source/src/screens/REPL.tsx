@@ -10,8 +10,6 @@ import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
 import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
-import { CostThresholdDialog } from '../components/CostThresholdDialog.js';
-import { IdleReturnDialog } from '../components/IdleReturnDialog.js';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue, useLayoutEffect } from 'react';
 import { useNotifications } from '../context/notifications.js';
@@ -47,7 +45,6 @@ import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInput
 import { MessageSelector, selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
-import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { PromptDialog } from '../components/hooks/PromptDialog.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
@@ -197,10 +194,8 @@ import { startBackgroundSession } from '../tasks/LocalMainSessionTask.js';
 import { useSessionBackgrounding } from '../hooks/useSessionBackgrounding.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
 import { handleSpeculationAccept, type ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
-import { IdeOnboardingDialog } from '../components/IdeOnboardingDialog.js';
-import { EffortCallout, shouldShowEffortCallout } from '../components/EffortCallout.js';
+import { shouldShowEffortCallout } from '../components/EffortCallout.js';
 import type { EffortValue } from '../utils/effort.js';
-import { RemoteCallout } from '../components/RemoteCallout.js';
 import { activityManager } from '../utils/activityManager.js';
 import { createAbortController } from '../utils/abortController.js';
 import { MCPConnectionManager } from 'src/services/mcp/MCPConnectionManager.js';
@@ -246,10 +241,8 @@ import { useAutoModeUnavailableNotification } from 'src/hooks/notifs/useAutoMode
 import { AUTO_MODE_DESCRIPTION } from 'src/components/AutoModeOptInDialog.js';
 import { useLspInitializationNotification } from 'src/hooks/notifs/useLspInitializationNotification.js';
 import { useLspPluginRecommendation } from 'src/hooks/useLspPluginRecommendation.js';
-import { LspRecommendationMenu } from 'src/components/LspRecommendation/LspRecommendationMenu.js';
 import { useClaudeCodeHintRecommendation } from 'src/hooks/useClaudeCodeHintRecommendation.js';
-import { PluginHintMenu } from 'src/components/ClaudeCodeHint/PluginHintMenu.js';
-import { DesktopUpsellStartup, shouldShowDesktopUpsellStartup } from 'src/components/DesktopUpsell/DesktopUpsellStartup.js';
+import { shouldShowDesktopUpsellStartup } from 'src/components/DesktopUpsell/DesktopUpsellStartup.js';
 import { usePluginInstallationStatus } from 'src/hooks/notifs/usePluginInstallationStatus.js';
 import { usePluginAutoupdateNotification } from 'src/hooks/notifs/usePluginAutoupdateNotification.js';
 import { performStartupChecks } from 'src/utils/plugins/performStartupChecks.js';
@@ -297,6 +290,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
+import { ReplFocusedDialogs } from './repl/ReplFocusedDialogs.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
@@ -4365,15 +4359,13 @@ export function REPL({
               }
             }));
           }} />}
-                {focusedInputDialog === 'elicitation' && <ElicitationDialog key={elicitation.queue[0]!.serverName + ':' + String(elicitation.queue[0]!.requestId)} event={elicitation.queue[0]!} onResponse={(action, content) => {
+                <ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={(action, content) => {
             const currentRequest = elicitation.queue[0];
             if (!currentRequest) return;
-            // Call respond callback to resolve Promise
             currentRequest.respond({
               action,
               content
             });
-            // For URL accept, keep in queue for phase 2
             const isUrlAccept = currentRequest.params.mode === 'url' && action === 'accept';
             if (!isUrlAccept) {
               setAppState(prev => ({
@@ -4383,9 +4375,8 @@ export function REPL({
                 }
               }));
             }
-          }} onWaitingDismiss={action => {
+          }} onElicitationWaitingDismiss={action => {
             const currentRequest = elicitation.queue[0];
-            // Remove from queue
             setAppState(prev => ({
               ...prev,
               elicitation: {
@@ -4393,8 +4384,7 @@ export function REPL({
               }
             }));
             currentRequest?.onWaitingDismiss?.(action);
-          }} />}
-                {focusedInputDialog === 'cost' && <CostThresholdDialog onDone={() => {
+          }} onCostDone={() => {
             setShowCostDialog(false);
             setHaveShownCostDialog(true);
             saveGlobalConfig(current => ({
@@ -4402,9 +4392,9 @@ export function REPL({
               hasAcknowledgedCostThreshold: true
             }));
             logEvent('tengu_cost_threshold_acknowledged', {});
-          }} />}
-                {focusedInputDialog === 'idle-return' && idleReturnPending && <IdleReturnDialog idleMinutes={idleReturnPending.idleMinutes} totalInputTokens={getTotalInputTokens()} onDone={async action => {
+          }} idleReturnPending={idleReturnPending} totalInputTokens={getTotalInputTokens()} onIdleReturnDone={async action => {
             const pending = idleReturnPending;
+            if (!pending) return;
             setIdleReturnPending(null);
             logEvent('tengu_idle_return_action', {
               action: action as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
@@ -4449,9 +4439,7 @@ export function REPL({
               clearBuffer: () => {},
               resetHistory: () => {}
             });
-          }} />}
-                {focusedInputDialog === 'ide-onboarding' && <IdeOnboardingDialog onDone={() => setShowIdeOnboarding(false)} installationStatus={ideInstallationStatus} />}
-                {focusedInputDialog === 'effort-callout' && <EffortCallout model={mainLoopModel} onDone={selection => {
+          }} onIdeOnboardingDone={() => setShowIdeOnboarding(false)} ideInstallationStatus={ideInstallationStatus} mainLoopModel={mainLoopModel} onEffortCalloutDone={selection => {
             setShowEffortCallout(false);
             if (selection !== 'dismiss') {
               setAppState(prev => ({
@@ -4459,8 +4447,7 @@ export function REPL({
                 effortValue: selection
               }));
             }
-          }} />}
-                {focusedInputDialog === 'remote-callout' && <RemoteCallout onDone={selection => {
+          }} onRemoteCalloutDone={selection => {
             setAppState(prev => {
               if (!prev.showRemoteCallout) return prev;
               return {
@@ -4473,15 +4460,7 @@ export function REPL({
                 })
               };
             });
-          }} />}
-
-                {exitFlow}
-
-                {focusedInputDialog === 'plugin-hint' && hintRecommendation && <PluginHintMenu pluginName={hintRecommendation.pluginName} pluginDescription={hintRecommendation.pluginDescription} marketplaceName={hintRecommendation.marketplaceName} sourceCommand={hintRecommendation.sourceCommand} onResponse={handleHintResponse} />}
-
-                {focusedInputDialog === 'lsp-recommendation' && lspRecommendation && <LspRecommendationMenu pluginName={lspRecommendation.pluginName} pluginDescription={lspRecommendation.pluginDescription} fileExtension={lspRecommendation.fileExtension} onResponse={handleLspResponse} />}
-
-                {focusedInputDialog === 'desktop-upsell' && <DesktopUpsellStartup onDone={() => setShowDesktopUpsellStartup(false)} />}
+          }} exitFlow={exitFlow} hintRecommendation={hintRecommendation} onHintResponse={handleHintResponse} lspRecommendation={lspRecommendation} onLspResponse={handleLspResponse} onDesktopUpsellDone={() => setShowDesktopUpsellStartup(false)} />
 
                 {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
 
