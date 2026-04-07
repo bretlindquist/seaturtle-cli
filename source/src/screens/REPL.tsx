@@ -314,6 +314,11 @@ import {
   TranscriptModeFooter,
   TranscriptSearchBar,
 } from './repl/ReplShellHelpers.js';
+import {
+  deriveFocusedInputDialog,
+  deriveHasSuppressedDialogs,
+  type FocusedInputDialog,
+} from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
@@ -794,7 +799,7 @@ export function REPL({
 
   // Ref to track current focusedInputDialog for use in callbacks
   // This avoids stale closures when checking dialog state in timer callbacks
-  const focusedInputDialogRef = React.useRef<ReturnType<typeof getFocusedInputDialog>>(undefined);
+  const focusedInputDialogRef = React.useRef<FocusedInputDialog | undefined>(undefined);
 
   // How long after the last keystroke before deferred dialogs are shown
   const PROMPT_SUPPRESSION_MS = 1500;
@@ -1839,62 +1844,44 @@ export function REPL({
   // Calculate if cost dialog should be shown
   const showingCostDialog = !isLoading && showCostDialog;
 
-  // Determine which dialog should have focus (if any)
-  // Permission and interactive dialogs can show even when toolJSX is set,
-  // as long as shouldContinueAnimation is true. This prevents deadlocks when
-  // agents set background hints while waiting for user interaction.
-  function getFocusedInputDialog(): 'message-selector' | 'sandbox-permission' | 'tool-permission' | 'prompt' | 'worker-sandbox-permission' | 'elicitation' | 'cost' | 'idle-return' | 'init-onboarding' | 'ide-onboarding' | 'model-switch' | 'undercover-callout' | 'effort-callout' | 'remote-callout' | 'lsp-recommendation' | 'plugin-hint' | 'desktop-upsell' | 'ultraplan-choice' | 'ultraplan-launch' | undefined {
-    // Exit states always take precedence
-    if (isExiting || exitFlow) return undefined;
+  const allowDialogsWithAnimation = !toolJSX || toolJSX.shouldContinueAnimation;
+  const focusedInputDialog = deriveFocusedInputDialog({
+    isExiting,
+    exitFlow,
+    isMessageSelectorVisible,
+    isPromptInputActive,
+    hasSandboxPermissionRequest: Boolean(sandboxPermissionRequestQueue[0]),
+    hasToolUseConfirm: Boolean(toolUseConfirmQueue[0]),
+    hasPromptQueue: Boolean(promptQueue[0]),
+    hasWorkerSandboxPermission: Boolean(workerSandboxPermissions.queue[0]),
+    hasElicitation: Boolean(elicitation.queue[0]),
+    showingCostDialog,
+    idleReturnPending: Boolean(idleReturnPending),
+    ultraplanEnabled: feature('ULTRAPLAN'),
+    allowDialogsWithAnimation,
+    isLoading,
+    ultraplanPendingChoice: Boolean(ultraplanPendingChoice),
+    ultraplanLaunchPending: Boolean(ultraplanLaunchPending),
+    showIdeOnboarding,
+    antDialogsEnabled: "external" === 'ant',
+    showModelSwitchCallout,
+    showUndercoverCallout,
+    showEffortCallout,
+    showRemoteCallout,
+    lspRecommendation: Boolean(lspRecommendation),
+    hintRecommendation: Boolean(hintRecommendation),
+    showDesktopUpsellStartup,
+  });
 
-    // High priority dialogs (always show regardless of typing)
-    if (isMessageSelectorVisible) return 'message-selector';
-
-    // Suppress interrupt dialogs while user is actively typing
-    if (isPromptInputActive) return undefined;
-    if (sandboxPermissionRequestQueue[0]) return 'sandbox-permission';
-
-    // Permission/interactive dialogs (show unless blocked by toolJSX)
-    const allowDialogsWithAnimation = !toolJSX || toolJSX.shouldContinueAnimation;
-    if (allowDialogsWithAnimation && toolUseConfirmQueue[0]) return 'tool-permission';
-    if (allowDialogsWithAnimation && promptQueue[0]) return 'prompt';
-    // Worker sandbox permission prompts (network access) from swarm workers
-    if (allowDialogsWithAnimation && workerSandboxPermissions.queue[0]) return 'worker-sandbox-permission';
-    if (allowDialogsWithAnimation && elicitation.queue[0]) return 'elicitation';
-    if (allowDialogsWithAnimation && showingCostDialog) return 'cost';
-    if (allowDialogsWithAnimation && idleReturnPending) return 'idle-return';
-    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanPendingChoice) return 'ultraplan-choice';
-    if (feature('ULTRAPLAN') && allowDialogsWithAnimation && !isLoading && ultraplanLaunchPending) return 'ultraplan-launch';
-
-    // Onboarding dialogs (special conditions)
-    if (allowDialogsWithAnimation && showIdeOnboarding) return 'ide-onboarding';
-
-    // Model switch callout (ant-only, eliminated from external builds)
-    if ("external" === 'ant' && allowDialogsWithAnimation && showModelSwitchCallout) return 'model-switch';
-
-    // Undercover auto-enable explainer (ant-only, eliminated from external builds)
-    if ("external" === 'ant' && allowDialogsWithAnimation && showUndercoverCallout) return 'undercover-callout';
-
-    // Effort callout (shown once for Opus 4.6 users when effort is enabled)
-    if (allowDialogsWithAnimation && showEffortCallout) return 'effort-callout';
-
-    // Remote callout (shown once before first bridge enable)
-    if (allowDialogsWithAnimation && showRemoteCallout) return 'remote-callout';
-
-    // LSP plugin recommendation (lowest priority - non-blocking suggestion)
-    if (allowDialogsWithAnimation && lspRecommendation) return 'lsp-recommendation';
-
-    // Plugin hint from CLI/SDK stderr (same priority band as LSP rec)
-    if (allowDialogsWithAnimation && hintRecommendation) return 'plugin-hint';
-
-    // Desktop app upsell (max 3 launches, lowest priority)
-    if (allowDialogsWithAnimation && showDesktopUpsellStartup) return 'desktop-upsell';
-    return undefined;
-  }
-  const focusedInputDialog = getFocusedInputDialog();
-
-  // True when permission prompts exist but are hidden because the user is typing
-  const hasSuppressedDialogs = isPromptInputActive && (sandboxPermissionRequestQueue[0] || toolUseConfirmQueue[0] || promptQueue[0] || workerSandboxPermissions.queue[0] || elicitation.queue[0] || showingCostDialog);
+  const hasSuppressedDialogs = deriveHasSuppressedDialogs({
+    isPromptInputActive,
+    hasSandboxPermissionRequest: Boolean(sandboxPermissionRequestQueue[0]),
+    hasToolUseConfirm: Boolean(toolUseConfirmQueue[0]),
+    hasPromptQueue: Boolean(promptQueue[0]),
+    hasWorkerSandboxPermission: Boolean(workerSandboxPermissions.queue[0]),
+    hasElicitation: Boolean(elicitation.queue[0]),
+    showingCostDialog,
+  });
 
   // Keep ref in sync so timer callbacks can read the current value
   focusedInputDialogRef.current = focusedInputDialog;
