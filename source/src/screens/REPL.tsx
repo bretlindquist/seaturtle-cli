@@ -286,6 +286,7 @@ import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
 import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
+import { ReplBottomPane } from './repl/ReplBottomPane.js';
 import { ReplFocusedDialogs } from './repl/ReplFocusedDialogs.js';
 import { ReplPermissionOverlays } from './repl/ReplPermissionOverlays.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
@@ -4279,25 +4280,11 @@ export function REPL({
               {isFullscreenEnvEnabled() && <PromptInputQueuedCommands />}
             </>} bottom={<Box flexDirection={feature('BUDDY') && companionNarrow ? 'column' : 'row'} width="100%" alignItems={feature('BUDDY') && companionNarrow ? undefined : 'flex-end'}>
               {feature('BUDDY') && companionNarrow && isFullscreenEnvEnabled() && companionVisible ? <CompanionSprite /> : null}
-              <Box flexDirection="column" flexGrow={1}>
-                {permissionStickyFooter}
-                {/* Immediate local-jsx commands (/btw, /sandbox, /assistant,
-                  /issue) render here, NOT inside scrollable. They stay mounted
-                  while the main conversation streams behind them, so ScrollBox
-                  relayouts on each new message would drag them around. bottom
-                  is flexShrink={0} outside the ScrollBox — it never moves.
-                  Non-immediate local-jsx (/diff, /status, /theme, ~40 others)
-                  stays in scrollable: the main loop is paused so no jiggle,
-                  and their tall content (DiffDetailView renders up to 400
-                  lines with no internal scroll) needs the outer ScrollBox. */}
-                {toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered && <Box flexDirection="column" width="100%">
-                      {toolJSX.jsx}
-                    </Box>}
-                {!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 && <Box width="100%" flexDirection="column">
-                      <TaskListV2 tasks={tasksV2} isStandalone={true} />
-                    </Box>}
-                <ReplPermissionOverlays focusedInputDialog={focusedInputDialog} sandboxHostPattern={sandboxPermissionRequestQueue[0]?.hostPattern} onSandboxPermissionResponse={handleSandboxPermissionResponse} promptItem={promptQueue[0]} onPromptRespond={handlePromptRespond} onPromptAbort={handlePromptAbort} pendingWorkerRequest={pendingWorkerRequest} pendingSandboxRequest={pendingSandboxRequest} workerSandboxRequest={workerSandboxPermissions.queue[0]} onWorkerSandboxPermissionResponse={handleWorkerSandboxPermissionResponse} />
-                <ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={handleElicitationResponse} onElicitationWaitingDismiss={handleElicitationWaitingDismiss} onCostDone={handleCostDone} idleReturnPending={idleReturnPending} totalInputTokens={getTotalInputTokens()} onIdleReturnDone={async action => {
+              <ReplBottomPane permissionStickyFooter={permissionStickyFooter} immediateLocalJsx={toolJSX?.isLocalJSXCommand && toolJSX.isImmediate && !toolJsxCentered ? <Box flexDirection="column" width="100%">
+                    {toolJSX.jsx}
+                  </Box> : null} standaloneTodos={!showSpinner && !toolJSX?.isLocalJSXCommand && showExpandedTodos && tasksV2 && tasksV2.length > 0 ? <Box width="100%" flexDirection="column">
+                    <TaskListV2 tasks={tasksV2} isStandalone={true} />
+                  </Box> : null} permissionOverlays={<ReplPermissionOverlays focusedInputDialog={focusedInputDialog} sandboxHostPattern={sandboxPermissionRequestQueue[0]?.hostPattern} onSandboxPermissionResponse={handleSandboxPermissionResponse} promptItem={promptQueue[0]} onPromptRespond={handlePromptRespond} onPromptAbort={handlePromptAbort} pendingWorkerRequest={pendingWorkerRequest} pendingSandboxRequest={pendingSandboxRequest} workerSandboxRequest={workerSandboxPermissions.queue[0]} onWorkerSandboxPermissionResponse={handleWorkerSandboxPermissionResponse} />} focusedDialogs={<ReplFocusedDialogs focusedInputDialog={focusedInputDialog} elicitationEvent={elicitation.queue[0]} onElicitationResponse={handleElicitationResponse} onElicitationWaitingDismiss={handleElicitationWaitingDismiss} onCostDone={handleCostDone} idleReturnPending={idleReturnPending} totalInputTokens={getTotalInputTokens()} onIdleReturnDone={async action => {
             const pendingInput = idleReturnPending?.input;
             await handleIdleReturnDone(action);
             if (action === 'dismiss' || !pendingInput) return;
@@ -4307,11 +4294,7 @@ export function REPL({
               clearBuffer: () => {},
               resetHistory: () => {}
             });
-          }} onIdeOnboardingDone={handleIdeOnboardingDone} ideInstallationStatus={ideInstallationStatus} mainLoopModel={mainLoopModel} onEffortCalloutDone={handleEffortCalloutDone} onRemoteCalloutDone={handleRemoteCalloutDone} exitFlow={exitFlow} hintRecommendation={hintRecommendation} onHintResponse={handleHintResponse} lspRecommendation={lspRecommendation} onLspResponse={handleLspResponse} onDesktopUpsellDone={handleDesktopUpsellDone} />
-
-                {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null}
-
-                {feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
+          }} onIdeOnboardingDone={handleIdeOnboardingDone} ideInstallationStatus={ideInstallationStatus} mainLoopModel={mainLoopModel} onEffortCalloutDone={handleEffortCalloutDone} onRemoteCalloutDone={handleRemoteCalloutDone} exitFlow={exitFlow} hintRecommendation={hintRecommendation} onHintResponse={handleHintResponse} lspRecommendation={lspRecommendation} onLspResponse={handleLspResponse} onDesktopUpsellDone={handleDesktopUpsellDone} />} ultraplanChoiceDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null} ultraplanLaunchDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
             const blurb = ultraplanLaunchPending.blurb;
             setAppState(prev => prev.ultraplanLaunchPending ? {
               ...prev,
@@ -4349,20 +4332,12 @@ export function REPL({
               disconnectedBridge: opts?.disconnectedBridge,
               onSessionReady: appendWhenIdle
             }).then(appendStdout).catch(logError);
-          }} /> : null}
-
-                {mrRender()}
-
-                <ReplPromptChrome isVisible={!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor} autoRunIssueReason={autoRunIssueReason} onRunAutoIssue={handleAutoRunIssue} onCancelAutoIssue={handleCancelAutoRunIssue} postCompactSurvey={postCompactSurvey} memorySurvey={memorySurvey} feedbackSurvey={feedbackSurvey} frustrationDetection={frustrationDetection} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} didAutoRunIssue={didAutoRunIssueRef.current} showIssueFlagBanner={showIssueFlagBanner} promptInput={<PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
+          }} /> : null} moreRightNode={mrRender()} promptChrome={<ReplPromptChrome isVisible={!toolJSX?.shouldHidePromptInput && !focusedInputDialog && !isExiting && !disabled && !cursor} autoRunIssueReason={autoRunIssueReason} onRunAutoIssue={handleAutoRunIssue} onCancelAutoIssue={handleCancelAutoRunIssue} postCompactSurvey={postCompactSurvey} memorySurvey={memorySurvey} feedbackSurvey={feedbackSurvey} frustrationDetection={frustrationDetection} inputValue={inputValue} setInputValue={setInputValue} onRequestFeedback={handleSurveyRequestFeedback} didAutoRunIssue={didAutoRunIssueRef.current} showIssueFlagBanner={showIssueFlagBanner} promptInput={<PromptInput debug={debug} ideSelection={ideSelection} hasSuppressedDialogs={!!hasSuppressedDialogs} isLocalJSXCommandActive={isShowingLocalJSXCommand} getToolUseContext={getToolUseContext} toolPermissionContext={toolPermissionContext} setToolPermissionContext={setToolPermissionContext} apiKeyStatus={apiKeyStatus} commands={commands} agents={agentDefinitions.activeAgents} isLoading={isLoading} onExit={handleExit} verbose={verbose} messages={messages} onAutoUpdaterResult={setAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} input={inputValue} onInputChange={setInputValue} mode={inputMode} onModeChange={setInputMode} stashedPrompt={stashedPrompt} setStashedPrompt={setStashedPrompt} submitCount={submitCount} onShowMessageSelector={handleShowMessageSelector} onMessageActionsEnter={
             // Works during isLoading — edit cancels first; uuid selection survives appends.
             feature('MESSAGE_ACTIONS') && isFullscreenEnvEnabled() && !disableMessageActions ? enterMessageActions : undefined} mcpClients={mcpClients} pastedContents={pastedContents} setPastedContents={setPastedContents} vimMode={vimMode} setVimMode={setVimMode} showBashesDialog={showBashesDialog} setShowBashesDialog={setShowBashesDialog} onSubmit={onSubmit} onAgentSubmit={onAgentSubmit} isSearchingHistory={isSearchingHistory} setIsSearchingHistory={setIsSearchingHistory} helpOpen={isHelpOpen} setHelpOpen={setIsHelpOpen} insertTextRef={feature('VOICE_MODE') ? insertTextRef : undefined} voiceInterimRange={voice.interimRange} />
-                      } sessionBackgroundHint={<SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />} />
-                {cursor &&
+                      } sessionBackgroundHint={<SessionBackgroundHint onBackgroundSession={handleBackgroundSession} isLoading={isLoading} />} />} messageActionsBar={cursor &&
           // inputValue is REPL state; typed text survives the round-trip.
-          <MessageActionsBar cursor={cursor} />}
-                {focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={handleRestoreCode} onSummarize={handleSummarize} onRestoreMessage={handleRestoreMessage} onClose={closeMessageSelector} />}
-                <ReplAntChrome focusedInputDialog={focusedInputDialog} setAppState={setAppState} setShowModelSwitchCallout={setShowModelSwitchCallout} setShowUndercoverCallout={setShowUndercoverCallout} skillImprovementSurvey={skillImprovementSurvey} inputValue={inputValue} setInputValue={setInputValue} />
-              </Box>
+          <MessageActionsBar cursor={cursor} />} messageSelector={focusedInputDialog === 'message-selector' && <MessageSelector messages={messages} preselectedMessage={messageSelectorPreselect} onPreRestore={onCancel} onRestoreCode={handleRestoreCode} onSummarize={handleSummarize} onRestoreMessage={handleRestoreMessage} onClose={closeMessageSelector} />} antChrome={<ReplAntChrome focusedInputDialog={focusedInputDialog} setAppState={setAppState} setShowModelSwitchCallout={setShowModelSwitchCallout} setShowUndercoverCallout={setShowUndercoverCallout} skillImprovementSurvey={skillImprovementSurvey} inputValue={inputValue} setInputValue={setInputValue} />} />
               {feature('BUDDY') && !(companionNarrow && isFullscreenEnvEnabled()) && companionVisible ? <CompanionSprite /> : null}
             </Box>} />
       </MCPConnectionManager>
