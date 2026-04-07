@@ -110,6 +110,7 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
+import { buildSteerCheckpoint } from './utils/steerCheckpoint.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1412,6 +1413,7 @@ async function* queryLoop(
     let nextPendingToolUseSummary:
       | Promise<ToolUseSummaryMessage | null>
       | undefined
+    let lastAssistantText: string | undefined
     if (
       config.gates.emitToolUseSummaries &&
       toolUseBlocks.length > 0 &&
@@ -1420,7 +1422,6 @@ async function* queryLoop(
     ) {
       // Extract the last assistant text block for context
       const lastAssistantMessage = assistantMessages.at(-1)
-      let lastAssistantText: string | undefined
       if (lastAssistantMessage) {
         const textBlocks = lastAssistantMessage.message.content.filter(
           block => block.type === 'text',
@@ -1589,6 +1590,19 @@ async function* queryLoop(
       // user prompts, even if someone stamps an agentId on one.
       return cmd.mode === 'task-notification' && cmd.agentId === currentAgentId
     })
+
+    const steerCheckpoint = buildSteerCheckpoint({
+      stepNumber: turnCount,
+      lastAssistantText,
+      queuedCommands: queuedCommandsSnapshot,
+      toolNames: toolUseBlocks.map(block => block.name),
+    })
+
+    if (steerCheckpoint) {
+      const checkpointMessage = createAttachmentMessage(steerCheckpoint)
+      yield checkpointMessage
+      toolResults.push(checkpointMessage)
+    }
 
     for await (const attachment of getAttachmentMessages(
       null,
