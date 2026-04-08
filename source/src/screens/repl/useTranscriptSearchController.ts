@@ -9,8 +9,9 @@ type UseTranscriptSearchControllerInput = {
   searchQuery: string
   searchCount: number
   jumpRef: RefObject<JumpHandle | null>
-  setSearchOpen: (open: boolean) => void
-  setSearchQuery: (query: string) => void
+  openSearch: () => void
+  closeSearch: () => void
+  commitSearchQuery: (query: string) => void
   clearSearchState: () => void
 }
 
@@ -20,8 +21,9 @@ export function useTranscriptSearchController({
   searchQuery,
   searchCount,
   jumpRef,
-  setSearchOpen,
-  setSearchQuery,
+  openSearch,
+  closeSearch,
+  commitSearchQuery,
   clearSearchState,
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
@@ -32,12 +34,12 @@ export function useTranscriptSearchController({
     if (prevColsRef.current !== transcriptCols) {
       prevColsRef.current = transcriptCols;
       if (searchQuery || searchOpen) {
-        setSearchOpen(false);
+        closeSearch();
         clearSearchState();
         jumpRef.current?.disarmSearch();
       }
     }
-  }, [clearSearchState, jumpRef, searchOpen, searchQuery, setSearchOpen, transcriptCols]);
+  }, [clearSearchState, closeSearch, jumpRef, searchOpen, searchQuery, transcriptCols]);
 
   useEffect(() => {
     const wasOpen = prevSearchOpenRef.current;
@@ -48,23 +50,25 @@ export function useTranscriptSearchController({
     jumpRef.current?.refreshCurrentMatch?.();
   }, [jumpRef, screen, searchOpen, searchQuery]);
 
-  const handleSearchClose = (q: string) => {
+  const handleCloseSearchBar = (q: string) => {
     const committedQuery = searchCount > 0 ? q : '';
-    setSearchQuery(committedQuery);
-    setSearchOpen(false);
+    commitSearchQuery(committedQuery);
+    closeSearch();
     if (!q) {
       clearSearchState();
       jumpRef.current?.setSearchQuery('');
     }
   };
 
-  const handleSearchCancel = () => {
-    setSearchOpen(false);
+  const handleCancelSearchBar = () => {
+    closeSearch();
     jumpRef.current?.setSearchQuery('');
     jumpRef.current?.setSearchQuery(searchQuery);
   };
+
   return {
-    handleSearchClose,
-    handleSearchCancel
+    openSearch,
+    handleCloseSearchBar,
+    handleCancelSearchBar,
   };
 }

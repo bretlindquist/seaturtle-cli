@@ -8,7 +8,7 @@ type UseTranscriptSearchHotkeysInput = {
   dumpMode: boolean
   hasNavigableMatches: boolean
   jumpRef: RefObject<JumpHandle | null>
-  setSearchOpen: (open: boolean) => void
+  openSearch: () => void
 }
 
 function matchesLiteralKey(
@@ -44,14 +44,14 @@ export function useTranscriptSearchHotkeys({
   dumpMode,
   hasNavigableMatches,
   jumpRef,
-  setSearchOpen,
+  openSearch,
 }: UseTranscriptSearchHotkeysInput): void {
   useInput(
     (input, key, event) => {
       if (key.ctrl || key.meta) return;
       if (matchesLiteralKey(input, key, '/')) {
         jumpRef.current?.setAnchor();
-        setSearchOpen(true);
+        openSearch();
         event.stopImmediatePropagation();
         return;
       }

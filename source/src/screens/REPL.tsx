@@ -3757,14 +3757,6 @@ export function REPL({
   // gates the useInput. Query persists across bar open/close so n/N keep
   // working after Enter dismisses the bar (less semantics).
   const jumpRef = useRef<JumpHandle | null>(null);
-  useTranscriptSearchHotkeys({
-    screen,
-    searchOpen,
-    dumpMode,
-    hasNavigableMatches,
-    jumpRef,
-    setSearchOpen
-  });
   const {
     setQuery: setTranscriptHighlightQuery,
     setRowRange: setTranscriptHighlightRowRange,
@@ -3779,17 +3771,27 @@ export function REPL({
     setTranscriptHighlightRowRange,
   });
   const {
-    handleSearchClose,
-    handleSearchCancel
+    openSearch,
+    handleCloseSearchBar,
+    handleCancelSearchBar
   } = useTranscriptSearchController({
     screen,
     searchOpen,
     searchQuery,
     searchCount,
     jumpRef,
-    setSearchOpen,
-    setSearchQuery: commitSearchQuery,
+    openSearch: () => setSearchOpen(true),
+    closeSearch: () => setSearchOpen(false),
+    commitSearchQuery,
     clearSearchState
+  });
+  useTranscriptSearchHotkeys({
+    screen,
+    searchOpen,
+    dumpMode,
+    hasNavigableMatches,
+    jumpRef,
+    openSearch
   });
 
   useTranscriptEscapeHotkeys({
@@ -3879,7 +3881,7 @@ export function REPL({
       // memory (cursor lands after 'foo', /hello → foohello).
       // Cancel-restore handles the 'don't lose prior search'
       // concern differently (onCancel re-applies searchQuery).
-      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleSearchClose} onCancel={handleSearchCancel} />;
+      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleCloseSearchBar} onCancel={handleCancelSearchBar} />;
     const transcriptReturn = <KeybindingSetup>
         <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />

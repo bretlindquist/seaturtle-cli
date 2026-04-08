@@ -11,7 +11,11 @@ import {
   getTranscriptSearchEngineTotal,
   setTranscriptSearchEngineCursor,
 } from './transcriptSearchEngine.js';
-import { getTranscriptSearchNextCursor, getTranscriptSearchPreviousCursor } from './transcriptSearchModel.js';
+import {
+  getTranscriptSearchNextCursor,
+  getTranscriptSearchPreviousCursor,
+  normalizeTranscriptSearchQuery,
+} from './transcriptSearchModel.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
