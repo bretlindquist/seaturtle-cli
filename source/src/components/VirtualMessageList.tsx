@@ -147,6 +147,10 @@ function getPlaceholderSearchOrdinal(
   return getTranscriptSearchCurrent(state.snapshot, ptr, occurrenceOrdinal);
 }
 
+function getCurrentMessageOccurrenceCount(state: SearchNavigationState): number {
+  return getTranscriptSearchOccurrenceCount(state.snapshot, state.ptr);
+}
+
 function findNearestSearchMatchPtr(
   matches: number[],
   offsets: Float64Array,
@@ -577,7 +581,9 @@ export function VirtualMessageList({
       return true;
     }
     phantomBurstRef.current = 0;
-    const ord = wantLast ? positions.length - 1 : 0;
+    const expectedOccurrences = Math.max(1, getCurrentMessageOccurrenceCount(searchState.current));
+    const usablePositions = Math.min(positions.length, expectedOccurrences);
+    const ord = wantLast ? Math.max(0, usablePositions - 1) : 0;
     searchState.current.screenOrd = ord;
     startPtrRef.current = -1;
     highlightRef.current(ord);
@@ -613,7 +619,18 @@ export function VirtualMessageList({
       clearActiveResult();
       return;
     }
-    const idx = Math.max(0, Math.min(ord, positions.length - 1));
+    const st = searchState.current;
+    const expectedOccurrences = Math.max(0, getCurrentMessageOccurrenceCount(st));
+    if (expectedOccurrences === 0) {
+      clearActiveResult();
+      return;
+    }
+    const usablePositions = Math.min(positions.length, expectedOccurrences);
+    if (usablePositions <= 0) {
+      clearActiveResult();
+      return;
+    }
+    const idx = Math.max(0, Math.min(ord, usablePositions - 1));
     setActiveResultMatch(msgIdx, idx);
     const p = positions[idx]!;
     const top = jumpState.current.getItemTop(msgIdx);
@@ -637,7 +654,6 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    const st = searchState.current;
     const total = getSearchTotal(st);
     const current = getCurrentSearchOrdinal(st, idx);
     reportSearchProgress(total, current);
@@ -735,8 +751,10 @@ export function VirtualMessageList({
     const {
       positions
     } = elementPositions.current;
+    const currentMessageOccurrenceCount = getCurrentMessageOccurrenceCount(st);
+    const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
     const newOrd = st.screenOrd + delta;
-    if (newOrd >= 0 && newOrd < positions.length) {
+    if (newOrd >= 0 && newOrd < usablePositions) {
       st.screenOrd = newOrd;
       highlight(newOrd); // updates badge internally
       startPtrRef.current = -1;
@@ -746,8 +764,8 @@ export function VirtualMessageList({
     // Exhausted visible. Advance ptr → jump → re-scan.
     const ptr = wrapTranscriptSearchPtr(st.ptr, delta, matches.length);
     if (ptr === startPtrRef.current) {
-      if (positions.length > 0) {
-        const wrapOrd = delta < 0 ? positions.length - 1 : 0;
+      if (usablePositions > 0) {
+        const wrapOrd = delta < 0 ? usablePositions - 1 : 0;
         st.ptr = ptr;
         st.screenOrd = wrapOrd;
         highlight(wrapOrd);
@@ -837,7 +855,9 @@ export function VirtualMessageList({
         msgIdx,
         positions
       } = elementPositions.current;
-      if (msgIdx === st.snapshot.matches[st.ptr] && positions.length > 0) {
+      const currentMessageOccurrenceCount = getCurrentMessageOccurrenceCount(st);
+      const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
+      if (msgIdx === st.snapshot.matches[st.ptr] && usablePositions > 0) {
         highlightRef.current(st.screenOrd);
         return;
       }

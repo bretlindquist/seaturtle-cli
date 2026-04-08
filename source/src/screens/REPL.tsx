@@ -3766,6 +3766,7 @@ export function REPL({
   });
   const {
     setQuery: setTranscriptHighlightQuery,
+    setRowRange: setTranscriptHighlightRowRange,
     scanElement
   } = useSearchHighlight();
   useEffect(() => {
@@ -3774,6 +3775,26 @@ export function REPL({
       setTranscriptHighlightQuery('');
     };
   }, [screen, searchQuery, setTranscriptHighlightQuery]);
+  useEffect(() => {
+    if (screen !== 'transcript' || !transcriptVirtualScrollActive || !searchQuery) {
+      setTranscriptHighlightRowRange(null);
+      return;
+    }
+    const handle = scrollRef.current;
+    if (!handle) {
+      setTranscriptHighlightRowRange(null);
+      return;
+    }
+    const top = handle.getViewportTop();
+    const bottom = top + handle.getViewportHeight() - 1;
+    setTranscriptHighlightRowRange({
+      start: top,
+      end: bottom,
+    });
+    return () => {
+      setTranscriptHighlightRowRange(null);
+    };
+  }, [screen, searchQuery, setTranscriptHighlightRowRange, transcriptVirtualScrollActive]);
   const {
     handleSearchClose,
     handleSearchCancel
