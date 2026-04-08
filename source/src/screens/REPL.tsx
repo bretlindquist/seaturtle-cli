@@ -90,7 +90,7 @@ const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
 } = feature('COORDINATOR_MODE') ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import useCanUseTool from '../hooks/useCanUseTool.js';
-import type { ToolPermissionContext, Tool } from '../Tool.js';
+import type { Tool } from '../Tool.js';
 import { getScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js';
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
 import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
@@ -296,6 +296,10 @@ import {
 } from './repl/prepareReplSubmitState.js';
 import { handleReplSpeculationAcceptance } from './repl/handleReplSpeculationAcceptance.js';
 import { submitLocalReplPrompt } from './repl/submitLocalReplPrompt.js';
+import {
+  createReplPromptRequester,
+  createSetReplToolPermissionContext,
+} from './repl/toolPermissionBridge.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2118,37 +2122,10 @@ export function REPL({
       gracefulShutdownSync(1, 'other');
     });
   }
-  const setToolPermissionContext = useCallback((context: ToolPermissionContext, options?: {
-    preserveMode?: boolean;
-  }) => {
-    setAppState(prev => ({
-      ...prev,
-      toolPermissionContext: {
-        ...context,
-        // Preserve the coordinator's mode only when explicitly requested.
-        // Workers' getAppState() returns a transformed context with mode
-        // 'acceptEdits' that must not leak into the coordinator's actual
-        // state via permission-rule updates — those call sites pass
-        // { preserveMode: true }. User-initiated mode changes (e.g.,
-        // selecting "allow all edits") must NOT be overridden.
-        mode: options?.preserveMode ? prev.toolPermissionContext.mode : context.mode
-      }
-    }));
-
-    // When permission context changes, recheck all queued items
-    // This handles the case where approving item1 with "don't ask again"
-    // should auto-approve other queued items that now match the updated rules
-    setImmediate(setToolUseConfirmQueue => {
-      // Use setToolUseConfirmQueue callback to get current queue state
-      // instead of capturing it in the closure, to avoid stale closure issues
-      setToolUseConfirmQueue(currentQueue => {
-        currentQueue.forEach(item => {
-          void item.recheckPermission();
-        });
-        return currentQueue;
-      });
-    }, setToolUseConfirmQueue);
-  }, [setAppState, setToolUseConfirmQueue]);
+  const setToolPermissionContext = useCallback(createSetReplToolPermissionContext({
+    setAppState,
+    setToolUseConfirmQueue,
+  }), [setAppState, setToolUseConfirmQueue]);
 
   // Register the leader's setToolPermissionContext for in-process teammates
   useEffect(() => {
@@ -2156,14 +2133,8 @@ export function REPL({
     return () => unregisterLeaderSetToolPermissionContext();
   }, [setToolPermissionContext]);
   const canUseTool = useCanUseTool(setToolUseConfirmQueue, setToolPermissionContext);
-  const requestPrompt = useCallback((title: string, toolInputSummary?: string | null) => (request: PromptRequest): Promise<PromptResponse> => new Promise<PromptResponse>((resolve, reject) => {
-    setPromptQueue(prev => [...prev, {
-      request,
-      title,
-      toolInputSummary,
-      resolve,
-      reject
-    }]);
+  const requestPrompt = useCallback(createReplPromptRequester({
+    setPromptQueue,
   }), []);
   const getToolUseContext = useCallback((messages: MessageType[], newMessages: MessageType[], abortController: AbortController, mainLoopModel: string): ProcessUserInputContext => {
     // Read mutable values fresh from the store rather than closure-capturing
