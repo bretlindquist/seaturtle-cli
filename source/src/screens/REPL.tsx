@@ -132,7 +132,6 @@ import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
 import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs';
 import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
 import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
@@ -238,7 +237,6 @@ import { CompanionFloatingBubble, MIN_COLS_FOR_FULL_SPRITE } from '../buddy/Comp
 // Session manager removed - using AppState now
 import type { RemoteSessionConfig } from '../remote/RemoteSessionManager.js';
 import { REMOTE_SAFE_COMMANDS } from '../commands.js';
-import type { RemoteMessageContent } from '../utils/teleport/api.js';
 import { useUnseenDivider, computeUnseenDivider } from '../components/FullscreenLayout.js';
 import { isFullscreenEnvEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
@@ -291,6 +289,7 @@ import {
   finalizeCompletedOuterReplQuery,
   maybeRestoreCanceledOuterReplQuery,
 } from './repl/finalizeOuterReplQuery.js';
+import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2863,75 +2862,14 @@ export function REPL({
     // process — they have no remote equivalent. Let those fall through to
     // handlePromptSubmit so they execute locally. Prompt commands and
     // plain text go to the remote.
-    if (activeRemote.isRemoteMode && !(isSlashCommand && commands.find(c => {
-      const name = input.trim().slice(1).split(/\s/)[0];
-      return isCommandEnabled(c) && (c.name === name || c.aliases?.includes(name!) || getCommandName(c) === name);
-    })?.type === 'local-jsx')) {
-      // Build content blocks when there are pasted attachments (images)
-      const pastedValues = Object.values(pastedContents);
-      const imageContents = pastedValues.filter(c => c.type === 'image');
-      const imagePasteIds = imageContents.length > 0 ? imageContents.map(c => c.id) : undefined;
-      let messageContent: string | ContentBlockParam[] = input.trim();
-      let remoteContent: RemoteMessageContent = input.trim();
-      if (pastedValues.length > 0) {
-        const contentBlocks: ContentBlockParam[] = [];
-        const remoteBlocks: Array<{
-          type: string;
-          [key: string]: unknown;
-        }> = [];
-        const trimmedInput = input.trim();
-        if (trimmedInput) {
-          contentBlocks.push({
-            type: 'text',
-            text: trimmedInput
-          });
-          remoteBlocks.push({
-            type: 'text',
-            text: trimmedInput
-          });
-        }
-        for (const pasted of pastedValues) {
-          if (pasted.type === 'image') {
-            const source = {
-              type: 'base64' as const,
-              media_type: (pasted.mediaType ?? 'image/png') as 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp',
-              data: pasted.content
-            };
-            contentBlocks.push({
-              type: 'image',
-              source
-            });
-            remoteBlocks.push({
-              type: 'image',
-              source
-            });
-          } else {
-            contentBlocks.push({
-              type: 'text',
-              text: pasted.content
-            });
-            remoteBlocks.push({
-              type: 'text',
-              text: pasted.content
-            });
-          }
-        }
-        messageContent = contentBlocks;
-        remoteContent = remoteBlocks;
-      }
-
-      // Create and add user message to UI
-      // Note: empty input already handled by early return above
-      const userMessage = createUserMessage({
-        content: messageContent,
-        imagePasteIds
-      });
-      setMessages(prev => [...prev, userMessage]);
-
-      // Send to remote session
-      await activeRemote.sendMessage(remoteContent, {
-        uuid: userMessage.uuid
-      });
+    if (await submitRemoteReplInput({
+      input,
+      pastedContents,
+      activeRemote,
+      isSlashCommand,
+      commands,
+      setMessages,
+    })) {
       return;
     }
 
