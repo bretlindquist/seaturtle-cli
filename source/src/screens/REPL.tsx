@@ -16,7 +16,7 @@ import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
-import { getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore, resetTurnHookDuration, resetTurnToolDuration, resetTurnClassifierDuration } from '../bootstrap/state.js';
+import { getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore } from '../bootstrap/state.js';
 import { asSessionId, asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
@@ -112,7 +112,6 @@ import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { useTelegramBridge } from '../hooks/useTelegramBridge.js';
 import { queryCheckpoint } from '../utils/queryProfiler.js';
 import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMessage } from '../types/message.js';
-import { query } from '../query.js';
 import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
 import { getQuerySourceForREPL } from '../utils/promptCategory.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
@@ -283,6 +282,7 @@ import {
 import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSystemPrompt.js';
 import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
 import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
+import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2469,22 +2469,16 @@ export function REPL({
       appendSystemPrompt: effectiveAppendSystemPrompt
     });
     toolUseContext.renderedSystemPrompt = systemPrompt;
-    queryCheckpoint('query_query_start');
-    resetTurnHookDuration();
-    resetTurnToolDuration();
-    resetTurnClassifierDuration();
-    for await (const event of query({
+    await runReplQueryLoop({
       messages: messagesIncludingNewMessages,
       systemPrompt,
       userContext,
       systemContext,
       canUseTool,
       toolUseContext,
-      querySource: getQuerySourceForREPL()
-    })) {
-      onQueryEvent(event);
-    }
-    queryCheckpoint('query_end');
+      onQueryEvent,
+      querySource: getQuerySourceForREPL(),
+    });
     await finalizeReplQueryTurn({
       messagesRef,
       setMessages,
