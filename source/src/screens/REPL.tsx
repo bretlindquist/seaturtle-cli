@@ -10,7 +10,6 @@ import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue, useLayoutEffect } from 'react';
 import { useNotifications } from '../context/notifications.js';
-import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
@@ -114,7 +113,6 @@ import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMe
 import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
 import { getQuerySourceForREPL } from '../utils/promptCategory.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
-import { mergeAndFilterTools } from '../utils/toolPool.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useSkillsChange } from '../hooks/useSkillsChange.js';
 import { useManagePlugins } from '../hooks/useManagePlugins.js';
@@ -127,12 +125,11 @@ import { randomUUID, type UUID } from 'crypto';
 import { processSessionStartHooks } from '../utils/sessionStart.js';
 import { executeSessionEndHooks, getSessionEndHookTimeoutMs } from '../utils/hooks.js';
 import { type IDESelection, useIdeSelection } from '../hooks/useIdeSelection.js';
-import { getTools, assembleToolPool } from '../tools.js';
+import { getTools } from '../tools.js';
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
 import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
-import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
 import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, restoreSessionMetadata, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
@@ -141,8 +138,7 @@ import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../u
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
-import { type FileHistoryState, type FileHistorySnapshot, copyFileHistoryForResume } from '../utils/fileHistory.js';
-import { type AttributionState } from '../utils/commitAttribution.js';
+import { type FileHistorySnapshot, copyFileHistoryForResume } from '../utils/fileHistory.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
 import { isBgSession, updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
 import { restoreRemoteAgentTasks } from '../tasks/RemoteAgentTask/RemoteAgentTask.js';
@@ -300,6 +296,7 @@ import {
   createReplPromptRequester,
   createSetReplToolPermissionContext,
 } from './repl/toolPermissionBridge.js';
+import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2136,138 +2133,48 @@ export function REPL({
   const requestPrompt = useCallback(createReplPromptRequester({
     setPromptQueue,
   }), []);
-  const getToolUseContext = useCallback((messages: MessageType[], newMessages: MessageType[], abortController: AbortController, mainLoopModel: string): ProcessUserInputContext => {
-    // Read mutable values fresh from the store rather than closure-capturing
-    // useAppState() snapshots. Same values today (closure is refreshed by the
-    // render between turns); decouples freshness from React's render cycle for
-    // a future headless conversation loop. Same pattern refreshTools() uses.
-    const s = store.getState();
-
-    // Compute tools fresh from store.getState() rather than the closure-
-    // captured `tools`. useManageMCPConnections populates appState.mcp
-    // async as servers connect — the store may have newer MCP state than
-    // the closure captured at render time. Also doubles as refreshTools()
-    // for mid-query tool list updates.
-    const computeTools = () => {
-      const state = store.getState();
-      const assembled = assembleToolPool(state.toolPermissionContext, state.mcp.tools);
-      const merged = mergeAndFilterTools(combinedInitialTools, assembled, state.toolPermissionContext.mode);
-      if (!mainThreadAgentDefinition) return merged;
-      return resolveAgentTools(mainThreadAgentDefinition, merged, false, true).resolvedTools;
-    };
-    return {
-      abortController,
-      options: {
-        commands,
-        tools: computeTools(),
-        debug,
-        verbose: s.verbose,
-        mainLoopModel,
-        thinkingConfig: s.thinkingEnabled !== false ? thinkingConfig : {
-          type: 'disabled'
-        },
-        // Merge fresh from store rather than closing over useMergedClients'
-        // memoized output. initialMcpClients is a prop (session-constant).
-        mcpClients: mergeClients(initialMcpClients, s.mcp.clients),
-        mcpResources: s.mcp.resources,
-        ideInstallationStatus: ideInstallationStatus,
-        isNonInteractiveSession: false,
-        dynamicMcpConfig,
-        theme,
-        agentDefinitions: allowedAgentTypes ? {
-          ...s.agentDefinitions,
-          allowedAgentTypes
-        } : s.agentDefinitions,
-        customSystemPrompt,
-        appendSystemPrompt,
-        refreshTools: computeTools
-      },
-      getAppState: () => store.getState(),
-      setAppState,
-      messages,
-      setMessages,
-      updateFileHistoryState(updater: (prev: FileHistoryState) => FileHistoryState) {
-        // Perf: skip the setState when the updater returns the same reference
-        // (e.g. fileHistoryTrackEdit returns `state` when the file is already
-        // tracked). Otherwise every no-op call would notify all store listeners.
-        setAppState(prev => {
-          const updated = updater(prev.fileHistory);
-          if (updated === prev.fileHistory) return prev;
-          return {
-            ...prev,
-            fileHistory: updated
-          };
-        });
-      },
-      updateAttributionState(updater: (prev: AttributionState) => AttributionState) {
-        setAppState(prev => {
-          const updated = updater(prev.attribution);
-          if (updated === prev.attribution) return prev;
-          return {
-            ...prev,
-            attribution: updated
-          };
-        });
-      },
-      openMessageSelector: () => {
-        if (!disabled) {
-          setIsMessageSelectorVisible(true);
-        }
-      },
-      onChangeAPIKey: reverify,
-      readFileState: readFileState.current,
-      setToolJSX,
-      addNotification,
-      appendSystemMessage: msg => setMessages(prev => [...prev, msg]),
-      sendOSNotification: opts => {
-        void sendNotification(opts, terminal);
-      },
-      onChangeDynamicMcpConfig,
-      onInstallIDEExtension: setIDEToInstallExtension,
-      nestedMemoryAttachmentTriggers: new Set<string>(),
-      loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
-      dynamicSkillDirTriggers: new Set<string>(),
-      discoveredSkillNames: discoveredSkillNamesRef.current,
-      setResponseLength,
-      pushApiMetricsEntry: isReplAntBuild() ? (ttftMs: number) => {
-        const now = Date.now();
-        const baseline = responseLengthRef.current;
-        apiMetricsRef.current.push({
-          ttftMs,
-          firstTokenTime: now,
-          lastTokenTime: now,
-          responseLengthBaseline: baseline,
-          endResponseLength: baseline
-        });
-      } : undefined,
-      setStreamMode,
-      onCompactProgress: event => {
-        switch (event.type) {
-          case 'hooks_start':
-            setSpinnerColor('claudeBlue_FOR_SYSTEM_SPINNER');
-            setSpinnerShimmerColor('claudeBlueShimmer_FOR_SYSTEM_SPINNER');
-            setSpinnerMessage(event.hookType === 'pre_compact' ? 'Running PreCompact hooks\u2026' : event.hookType === 'post_compact' ? 'Running PostCompact hooks\u2026' : 'Running SessionStart hooks\u2026');
-            break;
-          case 'compact_start':
-            setSpinnerMessage('Compacting conversation');
-            break;
-          case 'compact_end':
-            setSpinnerMessage(null);
-            setSpinnerColor(null);
-            setSpinnerShimmerColor(null);
-            break;
-        }
-      },
-      setInProgressToolUseIDs,
-      setHasInterruptibleToolInProgress: (v: boolean) => {
-        hasInterruptibleToolInProgressRef.current = v;
-      },
-      resume,
-      setConversationId,
-      requestPrompt: feature('HOOK_PROMPTS') ? requestPrompt : undefined,
-      contentReplacementState: contentReplacementStateRef.current
-    };
-  }, [commands, combinedInitialTools, mainThreadAgentDefinition, debug, initialMcpClients, ideInstallationStatus, dynamicMcpConfig, theme, allowedAgentTypes, store, setAppState, reverify, addNotification, setMessages, onChangeDynamicMcpConfig, resume, requestPrompt, disabled, customSystemPrompt, appendSystemPrompt, setConversationId]);
+  const getToolUseContext = useCallback(buildReplToolUseContext({
+    store,
+    combinedInitialTools,
+    mainThreadAgentDefinition,
+    commands,
+    debug,
+    initialMcpClients,
+    ideInstallationStatus,
+    dynamicMcpConfig,
+    theme,
+    allowedAgentTypes,
+    thinkingConfig,
+    setAppState,
+    setMessages,
+    disabled,
+    setIsMessageSelectorVisible,
+    reverify,
+    readFileStateCurrent: readFileState.current,
+    setToolJSX,
+    addNotification,
+    terminal,
+    onChangeDynamicMcpConfig,
+    setIDEToInstallExtension,
+    loadedNestedMemoryPathsCurrent: loadedNestedMemoryPathsRef.current,
+    discoveredSkillNamesCurrent: discoveredSkillNamesRef.current,
+    setResponseLength,
+    isReplAntBuild: isReplAntBuild(),
+    responseLengthRef,
+    apiMetricsRef,
+    setStreamMode,
+    setSpinnerColor,
+    setSpinnerShimmerColor,
+    setSpinnerMessage,
+    setInProgressToolUseIDs,
+    hasInterruptibleToolInProgressRef,
+    resume,
+    setConversationId,
+    requestPrompt,
+    customSystemPrompt,
+    appendSystemPrompt,
+    contentReplacementStateCurrent: contentReplacementStateRef.current,
+  }), [store, combinedInitialTools, mainThreadAgentDefinition, commands, debug, initialMcpClients, ideInstallationStatus, dynamicMcpConfig, theme, allowedAgentTypes, thinkingConfig, setAppState, messages, setMessages, disabled, reverify, setToolJSX, addNotification, terminal, onChangeDynamicMcpConfig, setResponseLength, resume, setConversationId, requestPrompt, customSystemPrompt, appendSystemPrompt]);
 
   // Session backgrounding (Ctrl+B to background/foreground)
   const handleBackgroundQuery = useCallback(() => {
