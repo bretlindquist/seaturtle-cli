@@ -5,10 +5,7 @@ type ReplBottomPaneProps = {
   permissionStickyFooter: React.ReactNode
   immediateLocalJsx: React.ReactNode
   standaloneTodos: React.ReactNode
-  permissionOverlays: React.ReactNode
-  focusedDialogs: React.ReactNode
-  ultraplanChoiceDialog: React.ReactNode
-  ultraplanLaunchDialog: React.ReactNode
+  dialogSection: React.ReactNode
   moreRightNode: React.ReactNode
   promptChrome: React.ReactNode
   messageActionsBar: React.ReactNode
@@ -20,10 +17,7 @@ export function ReplBottomPane({
   permissionStickyFooter,
   immediateLocalJsx,
   standaloneTodos,
-  permissionOverlays,
-  focusedDialogs,
-  ultraplanChoiceDialog,
-  ultraplanLaunchDialog,
+  dialogSection,
   moreRightNode,
   promptChrome,
   messageActionsBar,
@@ -34,10 +28,7 @@ export function ReplBottomPane({
       {permissionStickyFooter}
       {immediateLocalJsx}
       {standaloneTodos}
-      {permissionOverlays}
-      {focusedDialogs}
-      {ultraplanChoiceDialog}
-      {ultraplanLaunchDialog}
+      {dialogSection}
       {moreRightNode}
       {promptChrome}
       {messageActionsBar}
