@@ -3765,8 +3765,15 @@ export function REPL({
     setSearchOpen
   });
   const {
+    setQuery: setTranscriptHighlightQuery,
     scanElement
   } = useSearchHighlight();
+  useEffect(() => {
+    setTranscriptHighlightQuery(screen === 'transcript' ? searchQuery : '');
+    return () => {
+      setTranscriptHighlightQuery('');
+    };
+  }, [screen, searchQuery, setTranscriptHighlightQuery]);
   const {
     handleSearchClose,
     handleSearchCancel

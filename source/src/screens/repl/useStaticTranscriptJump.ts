@@ -4,7 +4,7 @@ import type { RenderableMessage } from '../../types/message.js';
 import { renderableSearchText } from '../../utils/transcriptSearch.js';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
-import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr } from './transcriptSearchModel.js';
+import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from './transcriptSearchModel.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
@@ -24,8 +24,15 @@ export function useStaticTranscriptJump({
 
   const stateRef = useRef({
     query: '',
-    matches: [] as number[],
+    snapshot: {
+      query: '',
+      matches: [],
+      occurrenceCounts: [],
+      occurrenceOffsets: [],
+      totalOccurrences: 0,
+    } as TranscriptSearchSnapshot,
     ptr: 0,
+    occurrenceOrd: 0,
   });
 
   const handle = useMemo<JumpHandle>(
@@ -39,8 +46,15 @@ export function useStaticTranscriptJump({
         if (!normalized) {
           stateRef.current = {
             query: '',
-            matches: [],
+            snapshot: {
+              query: '',
+              matches: [],
+              occurrenceCounts: [],
+              occurrenceOffsets: [],
+              totalOccurrences: 0,
+            },
             ptr: 0,
+            occurrenceOrd: 0,
           };
           searchProgress.reportMatches(0, 0);
           return;
@@ -55,32 +69,64 @@ export function useStaticTranscriptJump({
         const ptr =
           count === 0
             ? 0
-            : stateRef.current.query === normalized && stateRef.current.ptr >= 0 && stateRef.current.ptr < count
+            : stateRef.current.query === normalized && stateRef.current.ptr >= 0 && stateRef.current.ptr < snapshot.matches.length
               ? stateRef.current.ptr
+              : 0;
+        const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
+        const occurrenceOrd =
+          count === 0
+            ? 0
+            : stateRef.current.query === normalized && stateRef.current.occurrenceOrd >= 0 && stateRef.current.occurrenceOrd < occurrenceCount
+              ? stateRef.current.occurrenceOrd
               : 0;
 
         stateRef.current = {
           query: normalized,
-          matches: snapshot.matches,
+          snapshot,
           ptr,
+          occurrenceOrd,
         };
-        searchProgress.reportMatches(count, count > 0 ? getTranscriptSearchCurrent(ptr) : 0);
+        searchProgress.reportMatches(count, count > 0 ? getTranscriptSearchCurrent(snapshot, ptr, occurrenceOrd) : 0);
       },
       nextMatch: () => {
-        const { matches, ptr } = stateRef.current;
-        const count = matches.length;
+        const {
+          snapshot,
+          ptr,
+          occurrenceOrd,
+        } = stateRef.current;
+        const count = getTranscriptSearchTotal(snapshot);
         if (count === 0) return;
-        const nextPtr = wrapTranscriptSearchPtr(ptr, 1, count);
+        const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
+        if (occurrenceOrd + 1 < occurrenceCount) {
+          const nextOccurrenceOrd = occurrenceOrd + 1;
+          stateRef.current.occurrenceOrd = nextOccurrenceOrd;
+          searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, ptr, nextOccurrenceOrd));
+          return;
+        }
+        const nextPtr = wrapTranscriptSearchPtr(ptr, 1, snapshot.matches.length);
         stateRef.current.ptr = nextPtr;
-        searchProgress.reportMatches(count, getTranscriptSearchCurrent(nextPtr));
+        stateRef.current.occurrenceOrd = 0;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, nextPtr, 0));
       },
       prevMatch: () => {
-        const { matches, ptr } = stateRef.current;
-        const count = matches.length;
+        const {
+          snapshot,
+          ptr,
+          occurrenceOrd,
+        } = stateRef.current;
+        const count = getTranscriptSearchTotal(snapshot);
         if (count === 0) return;
-        const nextPtr = wrapTranscriptSearchPtr(ptr, -1, count);
+        if (occurrenceOrd > 0) {
+          const nextOccurrenceOrd = occurrenceOrd - 1;
+          stateRef.current.occurrenceOrd = nextOccurrenceOrd;
+          searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, ptr, nextOccurrenceOrd));
+          return;
+        }
+        const nextPtr = wrapTranscriptSearchPtr(ptr, -1, snapshot.matches.length);
+        const nextOccurrenceOrd = Math.max(0, getTranscriptSearchOccurrenceCount(snapshot, nextPtr) - 1);
         stateRef.current.ptr = nextPtr;
-        searchProgress.reportMatches(count, getTranscriptSearchCurrent(nextPtr));
+        stateRef.current.occurrenceOrd = nextOccurrenceOrd;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, nextPtr, nextOccurrenceOrd));
       },
     }),
     [searchProgress],

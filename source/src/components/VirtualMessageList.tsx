@@ -19,7 +19,7 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
-import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
+import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -134,8 +134,7 @@ function getSearchTotal(state: SearchNavigationState): number {
 }
 
 function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
-  void matchOrdinal;
-  return getTranscriptSearchCurrent(state.ptr);
+  return getTranscriptSearchCurrent(state.snapshot, state.ptr, matchOrdinal);
 }
 
 function getPlaceholderSearchOrdinal(
@@ -143,9 +142,9 @@ function getPlaceholderSearchOrdinal(
   ptr: number,
   delta: 1 | -1,
 ): number {
-  void state;
-  void delta;
-  return ptr + 1;
+  const occurrenceCount = getTranscriptSearchOccurrenceCount(state.snapshot, ptr);
+  const occurrenceOrdinal = delta < 0 ? Math.max(0, occurrenceCount - 1) : 0;
+  return getTranscriptSearchCurrent(state.snapshot, ptr, occurrenceOrdinal);
 }
 
 function findNearestSearchMatchPtr(
@@ -228,22 +227,6 @@ function computeStickyPromptText(msg: RenderableMessage): string | null {
  * The wrapping <Box ref> is the measurement anchor — MessageRow doesn't take
  * a ref. Single-child column Box passes Yoga height through unchanged.
  */
-type VirtualItemProps = {
-  itemKey: string;
-  msg: RenderableMessage;
-  idx: number;
-  measureRef: (key: string) => (el: DOMElement | null) => void;
-  expanded: boolean | undefined;
-  searchMatched: boolean;
-  searchActive: boolean;
-  hovered: boolean;
-  clickable: boolean;
-  onClickK: (msg: RenderableMessage, cellIsBlank: boolean) => void;
-  onEnterK: (k: string) => void;
-  onLeaveK: (k: string) => void;
-  renderItem: (msg: RenderableMessage, idx: number) => React.ReactNode;
-};
-
 // Item wrapper with stable click handlers. The per-item closures were the
 // `operationNewArrowFunction` leafs → `FunctionExecutable::finalizeUnconditionally`
 // GC cleanup (16% of GC time during fast scroll). 3 closures × 60 mounted ×
@@ -654,9 +637,6 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    // Badge now tracks matched transcript blocks, not individual word
-    // occurrences. That matches the current renderer-owned search UX:
-    // row-level emphasis plus block-to-block n/N navigation.
     const st = searchState.current;
     const total = getSearchTotal(st);
     const current = getCurrentSearchOrdinal(st, idx);
@@ -783,8 +763,9 @@ export function VirtualMessageList({
     st.ptr = ptr;
     st.screenOrd = 0; // resolved after scan (wantLast → length-1)
     jump(matches[ptr]!, delta < 0);
-    // screenOrd will resolve after scan. The badge mirrors block-to-block
-    // navigation, so the placeholder is just the destination matched block.
+    // screenOrd will resolve after scan. Placeholder tracks the destination
+    // occurrence within the target message so the footer remains
+    // occurrence-accurate during viewport jumps.
     const placeholder = getPlaceholderSearchOrdinal(st, ptr, delta);
     reportSearchProgress(total, placeholder);
   }
@@ -836,8 +817,9 @@ export function VirtualMessageList({
         // /foob → 0 matches → snap back to anchor. less/vim incsearch.
         s.scrollTo(searchAnchor.current);
       }
-      // Badge reflects the current matched transcript block. wantLast=true
-      // still controls which occurrence inside that block becomes active.
+      // Badge reflects the current matched occurrence. wantLast=true selects
+      // the last occurrence in the nearest matched message so the initial
+      // preview stays close to the user's current viewport.
       reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getPlaceholderSearchOrdinal({
         ...nextState,
         ptr
