@@ -33,7 +33,7 @@ import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue,
 import { endInteractionSpan } from '../utils/telemetry/sessionTracing.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
-import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
+import { type Command, type ResumeEntrypoint } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { selectableUserMessagesFilter } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
@@ -57,7 +57,7 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
 import { useDeferredHookMessages } from '../hooks/useDeferredHookMessages.js';
-import { addToHistory, expandPastedTextRefs, parseReferences } from '../history.js';
+import { addToHistory } from '../history.js';
 import { isPromptLikeInputMode, prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
 import { prependToShellHistoryCache } from '../utils/suggestions/shellHistoryCompletion.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
@@ -99,7 +99,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { type StreamingToolUse, type StreamingThinking, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
+import { type StreamingToolUse, type StreamingThinking, getContentText, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
@@ -290,6 +290,7 @@ import {
   maybeRestoreCanceledOuterReplQuery,
 } from './repl/finalizeOuterReplQuery.js';
 import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
+import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJsxCommand.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2603,130 +2604,31 @@ export function REPL({
       proactiveModule?.resumeProactive();
     }
 
-    // Handle immediate commands - these bypass the queue and execute right away
-    // even while Claude is processing. Commands opt-in via `immediate: true`.
-    // Commands triggered via keybindings are always treated as immediate.
-    if (!speculationAccept && input.trim().startsWith('/')) {
-      // Expand [Pasted text #N] refs so immediate commands (e.g. /btw) receive
-      // the pasted content, not the placeholder. The non-immediate path gets
-      // this expansion later in handlePromptSubmit.
-      const trimmedInput = expandPastedTextRefs(input, pastedContents).trim();
-      const spaceIndex = trimmedInput.indexOf(' ');
-      const commandName = spaceIndex === -1 ? trimmedInput.slice(1) : trimmedInput.slice(1, spaceIndex);
-      const commandArgs = spaceIndex === -1 ? '' : trimmedInput.slice(spaceIndex + 1).trim();
-
-      // Find matching command - treat as immediate if:
-      // 1. Command has `immediate: true`, OR
-      // 2. Command was triggered via keybinding (fromKeybinding option)
-      const matchingCommand = commands.find(cmd => isCommandEnabled(cmd) && (cmd.name === commandName || cmd.aliases?.includes(commandName) || getCommandName(cmd) === commandName));
-      if (matchingCommand?.name === 'clear' && idleHintShownRef.current) {
-        logEvent('tengu_idle_return_action', {
-          action: 'hint_converted' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          variant: idleHintShownRef.current as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          idleMinutes: Math.round((Date.now() - lastQueryCompletionTimeRef.current) / 60_000),
-          messageCount: messagesRef.current.length,
-          totalInputTokens: getTotalInputTokens()
-        });
-        idleHintShownRef.current = false;
-      }
-      const shouldTreatAsImmediate = queryGuard.isActive && (matchingCommand?.immediate || options?.fromKeybinding);
-      if (matchingCommand && shouldTreatAsImmediate && matchingCommand.type === 'local-jsx') {
-        // Only clear input if the submitted text matches what's in the prompt.
-        // When a command keybinding fires, input is "/<command>" but the actual
-        // input value is the user's existing text - don't clear it in that case.
-        if (input.trim() === inputValueRef.current.trim()) {
-          setInputValue('');
-          helpers.setCursorOffset(0);
-          helpers.clearBuffer();
-          setPastedContents({});
-        }
-        const pastedTextRefs = parseReferences(input).filter(r => pastedContents[r.id]?.type === 'text');
-        const pastedTextCount = pastedTextRefs.length;
-        const pastedTextBytes = pastedTextRefs.reduce((sum, r) => sum + (pastedContents[r.id]?.content.length ?? 0), 0);
-        logEvent('tengu_paste_text', {
-          pastedTextCount,
-          pastedTextBytes
-        });
-        logEvent('tengu_immediate_command_executed', {
-          commandName: matchingCommand.name as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-          fromKeybinding: options?.fromKeybinding ?? false
-        });
-
-        // Execute the command directly
-        const executeImmediateCommand = async (): Promise<void> => {
-          let doneWasCalled = false;
-          const onDone = (result?: string, doneOptions?: {
-            display?: CommandResultDisplay;
-            metaMessages?: string[];
-          }): void => {
-            doneWasCalled = true;
-            setToolJSX({
-              jsx: null,
-              shouldHidePromptInput: false,
-              clearLocalJSX: true
-            });
-            const newMessages: MessageType[] = [];
-            if (result && doneOptions?.display !== 'skip') {
-              addNotification({
-                key: `immediate-${matchingCommand.name}`,
-                text: result,
-                priority: 'immediate'
-              });
-              // In fullscreen the command just showed as a centered modal
-              // pane — the notification above is enough feedback. Adding
-              // "❯ /config" + "⎿ dismissed" to the transcript is clutter
-              // (those messages are type:system subtype:local_command —
-              // user-visible but NOT sent to the model, so skipping them
-              // doesn't change model context). Outside fullscreen the
-              // transcript entry stays so scrollback shows what ran.
-              if (!isFullscreenEnvEnabled()) {
-                newMessages.push(createCommandInputMessage(formatCommandInputTags(getCommandName(matchingCommand), commandArgs)), createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(result)}</${LOCAL_COMMAND_STDOUT_TAG}>`));
-              }
-            }
-            // Inject meta messages (model-visible, user-hidden) into the transcript
-            if (doneOptions?.metaMessages?.length) {
-              newMessages.push(...doneOptions.metaMessages.map(content => createUserMessage({
-                content,
-                isMeta: true
-              })));
-            }
-            if (newMessages.length) {
-              setMessages(prev => [...prev, ...newMessages]);
-            }
-            // Restore stashed prompt after local-jsx command completes.
-            // The normal stash restoration path (below) is skipped because
-            // local-jsx commands return early from onSubmit.
-            if (stashedPrompt !== undefined) {
-              setInputValue(stashedPrompt.text);
-              helpers.setCursorOffset(stashedPrompt.cursorOffset);
-              setPastedContents(stashedPrompt.pastedContents);
-              setStashedPrompt(undefined);
-            }
-          };
-
-          // Build context for the command (reuses existing getToolUseContext).
-          // Read messages via ref to keep onSubmit stable across message
-          // updates — matches the pattern at L2384/L2400/L2662 and avoids
-          // pinning stale REPL render scopes in downstream closures.
-          const context = getToolUseContext(messagesRef.current, [], createAbortController(), mainLoopModel);
-          const mod = await matchingCommand.load();
-          const jsx = await mod.call(onDone, context, commandArgs);
-
-          // Skip if onDone already fired — prevents stuck isLocalJSXCommand
-          // (see processSlashCommand.tsx local-jsx case for full mechanism).
-          if (jsx && !doneWasCalled) {
-            // shouldHidePromptInput: false keeps Notifications mounted
-            // so the onDone result isn't lost
-            setToolJSX({
-              jsx,
-              shouldHidePromptInput: false,
-              isLocalJSXCommand: true
-            });
-          }
-        };
-        void executeImmediateCommand();
-        return; // Always return early - don't add to history or queue
-      }
+    if (await maybeRunImmediateLocalJsxCommand({
+      input,
+      options,
+      speculationAccept,
+      pastedContents,
+      commands,
+      idleHintShownRef,
+      lastQueryCompletionTimeRef,
+      messagesRef,
+      queryGuard,
+      inputValueRef,
+      setInputValue,
+      helpers,
+      setPastedContents,
+      setToolJSX,
+      addNotification,
+      isFullscreenEnvEnabled,
+      setMessages,
+      stashedPrompt,
+      setStashedPrompt,
+      getToolUseContext,
+      createAbortController,
+      mainLoopModel,
+    })) {
+      return; // Always return early - don't add to history or queue
     }
 
     // Remote mode: skip empty input early before any state mutations
