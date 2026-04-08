@@ -22,8 +22,6 @@ import { truncateToWidth } from '../utils/format.js';
 import { getCwd } from '../utils/cwd.js';
 import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { setMemberActive } from '../utils/swarm/teamHelpers.js';
-import { isSwarmWorker, generateSandboxRequestId, sendSandboxPermissionRequestViaMailbox } from '../utils/swarm/permissionSync.js';
-import { registerSandboxPermissionCallback } from '../hooks/useSwarmPermissionPoller.js';
 import { getTeamName, getAgentName } from '../utils/teammate.js';
 import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js';
@@ -194,7 +192,6 @@ function getRecentUserPromptTexts(messages: MessageType[]): string[] {
 }
 import { useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
-import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from 'src/cli/structuredIO.js';
 import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit.js';
 import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
 import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
@@ -293,6 +290,7 @@ import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
 import { finishReplSessionResume } from './repl/finishReplSessionResume.js';
 import { prepareReplSessionResume } from './repl/prepareReplSessionResume.js';
 import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
+import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1840,101 +1838,13 @@ export function REPL({
       }
     }
   }, [messages, showCostDialog, haveShownCostDialog]);
-  const sandboxAskCallback: SandboxAskCallback = useCallback(async (hostPattern: NetworkHostPattern) => {
-    // If running as a swarm worker, forward the request to the leader via mailbox
-    if (isAgentSwarmsEnabled() && isSwarmWorker()) {
-      const requestId = generateSandboxRequestId();
-
-      // Send the request to the leader via mailbox
-      const sent = await sendSandboxPermissionRequestViaMailbox(hostPattern.host, requestId);
-      return new Promise(resolveShouldAllowHost => {
-        if (!sent) {
-          // If we couldn't send via mailbox, fall back to local handling
-          setSandboxPermissionRequestQueue(prev => [...prev, {
-            hostPattern,
-            resolvePromise: resolveShouldAllowHost
-          }]);
-          return;
-        }
-
-        // Register the callback for when the leader responds
-        registerSandboxPermissionCallback({
-          requestId,
-          host: hostPattern.host,
-          resolve: resolveShouldAllowHost
-        });
-
-        // Update AppState to show pending indicator
-        setAppState(prev => ({
-          ...prev,
-          pendingSandboxRequest: {
-            requestId,
-            host: hostPattern.host
-          }
-        }));
-      });
-    }
-
-    // Normal flow for non-workers: show local UI and optionally race
-    // against the REPL bridge (Remote Control) if connected.
-    return new Promise(resolveShouldAllowHost => {
-      let resolved = false;
-      function resolveOnce(allow: boolean): void {
-        if (resolved) return;
-        resolved = true;
-        resolveShouldAllowHost(allow);
-      }
-
-      // Queue the local sandbox permission dialog
-      setSandboxPermissionRequestQueue(prev => [...prev, {
-        hostPattern,
-        resolvePromise: resolveOnce
-      }]);
-
-      // When the REPL bridge is connected, also forward the sandbox
-      // permission request as a can_use_tool control_request so the
-      // remote user (e.g. on claude.ai) can approve it too.
-      if (feature('BRIDGE_MODE')) {
-        const bridgeCallbacks = store.getState().replBridgePermissionCallbacks;
-        if (bridgeCallbacks) {
-          const bridgeRequestId = randomUUID();
-          bridgeCallbacks.sendRequest(bridgeRequestId, SANDBOX_NETWORK_ACCESS_TOOL_NAME, {
-            host: hostPattern.host
-          }, randomUUID(), `Allow network connection to ${hostPattern.host}?`);
-          const unsubscribe = bridgeCallbacks.onResponse(bridgeRequestId, response => {
-            unsubscribe();
-            const allow = response.behavior === 'allow';
-            // Resolve ALL pending requests for the same host, not just
-            // this one — mirrors the local dialog handler pattern.
-            setSandboxPermissionRequestQueue(queue => {
-              queue.filter(item => item.hostPattern.host === hostPattern.host).forEach(item => item.resolvePromise(allow));
-              return queue.filter(item => item.hostPattern.host !== hostPattern.host);
-            });
-            // Clean up all sibling bridge subscriptions for this host
-            // (other concurrent same-host requests) before deleting.
-            const siblingCleanups = sandboxBridgeCleanupRef.current.get(hostPattern.host);
-            if (siblingCleanups) {
-              for (const fn of siblingCleanups) {
-                fn();
-              }
-              sandboxBridgeCleanupRef.current.delete(hostPattern.host);
-            }
-          });
-
-          // Register cleanup so the local dialog handler can cancel
-          // the remote prompt and unsubscribe when the local user
-          // responds first.
-          const cleanup = () => {
-            unsubscribe();
-            bridgeCallbacks.cancelRequest(bridgeRequestId);
-          };
-          const existing = sandboxBridgeCleanupRef.current.get(hostPattern.host) ?? [];
-          existing.push(cleanup);
-          sandboxBridgeCleanupRef.current.set(hostPattern.host, existing);
-        }
-      }
-    });
-  }, [setAppState, store]);
+  const sandboxAskCallback: SandboxAskCallback = useCallback(createSandboxAskCallback({
+    setAppState,
+    store,
+    setSandboxPermissionRequestQueue,
+    sandboxBridgeCleanupRef,
+    isAgentSwarmsEnabled,
+  }), [setAppState, store]);
 
   // #34044: if user explicitly set sandbox.enabled=true but deps are missing,
   // isSandboxingEnabled() returns false silently. Surface the reason once at
