@@ -58,7 +58,7 @@ import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
 import { useDeferredHookMessages } from '../hooks/useDeferredHookMessages.js';
 import { addToHistory } from '../history.js';
-import { isPromptLikeInputMode, prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
+import { prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
 import { prependToShellHistoryCache } from '../utils/suggestions/shellHistoryCompletion.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
@@ -142,8 +142,7 @@ import { provisionContentReplacementState, reconstructContentReplacementState, t
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
 import { type FileHistoryState, type FileHistorySnapshot, copyFileHistoryForResume } from '../utils/fileHistory.js';
-import { type AttributionState, incrementPromptCount } from '../utils/commitAttribution.js';
-import { recordAttributionSnapshot } from '../utils/sessionStorage.js';
+import { type AttributionState } from '../utils/commitAttribution.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
 import { isBgSession, updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
 import { restoreRemoteAgentTasks } from '../tasks/RemoteAgentTask/RemoteAgentTask.js';
@@ -292,6 +291,10 @@ import {
 import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
 import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJsxCommand.js';
 import { maybeOpenIdleReturnDialog } from './repl/maybeOpenIdleReturnDialog.js';
+import {
+  prepareReplSubmitState,
+  restoreDeferredReplStashedPrompt,
+} from './repl/prepareReplSubmitState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2677,57 +2680,26 @@ export function REPL({
     //   Remote mode is exempt: it sends via WebSocket and returns early without
     //   calling handlePromptSubmit, so there's no clobbering risk — restore eagerly.
     // In both deferred cases, the stash is restored after await handlePromptSubmit.
-    const isSlashCommand = !speculationAccept && input.trim().startsWith('/');
-    // Submit runs "now" (not queued) when not already loading, or when
-    // accepting speculation, or in remote mode (which sends via WS and
-    // returns early without calling handlePromptSubmit).
-    const submitsNow = !isLoading || speculationAccept || activeRemote.isRemoteMode;
-    if (stashedPrompt !== undefined && !isSlashCommand && submitsNow) {
-      setInputValue(stashedPrompt.text);
-      helpers.setCursorOffset(stashedPrompt.cursorOffset);
-      setPastedContents(stashedPrompt.pastedContents);
-      setStashedPrompt(undefined);
-    } else if (submitsNow) {
-      if (!options?.fromKeybinding) {
-        // Clear input when not loading or accepting speculation.
-        // Preserve input for keybinding-triggered commands.
-        setInputValue('');
-        helpers.setCursorOffset(0);
-      }
-      setPastedContents({});
-    }
-    if (submitsNow) {
-      setInputMode('prompt');
-      setIDESelection(undefined);
-      setSubmitCount(_ => _ + 1);
-      helpers.clearBuffer();
-      tipPickedThisTurnRef.current = false;
-
-      // Show the placeholder in the same React batch as setInputValue('').
-      // Skip for slash/bash (they have their own echo), speculation and remote
-      // mode (both setMessages directly with no gap to bridge).
-      if (!isSlashCommand && isPromptLikeInputMode(inputMode) && !speculationAccept && !activeRemote.isRemoteMode) {
-        setUserInputOnProcessing(input);
-        // showSpinner includes userInputOnProcessing, so the spinner appears
-        // on this render. Reset timing refs now (before queryGuard.reserve()
-        // would) so elapsed time doesn't read as Date.now() - 0. The
-        // isQueryActive transition above does the same reset — idempotent.
-        resetTimingRefs();
-      }
-
-      // Increment prompt count for attribution tracking and save snapshot
-      // The snapshot persists promptCount so it survives compaction
-      if (feature('COMMIT_ATTRIBUTION')) {
-        setAppState(prev => ({
-          ...prev,
-          attribution: incrementPromptCount(prev.attribution, snapshot => {
-            void recordAttributionSnapshot(snapshot).catch(error => {
-              logForDebugging(`Attribution: Failed to save snapshot: ${error}`);
-            });
-          })
-        }));
-      }
-    }
+    const { isSlashCommand } = prepareReplSubmitState({
+      input,
+      speculationAccept,
+      isLoading,
+      isRemoteMode: activeRemote.isRemoteMode,
+      stashedPrompt,
+      options,
+      setInputValue,
+      helpers,
+      setPastedContents,
+      setStashedPrompt,
+      setInputMode,
+      setIDESelection,
+      setSubmitCount,
+      tipPickedThisTurnRef,
+      inputMode,
+      setUserInputOnProcessing,
+      resetTimingRefs,
+      setAppState,
+    });
 
     // Handle speculation acceptance
     if (speculationAccept) {
@@ -2805,12 +2777,14 @@ export function REPL({
     //   the visible input.
     // - Loading (queued): handlePromptSubmit enqueued + cleared input, then
     //   returned quickly. Restoring now places the stash back after the clear.
-    if ((isSlashCommand || isLoading) && stashedPrompt !== undefined) {
-      setInputValue(stashedPrompt.text);
-      helpers.setCursorOffset(stashedPrompt.cursorOffset);
-      setPastedContents(stashedPrompt.pastedContents);
-      setStashedPrompt(undefined);
-    }
+    restoreDeferredReplStashedPrompt({
+      shouldRestore: (isSlashCommand || isLoading),
+      stashedPrompt,
+      setInputValue,
+      helpers,
+      setPastedContents,
+      setStashedPrompt,
+    });
   }, [queryGuard,
   // isLoading is read at the !isLoading checks above for input-clearing
   // and submitCount gating. It's derived from isQueryActive || isExternalLoading,
