@@ -101,9 +101,6 @@ const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 import useCanUseTool from '../hooks/useCanUseTool.js';
 import type { ToolPermissionContext, Tool } from '../Tool.js';
-import { applyPermissionUpdates } from '../utils/permissions/PermissionUpdate.js';
-import { buildPermissionUpdates } from '../components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.js';
-import { stripDangerousPermissionsForAutoMode } from '../utils/permissions/permissionSetup.js';
 import { getScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js';
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
 import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
@@ -152,14 +149,14 @@ import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs';
 import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
 import type { PastedContent } from '../utils/config.js';
-import { copyPlanForFork, copyPlanForResume, getPlanSlug, setPlanSlug } from '../utils/plans.js';
+import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, removeTranscriptMessage, restoreSessionMetadata, getCurrentSessionTitle, isEphemeralToolProgress, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
-import { fileHistoryMakeSnapshot, type FileHistoryState, type FileHistorySnapshot, copyFileHistoryForResume, fileHistoryEnabled } from '../utils/fileHistory.js';
+import { type FileHistoryState, type FileHistorySnapshot, copyFileHistoryForResume } from '../utils/fileHistory.js';
 import { type AttributionState, incrementPromptCount } from '../utils/commitAttribution.js';
 import { recordAttributionSnapshot } from '../utils/sessionStorage.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
@@ -300,6 +297,7 @@ import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 import { useReplDialogActions } from './repl/useReplDialogActions.js';
 import { ReplScrollablePane } from './repl/ReplScrollablePane.js';
+import { useInitialMessageProcessing } from './repl/useInitialMessageProcessing.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2848,122 +2846,29 @@ export function REPL({
     }
   }, [onQueryImpl, setAppState, resetLoadingState, queryGuard, mrOnBeforeQuery, mrOnTurnComplete]);
 
-  // Handle initial message (from CLI args or plan mode exit with context clear)
-  // This effect runs when isLoading becomes false and there's a pending message
-  const initialMessageRef = useRef(false);
-  useEffect(() => {
-    const pending = initialMessage;
-    if (!pending || isLoading || initialMessageRef.current) return;
-
-    // Mark as processing to prevent re-entry
-    initialMessageRef.current = true;
-    async function processInitialMessage(initialMsg: NonNullable<typeof pending>) {
-      // Clear context if requested (plan mode exit)
-      if (initialMsg.clearContext) {
-        // Preserve the plan slug before clearing context, so the new session
-        // can access the same plan file after regenerateSessionId()
-        const oldPlanSlug = initialMsg.message.planContent ? getPlanSlug() : undefined;
-        const {
-          clearConversation
-        } = await import('../commands/clear/conversation.js');
-        await clearConversation({
-          setMessages,
-          readFileState: readFileState.current,
-          discoveredSkillNames: discoveredSkillNamesRef.current,
-          loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
-          getAppState: () => store.getState(),
-          setAppState,
-          setConversationId
-        });
-        haikuTitleAttemptedRef.current = false;
-        setHaikuTitle(undefined);
-        bashTools.current.clear();
-        bashToolsProcessedIdx.current = 0;
-
-        // Restore the plan slug for the new session so getPlan() finds the file
-        if (oldPlanSlug) {
-          setPlanSlug(getSessionId(), oldPlanSlug);
-        }
-      }
-
-      // Atomically: clear initial message, set permission mode and rules, and store plan for verification
-      const shouldStorePlanForVerification = initialMsg.message.planContent && isReplAntBuild() && isEnvTruthy(undefined);
-      setAppState(prev => {
-        // Build and apply permission updates (mode + allowedPrompts rules)
-        let updatedToolPermissionContext = initialMsg.mode ? applyPermissionUpdates(prev.toolPermissionContext, buildPermissionUpdates(initialMsg.mode, initialMsg.allowedPrompts)) : prev.toolPermissionContext;
-        // For auto, override the mode (buildPermissionUpdates maps
-        // it to 'default' via toExternalPermissionMode) and strip dangerous rules
-        if (feature('TRANSCRIPT_CLASSIFIER') && initialMsg.mode === 'auto') {
-          updatedToolPermissionContext = stripDangerousPermissionsForAutoMode({
-            ...updatedToolPermissionContext,
-            mode: 'auto',
-            prePlanMode: undefined
-          });
-        }
-        return {
-          ...prev,
-          initialMessage: null,
-          toolPermissionContext: updatedToolPermissionContext,
-          ...(shouldStorePlanForVerification && {
-            pendingPlanVerification: {
-              plan: initialMsg.message.planContent!,
-              verificationStarted: false,
-              verificationCompleted: false
-            }
-          })
-        };
-      });
-
-      // Create file history snapshot for code rewind
-      if (fileHistoryEnabled()) {
-        void fileHistoryMakeSnapshot((updater: (prev: FileHistoryState) => FileHistoryState) => {
-          setAppState(prev => ({
-            ...prev,
-            fileHistory: updater(prev.fileHistory)
-          }));
-        }, initialMsg.message.uuid);
-      }
-
-      // Ensure SessionStart hook context is available before the first API
-      // call. onSubmit calls this internally but the onQuery path below
-      // bypasses onSubmit — hoist here so both paths see hook messages.
-      await awaitPendingHooks();
-
-      // Route all initial prompts through onSubmit to ensure UserPromptSubmit hooks fire
-      // TODO: Simplify by always routing through onSubmit once it supports
-      // ContentBlockParam arrays (images) as input
-      const content = initialMsg.message.message.content;
-
-      // Route all string content through onSubmit to ensure hooks fire
-      // For complex content (images, etc.), fall back to direct onQuery
-      // Plan messages bypass onSubmit to preserve planContent metadata for rendering
-      if (typeof content === 'string' && !initialMsg.message.planContent) {
-        // Route through onSubmit for proper processing including UserPromptSubmit hooks
-        void onSubmit(content, {
-          setCursorOffset: () => {},
-          clearBuffer: () => {},
-          resetHistory: () => {}
-        });
-      } else {
-        // Plan messages or complex content (images, etc.) - send directly to model
-        // Plan messages use onQuery to preserve planContent metadata for rendering
-        // TODO: Once onSubmit supports ContentBlockParam arrays, remove this branch
-        const newAbortController = createAbortController();
-        setAbortController(newAbortController);
-        void onQuery([initialMsg.message], newAbortController, true,
-        // shouldQuery
-        [],
-        // additionalAllowedTools
-        mainLoopModel);
-      }
-
-      // Reset ref after a delay to allow new initial messages
-      setTimeout(ref => {
-        ref.current = false;
-      }, 100, initialMessageRef);
-    }
-    void processInitialMessage(pending);
-  }, [initialMessage, isLoading, setMessages, setAppState, onQuery, mainLoopModel, tools]);
+  useInitialMessageProcessing({
+    initialMessage,
+    isLoading,
+    setMessages,
+    readFileStateRef: readFileState,
+    discoveredSkillNamesRef,
+    loadedNestedMemoryPathsRef,
+    getAppState: () => store.getState(),
+    setAppState,
+    setConversationId,
+    resetConversationChrome: () => {
+      haikuTitleAttemptedRef.current = false;
+      setHaikuTitle(undefined);
+      bashTools.current.clear();
+      bashToolsProcessedIdx.current = 0;
+    },
+    awaitPendingHooks,
+    onSubmit,
+    onQuery,
+    createAbortController,
+    setAbortController,
+    mainLoopModel,
+  });
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, speculationAccept?: {
     state: ActiveSpeculationState;
     speculationSessionTimeSavedMs: number;
