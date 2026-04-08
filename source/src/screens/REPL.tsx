@@ -286,6 +286,7 @@ import {
   handleConcurrentReplQuery,
   prepareReplQueryAttempt,
 } from './repl/prepareReplQueryAttempt.js';
+import { executeReplQueuedInput } from './repl/executeReplQueuedInput.js';
 import {
   finalizeCompletedOuterReplQuery,
   maybeRestoreCanceledOuterReplQuery,
@@ -3268,17 +3269,10 @@ export function REPL({
   // Process queued commands when query completes and queue has items
 
   const executeQueuedInput = useCallback(async (queuedCommands: QueuedCommand[]) => {
-    await handlePromptSubmit({
-      helpers: {
-        setCursorOffset: () => {},
-        clearBuffer: () => {},
-        resetHistory: () => {}
-      },
+    await executeReplQueuedInput({
+      queuedCommands,
       queryGuard,
       commands,
-      onInputChange: () => {},
-      onModeChange: () => {},
-      setPastedContents: () => {},
       setToolJSX,
       getToolUseContext,
       messages,
@@ -3288,12 +3282,10 @@ export function REPL({
       setAbortController,
       onQuery,
       setAppState,
-      querySource: getQuerySourceForREPL(),
       onBeforeQuery,
       canUseTool,
       addNotification,
       setMessages,
-      queuedCommands
     });
   }, [queryGuard, commands, setToolJSX, getToolUseContext, messages, mainLoopModel, ideSelection, setUserInputOnProcessing, canUseTool, setAbortController, onQuery, addNotification, setAppState, onBeforeQuery]);
   useQueueProcessor({
