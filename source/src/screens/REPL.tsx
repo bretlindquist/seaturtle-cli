@@ -208,7 +208,7 @@ function getRecentUserPromptTexts(messages: MessageType[]): string[] {
     .filter(value => !isTaskLikeUserMessage(value))
     .slice(-3)
 }
-import { checkAndDisableBypassPermissionsIfNeeded, checkAndDisableAutoModeIfNeeded, useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
+import { useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from 'src/cli/structuredIO.js';
 import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit.js';
@@ -282,6 +282,7 @@ import {
   syncTurnAllowedTools,
 } from './repl/queryTurnPreparation.js';
 import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSystemPrompt.js';
+import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2435,34 +2436,29 @@ export function REPL({
     // captured `tools`/`mcpClients` — useManageMCPConnections may have
     // flushed new MCP state between the render that captured this closure
     // and now. Turn 1 via processInitialMessage is the main beneficiary.
-    const {
-      tools: freshTools,
-      mcpClients: freshMcpClients
-    } = toolUseContext.options;
-
-    // Scope the skill's effort override to this turn's context only —
-    // wrapping getAppState keeps the override out of the global store so
-    // background agents and UI subscribers (Spinner, LogoV2) never see it.
-    if (effort !== undefined) {
-      const previousGetAppState = toolUseContext.getAppState;
-      toolUseContext.getAppState = () => ({
-        ...previousGetAppState(),
-        effortValue: effort
-      });
-    }
     queryCheckpoint('query_context_loading_start');
-    const [,, defaultSystemPrompt, baseUserContext, systemContext] = await Promise.all([
-    // IMPORTANT: do this after setMessages() above, to avoid UI jank
-    checkAndDisableBypassPermissionsIfNeeded(toolPermissionContext, setAppState),
-    // Gated on TRANSCRIPT_CLASSIFIER so GrowthBook kill switch runs wherever auto mode is built in
-    feature('TRANSCRIPT_CLASSIFIER') ? checkAndDisableAutoModeIfNeeded(toolPermissionContext, setAppState, store.getState().fastMode) : undefined, getSystemPrompt(freshTools, mainLoopModelParam, Array.from(toolPermissionContext.additionalWorkingDirectories.keys()), freshMcpClients), getUserContext(), getSystemContext()]);
-    const userContext = {
-      ...baseUserContext,
-      ...getCoordinatorUserContext(freshMcpClients, isScratchpadEnabled() ? getScratchpadDir() : undefined),
-      ...((feature('PROACTIVE') || feature('KAIROS')) && proactiveModule?.isProactiveActive() && !terminalFocusRef.current ? {
-        terminalFocus: 'The terminal is unfocused \u2014 the user is not actively watching.'
-      } : {})
-    };
+    const {
+      defaultSystemPrompt,
+      userContext,
+      systemContext,
+    } = await loadReplQueryRuntimeContext({
+      toolUseContext,
+      effort,
+      toolPermissionContext,
+      setAppState,
+      mainLoopModel: mainLoopModelParam,
+      fastMode: store.getState().fastMode,
+      getSystemPrompt,
+      getUserContext,
+      getSystemContext,
+      getCoordinatorUserContext,
+      isScratchpadEnabled,
+      getScratchpadDir,
+      terminalFocused: terminalFocusRef.current,
+      proactiveActive:
+        (feature('PROACTIVE') || feature('KAIROS')) &&
+        !!proactiveModule?.isProactiveActive(),
+    });
     queryCheckpoint('query_context_loading_end');
     const effectiveAppendSystemPrompt = buildReplTurnAppendSystemPrompt({
       appendSystemPrompt,
