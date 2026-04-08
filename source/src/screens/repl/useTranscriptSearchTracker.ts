@@ -30,6 +30,14 @@ export function useTranscriptSearchTracker() {
     setSearchQuery(query);
   }, []);
 
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+  }, []);
+
   const searchProgress = useMemo<TranscriptSearchProgressSink>(() => ({
     reportMatches: onSearchMatchesChange
   }), [onSearchMatchesChange]);
@@ -41,7 +49,8 @@ export function useTranscriptSearchTracker() {
 
   return {
     searchOpen,
-    setSearchOpen,
+    openSearch,
+    closeSearch,
     searchQuery,
     commitSearchQuery,
     searchCount,

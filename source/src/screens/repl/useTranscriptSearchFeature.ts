@@ -36,7 +36,8 @@ export function useTranscriptSearchFeature({
   const jumpRef = useRef<JumpHandle | null>(null);
   const {
     searchOpen,
-    setSearchOpen,
+    openSearch,
+    closeSearch,
     searchQuery,
     commitSearchQuery,
     searchCount,
@@ -62,7 +63,6 @@ export function useTranscriptSearchFeature({
   });
 
   const {
-    openSearch,
     handleCloseSearchBar,
     handleCancelSearchBar,
   } = useTranscriptSearchController({
@@ -71,8 +71,7 @@ export function useTranscriptSearchFeature({
     searchQuery,
     searchCount,
     jumpRef,
-    openSearch: () => setSearchOpen(true),
-    closeSearch: () => setSearchOpen(false),
+    closeSearch,
     commitSearchQuery,
     clearSearchState,
   });
@@ -91,7 +90,7 @@ export function useTranscriptSearchFeature({
     editorGenRef,
     editorTimerRef,
     clearSearchState,
-    setSearchOpen,
+    closeSearch,
     setDumpMode,
     setEditorStatus,
   });

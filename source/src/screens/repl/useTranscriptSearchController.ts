@@ -9,7 +9,6 @@ type UseTranscriptSearchControllerInput = {
   searchQuery: string
   searchCount: number
   jumpRef: RefObject<JumpHandle | null>
-  openSearch: () => void
   closeSearch: () => void
   commitSearchQuery: (query: string) => void
   clearSearchState: () => void
@@ -21,7 +20,6 @@ export function useTranscriptSearchController({
   searchQuery,
   searchCount,
   jumpRef,
-  openSearch,
   closeSearch,
   commitSearchQuery,
   clearSearchState,
@@ -67,7 +65,6 @@ export function useTranscriptSearchController({
   };
 
   return {
-    openSearch,
     handleCloseSearchBar,
     handleCancelSearchBar,
   };
