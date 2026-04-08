@@ -47,7 +47,6 @@ import { type SpinnerMode } from '../components/Spinner.js';
 import { getSystemPrompt } from '../constants/prompts.js';
 import { buildEffectiveSystemPrompt } from '../utils/systemPrompt.js';
 import { getSystemContext, getUserContext } from '../context.js';
-import { getMemoryFiles } from '../utils/claudemd.js';
 import { getTotalCost } from '../cost-tracker.js';
 import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
@@ -291,6 +290,7 @@ import { finishReplSessionResume } from './repl/finishReplSessionResume.js';
 import { prepareReplSessionResume } from './repl/prepareReplSessionResume.js';
 import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
 import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
+import { initializeReplMemoryState } from './repl/initializeReplMemoryState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2614,28 +2614,7 @@ export function REPL({
     // Always verify API key on startup, so we can show the user an error in the
     // bottom right corner of the screen if the API key is invalid.
     void reverify();
-
-    // Populate readFileState with CLAUDE.md files at startup
-    const memoryFiles = await getMemoryFiles();
-    if (memoryFiles.length > 0) {
-      const fileList = memoryFiles.map(f => `  [${f.type}] ${f.path} (${f.content.length} chars)${f.parent ? ` (included by ${f.parent})` : ''}`).join('\n');
-      logForDebugging(`Loaded ${memoryFiles.length} CLAUDE.md/rules files:\n${fileList}`);
-    } else {
-      logForDebugging('No CLAUDE.md/rules files found');
-    }
-    for (const file of memoryFiles) {
-      // When the injected content doesn't match disk (stripped HTML comments,
-      // stripped frontmatter, MEMORY.md truncation), cache the RAW disk bytes
-      // with isPartialView so Edit/Write require a real Read first while
-      // getChangedFiles + nested_memory dedup still work.
-      readFileState.current.set(file.path, {
-        content: file.contentDiffersFromDisk ? file.rawContent ?? file.content : file.content,
-        timestamp: Date.now(),
-        offset: undefined,
-        limit: undefined,
-        isPartialView: file.contentDiffersFromDisk
-      });
-    }
+    await initializeReplMemoryState(readFileState);
 
     // Initial message handling is done via the initialMessage effect
   }
