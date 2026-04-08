@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { Box } from '../../ink.js';
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js';
+import type { DOMElement } from '../../ink/dom.js';
 import { ScrollKeybindingHandler } from '../../components/ScrollKeybindingHandler.js';
 import { Messages } from '../../components/Messages.js';
 import type { Command } from '../../commands.js';
@@ -9,7 +10,7 @@ import type { Tools } from '../../Tool.js';
 import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js';
 import type { RenderableMessage } from '../../types/message.js';
 import type { StreamingThinking, StreamingToolUse } from '../../utils/messages.js';
-import type { DOMElement } from '../../ink/dom.js';
+import type { MatchPosition } from '../../ink/render-to-screen.js';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink, TranscriptSearchBadge } from './useTranscriptSearchTracker.js';
 import { TranscriptSearchBar } from './ReplShellHelpers.js';
@@ -40,7 +41,7 @@ type ReplTranscriptModeProps = {
   streamingThinking: StreamingThinking | null
   jumpRef: RefObject<JumpHandle | null>
   searchProgress: TranscriptSearchProgressSink
-  scanElement?: (el: DOMElement) => import('../../ink/render-to-screen.js').MatchPosition[]
+  scanElement?: (el: DOMElement) => MatchPosition[]
   dumpMode: boolean
   toolJsxNode?: ReactNode
   searchOpen: boolean
