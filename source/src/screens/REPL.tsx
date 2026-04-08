@@ -291,6 +291,7 @@ import {
 } from './repl/finalizeOuterReplQuery.js';
 import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
 import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJsxCommand.js';
+import { maybeOpenIdleReturnDialog } from './repl/maybeOpenIdleReturnDialog.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2636,27 +2637,16 @@ export function REPL({
       return;
     }
 
-    // Idle-return: prompt returning users to start fresh when the
-    // conversation is large and the cache is cold. tengu_willow_mode
-    // controls treatment: "dialog" (blocking), "hint" (notification), "off".
-    {
-      const willowMode = getFeatureValue_CACHED_MAY_BE_STALE('tengu_willow_mode', 'off');
-      const idleThresholdMin = Number(process.env.CLAUDE_CODE_IDLE_THRESHOLD_MINUTES ?? 75);
-      const tokenThreshold = Number(process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000);
-      if (willowMode !== 'off' && !getGlobalConfig().idleReturnDismissed && !skipIdleCheckRef.current && !speculationAccept && !input.trim().startsWith('/') && lastQueryCompletionTimeRef.current > 0 && getTotalInputTokens() >= tokenThreshold) {
-        const idleMs = Date.now() - lastQueryCompletionTimeRef.current;
-        const idleMinutes = idleMs / 60_000;
-        if (idleMinutes >= idleThresholdMin && willowMode === 'dialog') {
-          setIdleReturnPending({
-            input,
-            idleMinutes
-          });
-          setInputValue('');
-          helpers.setCursorOffset(0);
-          helpers.clearBuffer();
-          return;
-        }
-      }
+    if (maybeOpenIdleReturnDialog({
+      input,
+      speculationAccept,
+      skipIdleCheckRef,
+      lastQueryCompletionTimeRef,
+      setIdleReturnPending,
+      setInputValue,
+      helpers,
+    })) {
+      return;
     }
 
     // Add to history for direct user submissions.
