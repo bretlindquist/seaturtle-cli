@@ -14,8 +14,6 @@ import { useNotifications } from '../context/notifications.js';
 import { formatProjectReminderNoticeText, getProjectReminder } from '../services/remindme.js';
 import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
-import { getCtConversationPostureResult } from '../services/projectIdentity/conversationPosture.js';
-import { getCtContextDomainResult } from '../services/projectIdentity/contextDomain.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
@@ -283,6 +281,7 @@ import {
   maybeGenerateFirstQuerySessionTitle,
   syncTurnAllowedTools,
 } from './repl/queryTurnPreparation.js';
+import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSystemPrompt.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2465,23 +2464,13 @@ export function REPL({
       } : {})
     };
     queryCheckpoint('query_context_loading_end');
-    let effectiveAppendSystemPrompt = appendSystemPrompt;
-    try {
-      const conversationPosture = getCtConversationPostureResult({
-        currentInput: input ?? '',
-        recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
-        seed: `${getCwd()}:${input ?? ''}:${messagesIncludingNewMessages.length}`,
-      });
-      const contextDomain = getCtContextDomainResult({
-        cwd: getCwd(),
-        currentInput: input ?? '',
-        recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
-      });
-      const turnAddendum = `${contextDomain.addendum}\n\n${conversationPosture.addendum}`;
-      effectiveAppendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${turnAddendum}` : turnAddendum;
-    } catch (error) {
-      logError(error);
-    }
+    const effectiveAppendSystemPrompt = buildReplTurnAppendSystemPrompt({
+      appendSystemPrompt,
+      currentInput: input ?? '',
+      recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
+      cwd: getCwd(),
+      messageCount: messagesIncludingNewMessages.length,
+    });
     const systemPrompt = buildEffectiveSystemPrompt({
       mainThreadAgentDefinition,
       toolUseContext,
