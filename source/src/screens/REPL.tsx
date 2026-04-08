@@ -2,7 +2,6 @@
 import { feature } from 'bun:bundle';
 import { spawnSync } from 'child_process';
 import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTokens, getBudgetContinuationCount, getTotalInputTokens } from '../bootstrap/state.js';
-import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
 import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -283,6 +282,10 @@ import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSyste
 import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
 import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
+import {
+  handleConcurrentReplQuery,
+  prepareReplQueryAttempt,
+} from './repl/prepareReplQueryAttempt.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2507,53 +2510,27 @@ export function REPL({
     // Returns null if already running — no separate check-then-set.
     const thisGeneration = queryGuard.tryStart();
     if (thisGeneration === null) {
-      logEvent('tengu_concurrent_onquery_detected', {});
-
-      // Extract and enqueue user message text, skipping meta messages
-      // (e.g. expanded skill content, tick prompts) that should not be
-      // replayed as user-visible text.
-      newMessages.filter((m): m is UserMessage => m.type === 'user' && !m.isMeta).map(_ => getContentText(_.message.content)).filter(_ => _ !== null).forEach((msg, i) => {
-        enqueue({
-          value: msg,
-          mode: 'prompt'
-        });
-        if (i === 0) {
-          logEvent('tengu_concurrent_onquery_enqueued', {});
-        }
+      handleConcurrentReplQuery({
+        newMessages,
+        getContentText,
       });
       return;
     }
     try {
-      // isLoading is derived from queryGuard — tryStart() above already
-      // transitioned dispatching→running, so no setter call needed here.
-      resetTimingRefs();
-      setMessages(oldMessages => [...oldMessages, ...newMessages]);
-      responseLengthRef.current = 0;
-      if (feature('TOKEN_BUDGET')) {
-        const parsedBudget = input ? parseTokenBudget(input) : null;
-        snapshotOutputTokensForTurn(parsedBudget ?? getCurrentTurnTokenBudget());
-      }
-      apiMetricsRef.current = [];
-      setStreamingToolUses([]);
-      setStreamingText(null);
-
-      // messagesRef is updated synchronously by the setMessages wrapper
-      // above, so it already includes newMessages from the append at the
-      // top of this try block.  No reconstruction needed, no waiting for
-      // React's scheduler (previously cost 20-56ms per prompt; the 56ms
-      // case was a GC pause caught during the await).
-      const latestMessages = messagesRef.current;
-      if (input) {
-        await mrOnBeforeQuery(input, latestMessages, newMessages.length);
-      }
-
-      // Pass full conversation history to callback
-      if (onBeforeQueryCallback && input) {
-        const shouldProceed = await onBeforeQueryCallback(input, latestMessages);
-        if (!shouldProceed) {
-          return;
-        }
-      }
+      const { shouldProceed, latestMessages } = await prepareReplQueryAttempt({
+        newMessages,
+        input,
+        resetTimingRefs,
+        setMessages,
+        responseLengthRef,
+        apiMetricsRef,
+        setStreamingToolUses,
+        setStreamingText,
+        messagesRef,
+        mrOnBeforeQuery,
+        onBeforeQueryCallback,
+      });
+      if (!shouldProceed) return;
       await onQueryImpl(latestMessages, newMessages, abortController, shouldQuery, additionalAllowedTools, mainLoopModelParam, input, effort);
     } finally {
       // queryGuard.end() atomically checks generation and transitions
