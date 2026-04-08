@@ -19,7 +19,15 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
-import { buildTranscriptSearchSnapshot, createTranscriptSearchEdgeCursor, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
+import {
+  buildTranscriptSearchEngineState,
+  createEmptyTranscriptSearchEngineState,
+  getTranscriptSearchEngineCurrent,
+  getTranscriptSearchEngineCurrentMessageOccurrenceCount,
+  getTranscriptSearchEngineEdgeCurrent,
+  getTranscriptSearchEngineTotal,
+} from '../screens/repl/transcriptSearchEngine.js';
+import { wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -120,21 +128,30 @@ type SearchNavigationState = {
 
 function createEmptySearchNavigationState(): SearchNavigationState {
   return {
-    snapshot: {
-      query: '',
-      matches: [],
-    },
+    snapshot: createEmptyTranscriptSearchEngineState().snapshot,
     ptr: 0,
     screenOrd: 0,
   };
 }
 
 function getSearchTotal(state: SearchNavigationState): number {
-  return getTranscriptSearchTotal(state.snapshot);
+  return getTranscriptSearchEngineTotal({
+    snapshot: state.snapshot,
+    cursor: {
+      ptr: state.ptr,
+      occurrenceOrdinal: state.screenOrd,
+    },
+  });
 }
 
 function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
-  return getTranscriptSearchCurrent(state.snapshot, state.ptr, matchOrdinal);
+  return getTranscriptSearchEngineCurrent({
+    snapshot: state.snapshot,
+    cursor: {
+      ptr: state.ptr,
+      occurrenceOrdinal: matchOrdinal,
+    },
+  });
 }
 
 function getPlaceholderSearchOrdinal(
@@ -142,16 +159,23 @@ function getPlaceholderSearchOrdinal(
   ptr: number,
   delta: 1 | -1,
 ): number {
-  const cursor = createTranscriptSearchEdgeCursor(
-    state.snapshot,
-    ptr,
-    delta < 0 ? 'last' : 'first',
-  );
-  return getTranscriptSearchCurrent(state.snapshot, cursor.ptr, cursor.occurrenceOrdinal);
+  return getTranscriptSearchEngineEdgeCurrent({
+    snapshot: state.snapshot,
+    cursor: {
+      ptr: state.ptr,
+      occurrenceOrdinal: state.screenOrd,
+    },
+  }, ptr, delta < 0 ? 'last' : 'first');
 }
 
 function getCurrentMessageOccurrenceCount(state: SearchNavigationState): number {
-  return getTranscriptSearchOccurrenceCount(state.snapshot, state.ptr);
+  return getTranscriptSearchEngineCurrentMessageOccurrenceCount({
+    snapshot: state.snapshot,
+    cursor: {
+      ptr: state.ptr,
+      occurrenceOrdinal: state.screenOrd,
+    },
+  });
 }
 
 function findNearestSearchMatchPtr(
@@ -802,11 +826,17 @@ export function VirtualMessageList({
       scanRequestRef.current = null;
       startPtrRef.current = -1;
       resetSearchViewportState();
-      const snapshot = buildTranscriptSearchSnapshot(normalizeTranscriptSearchQuery(q), jumpState.current.messages, extractSearchText);
+      const engine = buildTranscriptSearchEngineState(q, jumpState.current.messages, extractSearchText, {
+        query: searchState.current.snapshot.query,
+        cursor: {
+          ptr: searchState.current.ptr,
+          occurrenceOrdinal: searchState.current.screenOrd,
+        },
+      });
       const nextState: SearchNavigationState = {
-        snapshot,
-        ptr: 0,
-        screenOrd: 0
+        snapshot: engine.snapshot,
+        ptr: engine.cursor.ptr,
+        screenOrd: engine.cursor.occurrenceOrdinal
       };
       const total = getSearchTotal(nextState);
       // Nearest MESSAGE to the anchor. <= so ties go to later.
