@@ -222,7 +222,6 @@ import { checkAndDisableBypassPermissionsIfNeeded, checkAndDisableAutoModeIfNeed
 import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from 'src/cli/structuredIO.js';
 import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit.js';
-import { SandboxViolationExpandedView } from 'src/components/SandboxViolationExpandedView.js';
 import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
 import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
 import { useAutoModeUnavailableNotification } from 'src/hooks/notifs/useAutoModeUnavailableNotification.js';
@@ -266,7 +265,6 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
 import {
   AnimatedTerminalTitle,
-  TranscriptModeFooter,
   TranscriptSearchBar,
 } from './repl/ReplShellHelpers.js';
 import {
@@ -283,6 +281,7 @@ import { ReplPermissionOverlays } from './repl/ReplPermissionOverlays.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
+import { ReplTranscriptScreen } from './repl/ReplTranscriptScreen.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchFeature } from './repl/useTranscriptSearchFeature.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -3830,17 +3829,7 @@ export function REPL({
       // Cancel-restore handles the 'don't lose prior search'
       // concern differently (onCancel re-applies searchQuery).
       initialQuery="" count={searchCount} current={searchCurrent} onClose={handleCloseSearchBar} onCancel={handleCancelSearchBar} />;
-    const transcriptReturn = <KeybindingSetup>
-        <AnimatedTerminalTitle isAnimating={titleIsAnimating} title={terminalTitle} disabled={titleDisabled} noPrefix={showStatusInTerminalTab} />
-        <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        {feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null}
-        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
-        {transcriptScrollRef ?
-      // ScrollKeybindingHandler must mount before CancelRequestHandler so
-      // ctrl+c-with-selection copies instead of cancelling the active task.
-      // Its raw useInput handler only stops propagation when a selection
-      // exists — without one, ctrl+c falls through to CancelRequestHandler.
-      <ScrollKeybindingHandler scrollRef={scrollRef}
+    return <ReplTranscriptScreen titleIsAnimating={titleIsAnimating} terminalTitle={terminalTitle} titleDisabled={titleDisabled} showStatusInTerminalTab={showStatusInTerminalTab} globalKeybindingsNode={<GlobalKeybindingHandlers {...globalKeybindingProps} />} voiceNode={feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null} commandKeybindingsNode={<CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />} scrollKeybindingsNode={transcriptScrollRef ? <ScrollKeybindingHandler scrollRef={scrollRef}
       // Yield wheel/ctrl+u/d to UltraplanChoiceDialog's own scroll
       // handler while the modal is showing.
       isActive={focusedInputDialog !== 'ultraplan-choice'}
@@ -3851,33 +3840,7 @@ export function REPL({
       // row emphasis can be re-established from the current viewport
       // on the next n/N action instead of pretending the old view is
       // still authoritative.
-      onScroll={() => jumpRef.current?.disarmSearch()} /> : null}
-        <CancelRequestHandler {...cancelRequestProps} />
-        {transcriptScrollRef ? <FullscreenLayout forceFullscreen={true} scrollRef={scrollRef} scrollable={<>
-                {transcriptMessagesElement}
-                {transcriptToolJSX}
-                <SandboxViolationExpandedView />
-              </>} bottom={searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={true} status={editorStatus || undefined} searchBadge={searchBadge} />} /> : <>
-            {transcriptMessagesElement}
-            {transcriptToolJSX}
-            <SandboxViolationExpandedView />
-            {searchOpen ? transcriptSearchElement : <TranscriptModeFooter showAllInTranscript={showAllInTranscript} virtualScroll={false} suppressShowAll={dumpMode} status={editorStatus || undefined} searchBadge={searchBadge} />}
-          </>}
-      </KeybindingSetup>;
-    // The virtual-scroll branch (FullscreenLayout above) needs
-    // <AlternateScreen>'s <Box height={rows}> constraint — without it,
-    // ScrollBox's flexGrow has no ceiling, viewport = content height,
-    // scrollTop pins at 0, and Ink's screen buffer sizes to the full
-    // spacer (200×5k+ rows on long sessions). Same root type + props as
-    // normal mode's wrap below so React reconciles and the alt buffer
-    // stays entered across toggle. The 30-cap dump branch stays
-    // unwrapped — it wants native terminal scrollback.
-    if (transcriptScrollRef) {
-      return <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>
-          {transcriptReturn}
-        </AlternateScreen>;
-    }
-    return transcriptReturn;
+      onScroll={() => jumpRef.current?.disarmSearch()} /> : null} cancelRequestNode={<CancelRequestHandler {...cancelRequestProps} />} transcriptScrollRef={transcriptScrollRef} transcriptMessagesElement={transcriptMessagesElement} transcriptToolJSX={transcriptToolJSX} searchOpen={searchOpen} transcriptSearchElement={transcriptSearchElement} showAllInTranscript={showAllInTranscript} dumpMode={dumpMode} editorStatus={editorStatus || undefined} searchBadge={searchBadge} />;
   }
 
   // Get viewed agent task (inlined from selectors for explicit data flow).
