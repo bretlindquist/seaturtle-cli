@@ -733,121 +733,116 @@ export function VirtualMessageList({
     reportSearchProgress(total, placeholder);
   }
   stepRef.current = step;
+  const jumpToIndex = useCallback((i: number) => {
+    const s = scrollRef.current;
+    if (s) s.scrollTo(targetFor(i));
+  }, [scrollRef]);
+  const applySearchQuery = useCallback((q: string) => {
+    scanRequestRef.current = null;
+    startPtrRef.current = -1;
+    resetSearchViewportState();
+    const s = scrollRef.current;
+    const {
+      offsets,
+      start,
+      getItemTop
+    } = jumpState.current;
+    const nextState = buildSearchNavigationStateForQuery({
+      query: q,
+      messages: jumpState.current.messages,
+      extractSearchText,
+      previous: {
+        query: searchState.current.snapshot.query,
+        ptr: searchState.current.ptr,
+        screenOrd: searchState.current.screenOrd,
+      },
+      currentTop: searchAnchor.current >= 0 ? searchAnchor.current : s?.getScrollTop() ?? 0,
+      offsets,
+      start,
+      getItemTop,
+    });
+    const total = getSearchNavigationTotal(nextState);
+    if (nextState.snapshot.matches.length > 0 && s) {
+      const firstTop = getItemTop(start);
+      const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
+      const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
+      logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${nextState.ptr} ` + `msgIdx=${nextState.snapshot.matches[nextState.ptr]} curTop=${curTop} origin=${origin}`);
+    }
+    setSearchNavigationState(nextState);
+    if (nextState.snapshot.matches.length > 0) {
+      jump(nextState.snapshot.matches[nextState.ptr]!, true);
+    } else if (searchAnchor.current >= 0 && s) {
+      s.scrollTo(searchAnchor.current);
+    }
+    reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getSearchNavigationPlaceholderCurrent({
+      ...nextState,
+    }, nextState.ptr, -1) : 0);
+  }, [extractSearchText, jump, reportSearchProgress, resetSearchViewportState, scrollRef, setSearchNavigationState]);
+  const refreshCurrentMatch = useCallback(() => {
+    const st = searchState.current;
+    if (st.snapshot.matches.length === 0) {
+      clearActiveResult();
+      return;
+    }
+    const {
+      msgIdx,
+      positions
+    } = elementPositions.current;
+    const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
+    const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
+    if (msgIdx === st.snapshot.matches[st.ptr] && usablePositions > 0) {
+      highlightRef.current(st.screenOrd);
+      return;
+    }
+    jump(st.snapshot.matches[st.ptr]!, st.screenOrd > 0);
+  }, [clearActiveResult, jump]);
+  const setSearchAnchor = useCallback(() => {
+    const s = scrollRef.current;
+    if (s) searchAnchor.current = s.getScrollTop();
+  }, [scrollRef]);
+  const disarmSearch = useCallback(() => {
+    clearActiveResult();
+    scanRequestRef.current = null;
+    elementPositions.current = {
+      msgIdx: -1,
+      positions: []
+    };
+    startPtrRef.current = -1;
+  }, [clearActiveResult]);
+  const warmSearchIndex = useCallback(async () => {
+    if (indexWarmed.current) return 0;
+    const msgs = jumpState.current.messages;
+    const CHUNK = 500;
+    let workMs = 0;
+    const wallStart = performance.now();
+    for (let i = 0; i < msgs.length; i += CHUNK) {
+      await sleep(0);
+      const t0 = performance.now();
+      const end = Math.min(i + CHUNK, msgs.length);
+      for (let j = i; j < end; j++) {
+        extractSearchText(msgs[j]!);
+      }
+      workMs += performance.now() - t0;
+    }
+    const wallMs = Math.round(performance.now() - wallStart);
+    logForDebugging(`warmSearchIndex: ${msgs.length} msgs · work=${Math.round(workMs)}ms wall=${wallMs}ms chunks=${Math.ceil(msgs.length / CHUNK)}`);
+    indexWarmed.current = true;
+    return Math.round(workMs);
+  }, [extractSearchText]);
   useImperativeHandle(jumpRef, () => ({
-    // Non-search jump (sticky header click, etc). No scan, no positions.
-    jumpToIndex: (i: number) => {
-      const s = scrollRef.current;
-      if (s) s.scrollTo(targetFor(i));
-    },
-    setSearchQuery: (q: string) => {
-      // New search invalidates everything.
-      scanRequestRef.current = null;
-      startPtrRef.current = -1;
-      resetSearchViewportState();
-      const s = scrollRef.current;
-      const {
-        offsets,
-        start,
-        getItemTop
-      } = jumpState.current;
-      const nextState = buildSearchNavigationStateForQuery({
-        query: q,
-        messages: jumpState.current.messages,
-        extractSearchText,
-        previous: {
-          query: searchState.current.snapshot.query,
-          ptr: searchState.current.ptr,
-          screenOrd: searchState.current.screenOrd,
-        },
-        currentTop: searchAnchor.current >= 0 ? searchAnchor.current : s?.getScrollTop() ?? 0,
-        offsets,
-        start,
-        getItemTop,
-      });
-      const total = getSearchNavigationTotal(nextState);
-      if (nextState.snapshot.matches.length > 0 && s) {
-        const firstTop = getItemTop(start);
-        const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-        const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-        logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${nextState.ptr} ` + `msgIdx=${nextState.snapshot.matches[nextState.ptr]} curTop=${curTop} origin=${origin}`);
-      }
-      setSearchNavigationState(nextState);
-      if (nextState.snapshot.matches.length > 0) {
-        // wantLast=true: preview the LAST occurrence in the nearest
-        // message. At sticky-bottom (common / entry), nearest is the
-        // last msg; its last occurrence is closest to where the user
-        // was — minimal view movement. n advances forward from there.
-        jump(nextState.snapshot.matches[nextState.ptr]!, true);
-      } else if (searchAnchor.current >= 0 && s) {
-        // /foob → 0 matches → snap back to anchor. less/vim incsearch.
-        s.scrollTo(searchAnchor.current);
-      }
-      // Badge reflects the current matched occurrence. wantLast=true selects
-      // the last occurrence in the nearest matched message so the initial
-      // preview stays close to the user's current viewport.
-      reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getSearchNavigationPlaceholderCurrent({
-        ...nextState,
-      }, nextState.ptr, -1) : 0);
-    },
+    jumpToIndex,
+    setSearchQuery: applySearchQuery,
     nextMatch: () => step(1),
     prevMatch: () => step(-1),
-    refreshCurrentMatch: () => {
-      const st = searchState.current;
-      if (st.snapshot.matches.length === 0) {
-        clearActiveResult();
-        return;
-      }
-      const {
-        msgIdx,
-        positions
-      } = elementPositions.current;
-      const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
-      const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
-      if (msgIdx === st.snapshot.matches[st.ptr] && usablePositions > 0) {
-        highlightRef.current(st.screenOrd);
-        return;
-      }
-      jump(st.snapshot.matches[st.ptr]!, st.screenOrd > 0);
-    },
-    setAnchor: () => {
-      const s = scrollRef.current;
-      if (s) searchAnchor.current = s.getScrollTop();
-    },
-    disarmSearch: () => {
-      // Manual scroll invalidates screen-absolute positions.
-      clearActiveResult();
-      scanRequestRef.current = null;
-      elementPositions.current = {
-        msgIdx: -1,
-        positions: []
-      };
-      startPtrRef.current = -1;
-    },
-    warmSearchIndex: async () => {
-      if (indexWarmed.current) return 0;
-      const msgs = jumpState.current.messages;
-      const CHUNK = 500;
-      let workMs = 0;
-      const wallStart = performance.now();
-      for (let i = 0; i < msgs.length; i += CHUNK) {
-        await sleep(0);
-        const t0 = performance.now();
-        const end = Math.min(i + CHUNK, msgs.length);
-        for (let j = i; j < end; j++) {
-          extractSearchText(msgs[j]!);
-        }
-        workMs += performance.now() - t0;
-      }
-      const wallMs = Math.round(performance.now() - wallStart);
-      logForDebugging(`warmSearchIndex: ${msgs.length} msgs · work=${Math.round(workMs)}ms wall=${wallMs}ms chunks=${Math.ceil(msgs.length / CHUNK)}`);
-      indexWarmed.current = true;
-      return Math.round(workMs);
-    }
+    refreshCurrentMatch,
+    setAnchor: setSearchAnchor,
+    disarmSearch,
+    warmSearchIndex
   }),
   // Closures over refs + callbacks. scrollRef stable; others are
   // useCallback([]) or prop-drilled from REPL (stable).
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  [clearActiveResult, reportSearchProgress, resetSearchViewportState, scrollRef]);
+  [applySearchQuery, disarmSearch, jumpToIndex, refreshCurrentMatch, scrollRef, setSearchAnchor, warmSearchIndex]);
 
   // StickyTracker goes AFTER the list content. It returns null (no DOM node)
   // so order shouldn't matter for layout — but putting it first means every
