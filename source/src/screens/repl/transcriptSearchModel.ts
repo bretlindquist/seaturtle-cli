@@ -1,5 +1,15 @@
 import type { RenderableMessage } from '../../types/message.js';
 
+/**
+ * Transcript search semantics are occurrence-based and ordered by transcript
+ * reading order. This model is the semantic source of truth for:
+ * - total result count
+ * - current result ordinal
+ * - next/previous wraparound behavior
+ *
+ * Renderer paths may decide how to visualize the current occurrence, but they
+ * must not invent separate count/current semantics from scan results.
+ */
 export type TranscriptSearchSnapshot = {
   query: string;
   matches: number[];
