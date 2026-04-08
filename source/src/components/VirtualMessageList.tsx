@@ -19,13 +19,10 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
-import {
-  buildTranscriptSearchEngineState,
-} from '../screens/repl/transcriptSearchEngine.js';
 import { wrapTranscriptSearchPtr } from '../screens/repl/transcriptSearchModel.js';
 import {
+  buildSearchNavigationStateForQuery,
   createEmptySearchNavigationState,
-  findNearestSearchMatchPtr,
   getSearchNavigationCurrent,
   getSearchNavigationCurrentMessageOccurrenceCount,
   getSearchNavigationPlaceholderCurrent,
@@ -747,44 +744,40 @@ export function VirtualMessageList({
       scanRequestRef.current = null;
       startPtrRef.current = -1;
       resetSearchViewportState();
-      const engine = buildTranscriptSearchEngineState(q, jumpState.current.messages, extractSearchText, {
-        query: searchState.current.snapshot.query,
-        cursor: {
-          ptr: searchState.current.ptr,
-          occurrenceOrdinal: searchState.current.screenOrd,
-        },
-      });
-      const nextState: SearchNavigationState = {
-        snapshot: engine.snapshot,
-        ptr: engine.cursor.ptr,
-        screenOrd: engine.cursor.occurrenceOrdinal
-      };
-      const total = getSearchNavigationTotal(nextState);
-      // Nearest MESSAGE to the anchor. <= so ties go to later.
-      let ptr = 0;
       const s = scrollRef.current;
       const {
         offsets,
         start,
         getItemTop
       } = jumpState.current;
+      const nextState = buildSearchNavigationStateForQuery({
+        query: q,
+        messages: jumpState.current.messages,
+        extractSearchText,
+        previous: {
+          query: searchState.current.snapshot.query,
+          ptr: searchState.current.ptr,
+          screenOrd: searchState.current.screenOrd,
+        },
+        currentTop: searchAnchor.current >= 0 ? searchAnchor.current : s?.getScrollTop() ?? 0,
+        offsets,
+        start,
+        getItemTop,
+      });
+      const total = getSearchNavigationTotal(nextState);
       if (nextState.snapshot.matches.length > 0 && s) {
-        const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-        ptr = findNearestSearchMatchPtr(nextState.snapshot.matches, offsets, start, getItemTop, curTop);
         const firstTop = getItemTop(start);
         const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-        logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${ptr} ` + `msgIdx=${nextState.snapshot.matches[ptr]} curTop=${curTop} origin=${origin}`);
+        const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
+        logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${nextState.ptr} ` + `msgIdx=${nextState.snapshot.matches[nextState.ptr]} curTop=${curTop} origin=${origin}`);
       }
-      setSearchNavigationState({
-        ...nextState,
-        ptr
-      });
+      setSearchNavigationState(nextState);
       if (nextState.snapshot.matches.length > 0) {
         // wantLast=true: preview the LAST occurrence in the nearest
         // message. At sticky-bottom (common / entry), nearest is the
         // last msg; its last occurrence is closest to where the user
         // was — minimal view movement. n advances forward from there.
-        jump(nextState.snapshot.matches[ptr]!, true);
+        jump(nextState.snapshot.matches[nextState.ptr]!, true);
       } else if (searchAnchor.current >= 0 && s) {
         // /foob → 0 matches → snap back to anchor. less/vim incsearch.
         s.scrollTo(searchAnchor.current);
@@ -794,8 +787,7 @@ export function VirtualMessageList({
       // preview stays close to the user's current viewport.
       reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getSearchNavigationPlaceholderCurrent({
         ...nextState,
-        ptr
-      }, ptr, -1) : 0);
+      }, nextState.ptr, -1) : 0);
     },
     nextMatch: () => step(1),
     prevMatch: () => step(-1),

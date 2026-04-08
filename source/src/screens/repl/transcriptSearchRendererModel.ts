@@ -1,9 +1,11 @@
+import { buildTranscriptSearchEngineState } from './transcriptSearchEngine.js';
+import type { RenderableMessage } from '../../types/message.js';
 import {
-  createEmptyTranscriptSearchEngineState,
   getTranscriptSearchEngineCurrent,
   getTranscriptSearchEngineCurrentMessageOccurrenceCount,
   getTranscriptSearchEngineEdgeCurrent,
   getTranscriptSearchEngineTotal,
+  createEmptyTranscriptSearchEngineState,
 } from './transcriptSearchEngine.js';
 import type { TranscriptSearchSnapshot } from './transcriptSearchModel.js';
 
@@ -97,4 +99,57 @@ export function findNearestSearchMatchPtr(
     }
   }
   return ptr;
+}
+
+type BuildSearchNavigationStateForQueryInput = {
+  query: string;
+  messages: readonly RenderableMessage[];
+  extractSearchText: (msg: RenderableMessage) => string;
+  previous: {
+    query: string;
+    ptr: number;
+    screenOrd: number;
+  };
+  currentTop: number;
+  offsets: Float64Array;
+  start: number;
+  getItemTop: (i: number) => number;
+};
+
+export function buildSearchNavigationStateForQuery({
+  query,
+  messages,
+  extractSearchText,
+  previous,
+  currentTop,
+  offsets,
+  start,
+  getItemTop,
+}: BuildSearchNavigationStateForQueryInput): SearchNavigationState {
+  const engine = buildTranscriptSearchEngineState(query, messages, extractSearchText, {
+    query: previous.query,
+    cursor: {
+      ptr: previous.ptr,
+      occurrenceOrdinal: previous.screenOrd,
+    },
+  });
+  if (engine.snapshot.matches.length === 0) {
+    return {
+      snapshot: engine.snapshot,
+      ptr: engine.cursor.ptr,
+      screenOrd: engine.cursor.occurrenceOrdinal,
+    };
+  }
+  const ptr = findNearestSearchMatchPtr(
+    engine.snapshot.matches,
+    offsets,
+    start,
+    getItemTop,
+    currentTop,
+  );
+  return {
+    snapshot: engine.snapshot,
+    ptr,
+    screenOrd: engine.cursor.occurrenceOrdinal,
+  };
 }
