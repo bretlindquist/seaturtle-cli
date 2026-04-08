@@ -21,12 +21,12 @@ import { getCtContextDomainResult } from '../services/projectIdentity/contextDom
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
-import { updateLastInteractionTime, getLastInteractionTime, getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore, getTurnHookDurationMs, getTurnHookCount, resetTurnHookDuration, getTurnToolDurationMs, getTurnToolCount, resetTurnToolDuration, getTurnClassifierDurationMs, getTurnClassifierCount, resetTurnClassifierDuration } from '../bootstrap/state.js';
+import { getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore, getTurnHookDurationMs, getTurnHookCount, resetTurnHookDuration, getTurnToolDurationMs, getTurnToolCount, resetTurnToolDuration, getTurnClassifierDurationMs, getTurnClassifierCount, resetTurnClassifierDuration } from '../bootstrap/state.js';
 import { asSessionId, asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
-import { formatTokens, truncateToWidth } from '../utils/format.js';
+import { truncateToWidth } from '../utils/format.js';
 import { getCwd } from '../utils/cwd.js';
 import { consumeEarlyInput } from '../utils/earlyInput.js';
 import { setMemberActive } from '../utils/swarm/teamHelpers.js';
@@ -60,7 +60,6 @@ import { getSystemPrompt } from '../constants/prompts.js';
 import { buildEffectiveSystemPrompt } from '../utils/systemPrompt.js';
 import { getSystemContext, getUserContext } from '../context.js';
 import { getMemoryFiles } from '../utils/claudemd.js';
-import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { getTotalCost, saveCurrentSessionCosts, resetCostState, getStoredSessionCosts } from '../cost-tracker.js';
 import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
@@ -189,7 +188,6 @@ import { diagnosticTracker } from '../services/diagnosticTracking.js';
 import { handleSpeculationAccept, type ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
 import { shouldShowEffortCallout } from '../components/EffortCallout.js';
 import type { EffortValue } from '../utils/effort.js';
-import { activityManager } from '../utils/activityManager.js';
 import { createAbortController } from '../utils/abortController.js';
 import { MCPConnectionManager } from 'src/services/mcp/MCPConnectionManager.js';
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
@@ -298,6 +296,7 @@ import { useReplDialogActions } from './repl/useReplDialogActions.js';
 import { ReplScrollablePane } from './repl/ReplScrollablePane.js';
 import { useInitialMessageProcessing } from './repl/useInitialMessageProcessing.js';
 import { useIncomingSubmissions } from './repl/useIncomingSubmissions.js';
+import { useReplSupportEffects } from './repl/useReplSupportEffects.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -3524,26 +3523,6 @@ export function REPL({
   sendBridgeResultRef.current = sendBridgeResult;
   useAfterFirstRender();
 
-  // Track prompt queue usage for analytics. Fire once per transition from
-  // empty to non-empty, not on every length change -- otherwise a render loop
-  // (concurrent onQuery thrashing, etc.) spams saveGlobalConfig, which hits
-  // ELOCKED under concurrent sessions and falls back to unlocked writes.
-  // That write storm is the primary trigger for ~/.claude.json corruption
-  // (GH #3117).
-  const hasCountedQueueUseRef = useRef(false);
-  useEffect(() => {
-    if (queuedCommands.length < 1) {
-      hasCountedQueueUseRef.current = false;
-      return;
-    }
-    if (hasCountedQueueUseRef.current) return;
-    hasCountedQueueUseRef.current = true;
-    saveGlobalConfig(current => ({
-      ...current,
-      promptQueueUseCount: (current.promptQueueUseCount ?? 0) + 1
-    }));
-  }, [queuedCommands.length]);
-
   // Process queued commands when query completes and queue has items
 
   const executeQueuedInput = useCallback(async (queuedCommands: QueuedCommand[]) => {
@@ -3580,125 +3559,27 @@ export function REPL({
     hasActiveLocalJsxUI: isShowingLocalJSXCommand,
     queryGuard
   });
-
-  useEffect(() => {
-    if (isQueryActive) return;
-    if (isShowingLocalJSXCommand) return;
-    if (queuedCommands.length > 0) return;
-    if (parkedPrompts.length === 0) return;
-
-    const [nextParked, ...remaining] = parkedPrompts;
-    if (!nextParked) return;
-
-    setAppState(prev => ({
+  useReplSupportEffects({
+    queuedCommands,
+    isQueryActive,
+    isShowingLocalJsxCommand,
+    parkedPrompts,
+    setParkedPrompts: updater => setAppState(prev => ({
       ...prev,
-      parkedPrompts: remaining,
-    }));
-
-    enqueue({
-      ...nextParked,
-      priority: 'later',
-    });
-  }, [isQueryActive, isShowingLocalJSXCommand, queuedCommands.length, parkedPrompts, setAppState]);
-
-  // We'll use the global lastInteractionTime from state.ts
-
-  // Update last interaction time when input changes.
-  // Must be immediate because useEffect runs after the Ink render cycle flush.
-  useEffect(() => {
-    activityManager.recordUserActivity();
-    updateLastInteractionTime(true);
-  }, [inputValue, submitCount]);
-  useEffect(() => {
-    if (submitCount === 1) {
-      startBackgroundHousekeeping();
-    }
-  }, [submitCount]);
-
-  // Show notification when Claude is done responding and user is idle
-  useEffect(() => {
-    // Don't set up notification if Claude is busy
-    if (isLoading) return;
-
-    // Only enable notifications after the first new interaction in this session
-    if (submitCount === 0) return;
-
-    // No query has completed yet
-    if (lastQueryCompletionTime === 0) return;
-
-    // Set timeout to check idle state
-    const timer = setTimeout((lastQueryCompletionTime, isLoading, toolJSX, focusedInputDialogRef, terminal) => {
-      // Check if user has interacted since the response ended
-      const lastUserInteraction = getLastInteractionTime();
-      if (lastUserInteraction > lastQueryCompletionTime) {
-        // User has interacted since Claude finished - they're not idle, don't notify
-        return;
-      }
-
-      // User hasn't interacted since response ended, check other conditions
-      const idleTimeSinceResponse = Date.now() - lastQueryCompletionTime;
-      if (!isLoading && !toolJSX &&
-      // Use ref to get current dialog state, avoiding stale closure
-      focusedInputDialogRef.current === undefined && idleTimeSinceResponse >= getGlobalConfig().messageIdleNotifThresholdMs) {
-        void sendNotification({
-          message: 'CT is waiting for your input',
-          notificationType: 'idle_prompt'
-        }, terminal);
-      }
-    }, getGlobalConfig().messageIdleNotifThresholdMs, lastQueryCompletionTime, isLoading, toolJSX, focusedInputDialogRef, terminal);
-    return () => clearTimeout(timer);
-  }, [isLoading, toolJSX, submitCount, lastQueryCompletionTime, terminal]);
-
-  // Idle-return hint: show notification when idle threshold is exceeded.
-  // Timer fires after the configured idle period; notification persists until
-  // dismissed or the user submits.
-  useEffect(() => {
-    if (lastQueryCompletionTime === 0) return;
-    if (isLoading) return;
-    const willowMode: string = getFeatureValue_CACHED_MAY_BE_STALE('tengu_willow_mode', 'off');
-    if (willowMode !== 'hint' && willowMode !== 'hint_v2') return;
-    if (getGlobalConfig().idleReturnDismissed) return;
-    const tokenThreshold = Number(process.env.CLAUDE_CODE_IDLE_TOKEN_THRESHOLD ?? 100_000);
-    if (getTotalInputTokens() < tokenThreshold) return;
-    const idleThresholdMs = Number(process.env.CLAUDE_CODE_IDLE_THRESHOLD_MINUTES ?? 75) * 60_000;
-    const elapsed = Date.now() - lastQueryCompletionTime;
-    const remaining = idleThresholdMs - elapsed;
-    const timer = setTimeout((lqct, addNotif, msgsRef, mode, hintRef) => {
-      if (msgsRef.current.length === 0) return;
-      const totalTokens = getTotalInputTokens();
-      const formattedTokens = formatTokens(totalTokens);
-      const idleMinutes = (Date.now() - lqct) / 60_000;
-      addNotif({
-        key: 'idle-return-hint',
-        jsx: mode === 'hint_v2' ? <>
-                <Text dimColor>new task? </Text>
-                <Text color="suggestion">/clear</Text>
-                <Text dimColor> to save </Text>
-                <Text color="suggestion">{formattedTokens} tokens</Text>
-              </> : <Text color="warning">
-                new task? /clear to save {formattedTokens} tokens
-              </Text>,
-        priority: 'medium',
-        // Persist until submit — the hint fires at T+75min idle, user may
-        // not return for hours. removeNotification in useEffect cleanup
-        // handles dismissal. 0x7FFFFFFF = setTimeout max (~24.8 days).
-        timeoutMs: 0x7fffffff
-      });
-      hintRef.current = mode;
-      logEvent('tengu_idle_return_action', {
-        action: 'hint_shown' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        variant: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        idleMinutes: Math.round(idleMinutes),
-        messageCount: msgsRef.current.length,
-        totalInputTokens: totalTokens
-      });
-    }, Math.max(0, remaining), lastQueryCompletionTime, addNotification, messagesRef, willowMode, idleHintShownRef);
-    return () => {
-      clearTimeout(timer);
-      removeNotification('idle-return-hint');
-      idleHintShownRef.current = false;
-    };
-  }, [lastQueryCompletionTime, isLoading, addNotification, removeNotification]);
+      parkedPrompts: updater(prev.parkedPrompts),
+    })),
+    inputValue,
+    submitCount,
+    isLoading,
+    lastQueryCompletionTime,
+    toolJsxPresent: Boolean(toolJSX),
+    focusedInputDialogRef,
+    terminal,
+    messagesRef,
+    addNotification,
+    removeNotification,
+    idleHintShownRef,
+  });
 
   // Voice input integration (VOICE_MODE builds only)
   const voice = feature('VOICE_MODE') ?
