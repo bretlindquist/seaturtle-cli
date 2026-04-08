@@ -19,7 +19,7 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
-import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
+import { buildTranscriptSearchSnapshot, createTranscriptSearchEdgeCursor, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -142,9 +142,12 @@ function getPlaceholderSearchOrdinal(
   ptr: number,
   delta: 1 | -1,
 ): number {
-  const occurrenceCount = getTranscriptSearchOccurrenceCount(state.snapshot, ptr);
-  const occurrenceOrdinal = delta < 0 ? Math.max(0, occurrenceCount - 1) : 0;
-  return getTranscriptSearchCurrent(state.snapshot, ptr, occurrenceOrdinal);
+  const cursor = createTranscriptSearchEdgeCursor(
+    state.snapshot,
+    ptr,
+    delta < 0 ? 'last' : 'first',
+  );
+  return getTranscriptSearchCurrent(state.snapshot, cursor.ptr, cursor.occurrenceOrdinal);
 }
 
 function getCurrentMessageOccurrenceCount(state: SearchNavigationState): number {

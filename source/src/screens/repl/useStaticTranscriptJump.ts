@@ -4,7 +4,7 @@ import type { RenderableMessage } from '../../types/message.js';
 import { renderableSearchText } from '../../utils/transcriptSearch.js';
 import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
-import { buildTranscriptSearchSnapshot, getTranscriptSearchCurrent, getTranscriptSearchOccurrenceCount, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from './transcriptSearchModel.js';
+import { buildTranscriptSearchSnapshot, createTranscriptSearchCursor, getTranscriptSearchCurrent, getTranscriptSearchNextCursor, getTranscriptSearchPreviousCursor, getTranscriptSearchTotal, normalizeTranscriptSearchQuery, type TranscriptSearchSnapshot } from './transcriptSearchModel.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
@@ -72,12 +72,11 @@ export function useStaticTranscriptJump({
             : stateRef.current.query === normalized && stateRef.current.ptr >= 0 && stateRef.current.ptr < snapshot.matches.length
               ? stateRef.current.ptr
               : 0;
-        const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
         const occurrenceOrd =
           count === 0
             ? 0
-            : stateRef.current.query === normalized && stateRef.current.occurrenceOrd >= 0 && stateRef.current.occurrenceOrd < occurrenceCount
-              ? stateRef.current.occurrenceOrd
+            : stateRef.current.query === normalized
+              ? createTranscriptSearchCursor(snapshot, ptr, stateRef.current.occurrenceOrd).occurrenceOrdinal
               : 0;
 
         stateRef.current = {
@@ -96,17 +95,13 @@ export function useStaticTranscriptJump({
         } = stateRef.current;
         const count = getTranscriptSearchTotal(snapshot);
         if (count === 0) return;
-        const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
-        if (occurrenceOrd + 1 < occurrenceCount) {
-          const nextOccurrenceOrd = occurrenceOrd + 1;
-          stateRef.current.occurrenceOrd = nextOccurrenceOrd;
-          searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, ptr, nextOccurrenceOrd));
-          return;
-        }
-        const nextPtr = wrapTranscriptSearchPtr(ptr, 1, snapshot.matches.length);
-        stateRef.current.ptr = nextPtr;
-        stateRef.current.occurrenceOrd = 0;
-        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, nextPtr, 0));
+        const next = getTranscriptSearchNextCursor(snapshot, {
+          ptr,
+          occurrenceOrdinal: occurrenceOrd,
+        });
+        stateRef.current.ptr = next.ptr;
+        stateRef.current.occurrenceOrd = next.occurrenceOrdinal;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, next.ptr, next.occurrenceOrdinal));
       },
       prevMatch: () => {
         const {
@@ -116,17 +111,13 @@ export function useStaticTranscriptJump({
         } = stateRef.current;
         const count = getTranscriptSearchTotal(snapshot);
         if (count === 0) return;
-        if (occurrenceOrd > 0) {
-          const nextOccurrenceOrd = occurrenceOrd - 1;
-          stateRef.current.occurrenceOrd = nextOccurrenceOrd;
-          searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, ptr, nextOccurrenceOrd));
-          return;
-        }
-        const nextPtr = wrapTranscriptSearchPtr(ptr, -1, snapshot.matches.length);
-        const nextOccurrenceOrd = Math.max(0, getTranscriptSearchOccurrenceCount(snapshot, nextPtr) - 1);
-        stateRef.current.ptr = nextPtr;
-        stateRef.current.occurrenceOrd = nextOccurrenceOrd;
-        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, nextPtr, nextOccurrenceOrd));
+        const next = getTranscriptSearchPreviousCursor(snapshot, {
+          ptr,
+          occurrenceOrdinal: occurrenceOrd,
+        });
+        stateRef.current.ptr = next.ptr;
+        stateRef.current.occurrenceOrd = next.occurrenceOrdinal;
+        searchProgress.reportMatches(count, getTranscriptSearchCurrent(snapshot, next.ptr, next.occurrenceOrdinal));
       },
     }),
     [searchProgress],

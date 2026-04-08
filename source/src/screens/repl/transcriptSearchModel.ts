@@ -8,6 +8,11 @@ export type TranscriptSearchSnapshot = {
   totalOccurrences: number;
 };
 
+export type TranscriptSearchCursor = {
+  ptr: number;
+  occurrenceOrdinal: number;
+};
+
 export function normalizeTranscriptSearchQuery(query: string): string {
   return query.toLowerCase();
 }
@@ -77,6 +82,97 @@ export function getTranscriptSearchOccurrenceCount(
   ptr: number,
 ): number {
   return snapshot.occurrenceCounts[ptr] ?? 0;
+}
+
+export function clampTranscriptSearchCursor(
+  snapshot: TranscriptSearchSnapshot,
+  cursor: TranscriptSearchCursor,
+): TranscriptSearchCursor {
+  if (snapshot.matches.length === 0) {
+    return {
+      ptr: 0,
+      occurrenceOrdinal: 0,
+    };
+  }
+  const ptr = Math.max(0, Math.min(cursor.ptr, snapshot.matches.length - 1));
+  const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
+  return {
+    ptr,
+    occurrenceOrdinal: Math.max(0, Math.min(cursor.occurrenceOrdinal, Math.max(0, occurrenceCount - 1))),
+  };
+}
+
+export function createTranscriptSearchCursor(
+  snapshot: TranscriptSearchSnapshot,
+  ptr: number,
+  occurrenceOrdinal: number,
+): TranscriptSearchCursor {
+  return clampTranscriptSearchCursor(snapshot, {
+    ptr,
+    occurrenceOrdinal,
+  });
+}
+
+export function createTranscriptSearchEdgeCursor(
+  snapshot: TranscriptSearchSnapshot,
+  ptr: number,
+  edge: 'first' | 'last',
+): TranscriptSearchCursor {
+  const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, ptr);
+  return createTranscriptSearchCursor(
+    snapshot,
+    ptr,
+    edge === 'last' ? Math.max(0, occurrenceCount - 1) : 0,
+  );
+}
+
+export function getTranscriptSearchNextCursor(
+  snapshot: TranscriptSearchSnapshot,
+  cursor: TranscriptSearchCursor,
+): TranscriptSearchCursor {
+  if (snapshot.matches.length === 0) {
+    return {
+      ptr: 0,
+      occurrenceOrdinal: 0,
+    };
+  }
+  const current = clampTranscriptSearchCursor(snapshot, cursor);
+  const occurrenceCount = getTranscriptSearchOccurrenceCount(snapshot, current.ptr);
+  if (current.occurrenceOrdinal + 1 < occurrenceCount) {
+    return {
+      ptr: current.ptr,
+      occurrenceOrdinal: current.occurrenceOrdinal + 1,
+    };
+  }
+  return createTranscriptSearchEdgeCursor(
+    snapshot,
+    wrapTranscriptSearchPtr(current.ptr, 1, snapshot.matches.length),
+    'first',
+  );
+}
+
+export function getTranscriptSearchPreviousCursor(
+  snapshot: TranscriptSearchSnapshot,
+  cursor: TranscriptSearchCursor,
+): TranscriptSearchCursor {
+  if (snapshot.matches.length === 0) {
+    return {
+      ptr: 0,
+      occurrenceOrdinal: 0,
+    };
+  }
+  const current = clampTranscriptSearchCursor(snapshot, cursor);
+  if (current.occurrenceOrdinal > 0) {
+    return {
+      ptr: current.ptr,
+      occurrenceOrdinal: current.occurrenceOrdinal - 1,
+    };
+  }
+  return createTranscriptSearchEdgeCursor(
+    snapshot,
+    wrapTranscriptSearchPtr(current.ptr, -1, snapshot.matches.length),
+    'last',
+  );
 }
 
 export function wrapTranscriptSearchPtr(
