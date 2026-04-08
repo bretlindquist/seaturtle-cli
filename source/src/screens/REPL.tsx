@@ -6,8 +6,6 @@ import { parseTokenBudget } from '../utils/tokenBudget.js';
 import { count } from '../utils/array.js';
 import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { useSearchHighlight } from '../ink/hooks/use-search-highlight.js';
-import type { JumpHandle } from '../components/VirtualMessageList.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import * as React from 'react';
@@ -277,7 +275,6 @@ import {
   type FocusedInputDialog,
 } from './repl/dialogFocus.js';
 import { useDirectModeHotkeys } from './repl/useDirectModeHotkeys.js';
-import { useTranscriptCleanupEffects } from './repl/useTranscriptCleanupEffects.js';
 import { useConversationRestore } from './repl/useConversationRestore.js';
 import { ReplAntChrome } from './repl/ReplAntChrome.js';
 import { ReplBottomPane } from './repl/ReplBottomPane.js';
@@ -287,11 +284,7 @@ import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
-import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
-import { useTranscriptSearchDisplay } from './repl/useTranscriptSearchDisplay.js';
-import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js';
-import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
-import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
+import { useTranscriptSearchFeature } from './repl/useTranscriptSearchFeature.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 import { useReplDialogActions } from './repl/useReplDialogActions.js';
 import { ReplScrollablePane } from './repl/ReplScrollablePane.js';
@@ -1119,18 +1112,6 @@ export function REPL({
     messagesLength: messages.length,
     streamingToolUsesLength: streamingToolUses.length
   });
-  const {
-    searchOpen,
-    setSearchOpen,
-    searchQuery,
-    commitSearchQuery,
-    searchCount,
-    searchCurrent,
-    hasNavigableMatches,
-    searchProgress: transcriptSearchProgress,
-    clearSearchState,
-    searchBadge
-  } = useTranscriptSearchTracker();
   // Initialize input with any early input that was captured before REPL was ready.
   // Using lazy initialization ensures cursor offset is set correctly in PromptInput.
   const [inputValue, setInputValueRaw] = useState(() => consumeEarlyInput());
@@ -3756,42 +3737,26 @@ export function REPL({
   // (not inside the `if (screen === 'transcript')` branch below); isActive
   // gates the useInput. Query persists across bar open/close so n/N keep
   // working after Enter dismisses the bar (less semantics).
-  const jumpRef = useRef<JumpHandle | null>(null);
   const {
-    setQuery: setTranscriptHighlightQuery,
-    setRowRange: setTranscriptHighlightRowRange,
-    scanElement
-  } = useSearchHighlight();
-  useTranscriptSearchDisplay({
-    screen,
-    searchQuery,
-    transcriptVirtualScrollActive,
-    scrollRef,
-    setTranscriptHighlightQuery,
-    setTranscriptHighlightRowRange,
-  });
-  const {
-    openSearch,
+    jumpRef,
+    scanElement,
+    searchOpen,
+    searchCount,
+    searchCurrent,
+    searchBadge,
+    searchProgress: transcriptSearchProgress,
     handleCloseSearchBar,
     handleCancelSearchBar
-  } = useTranscriptSearchController({
+  } = useTranscriptSearchFeature({
     screen,
-    searchOpen,
-    searchQuery,
-    searchCount,
-    jumpRef,
-    openSearch: () => setSearchOpen(true),
-    closeSearch: () => setSearchOpen(false),
-    commitSearchQuery,
-    clearSearchState
-  });
-  useTranscriptSearchHotkeys({
-    screen,
-    searchOpen,
     dumpMode,
-    hasNavigableMatches,
-    jumpRef,
-    openSearch
+    transcriptVirtualScrollActive,
+    scrollRef,
+    transcriptMessages,
+    editorGenRef,
+    editorTimerRef,
+    setDumpMode,
+    setEditorStatus,
   });
 
   useTranscriptEscapeHotkeys({
@@ -3813,16 +3778,6 @@ export function REPL({
   // unrelated normal-mode text (overlay is alt-screen-global) and avoids
   // surprise n/N on re-entry. Same exit resets [ dump mode — each ctrl+o
   // entry is a fresh instance.
-  const inTranscript = screen === 'transcript';
-  useTranscriptCleanupEffects({
-    inTranscript,
-    editorGenRef,
-    editorTimerRef,
-    clearSearchState,
-    setSearchOpen,
-    setDumpMode,
-    setEditorStatus,
-  });
   const globalKeybindingProps = {
     screen,
     setScreen,
@@ -3845,13 +3800,6 @@ export function REPL({
   // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
   const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
   const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
-  useStaticTranscriptJump({
-    enabled: screen === 'transcript' && !transcriptVirtualScrollActive,
-    messages: transcriptMessages,
-    jumpRef,
-    searchProgress: transcriptSearchProgress,
-  });
-
   // Handle shift+down for teammate navigation and background task management.
   // Guard onOpenBackgroundTasks when a local-jsx dialog (e.g. /mcp) is open —
   // otherwise Shift+Down stacks BackgroundTasksDialog on top and deadlocks input.
