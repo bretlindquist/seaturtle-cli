@@ -21,13 +21,17 @@ import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, t
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
 import {
   buildTranscriptSearchEngineState,
-  createEmptyTranscriptSearchEngineState,
-  getTranscriptSearchEngineCurrent,
-  getTranscriptSearchEngineCurrentMessageOccurrenceCount,
-  getTranscriptSearchEngineEdgeCurrent,
-  getTranscriptSearchEngineTotal,
 } from '../screens/repl/transcriptSearchEngine.js';
-import { wrapTranscriptSearchPtr, type TranscriptSearchSnapshot } from '../screens/repl/transcriptSearchModel.js';
+import { wrapTranscriptSearchPtr } from '../screens/repl/transcriptSearchModel.js';
+import {
+  createEmptySearchNavigationState,
+  findNearestSearchMatchPtr,
+  getSearchNavigationCurrent,
+  getSearchNavigationCurrentMessageOccurrenceCount,
+  getSearchNavigationPlaceholderCurrent,
+  getSearchNavigationTotal,
+  type SearchNavigationState,
+} from '../screens/repl/transcriptSearchRendererModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -119,89 +123,6 @@ type ActiveTranscriptResult = {
   msgIdx: number;
   ordinal: number;
 };
-
-type SearchNavigationState = {
-  snapshot: TranscriptSearchSnapshot;
-  ptr: number;
-  screenOrd: number;
-};
-
-function createEmptySearchNavigationState(): SearchNavigationState {
-  return {
-    snapshot: createEmptyTranscriptSearchEngineState().snapshot,
-    ptr: 0,
-    screenOrd: 0,
-  };
-}
-
-function getSearchTotal(state: SearchNavigationState): number {
-  return getTranscriptSearchEngineTotal({
-    snapshot: state.snapshot,
-    cursor: {
-      ptr: state.ptr,
-      occurrenceOrdinal: state.screenOrd,
-    },
-  });
-}
-
-function getCurrentSearchOrdinal(state: SearchNavigationState, matchOrdinal: number): number {
-  return getTranscriptSearchEngineCurrent({
-    snapshot: state.snapshot,
-    cursor: {
-      ptr: state.ptr,
-      occurrenceOrdinal: matchOrdinal,
-    },
-  });
-}
-
-function getPlaceholderSearchOrdinal(
-  state: SearchNavigationState,
-  ptr: number,
-  delta: 1 | -1,
-): number {
-  return getTranscriptSearchEngineEdgeCurrent({
-    snapshot: state.snapshot,
-    cursor: {
-      ptr: state.ptr,
-      occurrenceOrdinal: state.screenOrd,
-    },
-  }, ptr, delta < 0 ? 'last' : 'first');
-}
-
-function getCurrentMessageOccurrenceCount(state: SearchNavigationState): number {
-  return getTranscriptSearchEngineCurrentMessageOccurrenceCount({
-    snapshot: state.snapshot,
-    cursor: {
-      ptr: state.ptr,
-      occurrenceOrdinal: state.screenOrd,
-    },
-  });
-}
-
-function findNearestSearchMatchPtr(
-  matches: number[],
-  offsets: Float64Array,
-  start: number,
-  getItemTop: (i: number) => number,
-  currentTop: number,
-): number {
-  if (matches.length === 0) {
-    return 0;
-  }
-
-  const firstTop = getItemTop(start);
-  const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-  let ptr = 0;
-  let best = Infinity;
-  for (let k = 0; k < matches.length; k++) {
-    const distance = Math.abs(origin + offsets[matches[k]!]! - currentTop);
-    if (distance <= best) {
-      best = distance;
-      ptr = k;
-    }
-  }
-  return ptr;
-}
 
 /**
  * Returns the text of a real user prompt, or null for anything else.
@@ -608,7 +529,7 @@ export function VirtualMessageList({
       return true;
     }
     phantomBurstRef.current = 0;
-    const expectedOccurrences = Math.max(1, getCurrentMessageOccurrenceCount(searchState.current));
+    const expectedOccurrences = Math.max(1, getSearchNavigationCurrentMessageOccurrenceCount(searchState.current));
     const usablePositions = Math.min(positions.length, expectedOccurrences);
     const ord = wantLast ? Math.max(0, usablePositions - 1) : 0;
     searchState.current.screenOrd = ord;
@@ -647,7 +568,7 @@ export function VirtualMessageList({
       return;
     }
     const st = searchState.current;
-    const expectedOccurrences = Math.max(0, getCurrentMessageOccurrenceCount(st));
+    const expectedOccurrences = Math.max(0, getSearchNavigationCurrentMessageOccurrenceCount(st));
     if (expectedOccurrences === 0) {
       clearActiveResult();
       return;
@@ -681,8 +602,8 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    const total = getSearchTotal(st);
-    const current = getCurrentSearchOrdinal(st, idx);
+    const total = getSearchNavigationTotal(st);
+    const current = getSearchNavigationCurrent(st, idx);
     reportSearchProgress(total, current);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
   }
@@ -765,7 +686,7 @@ export function VirtualMessageList({
         matches
       }
     } = st;
-    const total = getSearchTotal(st);
+    const total = getSearchNavigationTotal(st);
     if (matches.length === 0) return;
 
     // Seek in-flight — queue this press (one-deep, latest overwrites).
@@ -778,7 +699,7 @@ export function VirtualMessageList({
     const {
       positions
     } = elementPositions.current;
-    const currentMessageOccurrenceCount = getCurrentMessageOccurrenceCount(st);
+    const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
     const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
     const newOrd = st.screenOrd + delta;
     if (newOrd >= 0 && newOrd < usablePositions) {
@@ -811,7 +732,7 @@ export function VirtualMessageList({
     // screenOrd will resolve after scan. Placeholder tracks the destination
     // occurrence within the target message so the footer remains
     // occurrence-accurate during viewport jumps.
-    const placeholder = getPlaceholderSearchOrdinal(st, ptr, delta);
+    const placeholder = getSearchNavigationPlaceholderCurrent(st, ptr, delta);
     reportSearchProgress(total, placeholder);
   }
   stepRef.current = step;
@@ -838,7 +759,7 @@ export function VirtualMessageList({
         ptr: engine.cursor.ptr,
         screenOrd: engine.cursor.occurrenceOrdinal
       };
-      const total = getSearchTotal(nextState);
+      const total = getSearchNavigationTotal(nextState);
       // Nearest MESSAGE to the anchor. <= so ties go to later.
       let ptr = 0;
       const s = scrollRef.current;
@@ -871,7 +792,7 @@ export function VirtualMessageList({
       // Badge reflects the current matched occurrence. wantLast=true selects
       // the last occurrence in the nearest matched message so the initial
       // preview stays close to the user's current viewport.
-      reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getPlaceholderSearchOrdinal({
+      reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getSearchNavigationPlaceholderCurrent({
         ...nextState,
         ptr
       }, ptr, -1) : 0);
@@ -888,7 +809,7 @@ export function VirtualMessageList({
         msgIdx,
         positions
       } = elementPositions.current;
-      const currentMessageOccurrenceCount = getCurrentMessageOccurrenceCount(st);
+      const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
       const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
       if (msgIdx === st.snapshot.matches[st.ptr] && usablePositions > 0) {
         highlightRef.current(st.screenOrd);
