@@ -1123,7 +1123,7 @@ export function REPL({
     searchOpen,
     setSearchOpen,
     searchQuery,
-    setSearchQuery,
+    commitSearchQuery,
     searchCount,
     searchCurrent,
     hasNavigableMatches,
@@ -3788,7 +3788,7 @@ export function REPL({
     searchCount,
     jumpRef,
     setSearchOpen,
-    setSearchQuery,
+    setSearchQuery: commitSearchQuery,
     clearSearchState
   });
 

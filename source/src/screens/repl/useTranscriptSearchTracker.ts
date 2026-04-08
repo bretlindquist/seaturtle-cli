@@ -4,6 +4,11 @@ export type TranscriptSearchProgressSink = {
   reportMatches: (count: number, current: number) => void;
 };
 
+export type TranscriptSearchBadge = {
+  current: number;
+  count: number;
+};
+
 export function useTranscriptSearchTracker() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -21,11 +26,15 @@ export function useTranscriptSearchTracker() {
     setSearchCurrent(0);
   }, []);
 
+  const commitSearchQuery = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
   const searchProgress = useMemo<TranscriptSearchProgressSink>(() => ({
     reportMatches: onSearchMatchesChange
   }), [onSearchMatchesChange]);
 
-  const searchBadge = useMemo(() => searchQuery && searchCount > 0 ? {
+  const searchBadge = useMemo<TranscriptSearchBadge | undefined>(() => searchQuery && searchCount > 0 ? {
     current: searchCurrent,
     count: searchCount
   } : undefined, [searchCount, searchCurrent, searchQuery]);
@@ -34,13 +43,10 @@ export function useTranscriptSearchTracker() {
     searchOpen,
     setSearchOpen,
     searchQuery,
-    setSearchQuery,
+    commitSearchQuery,
     searchCount,
-    setSearchCount,
     searchCurrent,
-    setSearchCurrent,
     hasNavigableMatches: searchCount > 0,
-    onSearchMatchesChange,
     searchProgress,
     clearSearchState,
     searchBadge
