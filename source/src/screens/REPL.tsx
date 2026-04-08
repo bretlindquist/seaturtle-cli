@@ -169,7 +169,7 @@ import { useCommandQueue } from '../hooks/useCommandQueue.js';
 import { startBackgroundSession } from '../tasks/LocalMainSessionTask.js';
 import { useSessionBackgrounding } from '../hooks/useSessionBackgrounding.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
-import { handleSpeculationAccept, type ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
+import type { ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
 import { shouldShowEffortCallout } from '../components/EffortCallout.js';
 import type { EffortValue } from '../utils/effort.js';
 import { createAbortController } from '../utils/abortController.js';
@@ -295,6 +295,7 @@ import {
   prepareReplSubmitState,
   restoreDeferredReplStashedPrompt,
 } from './repl/prepareReplSubmitState.js';
+import { handleReplSpeculationAcceptance } from './repl/handleReplSpeculationAcceptance.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2701,20 +2702,16 @@ export function REPL({
       setAppState,
     });
 
-    // Handle speculation acceptance
-    if (speculationAccept) {
-      const {
-        queryRequired
-      } = await handleSpeculationAccept(speculationAccept.state, speculationAccept.speculationSessionTimeSavedMs, speculationAccept.setAppState, input, {
-        setMessages,
-        readFileState,
-        cwd: getOriginalCwd()
-      });
-      if (queryRequired) {
-        const newAbortController = createAbortController();
-        setAbortController(newAbortController);
-        void onQuery([], newAbortController, true, [], mainLoopModel);
-      }
+    if (await handleReplSpeculationAcceptance({
+      speculationAccept,
+      input,
+      setMessages,
+      readFileState,
+      createAbortController,
+      setAbortController,
+      onQuery,
+      mainLoopModel,
+    })) {
       return;
     }
 
