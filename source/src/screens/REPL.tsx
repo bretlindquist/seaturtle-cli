@@ -121,8 +121,6 @@ import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
 import { randomUUID, type UUID } from 'crypto';
-import { processSessionStartHooks } from '../utils/sessionStart.js';
-import { executeSessionEndHooks, getSessionEndHookTimeoutMs } from '../utils/hooks.js';
 import { type IDESelection, useIdeSelection } from '../hooks/useIdeSelection.js';
 import { getTools } from '../tools.js';
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
@@ -130,9 +128,7 @@ import { resolveAgentTools } from '../tools/AgentTool/agentToolUtils.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
 import type { PastedContent } from '../utils/config.js';
-import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
 import { adoptResumedSessionFile, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
-import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { LogOption } from '../types/logs.js';
@@ -297,6 +293,7 @@ import {
 import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
 import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
 import { finishReplSessionResume } from './repl/finishReplSessionResume.js';
+import { prepareReplSessionResume } from './repl/prepareReplSessionResume.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1525,66 +1522,15 @@ export function REPL({
   const resume = useCallback(async (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => {
     const resumeStart = performance.now();
     try {
-      // Deserialize messages to properly clean up the conversation
-      // This filters unresolved tool uses and adds a synthetic assistant message if needed
-      const messages = deserializeMessages(log.messages);
-
-      // Match coordinator/normal mode to the resumed session
-      if (feature('COORDINATOR_MODE')) {
-        /* eslint-disable @typescript-eslint/no-require-imports */
-        const coordinatorModule = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
-        /* eslint-enable @typescript-eslint/no-require-imports */
-        const warning = coordinatorModule.matchSessionMode(log.mode);
-        if (warning) {
-          // Re-derive agent definitions after mode switch so built-in agents
-          // reflect the new coordinator/normal mode
-          /* eslint-disable @typescript-eslint/no-require-imports */
-          const {
-            getAgentDefinitionsWithOverrides,
-            getActiveAgentsFromList
-          } = require('../tools/AgentTool/loadAgentsDir.js') as typeof import('../tools/AgentTool/loadAgentsDir.js');
-          /* eslint-enable @typescript-eslint/no-require-imports */
-          getAgentDefinitionsWithOverrides.cache.clear?.();
-          const freshAgentDefs = await getAgentDefinitionsWithOverrides(getOriginalCwd());
-          setAppState(prev => ({
-            ...prev,
-            agentDefinitions: {
-              ...freshAgentDefs,
-              allAgents: freshAgentDefs.allAgents,
-              activeAgents: getActiveAgentsFromList(freshAgentDefs.allAgents)
-            }
-          }));
-          messages.push(createSystemMessage(warning, 'warning'));
-        }
-      }
-
-      // Fire SessionEnd hooks for the current session before starting the
-      // resumed one, mirroring the /clear flow in conversation.ts.
-      const sessionEndTimeoutMs = getSessionEndHookTimeoutMs();
-      await executeSessionEndHooks('resume', {
-        getAppState: () => store.getState(),
-        setAppState,
-        signal: AbortSignal.timeout(sessionEndTimeoutMs),
-        timeoutMs: sessionEndTimeoutMs
-      });
-
-      // Process session start hooks for resume
-      const hookMessages = await processSessionStartHooks('resume', {
+      const { messages } = await prepareReplSessionResume({
         sessionId,
-        agentType: mainThreadAgentDefinition?.agentType,
-        model: mainLoopModel
+        log,
+        entrypoint,
+        store,
+        setAppState,
+        mainThreadAgentDefinition,
+        mainLoopModel,
       });
-
-      // Append hook messages to the conversation
-      messages.push(...hookMessages);
-      // For forks, generate a new plan slug and copy the plan content so the
-      // original and forked sessions don't clobber each other's plan files.
-      // For regular resumes, reuse the original session's plan slug.
-      if (entrypoint === 'fork') {
-        void copyPlanForFork(log, asSessionId(sessionId));
-      } else {
-        void copyPlanForResume(log, asSessionId(sessionId));
-      }
 
       await finishReplSessionResume({
         sessionId: asSessionId(sessionId),
