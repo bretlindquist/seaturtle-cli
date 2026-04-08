@@ -1,4 +1,4 @@
-import type * as React from 'react';
+import * as React from 'react';
 import { CostThresholdDialog } from '../../components/CostThresholdDialog.js';
 import { IdleReturnDialog } from '../../components/IdleReturnDialog.js';
 import { IdeOnboardingDialog } from '../../components/IdeOnboardingDialog.js';

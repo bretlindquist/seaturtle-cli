@@ -1,4 +1,4 @@
-import type * as React from 'react';
+import * as React from 'react';
 import { AutoRunIssueNotification, getAutoRunIssueReasonText, type AutoRunIssueReason } from '../../utils/autoRunIssue.js';
 import { FeedbackSurvey } from '../../components/FeedbackSurvey/FeedbackSurvey.js';
 import { IssueFlagBanner } from '../../components/PromptInput/IssueFlagBanner.js';
