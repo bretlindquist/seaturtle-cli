@@ -105,7 +105,7 @@ import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_ST
 import { escapeXml } from '../utils/xml.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
 import { gracefulShutdownSync } from '../utils/gracefulShutdown.js';
-import { handlePromptSubmit, type PromptInputHelpers } from '../utils/handlePromptSubmit.js';
+import type { PromptInputHelpers } from '../utils/handlePromptSubmit.js';
 import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { useTelegramBridge } from '../hooks/useTelegramBridge.js';
@@ -293,9 +293,9 @@ import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJ
 import { maybeOpenIdleReturnDialog } from './repl/maybeOpenIdleReturnDialog.js';
 import {
   prepareReplSubmitState,
-  restoreDeferredReplStashedPrompt,
 } from './repl/prepareReplSubmitState.js';
 import { handleReplSpeculationAcceptance } from './repl/handleReplSpeculationAcceptance.js';
+import { submitLocalReplPrompt } from './repl/submitLocalReplPrompt.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2734,21 +2734,19 @@ export function REPL({
       return;
     }
 
-    // Ensure SessionStart hook context is available before the first API call.
-    await awaitPendingHooks();
-    await handlePromptSubmit({
+    await submitLocalReplPrompt({
       input,
       helpers,
       queryGuard,
       isExternalLoading,
-      mode: inputMode,
+      inputMode,
       commands,
-      onInputChange: setInputValue,
-      onModeChange: setInputMode,
+      setInputValue,
+      setInputMode,
       setPastedContents,
       setToolJSX,
       getToolUseContext,
-      messages: messagesRef.current,
+      messagesRef,
       mainLoopModel,
       pastedContents,
       ideSelection,
@@ -2757,29 +2755,16 @@ export function REPL({
       abortController,
       onQuery,
       setAppState,
-      querySource: getQuerySourceForREPL(),
       onBeforeQuery,
       canUseTool,
       addNotification,
       setMessages,
-      // Read via ref so streamMode can be dropped from onSubmit deps —
-      // handlePromptSubmit only uses it for debug log + telemetry event.
-      streamMode: streamModeRef.current,
-      hasInterruptibleToolInProgress: hasInterruptibleToolInProgressRef.current
-    });
-
-    // Restore stash that was deferred above. Two cases:
-    // - Slash command: handlePromptSubmit awaited the full command execution
-    //   (including interactive pickers). Restoring now places the stash back in
-    //   the visible input.
-    // - Loading (queued): handlePromptSubmit enqueued + cleared input, then
-    //   returned quickly. Restoring now places the stash back after the clear.
-    restoreDeferredReplStashedPrompt({
-      shouldRestore: (isSlashCommand || isLoading),
+      streamModeRef,
+      hasInterruptibleToolInProgressRef,
+      awaitPendingHooks,
+      isSlashCommand,
+      isLoading,
       stashedPrompt,
-      setInputValue,
-      helpers,
-      setPastedContents,
       setStashedPrompt,
     });
   }, [queryGuard,
