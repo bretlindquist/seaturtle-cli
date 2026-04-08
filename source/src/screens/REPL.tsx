@@ -13,7 +13,7 @@ import { useNotifications } from '../context/notifications.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
-import { createFileStateCacheWithSizeLimit, mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
+import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
 import { getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore } from '../bootstrap/state.js';
 import { asSessionId, asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
@@ -134,7 +134,7 @@ import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
 import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, restoreSessionMetadata, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
-import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
+import { extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
@@ -297,6 +297,7 @@ import {
   createSetReplToolPermissionContext,
 } from './repl/toolPermissionBridge.js';
 import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
+import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1759,11 +1760,12 @@ export function REPL({
   // Helper to restore read file state from messages (used for resume flows)
   // This allows Claude to edit files that were read in previous sessions
   const restoreReadFileState = useCallback((messages: MessageType[], cwd: string) => {
-    const extracted = extractReadFilesFromMessages(messages, cwd, READ_FILE_STATE_CACHE_SIZE);
-    readFileState.current = mergeFileStateCaches(readFileState.current, extracted);
-    for (const tool of extractBashToolsFromMessages(messages)) {
-      bashTools.current.add(tool);
-    }
+    restoreReplReadFileState({
+      messages,
+      cwd,
+      readFileState,
+      bashTools,
+    });
   }, []);
 
   // Extract read file state from initialMessages on mount
