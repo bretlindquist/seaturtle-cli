@@ -265,7 +265,6 @@ import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import { createAttachmentMessage, getQueuedCommandAttachments } from '../utils/attachments.js';
 import {
   AnimatedTerminalTitle,
-  TranscriptSearchBar,
 } from './repl/ReplShellHelpers.js';
 import {
   deriveFocusedInputDialog,
@@ -281,7 +280,7 @@ import { ReplPermissionOverlays } from './repl/ReplPermissionOverlays.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
-import { ReplTranscriptScreen } from './repl/ReplTranscriptScreen.js';
+import { ReplTranscriptMode } from './repl/ReplTranscriptMode.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchFeature } from './repl/useTranscriptSearchFeature.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
@@ -3816,31 +3815,9 @@ export function REPL({
     // scrollback, 30-cap + Ctrl+E. Reusing scrollRef is safe — normal-mode
     // and transcript-mode are mutually exclusive (this early return), so
     // only one ScrollBox is ever mounted at a time.
-    const transcriptScrollRef = transcriptVirtualScrollActive ? scrollRef : undefined;
-    const transcriptMessagesElement = <Box flexDirection="column">
-        <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen={screen} agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} disableRenderCap={dumpMode} />
-      </Box>;
-    const transcriptToolJSX = toolJSX && <Box flexDirection="column" width="100%">
-        {toolJSX.jsx}
-      </Box>;
-    const transcriptSearchElement = <TranscriptSearchBar jumpRef={jumpRef}
-      // Seed was tried (c01578c8) — broke /hello muscle
-      // memory (cursor lands after 'foo', /hello → foohello).
-      // Cancel-restore handles the 'don't lose prior search'
-      // concern differently (onCancel re-applies searchQuery).
-      initialQuery="" count={searchCount} current={searchCurrent} onClose={handleCloseSearchBar} onCancel={handleCancelSearchBar} />;
-    return <ReplTranscriptScreen titleIsAnimating={titleIsAnimating} terminalTitle={terminalTitle} titleDisabled={titleDisabled} showStatusInTerminalTab={showStatusInTerminalTab} globalKeybindingsNode={<GlobalKeybindingHandlers {...globalKeybindingProps} />} voiceNode={feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null} commandKeybindingsNode={<CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />} scrollKeybindingsNode={transcriptScrollRef ? <ScrollKeybindingHandler scrollRef={scrollRef}
-      // Yield wheel/ctrl+u/d to UltraplanChoiceDialog's own scroll
-      // handler while the modal is showing.
-      isActive={focusedInputDialog !== 'ultraplan-choice'}
-      // g/G/j/k/ctrl+u/ctrl+d would eat keystrokes the search bar
-      // wants. Off while searching.
-      isModal={!searchOpen}
-      // Manual scroll exits the search context so the active matched
-      // row emphasis can be re-established from the current viewport
-      // on the next n/N action instead of pretending the old view is
-      // still authoritative.
-      onScroll={() => jumpRef.current?.disarmSearch()} /> : null} cancelRequestNode={<CancelRequestHandler {...cancelRequestProps} />} transcriptScrollRef={transcriptScrollRef} transcriptMessagesElement={transcriptMessagesElement} transcriptToolJSX={transcriptToolJSX} searchOpen={searchOpen} transcriptSearchElement={transcriptSearchElement} showAllInTranscript={showAllInTranscript} dumpMode={dumpMode} editorStatus={editorStatus || undefined} searchBadge={searchBadge} />;
+    return <ReplTranscriptMode titleIsAnimating={titleIsAnimating} terminalTitle={terminalTitle} titleDisabled={titleDisabled} showStatusInTerminalTab={showStatusInTerminalTab} globalKeybindingsNode={<GlobalKeybindingHandlers {...globalKeybindingProps} />} voiceNode={feature('VOICE_MODE') ? <VoiceKeybindingHandler voiceHandleKeyEvent={voice.handleKeyEvent} stripTrailing={voice.stripTrailing} resetAnchor={voice.resetAnchor} isActive={!toolJSX?.isLocalJSXCommand} /> : null} commandKeybindingsNode={<CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />} cancelRequestNode={<CancelRequestHandler {...cancelRequestProps} />} scrollRef={scrollRef} transcriptVirtualScrollActive={transcriptVirtualScrollActive} focusedInputDialog={focusedInputDialog} transcriptMessages={transcriptMessages} tools={tools} commands={commands} inProgressToolUseIDs={inProgressToolUseIDs} conversationId={conversationId} agentDefinitions={agentDefinitions} transcriptStreamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={handleOpenRateLimitOptions} isLoading={isLoading} streamingThinking={streamingThinking} jumpRef={jumpRef} searchProgress={transcriptSearchProgress} scanElement={scanElement} dumpMode={dumpMode} toolJsxNode={toolJSX ? <Box flexDirection="column" width="100%">
+          {toolJSX.jsx}
+        </Box> : null} searchOpen={searchOpen} searchCount={searchCount} searchCurrent={searchCurrent} onCloseSearchBar={handleCloseSearchBar} onCancelSearchBar={handleCancelSearchBar} editorStatus={editorStatus || undefined} searchBadge={searchBadge} />;
   }
 
   // Get viewed agent task (inlined from selectors for explicit data flow).
