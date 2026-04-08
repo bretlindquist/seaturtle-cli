@@ -103,7 +103,7 @@ import { getGlobalConfig, saveGlobalConfig, getGlobalConfigWriteCount } from '..
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { handleMessageFromStream, type StreamingToolUse, type StreamingThinking, isCompactBoundaryMessage, getMessagesAfterCompactBoundary, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createApiMetricsMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
+import { type StreamingToolUse, type StreamingThinking, getContentText, createUserMessage, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createApiMetricsMessage, createSystemMessage, createCommandInputMessage, formatCommandInputTags } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
@@ -141,7 +141,7 @@ import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs
 import type { ProcessUserInputContext } from '../utils/processUserInput/processUserInput.js';
 import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
-import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, removeTranscriptMessage, restoreSessionMetadata, getCurrentSessionTitle, isEphemeralToolProgress, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
+import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, restoreSessionMetadata, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractReadFilesFromMessages, extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
@@ -278,6 +278,7 @@ import { ReplPromptSection } from './repl/ReplPromptSection.js';
 import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
+import { useReplQueryEventHandler } from './repl/useReplQueryEventHandler.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2345,83 +2346,19 @@ export function REPL({
     setAbortController,
     onBackgroundQuery: handleBackgroundQuery
   });
-  const onQueryEvent = useCallback((event: Parameters<typeof handleMessageFromStream>[0]) => {
-    handleMessageFromStream(event, newMessage => {
-      if (isCompactBoundaryMessage(newMessage)) {
-        // Fullscreen: keep pre-compact messages for scrollback. query.ts
-        // slices at the boundary for API calls, Messages.tsx skips the
-        // boundary filter in fullscreen, and useLogMessages treats this
-        // as an incremental append (first uuid unchanged). Cap at one
-        // compact-interval of scrollback — normalizeMessages/applyGrouping
-        // are O(n) per render, so drop everything before the previous
-        // boundary to keep n bounded across multi-day sessions.
-        if (isFullscreenEnvEnabled()) {
-          setMessages(old => [...getMessagesAfterCompactBoundary(old, {
-            includeSnipped: true
-          }), newMessage]);
-        } else {
-          setMessages(() => [newMessage]);
-        }
-        // Bump conversationId so Messages.tsx row keys change and
-        // stale memoized rows remount with post-compact content.
-        setConversationId(randomUUID());
-        // Compaction succeeded — clear the context-blocked flag so ticks resume
-        if (feature('PROACTIVE') || feature('KAIROS')) {
-          proactiveModule?.setContextBlocked(false);
-        }
-      } else if (newMessage.type === 'progress' && isEphemeralToolProgress(newMessage.data.type)) {
-        // Replace the previous ephemeral progress tick for the same tool
-        // call instead of appending. Sleep/Bash emit a tick per second and
-        // only the last one is rendered; appending blows up the messages
-        // array (13k+ observed) and the transcript (120MB of sleep_progress
-        // lines). useLogMessages tracks length, so same-length replacement
-        // also skips the transcript write.
-        // agent_progress / hook_progress / skill_progress are NOT ephemeral
-        // — each carries distinct state the UI needs (e.g. subagent tool
-        // history). Replacing those leaves the AgentTool UI stuck at
-        // "Initializing…" because it renders the full progress trail.
-        setMessages(oldMessages => {
-          const last = oldMessages.at(-1);
-          if (last?.type === 'progress' && last.parentToolUseID === newMessage.parentToolUseID && last.data.type === newMessage.data.type) {
-            const copy = oldMessages.slice();
-            copy[copy.length - 1] = newMessage;
-            return copy;
-          }
-          return [...oldMessages, newMessage];
-        });
-      } else {
-        setMessages(oldMessages => [...oldMessages, newMessage]);
-      }
-      // Block ticks on API errors to prevent tick → error → tick
-      // runaway loops (e.g., auth failure, rate limit, blocking limit).
-      // Cleared on compact boundary (above) or successful response (below).
-      if (feature('PROACTIVE') || feature('KAIROS')) {
-        if (newMessage.type === 'assistant' && 'isApiErrorMessage' in newMessage && newMessage.isApiErrorMessage) {
-          proactiveModule?.setContextBlocked(true);
-        } else if (newMessage.type === 'assistant') {
-          proactiveModule?.setContextBlocked(false);
-        }
-      }
-    }, newContent => {
-      // setResponseLength handles updating both responseLengthRef (for
-      // spinner animation) and apiMetricsRef (endResponseLength/lastTokenTime
-      // for OTPS). No separate metrics update needed here.
-      setResponseLength(length => length + newContent.length);
-    }, setStreamMode, setStreamingToolUses, tombstonedMessage => {
-      setMessages(oldMessages => oldMessages.filter(m => m !== tombstonedMessage));
-      void removeTranscriptMessage(tombstonedMessage.uuid);
-    }, setStreamingThinking, metrics => {
-      const now = Date.now();
-      const baseline = responseLengthRef.current;
-      apiMetricsRef.current.push({
-        ...metrics,
-        firstTokenTime: now,
-        lastTokenTime: now,
-        responseLengthBaseline: baseline,
-        endResponseLength: baseline
-      });
-    }, onStreamingText);
-  }, [setMessages, setResponseLength, setStreamMode, setStreamingToolUses, setStreamingThinking, onStreamingText]);
+  const onQueryEvent = useReplQueryEventHandler({
+    setMessages,
+    setConversationId,
+    setResponseLength,
+    setStreamMode,
+    setStreamingToolUses,
+    setStreamingThinking,
+    onStreamingText,
+    responseLengthRef,
+    apiMetricsRef,
+    proactiveModule,
+    isFullscreenEnabled: isFullscreenEnvEnabled,
+  });
   const onQueryImpl = useCallback(async (messagesIncludingNewMessages: MessageType[], newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, input?: string, effort?: EffortValue) => {
     // Prepare IDE integration for new prompt. Read mcpClients fresh from
     // store — useManageMCPConnections may have populated it since the
