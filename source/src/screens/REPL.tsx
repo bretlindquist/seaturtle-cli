@@ -1,7 +1,7 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { feature } from 'bun:bundle';
 import { spawnSync } from 'child_process';
-import { snapshotOutputTokensForTurn, getCurrentTurnTokenBudget, getTurnOutputTokens, getBudgetContinuationCount, getTotalInputTokens } from '../bootstrap/state.js';
+import { snapshotOutputTokensForTurn, getTotalInputTokens } from '../bootstrap/state.js';
 import { count } from '../utils/array.js';
 import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -35,7 +35,7 @@ import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
 import { type Command, type CommandResultDisplay, type ResumeEntrypoint, getCommandName, isCommandEnabled } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
-import { selectableUserMessagesFilter, messagesAfterAreOnlySynthetic } from '../components/MessageSelector.js';
+import { selectableUserMessagesFilter } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
@@ -57,7 +57,7 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
 import { useDeferredHookMessages } from '../hooks/useDeferredHookMessages.js';
-import { addToHistory, removeLastFromHistory, expandPastedTextRefs, parseReferences } from '../history.js';
+import { addToHistory, expandPastedTextRefs, parseReferences } from '../history.js';
 import { isPromptLikeInputMode, prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
 import { prependToShellHistoryCache } from '../utils/suggestions/shellHistoryCompletion.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
@@ -286,6 +286,10 @@ import {
   handleConcurrentReplQuery,
   prepareReplQueryAttempt,
 } from './repl/prepareReplQueryAttempt.js';
+import {
+  finalizeCompletedOuterReplQuery,
+  maybeRestoreCanceledOuterReplQuery,
+} from './repl/finalizeOuterReplQuery.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2537,76 +2541,25 @@ export function REPL({
       // running→idle. Returns false if a newer query owns the guard
       // (cancel+resubmit race where the stale finally fires as a microtask).
       if (queryGuard.end(thisGeneration)) {
-        setLastQueryCompletionTime(Date.now());
-        skipIdleCheckRef.current = false;
-        // Always reset loading state in finally - this ensures cleanup even
-        // if onQueryImpl throws. onTurnComplete is called separately in
-        // onQueryImpl only on successful completion.
-        resetLoadingState();
-        await mrOnTurnComplete(messagesRef.current, abortController.signal.aborted);
-
-        // Notify bridge clients that the turn is complete so mobile apps
-        // can stop the spark animation and show post-turn UI.
-        sendBridgeResultRef.current();
-
-        // Auto-hide tungsten panel content at turn end (ant-only), but keep
-        // tungstenActiveSession set so the pill stays in the footer and the user
-        // can reopen the panel. Background tmux tasks (e.g. /hunter) run for
-        // minutes — wiping the session made the pill disappear entirely, forcing
-        // the user to re-invoke Tmux just to peek. Skip on abort so the panel
-        // stays open for inspection (matches the turn-duration guard below).
-        if (isReplAntBuild() && !abortController.signal.aborted) {
-          setAppState(prev => {
-            if (prev.tungstenActiveSession === undefined) return prev;
-            if (prev.tungstenPanelAutoHidden === true) return prev;
-            return {
-              ...prev,
-              tungstenPanelAutoHidden: true
-            };
-          });
-        }
-
-        // Capture budget info before clearing (ant-only)
-        let budgetInfo: {
-          tokens: number;
-          limit: number;
-          nudges: number;
-        } | undefined;
-        if (feature('TOKEN_BUDGET')) {
-          if (getCurrentTurnTokenBudget() !== null && getCurrentTurnTokenBudget()! > 0 && !abortController.signal.aborted) {
-            budgetInfo = {
-              tokens: getTurnOutputTokens(),
-              limit: getCurrentTurnTokenBudget()!,
-              nudges: getBudgetContinuationCount()
-            };
-          }
-          snapshotOutputTokensForTurn(null);
-        }
-
-        // Add turn duration message for turns longer than 30s or with a budget
-        // Skip if user aborted or if in loop mode (too noisy between ticks)
-        // Defer if swarm teammates are still running (show when they finish)
-        const turnDurationMs = Date.now() - loadingStartTimeRef.current - totalPausedMsRef.current;
-        if ((turnDurationMs > 30000 || budgetInfo !== undefined) && !abortController.signal.aborted && !proactiveActive) {
-          const hasRunningSwarmAgents = getAllInProcessTeammateTasks(store.getState().tasks).some(t => t.status === 'running');
-          if (hasRunningSwarmAgents) {
-            // Only record start time on the first deferred turn
-            if (swarmStartTimeRef.current === null) {
-              swarmStartTimeRef.current = loadingStartTimeRef.current;
-            }
-            // Always update budget — later turns may carry the actual budget
-            if (budgetInfo) {
-              swarmBudgetInfoRef.current = budgetInfo;
-            }
-          } else {
-            setMessages(prev => [...prev, createTurnDurationMessage(turnDurationMs, budgetInfo, count(prev, isLoggableMessage))]);
-          }
-        }
-        // Clear the controller so CancelRequestHandler's canCancelRunningTask
-        // reads false at the idle prompt. Without this, the stale non-aborted
-        // controller makes ctrl+c fire onCancel() (aborting nothing) instead of
-        // propagating to the double-press exit flow.
-        setAbortController(null);
+        await finalizeCompletedOuterReplQuery({
+          abortController,
+          setLastQueryCompletionTime,
+          skipIdleCheckRef,
+          resetLoadingState,
+          mrOnTurnComplete,
+          messagesRef,
+          sendBridgeResult: sendBridgeResultRef.current,
+          isReplAntBuild: isReplAntBuild(),
+          setAppState,
+          loadingStartTimeRef,
+          totalPausedMsRef,
+          proactiveActive,
+          tasks: store.getState().tasks,
+          swarmStartTimeRef,
+          swarmBudgetInfoRef,
+          setMessages,
+          setAbortController,
+        });
       }
 
       // Auto-restore: if the user interrupted before any meaningful response
@@ -2623,19 +2576,14 @@ export function REPL({
       // avoids removeLastFromHistory removing B's entry instead of A's),
       // not viewing a teammate (messagesRef is the main conversation — the
       // old Up-arrow quick-restore had this guard, preserve it).
-      if (abortController.signal.reason === 'user-cancel' && !queryGuard.isActive && inputValueRef.current === '' && getCommandQueueLength() === 0 && !store.getState().viewingAgentTaskId) {
-        const msgs = messagesRef.current;
-        const lastUserMsg = msgs.findLast(selectableUserMessagesFilter);
-        if (lastUserMsg) {
-          const idx = msgs.lastIndexOf(lastUserMsg);
-          if (messagesAfterAreOnlySynthetic(msgs, idx)) {
-            // The submit is being undone — undo its history entry too,
-            // otherwise Up-arrow shows the restored text twice.
-            removeLastFromHistory();
-            restoreMessageSyncRef.current(lastUserMsg);
-          }
-        }
-      }
+      maybeRestoreCanceledOuterReplQuery({
+        abortController,
+        queryIsActive: queryGuard.isActive,
+        inputValue: inputValueRef.current,
+        viewingAgentTaskId: store.getState().viewingAgentTaskId,
+        messagesRef,
+        restoreMessageSync: restoreMessageSyncRef.current,
+      });
     }
   }, [onQueryImpl, setAppState, resetLoadingState, queryGuard, mrOnBeforeQuery, mrOnTurnComplete]);
 
