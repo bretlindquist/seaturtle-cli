@@ -3,7 +3,6 @@ import { feature } from 'bun:bundle';
 import { spawnSync } from 'child_process';
 import { snapshotOutputTokensForTurn, getTotalInputTokens } from '../bootstrap/state.js';
 import { count } from '../utils/array.js';
-import { dirname } from 'path';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
@@ -14,7 +13,7 @@ import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
-import { getOriginalCwd, getProjectRoot, getSessionId, switchSession, setCostStateForRestore } from '../bootstrap/state.js';
+import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
 import { asSessionId, asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
@@ -51,7 +50,7 @@ import { getSystemPrompt } from '../constants/prompts.js';
 import { buildEffectiveSystemPrompt } from '../utils/systemPrompt.js';
 import { getSystemContext, getUserContext } from '../context.js';
 import { getMemoryFiles } from '../utils/claudemd.js';
-import { getTotalCost, saveCurrentSessionCosts, resetCostState, getStoredSessionCosts } from '../cost-tracker.js';
+import { getTotalCost } from '../cost-tracker.js';
 import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
@@ -132,14 +131,13 @@ import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppState, useSetAppState, useAppStateStore } from '../state/AppState.js';
 import type { PastedContent } from '../utils/config.js';
 import { copyPlanForFork, copyPlanForResume } from '../utils/plans.js';
-import { clearSessionMetadata, resetSessionFilePointer, adoptResumedSessionFile, restoreSessionMetadata, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
+import { adoptResumedSessionFile, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { deserializeMessages } from '../utils/conversationRecovery.js';
 import { extractBashToolsFromMessages } from '../utils/queryHelpers.js';
-import { provisionContentReplacementState, reconstructContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
+import { provisionContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
-import { type FileHistorySnapshot, copyFileHistoryForResume } from '../utils/fileHistory.js';
-import { computeStandaloneAgentContext, restoreAgentFromSession, restoreSessionStateFromLog, restoreWorktreeForResume, exitRestoredWorktree } from '../utils/sessionRestore.js';
+import { type FileHistorySnapshot } from '../utils/fileHistory.js';
 import { isBgSession, updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
 import { restoreRemoteAgentTasks } from '../tasks/RemoteAgentTask/RemoteAgentTask.js';
 import { useInboxPoller } from '../hooks/useInboxPoller.js';
@@ -298,6 +296,7 @@ import {
 } from './repl/toolPermissionBridge.js';
 import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
 import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
+import { finishReplSessionResume } from './repl/finishReplSessionResume.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1587,102 +1586,35 @@ export function REPL({
         void copyPlanForResume(log, asSessionId(sessionId));
       }
 
-      // Restore file history and attribution state from the resumed conversation
-      restoreSessionStateFromLog(log, setAppState);
-      if (log.fileHistorySnapshots) {
-        void copyFileHistoryForResume(log);
-      }
+      await finishReplSessionResume({
+        sessionId: asSessionId(sessionId),
+        log,
+        entrypoint,
+        setAppState,
+        initialMainThreadAgentDefinition,
+        agentDefinitions,
+        setMainThreadAgentDefinition,
+        updateSessionName,
+        restoreReadFileState,
+        resetLoadingState,
+        setAbortController,
+        setConversationId,
+        haikuTitleAttemptedRef,
+        setHaikuTitle,
+        bashTools,
+        bashToolsProcessedIdx,
+        adoptResumedSessionFile,
+        restoreRemoteAgentTasks,
+        store,
+        saveWorktreeState,
+        getCurrentWorktreeSession,
+        setMessages,
+        setToolJSX,
+        setInputValue,
+        contentReplacementStateRef,
+        messages,
+      });
 
-      // Restore agent setting from the resumed conversation
-      // Always reset to the new session's values (or clear if none),
-      // matching the standaloneAgentContext pattern below
-      const {
-        agentDefinition: restoredAgent
-      } = restoreAgentFromSession(log.agentSetting, initialMainThreadAgentDefinition, agentDefinitions);
-      setMainThreadAgentDefinition(restoredAgent);
-      setAppState(prev => ({
-        ...prev,
-        agent: restoredAgent?.agentType
-      }));
-
-      // Restore standalone agent context from the resumed conversation
-      // Always reset to the new session's values (or clear if none)
-      setAppState(prev => ({
-        ...prev,
-        standaloneAgentContext: computeStandaloneAgentContext(log.agentName, log.agentColor)
-      }));
-      void updateSessionName(log.agentName);
-
-      // Restore read file state from the message history
-      restoreReadFileState(messages, log.projectPath ?? getOriginalCwd());
-
-      // Clear any active loading state (no queryId since we're not in a query)
-      resetLoadingState();
-      setAbortController(null);
-      setConversationId(sessionId);
-
-      // Get target session's costs BEFORE saving current session
-      // (saveCurrentSessionCosts overwrites the config, so we need to read first)
-      const targetSessionCosts = getStoredSessionCosts(sessionId);
-
-      // Save current session's costs before switching to avoid losing accumulated costs
-      saveCurrentSessionCosts();
-
-      // Reset cost state for clean slate before restoring target session
-      resetCostState();
-
-      // Switch session (id + project dir atomically). fullPath may point to
-      // a different project (cross-worktree, /branch); null derives from
-      // current originalCwd.
-      switchSession(asSessionId(sessionId), log.fullPath ? dirname(log.fullPath) : null);
-      // Rename asciicast recording to match the resumed session ID
-      const {
-        renameRecordingForSession
-      } = await import('../utils/asciicast.js');
-      await renameRecordingForSession();
-      await resetSessionFilePointer();
-
-      // Clear then restore session metadata so it's re-appended on exit via
-      // reAppendSessionMetadata. clearSessionMetadata must be called first:
-      // restoreSessionMetadata only sets-if-truthy, so without the clear,
-      // a session without an agent name would inherit the previous session's
-      // cached name and write it to the wrong transcript on first message.
-      clearSessionMetadata();
-      restoreSessionMetadata(log);
-      // Resumed sessions shouldn't re-title from mid-conversation context
-      // (same reasoning as the useRef seed), and the previous session's
-      // Haiku title shouldn't carry over.
-      haikuTitleAttemptedRef.current = true;
-      setHaikuTitle(undefined);
-
-      // Exit any worktree a prior /resume entered, then cd into the one
-      // this session was in. Without the exit, resuming from worktree B
-      // to non-worktree C leaves cwd/currentWorktreeSession stale;
-      // resuming B→C where C is also a worktree fails entirely
-      // (getCurrentWorktreeSession guard blocks the switch).
-      //
-      // Skipped for /branch: forkLog doesn't carry worktreeSession, so
-      // this would kick the user out of a worktree they're still working
-      // in. Same fork skip as processResumedConversation for the adopt —
-      // fork materializes its own file via recordTranscript on REPL mount.
-      if (entrypoint !== 'fork') {
-        exitRestoredWorktree();
-        restoreWorktreeForResume(log.worktreeSession);
-        adoptResumedSessionFile();
-        void restoreRemoteAgentTasks({
-          abortController: new AbortController(),
-          getAppState: () => store.getState(),
-          setAppState
-        });
-      } else {
-        // Fork: same re-persist as /clear (conversation.ts). The clear
-        // above wiped currentSessionWorktree, forkLog doesn't carry it,
-        // and the process is still in the same worktree.
-        const ws = getCurrentWorktreeSession();
-        if (ws) saveWorktreeState(ws);
-      }
-
-      // Persist the current mode so future resumes know what mode this session was in
       if (feature('COORDINATOR_MODE')) {
         /* eslint-disable @typescript-eslint/no-require-imports */
         const {
@@ -1695,35 +1627,6 @@ export function REPL({
         saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
       }
 
-      // Restore target session's costs from the data we read earlier
-      if (targetSessionCosts) {
-        setCostStateForRestore(targetSessionCosts);
-      }
-
-      // Reconstruct replacement state for the resumed session. Runs after
-      // setSessionId so any NEW replacements post-resume write to the
-      // resumed session's tool-results dir. Gated on ref.current: the
-      // initial mount already read the feature flag, so we don't re-read
-      // it here (mid-session flag flips stay unobservable in both
-      // directions).
-      //
-      // Skipped for in-session /branch: the existing ref is already correct
-      // (branch preserves tool_use_ids), so there's no need to reconstruct.
-      // createFork() does write content-replacement entries to the forked
-      // JSONL with the fork's sessionId, so `claude -r {forkId}` also works.
-      if (contentReplacementStateRef.current && entrypoint !== 'fork') {
-        contentReplacementStateRef.current = reconstructContentReplacementState(messages, log.contentReplacements ?? []);
-      }
-
-      // Reset messages to the provided initial messages
-      // Use a callback to ensure we're not dependent on stale state
-      setMessages(() => messages);
-
-      // Clear any active tool JSX
-      setToolJSX(null);
-
-      // Clear input to ensure no residual state
-      setInputValue('');
       logEvent('tengu_session_resumed', {
         entrypoint: entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         success: true,
