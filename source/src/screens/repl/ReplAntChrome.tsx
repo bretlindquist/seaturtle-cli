@@ -1,3 +1,4 @@
+import * as React from 'react';
 import type { SetAppState } from '../../utils/messageQueueManager.js';
 import { SkillImprovementSurvey } from '../../components/SkillImprovementSurvey.js';
 import { DevBar } from '../../components/DevBar.js';

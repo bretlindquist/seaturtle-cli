@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { useCallback } from 'react';
 import { Text } from '../../ink.js';
 import type { PromptInputHelpers } from '../../utils/handlePromptSubmit.js';

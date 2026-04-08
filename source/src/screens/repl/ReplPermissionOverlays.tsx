@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { PromptDialog } from '../../components/hooks/PromptDialog.js';
 import { WorkerPendingPermission } from '../../components/permissions/WorkerPendingPermission.js';
 import { SandboxPermissionRequest } from '../../components/permissions/SandboxPermissionRequest.js';
