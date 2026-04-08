@@ -288,6 +288,7 @@ import { ReplPromptChrome } from './repl/ReplPromptChrome.js';
 import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchController } from './repl/useTranscriptSearchController.js';
+import { useTranscriptSearchDisplay } from './repl/useTranscriptSearchDisplay.js';
 import { useTranscriptSearchTracker } from './repl/useTranscriptSearchTracker.js';
 import { useTranscriptSearchHotkeys } from './repl/useTranscriptSearchHotkeys.js';
 import { useStaticTranscriptJump } from './repl/useStaticTranscriptJump.js';
@@ -3769,32 +3770,14 @@ export function REPL({
     setRowRange: setTranscriptHighlightRowRange,
     scanElement
   } = useSearchHighlight();
-  useEffect(() => {
-    setTranscriptHighlightQuery(screen === 'transcript' ? searchQuery : '');
-    return () => {
-      setTranscriptHighlightQuery('');
-    };
-  }, [screen, searchQuery, setTranscriptHighlightQuery]);
-  useEffect(() => {
-    if (screen !== 'transcript' || !transcriptVirtualScrollActive || !searchQuery) {
-      setTranscriptHighlightRowRange(null);
-      return;
-    }
-    const handle = scrollRef.current;
-    if (!handle) {
-      setTranscriptHighlightRowRange(null);
-      return;
-    }
-    const top = handle.getViewportTop();
-    const bottom = top + handle.getViewportHeight() - 1;
-    setTranscriptHighlightRowRange({
-      start: top,
-      end: bottom,
-    });
-    return () => {
-      setTranscriptHighlightRowRange(null);
-    };
-  }, [screen, searchQuery, setTranscriptHighlightRowRange, transcriptVirtualScrollActive]);
+  useTranscriptSearchDisplay({
+    screen,
+    searchQuery,
+    transcriptVirtualScrollActive,
+    scrollRef,
+    setTranscriptHighlightQuery,
+    setTranscriptHighlightRowRange,
+  });
   const {
     handleSearchClose,
     handleSearchCancel
