@@ -279,6 +279,10 @@ import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { useReplQueryEventHandler } from './repl/useReplQueryEventHandler.js';
+import {
+  maybeGenerateFirstQuerySessionTitle,
+  syncTurnAllowedTools,
+} from './repl/queryTurnPreparation.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2382,22 +2386,16 @@ export function REPL({
     // useDeferredHookMessages) and attachment messages (appended by
     // processTextPrompt) — both pushed length past 1 on turn one, so the
     // title silently fell through to the "Claude Code" default.
-    if (!titleDisabled && !sessionTitle && !agentTitle && !haikuTitleAttemptedRef.current) {
-      const firstUserMessage = newMessages.find(m => m.type === 'user' && !m.isMeta);
-      const text = firstUserMessage?.type === 'user' ? getContentText(firstUserMessage.message.content) : null;
-      // Skip synthetic breadcrumbs — slash-command output, prompt-skill
-      // expansions (/commit → <command-message>), local-command headers
-      // (/help → <command-name>), and bash-mode (!cmd → <bash-input>).
-      // None of these are the user's topic; wait for real prose.
-      if (text && !text.startsWith(`<${LOCAL_COMMAND_STDOUT_TAG}>`) && !text.startsWith(`<${COMMAND_MESSAGE_TAG}>`) && !text.startsWith(`<${COMMAND_NAME_TAG}>`) && !text.startsWith(`<${BASH_INPUT_TAG}>`)) {
-        haikuTitleAttemptedRef.current = true;
-        void generateSessionTitle(text, new AbortController().signal).then(title => {
-          if (title) setHaikuTitle(title);else haikuTitleAttemptedRef.current = false;
-        }, () => {
-          haikuTitleAttemptedRef.current = false;
-        });
-      }
-    }
+    maybeGenerateFirstQuerySessionTitle({
+      newMessages,
+      titleDisabled,
+      sessionTitle,
+      agentTitle,
+      haikuTitleAttemptedRef,
+      getContentText,
+      generateSessionTitle,
+      setHaikuTitle,
+    });
 
     // Apply slash-command-scoped allowedTools (from skill frontmatter) to the
     // store once per turn. This also covers the reset: the next non-skill turn
@@ -2409,21 +2407,9 @@ export function REPL({
     // (~85 calls/turn); hoisting it here makes getAppState a pure read and stops
     // ephemeral contexts (permission dialog, BackgroundTasksDialog) from
     // accidentally clearing it mid-turn.
-    store.setState(prev => {
-      const cur = prev.toolPermissionContext.alwaysAllowRules.command;
-      if (cur === additionalAllowedTools || cur?.length === additionalAllowedTools.length && cur.every((v, i) => v === additionalAllowedTools[i])) {
-        return prev;
-      }
-      return {
-        ...prev,
-        toolPermissionContext: {
-          ...prev.toolPermissionContext,
-          alwaysAllowRules: {
-            ...prev.toolPermissionContext.alwaysAllowRules,
-            command: additionalAllowedTools
-          }
-        }
-      };
+    syncTurnAllowedTools({
+      setAppState: store.setState,
+      additionalAllowedTools,
     });
 
     // The last message is an assistant message if the user input was a bash command,
