@@ -2845,29 +2845,6 @@ export function REPL({
     }
   }, [onQueryImpl, setAppState, resetLoadingState, queryGuard, mrOnBeforeQuery, mrOnTurnComplete]);
 
-  useInitialMessageProcessing({
-    initialMessage,
-    isLoading,
-    setMessages,
-    readFileStateRef: readFileState,
-    discoveredSkillNamesRef,
-    loadedNestedMemoryPathsRef,
-    getAppState: () => store.getState(),
-    setAppState,
-    setConversationId,
-    resetConversationChrome: () => {
-      haikuTitleAttemptedRef.current = false;
-      setHaikuTitle(undefined);
-      bashTools.current.clear();
-      bashToolsProcessedIdx.current = 0;
-    },
-    awaitPendingHooks,
-    onSubmit,
-    onQuery,
-    createAbortController,
-    setAbortController,
-    mainLoopModel,
-  });
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, speculationAccept?: {
     state: ActiveSpeculationState;
     speculationSessionTimeSavedMs: number;
@@ -3274,6 +3251,29 @@ export function REPL({
   // Heap analysis showed ~9 REPL scopes and ~15 messages array versions
   // accumulating after #20174/#20175, all traced to this dep.
   mainLoopModel, pastedContents, ideSelection, setUserInputOnProcessing, setAbortController, addNotification, onQuery, stashedPrompt, setStashedPrompt, setAppState, onBeforeQuery, canUseTool, remoteSession, setMessages, awaitPendingHooks, repinScroll]);
+  useInitialMessageProcessing({
+    initialMessage,
+    isLoading,
+    setMessages,
+    readFileStateRef: readFileState,
+    discoveredSkillNamesRef,
+    loadedNestedMemoryPathsRef,
+    getAppState: () => store.getState(),
+    setAppState,
+    setConversationId,
+    resetConversationChrome: () => {
+      haikuTitleAttemptedRef.current = false;
+      setHaikuTitle(undefined);
+      bashTools.current.clear();
+      bashToolsProcessedIdx.current = 0;
+    },
+    awaitPendingHooks,
+    onSubmit,
+    onQuery,
+    createAbortController,
+    setAbortController,
+    mainLoopModel,
+  });
   const {
     onAgentSubmit,
     handleIncomingPrompt,
@@ -3562,7 +3562,7 @@ export function REPL({
   useReplSupportEffects({
     queuedCommands,
     isQueryActive,
-    isShowingLocalJsxCommand,
+    isShowingLocalJsxCommand: isShowingLocalJSXCommand,
     parkedPrompts,
     setParkedPrompts: updater => setAppState(prev => ({
       ...prev,
