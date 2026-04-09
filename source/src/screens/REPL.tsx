@@ -235,6 +235,8 @@ import { useReplQueryController } from './repl/useReplQueryController.js';
 import { useReplSubmitController } from './repl/useReplSubmitController.js';
 import { useReplIdleReturn } from './repl/useReplIdleReturn.js';
 import { useReplQueuedInputProcessor } from './repl/useReplQueuedInputProcessor.js';
+import { useReplCompanionObserver } from './repl/useReplCompanionObserver.js';
+import { buildReplGlobalKeybindingProps } from './repl/buildReplGlobalKeybindingProps.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1704,9 +1706,7 @@ export function REPL({
     resetLoadingState,
     setAbortController,
   });
-  // Buddy reaction observer seam was never safely owned in REPL. Keep startup
-  // stable while the reaction engine is rebuilt behind an explicit hook.
-  const fireCompanionObserver = useCallback(async (_messages: any[], _onReaction: (reaction: any) => void) => {}, []);
+  const fireCompanionObserver = useReplCompanionObserver();
   const { onQuery } = useReplQueryController({
     initialMcpClients,
     store,
@@ -2233,7 +2233,7 @@ export function REPL({
   // unrelated normal-mode text (overlay is alt-screen-global) and avoids
   // surprise n/N on re-entry. Same exit resets [ dump mode — each ctrl+o
   // entry is a fresh instance.
-  const globalKeybindingProps = {
+  const globalKeybindingProps = buildReplGlobalKeybindingProps({
     screen,
     setScreen,
     showAllInTranscript,
@@ -2248,8 +2248,8 @@ export function REPL({
     // doesn't stopPropagation, so without this gate transcript:exit
     // would fire on the same Esc that cancels the bar (child registers
     // first, fires first, bubbles).
-    searchBarOpen: searchOpen
-  };
+    searchBarOpen: searchOpen,
+  });
   const transcriptCols = useTerminalSize().columns;
   // Handle shift+down for teammate navigation and background task management.
   // Guard onOpenBackgroundTasks when a local-jsx dialog (e.g. /mcp) is open —
