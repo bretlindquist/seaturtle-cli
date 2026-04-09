@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
 import { getOpenAiCodexAuthReadiness } from '../services/authProfiles/store.js'
-import { loginWithOpenAiCodexOAuth } from '../services/authProfiles/openaiCodexOAuth.js'
+import {
+  importExternalCodexCliAuthProfile,
+  loginWithOpenAiCodexOAuth,
+} from '../services/authProfiles/openaiCodexOAuth.js'
 import { Box, Link, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { saveGlobalConfig } from '../utils/config.js'
@@ -256,9 +259,30 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             ]}
             onChange={value => {
               if (value === 'existing') {
-                logEvent('tengu_openai_codex_existing_selected', {})
-                persistPreferredMainProvider('openai-codex')
-                onDone()
+                void (async () => {
+                  try {
+                    logEvent('tengu_openai_codex_existing_selected', {})
+                    const readiness = getOpenAiCodexAuthReadiness()
+                    if (!readiness.hasAnyProfile && readiness.readyViaExternal) {
+                      const importResult = importExternalCodexCliAuthProfile()
+                      if (!importResult.success) {
+                        throw new Error(
+                          importResult.warning ??
+                            'CT found existing Codex CLI auth, but could not import it into native provider auth storage.',
+                        )
+                      }
+                    }
+
+                    persistPreferredMainProvider('openai-codex')
+                    onDone()
+                  } catch (error) {
+                    logError(error)
+                    setScreen({
+                      state: 'openai-error',
+                      message: (error as Error).message,
+                    })
+                  }
+                })()
                 return
               }
 

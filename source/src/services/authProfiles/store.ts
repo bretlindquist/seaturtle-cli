@@ -31,6 +31,8 @@ export type ProviderAuthReadiness = {
 export type ExternalCodexCliAuth = {
   accessToken: string
   accountId: string
+  refreshToken?: string
+  idToken?: string
 }
 
 export type OpenAiCodexOAuthCredentialFields = {
@@ -64,6 +66,8 @@ type CodexCliAuthFile = {
   tokens?: {
     access_token?: unknown
     account_id?: unknown
+    refresh_token?: unknown
+    id_token?: unknown
   }
 }
 
@@ -155,7 +159,7 @@ export function upsertProviderAuthProfileInStore(params: {
 
   if (params.setAsDefault) {
     nextStore.defaultProfiles = {
-      ...(nextStore.defaultProfiles ?? {}),
+      ...nextStore.defaultProfiles,
       [params.profile.provider]: params.profile.profileId,
     }
   }
@@ -176,7 +180,7 @@ export function removeProviderAuthProfileFromStore(params: {
   const remainingProfiles = { ...nextStore.profiles }
   delete remainingProfiles[params.profileId]
 
-  const nextDefaultProfiles = { ...(nextStore.defaultProfiles ?? {}) }
+  const nextDefaultProfiles = { ...nextStore.defaultProfiles }
   if (profile && nextDefaultProfiles[profile.provider] === params.profileId) {
     delete nextDefaultProfiles[profile.provider]
   }
@@ -270,6 +274,14 @@ export function readExternalCodexCliAuth(): ExternalCodexCliAuth | null {
       typeof parsed.tokens?.account_id === 'string'
         ? parsed.tokens.account_id
         : null
+    const refreshToken =
+      typeof parsed.tokens?.refresh_token === 'string'
+        ? parsed.tokens.refresh_token
+        : null
+    const idToken =
+      typeof parsed.tokens?.id_token === 'string'
+        ? parsed.tokens.id_token
+        : null
 
     if (!accessToken || !accountId) {
       return null
@@ -278,6 +290,8 @@ export function readExternalCodexCliAuth(): ExternalCodexCliAuth | null {
     return {
       accessToken,
       accountId,
+      refreshToken: refreshToken ?? undefined,
+      idToken: idToken ?? undefined,
     }
   } catch (error) {
     logError(error)
@@ -371,7 +385,7 @@ export function clearProviderAuthProfiles(params?: {
       nextStore.profiles[profileId] = profile
       if (store.defaultProfiles?.[profile.provider] === profileId) {
         nextStore.defaultProfiles = {
-          ...(nextStore.defaultProfiles ?? {}),
+          ...nextStore.defaultProfiles,
           [profile.provider]: profileId,
         }
       }

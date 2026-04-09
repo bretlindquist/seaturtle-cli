@@ -3,6 +3,7 @@ import {
   refreshOpenAICodexToken,
   type OAuthPrompt,
 } from '@mariozechner/pi-ai/oauth'
+import { decodeJwtExpiry, decodeJwtPayload } from '../../bridge/jwtUtils.js'
 import type { ProviderOAuthProfile } from '../../utils/secureStorage/types.js'
 import { logError } from '../../utils/log.js'
 import {
@@ -49,6 +50,33 @@ function isExpiredOrNearExpiry(expiresAt: number | null | undefined): boolean {
   }
 
   return expiresAt <= Date.now() + 60_000
+}
+
+function getEmailFromJwt(token: string | undefined): string | undefined {
+  if (!token) {
+    return undefined
+  }
+
+  const payload = decodeJwtPayload(token)
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'email' in payload &&
+    typeof payload.email === 'string'
+  ) {
+    return payload.email
+  }
+
+  return undefined
+}
+
+function getExpiryFromJwt(token: string | undefined): number | null {
+  if (!token) {
+    return null
+  }
+
+  const exp = decodeJwtExpiry(token)
+  return typeof exp === 'number' ? exp * 1000 : null
 }
 
 export async function loginWithOpenAiCodexOAuth(
@@ -135,6 +163,55 @@ export async function refreshOpenAiCodexOAuthProfile(
   }
 
   return refreshedProfile
+}
+
+export function importExternalCodexCliAuthProfile(): {
+  success: boolean
+  warning?: string
+  profile?: ProviderOAuthProfile
+} {
+  const fallback = readExternalCodexCliAuth()
+  if (!fallback?.refreshToken) {
+    return {
+      success: false,
+      warning:
+        'CT found ~/.codex/auth.json, but it does not contain a refresh token that can be imported into native provider auth storage.',
+    }
+  }
+
+  const importedProfile = buildOpenAiCodexOAuthProfile({
+    accessToken: fallback.accessToken,
+    refreshToken: fallback.refreshToken,
+    expiresAt: getExpiryFromJwt(fallback.idToken),
+    accountId: fallback.accountId,
+    emailAddress: getEmailFromJwt(fallback.idToken),
+  })
+
+  const saveResult = saveProviderAuthProfile({
+    profile: {
+      ...importedProfile,
+      metadata: {
+        ...importedProfile.metadata,
+        source: 'imported_codex_cli_auth',
+      },
+    },
+    setAsDefault: true,
+  })
+
+  if (!saveResult.success) {
+    return {
+      success: false,
+      warning:
+        saveResult.warning ??
+        'CT found existing Codex CLI auth, but could not import it into native provider auth storage.',
+    }
+  }
+
+  return {
+    success: true,
+    warning: saveResult.warning,
+    profile: importedProfile,
+  }
 }
 
 export async function getUsableOpenAiCodexAuth(): Promise<OpenAiCodexNativeAuth | null> {
