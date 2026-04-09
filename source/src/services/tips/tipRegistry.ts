@@ -150,7 +150,7 @@ const externalTips: Tip[] = [
         const config = getGlobalConfig()
         const worktreeCount = await getWorktreeCount()
         return worktreeCount <= 1 && config.numStartups > 50
-      } catch (_) {
+      } catch {
         return false
       }
     },
@@ -437,7 +437,7 @@ const externalTips: Tip[] = [
   {
     id: 'desktop-app',
     content: async () =>
-      'Run CT locally or remotely using the desktop app: clau.de/desktop',
+      'Use /desktop to continue the current session in CT Desktop',
     cooldownSessions: 15,
     isRelevant: async () => getPlatform() !== 'linux',
   },
@@ -459,7 +459,7 @@ const externalTips: Tip[] = [
   {
     id: 'web-app',
     content: async () =>
-      'Run tasks in the cloud while you keep coding locally · clau.de/web',
+      'Run tasks in the cloud with ct --remote "your task" while you keep coding locally',
     cooldownSessions: 15,
     isRelevant: async () => true,
   },
