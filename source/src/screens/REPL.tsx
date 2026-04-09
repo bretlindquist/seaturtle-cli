@@ -275,6 +275,7 @@ import { runReplStartupInitialization } from './repl/runReplStartupInitializatio
 import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
 import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
 import { runReplSubmit } from './repl/runReplSubmit.js';
+import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2355,20 +2356,19 @@ export function REPL({
     setMessageSelectorPreselect,
   });
   const clearConversationForIdleReturn = useCallback(async () => {
-    const { clearConversation } = await import('../commands/clear/conversation.js');
-    await clearConversation({
+    await clearReplConversationForIdleReturn({
       setMessages,
-      readFileState: readFileState.current,
-      discoveredSkillNames: discoveredSkillNamesRef.current,
-      loadedNestedMemoryPaths: loadedNestedMemoryPathsRef.current,
+      readFileState,
+      discoveredSkillNamesRef,
+      loadedNestedMemoryPathsRef,
       getAppState: () => store.getState(),
       setAppState,
       setConversationId,
+      haikuTitleAttemptedRef,
+      setHaikuTitle,
+      bashTools,
+      bashToolsProcessedIdx,
     });
-    haikuTitleAttemptedRef.current = false;
-    setHaikuTitle(undefined);
-    bashTools.current.clear();
-    bashToolsProcessedIdx.current = 0;
   }, [setAppState, setConversationId, setMessages, store]);
   const {
     handleSandboxPermissionResponse,
