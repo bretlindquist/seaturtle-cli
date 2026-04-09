@@ -28,7 +28,7 @@ import type { Command } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { selectableUserMessagesFilter } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
-import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
+import type { ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import type { PromptRequest, PromptResponse } from '../types/hooks.js';
 import { useRemoteSession } from '../hooks/useRemoteSession.js';
 import { useDirectConnect } from '../hooks/useDirectConnect.js';
@@ -224,6 +224,7 @@ import { ReplMainScrollableContent } from './repl/ReplMainScrollableContent.js';
 import { ReplMainBottomRow } from './repl/ReplMainBottomRow.js';
 import { ReplPromptSection } from './repl/ReplPromptSection.js';
 import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js';
+import { ReplToolPermissionOverlay } from './repl/ReplToolPermissionOverlay.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
@@ -2289,7 +2290,7 @@ export function REPL({
     userInputOnProcessing,
     userInputBaseline: userInputBaselineRef.current,
   });
-  const toolPermissionOverlay = focusedInputDialog === 'tool-permission' ? <PermissionRequest key={toolUseConfirmQueue[0]?.toolUseID} onDone={() => setToolUseConfirmQueue(([_, ...tail]) => tail)} onReject={handleQueuedCommandOnCancel} toolUseConfirm={toolUseConfirmQueue[0]!} toolUseContext={getToolUseContext(messages, messages, abortController ?? createAbortController(), mainLoopModel)} verbose={verbose} workerBadge={toolUseConfirmQueue[0]?.workerBadge} setStickyFooter={isFullscreenEnvEnabled() ? setPermissionStickyFooter : undefined} /> : null;
+  const toolPermissionOverlay = <ReplToolPermissionOverlay focusedInputDialog={focusedInputDialog} toolUseConfirmQueue={toolUseConfirmQueue} onDone={() => setToolUseConfirmQueue(([_, ...tail]) => tail)} onReject={handleQueuedCommandOnCancel} toolUseContext={getToolUseContext(messages, messages, abortController ?? createAbortController(), mainLoopModel)} verbose={verbose} workerBadge={toolUseConfirmQueue[0]?.workerBadge} isFullscreenEnabled={isFullscreenEnvEnabled()} setStickyFooter={setPermissionStickyFooter} />;
 
   // Narrow terminals: companion collapses to a one-liner that REPL stacks
   // on its own row (above input in fullscreen, below in scrollback) instead
