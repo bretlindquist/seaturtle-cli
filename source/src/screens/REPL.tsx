@@ -288,8 +288,8 @@ import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
 import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
 import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
 import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
-import { initializeReplMemoryState } from './repl/initializeReplMemoryState.js';
 import { resumeReplSession } from './repl/resumeReplSession.js';
+import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2580,12 +2580,10 @@ export function REPL({
     handlers: messageActionHandlers
   } = useMessageActions(cursor, setCursor, cursorNavRef, messageActionCaps);
   async function onInit() {
-    // Always verify API key on startup, so we can show the user an error in the
-    // bottom right corner of the screen if the API key is invalid.
-    void reverify();
-    await initializeReplMemoryState(readFileState);
-
-    // Initial message handling is done via the initialMessage effect
+    await runReplStartupInitialization({
+      reverify,
+      readFileState,
+    });
   }
 
   // Register cost summary tracker
