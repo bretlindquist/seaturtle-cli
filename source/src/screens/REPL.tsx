@@ -1,6 +1,5 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { feature } from 'bun:bundle';
-import { spawnSync } from 'child_process';
 import { getTotalInputTokens } from '../bootstrap/state.js';
 import { count } from '../utils/array.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
@@ -58,7 +57,6 @@ import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
 import { useBackgroundTaskNavigation } from '../hooks/useBackgroundTaskNavigation.js';
 import { useSwarmInitialization } from '../hooks/useSwarmInitialization.js';
 import { useTeammateViewAutoExit } from '../hooks/useTeammateViewAutoExit.js';
-import { errorMessage } from '../utils/errors.js';
 import { isHumanTurn } from '../utils/messagePredicates.js';
 import { logError } from '../utils/log.js';
 // Dead code elimination: conditional imports
@@ -124,7 +122,7 @@ import { extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
 import { type FileHistorySnapshot } from '../utils/fileHistory.js';
-import { isBgSession, updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
+import { updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
 import { useInboxPoller } from '../hooks/useInboxPoller.js';
 // Dead code elimination: conditional import for loop mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -139,8 +137,6 @@ import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { useTaskListWatcher } from '../hooks/useTaskListWatcher.js';
 import { type IDEExtensionInstallationStatus, closeOpenDiffs, getConnectedIdeClient, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
-import exit from '../commands/exit/index.js';
-import { ExitFlow } from '../components/ExitFlow.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { enqueue, type SetAppState, getCommandQueueLength } from '../utils/messageQueueManager.js';
 import { useCommandQueue } from '../hooks/useCommandQueue.js';
@@ -200,7 +196,7 @@ import { useModelMigrationNotifications } from 'src/hooks/notifs/useModelMigrati
 import { useCanSwitchToExistingSubscription } from 'src/hooks/notifs/useCanSwitchToExistingSubscription.js';
 import { useTeammateLifecycleNotification } from 'src/hooks/notifs/useTeammateShutdownNotification.js';
 import { useFastModeNotification } from 'src/hooks/notifs/useFastModeNotification.js';
-import { shouldAutoRunIssue, getAutoRunCommand, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
+import { shouldAutoRunIssue, type AutoRunIssueReason } from '../utils/autoRunIssue.js';
 import type { HookProgress } from '../types/hooks.js';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const WebBrowserPanelModule = feature('WEB_BROWSER_TOOL') ? require('../tools/WebBrowserTool/WebBrowserPanel.js') as typeof import('../tools/WebBrowserTool/WebBrowserPanel.js') : null;
@@ -228,7 +224,7 @@ import { ReplBottomPane } from './repl/ReplBottomPane.js';
 import { ReplBottomDialogSection } from './repl/ReplBottomDialogSection.js';
 import { useMessageSelectorActions } from './repl/useMessageSelectorActions.js';
 import { ReplMainScreen } from './repl/ReplMainScreen.js';
-import { getSurveyRequestFeedbackCommand, isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
+import { isReplAntBuild, shouldShowInitialModelSwitchCallout, shouldShowUndercoverCallout, useReplAntOrgWarningNotification, useReplFrustrationDetection } from './repl/replAntRuntime.js';
 import { ReplTranscriptMode } from './repl/ReplTranscriptMode.js';
 import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js';
 import { useTranscriptSearchFeature } from './repl/useTranscriptSearchFeature.js';
@@ -260,6 +256,7 @@ import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
 import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
 import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
 import { useReplCancelController } from './repl/useReplCancelController.js';
+import { useReplUiActions } from './repl/useReplUiActions.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2097,81 +2094,21 @@ export function REPL({
     addNotification,
   });
 
-  // Handlers for auto-run /issue or /good-claude (defined after onSubmit)
-  const handleAutoRunIssue = useCallback(() => {
-    const command = autoRunIssueReason ? getAutoRunCommand(autoRunIssueReason) : '/issue';
-    setAutoRunIssueReason(null); // Clear the state
-    onSubmit(command, {
-      setCursorOffset: () => {},
-      clearBuffer: () => {},
-      resetHistory: () => {}
-    }).catch(err => {
-      logForDebugging(`Auto-run ${command} failed: ${errorMessage(err)}`);
-    });
-  }, [onSubmit, autoRunIssueReason]);
-  const handleCancelAutoRunIssue = useCallback(() => {
-    setAutoRunIssueReason(null);
-  }, []);
-
-  // Handler for when user presses 1 on survey thanks screen to share details
-  const handleSurveyRequestFeedback = useCallback(() => {
-    const command = getSurveyRequestFeedbackCommand();
-    onSubmit(command, {
-      setCursorOffset: () => {},
-      clearBuffer: () => {},
-      resetHistory: () => {}
-    }).catch(err => {
-      logForDebugging(`Survey feedback request failed: ${err instanceof Error ? err.message : String(err)}`);
-    });
-  }, [onSubmit]);
-
-  // onSubmit is unstable (deps include `messages` which changes every turn).
-  // `handleOpenRateLimitOptions` is prop-drilled to every MessageRow, and each
-  // MessageRow fiber pins the closure (and transitively the entire REPL render
-  // scope, ~1.8KB) at mount time. Using a ref keeps this callback stable so
-  // old REPL scopes can be GC'd — saves ~35MB over a 1000-turn session.
-  const onSubmitRef = useRef(onSubmit);
-  onSubmitRef.current = onSubmit;
-  const handleOpenRateLimitOptions = useCallback(() => {
-    void onSubmitRef.current('/rate-limit-options', {
-      setCursorOffset: () => {},
-      clearBuffer: () => {},
-      resetHistory: () => {}
-    });
-  }, []);
-  const handleExit = useCallback(async () => {
-    setIsExiting(true);
-    // In bg sessions, always detach instead of kill — even when a worktree is
-    // active. Without this guard, the worktree branch below short-circuits into
-    // ExitFlow (which calls gracefulShutdown) before exit.tsx is ever loaded.
-    if (feature('BG_SESSIONS') && isBgSession()) {
-      spawnSync('tmux', ['detach-client'], {
-        stdio: 'ignore'
-      });
-      setIsExiting(false);
-      return;
-    }
-    const showWorktree = getCurrentWorktreeSession() !== null;
-    if (showWorktree) {
-      setExitFlow(<ExitFlow showWorktree onDone={() => {}} onCancel={() => {
-        setExitFlow(null);
-        setIsExiting(false);
-      }} />);
-      return;
-    }
-    const exitMod = await exit.load();
-    const exitFlowResult = await exitMod.call(() => {});
-    setExitFlow(exitFlowResult);
-    // If call() returned without killing the process (bg session detach),
-    // clear isExiting so the UI is usable on reattach. No-op on the normal
-    // path — gracefulShutdown's process.exit() means we never get here.
-    if (exitFlowResult === null) {
-      setIsExiting(false);
-    }
-  }, []);
-  const handleShowMessageSelector = useCallback(() => {
-    setIsMessageSelectorVisible(prev => !prev);
-  }, []);
+  const {
+    handleAutoRunIssue,
+    handleCancelAutoRunIssue,
+    handleSurveyRequestFeedback,
+    handleOpenRateLimitOptions,
+    handleExit,
+    handleShowMessageSelector,
+  } = useReplUiActions({
+    autoRunIssueReason,
+    setAutoRunIssueReason,
+    onSubmit,
+    setIsExiting,
+    setExitFlow,
+    setIsMessageSelectorVisible,
+  });
 
   const {
     restoreMessageSync,
