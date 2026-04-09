@@ -24,8 +24,11 @@ import { getEnabledSettingSources, getSettingSourceDisplayNameCapitalized } from
 import { getManagedFileSettingsPresence, getPolicySettingsOrigin, getSettingsForSource } from './settings/settings.js';
 import type { ThemeName } from './theme.js';
 import type { PermissionMode } from '../types/permissions.js';
+import type { Message } from '../types/message.js';
 import { permissionModeTitle } from './permissions/PermissionMode.js';
 import { getDisplayedEffortLevel, modelSupportsEffort, type EffortValue } from './effort.js';
+import { calculateContextPercentages, getContextWindowForModel } from './context.js';
+import { getCurrentUsage } from './tokens.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
@@ -154,6 +157,25 @@ export async function buildInstructionProperties(): Promise<Property[]> {
   return [{
     label: instructionFileName === 'AGENTS.md' ? 'AGENTS.md' : 'Instructions',
     value: getDisplayPath(preferredProjectFile.path)
+  }];
+}
+export function buildContextWindowProperties({
+  mainLoopModel,
+  messages
+}: {
+  mainLoopModel: string;
+  messages: Message[];
+}): Property[] {
+  const currentUsage = getCurrentUsage(messages);
+  const contextWindowSize = getContextWindowForModel(mainLoopModel);
+  const contextPercentages = calculateContextPercentages(currentUsage, contextWindowSize);
+  if (!currentUsage || contextPercentages.remaining === null) {
+    return [];
+  }
+  const usedTokens = currentUsage.input_tokens + currentUsage.cache_creation_input_tokens + currentUsage.cache_read_input_tokens;
+  return [{
+    label: 'Context window',
+    value: `${contextPercentages.remaining}% left (${formatNumber(usedTokens)} used / ${formatNumber(contextWindowSize)})`
   }];
 }
 export function buildSettingSourcesProperties(): Property[] {

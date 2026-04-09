@@ -12,6 +12,7 @@ import { getCurrentSessionTitle } from '../../utils/sessionStorage.js'
 import {
   buildAccountProperties,
   buildAPIProviderProperties,
+  buildContextWindowProperties,
   buildIDEProperties,
   buildInstallationDiagnostics,
   buildInstallationHealthDiagnostics,
@@ -38,10 +39,12 @@ function buildPrimarySection({
   mainLoopModel,
   effortValue,
   permissionMode,
+  messages,
 }: {
   mainLoopModel: string
   effortValue: AppState['effortValue']
   permissionMode: AppState['toolPermissionContext']['mode']
+  messages: AppState['messages']
 }): Property[] {
   const sessionId = getSessionId()
   const customTitle = getCurrentSessionTitle(sessionId)
@@ -58,6 +61,10 @@ function buildPrimarySection({
       label: 'Permissions',
       value: getStatusPermissionLabel(permissionMode),
     },
+    ...buildContextWindowProperties({
+      mainLoopModel,
+      messages,
+    }),
     { label: 'Session', value: sessionId },
     { label: 'Session name', value: nameValue },
     ...buildAccountProperties(),
@@ -153,6 +160,7 @@ export function Status({
   const mainLoopModel = useMainLoopModel()
   const effortValue = useAppState(s => s.effortValue)
   const permissionMode = useAppState(s => s.toolPermissionContext.mode)
+  const messages = useAppState(s => s.messages)
   const mcp = useAppState(s => s.mcp)
   const [theme] = useTheme()
   const grow = useIsInsideModal() ? 1 : undefined
@@ -166,6 +174,7 @@ export function Status({
         mainLoopModel,
         effortValue,
         permissionMode,
+        messages,
       }),
       buildSecondarySection({
         mcp,
@@ -173,7 +182,7 @@ export function Status({
         context,
       }),
     ],
-    [context, effortValue, mainLoopModel, mcp, permissionMode, theme],
+    [context, effortValue, mainLoopModel, mcp, messages, permissionMode, theme],
   )
 
   return (
