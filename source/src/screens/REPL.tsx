@@ -1603,6 +1603,7 @@ export function REPL({
   const {
     onCancel,
     cancelRequestProps,
+    handleQueuedCommandOnCancel,
   } = useReplCancelController({
     focusedInputDialog,
     streamMode,
