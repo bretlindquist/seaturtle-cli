@@ -151,7 +151,7 @@ import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import exit from '../commands/exit/index.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { popAllEditable, enqueue, type SetAppState, getCommandQueueLength, removeByFilter } from '../utils/messageQueueManager.js';
+import { enqueue, type SetAppState, getCommandQueueLength, removeByFilter } from '../utils/messageQueueManager.js';
 import { useCommandQueue } from '../hooks/useCommandQueue.js';
 import { useSessionBackgrounding } from '../hooks/useSessionBackgrounding.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
@@ -284,6 +284,7 @@ import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
 import { resumeReplSession } from './repl/resumeReplSession.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
+import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1719,23 +1720,12 @@ export function REPL({
 
   // Function to handle queued command when canceling a permission request
   const handleQueuedCommandOnCancel = useCallback(() => {
-    const result = popAllEditable(inputValue, 0);
-    if (!result) return;
-    setInputValue(result.text);
-    setInputMode('prompt');
-
-    // Restore images from queued commands to pastedContents
-    if (result.images.length > 0) {
-      setPastedContents(prev => {
-        const newContents = {
-          ...prev
-        };
-        for (const image of result.images) {
-          newContents[image.id] = image;
-        }
-        return newContents;
-      });
-    }
+    restoreQueuedCancelInput({
+      inputValue,
+      setInputValue,
+      setInputMode,
+      setPastedContents,
+    });
   }, [setInputValue, setInputMode, inputValue, setPastedContents]);
 
   // CancelRequestHandler props - rendered inside KeybindingSetup
