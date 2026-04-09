@@ -1,4 +1,4 @@
-import { extractBashToolsFromMessages, extractReadFilesFromMessages } from '../../utils/messages.js';
+import { extractBashToolsFromMessages, extractReadFilesFromMessages } from '../../utils/queryHelpers.js';
 import { mergeFileStateCaches, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js';
 
 export function restoreReplReadFileState({

@@ -314,10 +314,7 @@ function ensureOverlayDependencies(packageNames) {
 
   fs.mkdirSync(workspaceRoot, { recursive: true });
   writeWorkspacePackageJson(new Set([path.join(workspaceRoot, 'package.json')]));
-
-  for (const packageName of packageNames) {
-    removePath(packageRootPath(path.join(workspaceRoot, 'node_modules'), packageName));
-  }
+  removePath(path.join(workspaceRoot, 'node_modules'));
 
   const installArgs = [
     'install',
@@ -1263,15 +1260,31 @@ function writeWorkspaceTsconfig(keepPaths) {
 function writeProxyModule(proxyPath, targetPath) {
   fs.mkdirSync(path.dirname(proxyPath), { recursive: true });
   const relativeTarget = ensureDotPath(toPosix(path.relative(path.dirname(proxyPath), targetPath)));
+  const shouldExportDefault = targetHasDefaultExport(targetPath);
   const proxySource = [
     `import * as module_0 from ${JSON.stringify(relativeTarget)};`,
     `export * from ${JSON.stringify(relativeTarget)};`,
-    'export default module_0.default;',
+    ...(shouldExportDefault ? ['export default module_0.default;'] : []),
     '',
   ].join('\n');
   if (!isFileContentEqual(proxyPath, proxySource)) {
     fs.writeFileSync(proxyPath, proxySource, 'utf8');
   }
+}
+
+function targetHasDefaultExport(targetPath) {
+  let contents;
+  try {
+    contents = fs.readFileSync(targetPath, 'utf8');
+  } catch {
+    return false;
+  }
+
+  return (
+    /\bexport\s+default\b/.test(contents) ||
+    /\bexport\s*\{[^}]*\bas\s+default\b[^}]*\}/.test(contents) ||
+    /\bexport\s*\{\s*default\s*\}/.test(contents)
+  );
 }
 
 function findPackageEntry(packageName, packageRoot) {
@@ -1323,10 +1336,18 @@ function collectBareSpecifiers(roots) {
       continue;
     }
     for (const filePath of walkFiles(root)) {
-      if (!sourceExtensions.includes(path.extname(filePath))) {
+      if (!sourceExtensions.includes(path.extname(filePath)) || filePath.endsWith('.d.ts')) {
         continue;
       }
-      const contents = fs.readFileSync(filePath, 'utf8');
+      let contents;
+      try {
+        contents = fs.readFileSync(filePath, 'utf8');
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+          continue;
+        }
+        throw error;
+      }
       for (const match of contents.matchAll(
         /\bimport\s+['"]([^'"]+)['"]|\bfrom\s+['"]([^'"]+)['"]|\brequire\(\s*['"]([^'"]+)['"]\s*\)|\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
       )) {
