@@ -41,6 +41,7 @@ export type OpenAiCodexOAuthCredentialFields = {
   expiresAt: number
   accountId: string
   emailAddress?: string
+  planType?: string
   enterpriseUrl?: string
   projectId?: string
 }
@@ -139,6 +140,7 @@ export function buildOpenAiCodexOAuthProfile(
     metadata: {
       source: 'native_openai_codex_oauth',
       accountId: params.accountId,
+      planType: params.planType ?? null,
       enterpriseUrl: params.enterpriseUrl ?? null,
       projectId: params.projectId ?? null,
     },

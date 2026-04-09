@@ -79,6 +79,45 @@ function getExpiryFromJwt(token: string | undefined): number | null {
   return typeof exp === 'number' ? exp * 1000 : null
 }
 
+function getPlanTypeFromJwt(token: string | undefined): string | undefined {
+  if (!token) {
+    return undefined
+  }
+
+  const payload = decodeJwtPayload(token)
+  if (!payload || typeof payload !== 'object') {
+    return undefined
+  }
+
+  if (
+    'chatgpt_plan_type' in payload &&
+    typeof payload.chatgpt_plan_type === 'string'
+  ) {
+    return payload.chatgpt_plan_type
+  }
+
+  const namespacedAuth =
+    'https://api.openai.com/auth' in payload &&
+    payload['https://api.openai.com/auth'] &&
+    typeof payload['https://api.openai.com/auth'] === 'object'
+      ? payload['https://api.openai.com/auth']
+      : null
+
+  if (
+    namespacedAuth &&
+    'chatgpt_plan_type' in namespacedAuth &&
+    typeof namespacedAuth.chatgpt_plan_type === 'string'
+  ) {
+    return namespacedAuth.chatgpt_plan_type
+  }
+
+  if ('plan_type' in payload && typeof payload.plan_type === 'string') {
+    return payload.plan_type
+  }
+
+  return undefined
+}
+
 export async function loginWithOpenAiCodexOAuth(
   handlers: OpenAiCodexOAuthFlowHandlers,
 ): Promise<ProviderOAuthProfile> {
@@ -98,6 +137,7 @@ export async function loginWithOpenAiCodexOAuth(
       typeof credentials.accountId === 'string' ? credentials.accountId : '',
     emailAddress:
       typeof credentials.email === 'string' ? credentials.email : undefined,
+    planType: getPlanTypeFromJwt(credentials.access),
     enterpriseUrl:
       typeof credentials.enterpriseUrl === 'string'
         ? credentials.enterpriseUrl
@@ -140,6 +180,11 @@ export async function refreshOpenAiCodexOAuthProfile(
         ? refreshed.accountId
         : getStoredAccountId(profile) ?? '',
     emailAddress: profile.emailAddress,
+    planType:
+      getPlanTypeFromJwt(refreshed.access) ??
+      (typeof profile.metadata?.planType === 'string'
+        ? profile.metadata.planType
+        : undefined),
     enterpriseUrl:
       typeof profile.metadata?.enterpriseUrl === 'string'
         ? profile.metadata.enterpriseUrl
@@ -185,6 +230,7 @@ export function importExternalCodexCliAuthProfile(): {
     expiresAt: getExpiryFromJwt(fallback.idToken),
     accountId: fallback.accountId,
     emailAddress: getEmailFromJwt(fallback.idToken),
+    planType: getPlanTypeFromJwt(fallback.idToken),
   })
 
   const saveResult = saveProviderAuthProfile({
@@ -217,6 +263,36 @@ export function importExternalCodexCliAuthProfile(): {
 export function maybeAdoptExternalCodexCliAuthProfile(): boolean {
   const nativeProfile = getDefaultOpenAiCodexOAuthProfile()
   if (nativeProfile) {
+    const fallback = readExternalCodexCliAuth()
+    const fallbackEmail = getEmailFromJwt(fallback?.idToken)
+    const fallbackPlanType =
+      getPlanTypeFromJwt(nativeProfile.accessToken) ??
+      getPlanTypeFromJwt(fallback?.accessToken) ??
+      getPlanTypeFromJwt(fallback?.idToken)
+    const hasStoredPlanType =
+      typeof nativeProfile.metadata?.planType === 'string' &&
+      nativeProfile.metadata.planType.length > 0
+    const needsBackfill =
+      (!!fallbackEmail && !nativeProfile.emailAddress) ||
+      (!!fallbackPlanType && !hasStoredPlanType)
+
+    if (needsBackfill) {
+      saveProviderAuthProfile({
+        profile: {
+          ...nativeProfile,
+          emailAddress: nativeProfile.emailAddress ?? fallbackEmail,
+          metadata: {
+            ...nativeProfile.metadata,
+            planType:
+              hasStoredPlanType
+                ? nativeProfile.metadata?.planType
+                : fallbackPlanType ?? null,
+          },
+        },
+        setAsDefault: true,
+      })
+    }
+
     return true
   }
 

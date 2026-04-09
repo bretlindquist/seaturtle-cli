@@ -122,6 +122,36 @@ export type MainLoopProviderRuntimeSnapshot = {
   openAiCodexCliFallbackReady: boolean
   openAiCodexAuthSource: string | null
   openAiCodexAccountLabel: string | null
+  openAiCodexPlanLabel: string | null
+}
+
+function formatOpenAiCodexPlanLabel(rawPlanType: unknown): string | null {
+  if (typeof rawPlanType !== 'string') {
+    return null
+  }
+
+  const normalized = rawPlanType.trim().toLowerCase()
+  if (!normalized) {
+    return null
+  }
+
+  switch (normalized) {
+    case 'plus':
+      return 'Plus'
+    case 'pro':
+      return 'Pro'
+    case 'team':
+      return 'Team'
+    case 'enterprise':
+      return 'Enterprise'
+    case 'free':
+      return 'Free'
+    default:
+      return normalized
+        .split(/[\s_-]+/)
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+  }
 }
 
 export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSnapshot {
@@ -150,6 +180,9 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
       (typeof openAiProfile?.metadata?.accountId === 'string'
         ? openAiProfile.metadata.accountId
         : openAiProfile?.accountUuid ?? null),
+    openAiCodexPlanLabel: formatOpenAiCodexPlanLabel(
+      openAiProfile?.metadata?.planType,
+    ),
   }
 }
 
