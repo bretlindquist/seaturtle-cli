@@ -14,7 +14,7 @@ import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
-import { asSessionId, asAgentId } from '../types/ids.js';
+import { asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
@@ -92,7 +92,7 @@ import { clearSpeculativeChecks } from '../tools/BashTool/bashPermissions.js';
 import type { AutoUpdaterResult } from '../utils/autoUpdater.js';
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
-import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
+import { logEvent } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type StreamingToolUse, type StreamingThinking, getContentText, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
@@ -286,11 +286,10 @@ import {
 } from './repl/toolPermissionBridge.js';
 import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
 import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
-import { finishReplSessionResume } from './repl/finishReplSessionResume.js';
-import { prepareReplSessionResume } from './repl/prepareReplSessionResume.js';
 import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
 import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
 import { initializeReplMemoryState } from './repl/initializeReplMemoryState.js';
+import { resumeReplSession } from './repl/resumeReplSession.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1517,22 +1516,17 @@ export function REPL({
     fileHistory: fileHistoryState
   })));
   const resume = useCallback(async (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => {
-    const resumeStart = performance.now();
-    try {
-      const { messages } = await prepareReplSessionResume({
-        sessionId,
-        log,
-        entrypoint,
+    await resumeReplSession({
+      sessionId,
+      log,
+      entrypoint,
+      prepareArgs: {
         store,
         setAppState,
         mainThreadAgentDefinition,
         mainLoopModel,
-      });
-
-      await finishReplSessionResume({
-        sessionId: asSessionId(sessionId),
-        log,
-        entrypoint,
+      },
+      finishArgs: {
         setAppState,
         initialMainThreadAgentDefinition,
         agentDefinitions,
@@ -1555,33 +1549,8 @@ export function REPL({
         setToolJSX,
         setInputValue,
         contentReplacementStateRef,
-        messages,
-      });
-
-      if (feature('COORDINATOR_MODE')) {
-        /* eslint-disable @typescript-eslint/no-require-imports */
-        const {
-          saveMode
-        } = require('../utils/sessionStorage.js');
-        const {
-          isCoordinatorMode
-        } = require('../coordinator/coordinatorMode.js') as typeof import('../coordinator/coordinatorMode.js');
-        /* eslint-enable @typescript-eslint/no-require-imports */
-        saveMode(isCoordinatorMode() ? 'coordinator' : 'normal');
-      }
-
-      logEvent('tengu_session_resumed', {
-        entrypoint: entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        success: true,
-        resume_duration_ms: Math.round(performance.now() - resumeStart)
-      });
-    } catch (error) {
-      logEvent('tengu_session_resumed', {
-        entrypoint: entrypoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        success: false
-      });
-      throw error;
-    }
+      },
+    });
   }, [resetLoadingState, setAppState]);
 
   // Lazy init: useRef(createX()) would call createX on every render and
