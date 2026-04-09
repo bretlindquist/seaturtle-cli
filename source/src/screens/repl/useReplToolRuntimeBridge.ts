@@ -311,5 +311,6 @@ export function useReplToolRuntimeBridge({
     canUseTool,
     getToolUseContext,
     handleBackgroundSession,
+    setToolPermissionContext,
   };
 }

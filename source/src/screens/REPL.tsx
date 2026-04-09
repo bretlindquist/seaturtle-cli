@@ -1649,6 +1649,7 @@ export function REPL({
     canUseTool,
     getToolUseContext,
     handleBackgroundSession,
+    setToolPermissionContext,
   } = useReplToolRuntimeBridge({
     setAppState,
     store,
@@ -1703,6 +1704,9 @@ export function REPL({
     resetLoadingState,
     setAbortController,
   });
+  // Buddy reaction observer seam was never safely owned in REPL. Keep startup
+  // stable while the reaction engine is rebuilt behind an explicit hook.
+  const fireCompanionObserver = useCallback(async (_messages: any[], _onReaction: (reaction: any) => void) => {}, []);
   const { onQuery } = useReplQueryController({
     initialMcpClients,
     store,
@@ -2178,6 +2182,11 @@ export function REPL({
   // Props for GlobalKeybindingHandlers component (rendered inside KeybindingSetup)
   const virtualScrollActive = isFullscreenEnvEnabled() && !disableVirtualScroll;
   const transcriptVirtualScrollActive = !disableVirtualScroll && !dumpMode;
+  // Use frozen lengths to slice arrays, avoiding memory overhead of cloning.
+  // These values are transcript feature inputs, so they must exist before any
+  // transcript search hooks consume them.
+  const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
+  const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
 
   // Transcript search state. Hooks must be unconditional so they live here
   // (not inside the `if (screen === 'transcript')` branch below); isActive
@@ -2242,10 +2251,6 @@ export function REPL({
     searchBarOpen: searchOpen
   };
   const transcriptCols = useTerminalSize().columns;
-
-  // Use frozen lengths to slice arrays, avoiding memory overhead of cloning
-  const transcriptMessages = frozenTranscriptState ? deferredMessages.slice(0, frozenTranscriptState.messagesLength) : deferredMessages;
-  const transcriptStreamingToolUses = frozenTranscriptState ? streamingToolUses.slice(0, frozenTranscriptState.streamingToolUsesLength) : streamingToolUses;
   // Handle shift+down for teammate navigation and background task management.
   // Guard onOpenBackgroundTasks when a local-jsx dialog (e.g. /mcp) is open —
   // otherwise Shift+Down stacks BackgroundTasksDialog on top and deadlocks input.
