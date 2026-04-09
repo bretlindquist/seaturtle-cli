@@ -16,9 +16,11 @@ from typing import Callable
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_PATH = str(REPO_ROOT)
 DEFAULT_SELF_TEST_TIMEOUT_S = 2
+DEFAULT_HARNESS_TIMEOUT_S = 240
 
 SKIP_REASON_PATTERNS: list[tuple[str, str]] = [
     ("usage_limit_reached", "OpenAI/Codex usage limit reached"),
+    ("usage limit reached", "OpenAI/Codex usage limit reached"),
     ("429 Too Many Requests", "OpenAI/Codex rate limit reached"),
     ("rate_limit_exceeded", "OpenAI/Codex rate limit reached"),
     ("insufficient_quota", "OpenAI/Codex quota unavailable"),
@@ -64,8 +66,9 @@ def normalize_output(stdout: str | None, stderr: str | None) -> str:
 
 
 def classify_skip(output: str) -> str | None:
+    lowered = output.lower()
     for needle, reason in SKIP_REASON_PATTERNS:
-        if needle in output:
+        if needle.lower() in lowered:
             return reason
     return None
 
@@ -422,6 +425,17 @@ def build_steps() -> list[Step]:
     ]
 
 
+def resolve_harness_timeout_s() -> int:
+    raw = os.environ.get("OPENAI_CODEX_CHECK_TIMEOUT_S", "").strip()
+    if not raw:
+        return DEFAULT_HARNESS_TIMEOUT_S
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_HARNESS_TIMEOUT_S
+    return value if value > 0 else DEFAULT_HARNESS_TIMEOUT_S
+
+
 def main() -> int:
     if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
         return run_self_tests()
@@ -430,17 +444,33 @@ def main() -> int:
     env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
 
     started = time.time()
+    harness_timeout_s = resolve_harness_timeout_s()
     steps = build_steps()
+    passed_steps = 0
     try:
         for step in steps:
+            elapsed = time.time() - started
+            if elapsed >= harness_timeout_s:
+                print("TIMEOUT harness")
+                print(f"  reason: overall regression deadline exceeded {harness_timeout_s}s before {step.name}")
+                print(f"  summary: passed={passed_steps} remaining={len(steps) - passed_steps}")
+                return 1
             run_step(step, env)
+            passed_steps += 1
     except StepSkipped as exc:
         duration_s = time.time() - started
-        print(f"openai-codex-regression skipped: {exc.reason} ({duration_s:.1f}s)", file=sys.stderr)
+        print(
+            f"openai-codex-regression skipped: {exc.reason} ({duration_s:.1f}s) "
+            f"[passed={passed_steps} skipped=1 failed=0]",
+            file=sys.stderr,
+        )
         return 0
 
     duration_s = time.time() - started
-    print(f"openai-codex-regression passed ({duration_s:.1f}s)")
+    print(
+        f"openai-codex-regression passed ({duration_s:.1f}s) "
+        f"[passed={passed_steps} skipped=0 failed=0 timeout={harness_timeout_s}s]"
+    )
     return 0
 
 
