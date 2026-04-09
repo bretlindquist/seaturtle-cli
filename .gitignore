@@ -34,3 +34,6 @@ AGENTS.md
 /oauth.local.json
 /token.json
 /tokens.json
+__pycache__/
+*.pyc
+*.pyo
