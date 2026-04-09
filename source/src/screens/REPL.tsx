@@ -89,7 +89,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { type StreamingToolUse, type StreamingThinking, getContentText, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage } from '../utils/messages.js';
+import { type StreamingToolUse, type StreamingThinking, getContentText, createTurnDurationMessage, createSystemMessage } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
@@ -254,13 +254,12 @@ import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
 import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
-import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
-import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
 import { runReplSubmit } from './repl/runReplSubmit.js';
 import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
 import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
 import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
 import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
+import { useReplCancelController } from './repl/useReplCancelController.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1624,59 +1623,40 @@ export function REPL({
     if (was !== now) repinScroll();
     prevDialogRef.current = focusedInputDialog;
   }, [focusedInputDialog, repinScroll]);
-  function onCancel() {
-    logForDebugging(`[onCancel] focusedInputDialog=${focusedInputDialog} streamMode=${streamMode}`);
-    cancelActiveReplRequest({
-      focusedInputDialog,
-      queryGuard,
-      skipIdleCheckRef,
-      streamingText,
-      setMessages,
-      resetLoadingState,
-      toolUseConfirmQueue,
-      setToolUseConfirmQueue,
-      promptQueue,
-      setPromptQueue,
-      activeRemote,
-      abortController,
-      setAbortController,
-      messagesRef,
-      mrOnTurnComplete,
-      pauseProactive: () => {
-        if (feature('PROACTIVE') || feature('KAIROS')) {
-          proactiveModule?.pauseProactive();
-        }
-      },
-    });
-  }
-
-  // Function to handle queued command when canceling a permission request
-  const handleQueuedCommandOnCancel = useCallback(() => {
-    restoreQueuedCancelInput({
-      inputValue,
-      setInputValue,
-      setInputMode,
-      setPastedContents,
-    });
-  }, [setInputValue, setInputMode, inputValue, setPastedContents]);
-
-  // CancelRequestHandler props - rendered inside KeybindingSetup
-  const cancelRequestProps = {
-    setToolUseConfirmQueue,
+  const {
     onCancel,
-    onAgentsKilled: () => setMessages(prev => [...prev, createAgentsKilledMessage()]),
-    isMessageSelectorVisible: isMessageSelectorVisible || !!showBashesDialog,
+    cancelRequestProps,
+  } = useReplCancelController({
+    focusedInputDialog,
+    streamMode,
+    queryGuard,
+    skipIdleCheckRef,
+    streamingText,
+    setMessages,
+    resetLoadingState,
+    toolUseConfirmQueue,
+    setToolUseConfirmQueue,
+    promptQueue,
+    setPromptQueue,
+    activeRemote,
+    abortController,
+    setAbortController,
+    messagesRef,
+    mrOnTurnComplete,
+    proactiveModule,
+    inputValue,
+    setInputValue,
+    setInputMode,
+    setPastedContents,
+    isMessageSelectorVisible,
+    showBashesDialog: Boolean(showBashesDialog),
     screen,
-    abortSignal: abortController?.signal,
-    popCommandFromQueue: handleQueuedCommandOnCancel,
     vimMode,
-    isLocalJSXCommand: toolJSX?.isLocalJSXCommand,
+    toolJSX,
     isSearchingHistory,
     isHelpOpen,
     inputMode,
-    inputValue,
-    streamMode
-  };
+  });
   useEffect(() => {
     const totalCost = getTotalCost();
     if (totalCost >= 5 /* $5 */ && !showCostDialog && !haveShownCostDialog) {
