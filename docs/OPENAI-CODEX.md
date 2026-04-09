@@ -26,6 +26,7 @@ main conversation loop work on OpenAI/Codex OAuth.
 - strict `TodoWrite` turns
 - replay/resume against prior OpenAI/Codex sessions
 - `auth status --json` reporting of the active provider path
+- `/status` rendering of CT-owned context window, collaboration mode, and 5h/weekly usage telemetry
 - streamed text and tool-use events without synthetic `unknown_tool` leakage
 - `claude auto-mode critique` on the OpenAI/Codex path
 
@@ -74,6 +75,14 @@ ct auth status --json
 ct -p "say hello in five words"
 ```
 
+Useful OpenAI/Codex-specific fields in `auth status --json` now include:
+
+- `openAiCodexAuthSource`
+- `openAiCodexNativeAuthReady`
+- `openAiCodexCliFallbackReady`
+- `openAiCodexCollaborationMode`
+- `openAiCodexUsageTelemetry`
+
 Session behavior:
 
 - plain `ct` starts a fresh session by default
@@ -93,6 +102,8 @@ SeaTurtle is designed so auth does not live in the repo.
 - OpenAI/Codex auth now prefers native SeaTurtle provider-owned OAuth profiles
   in secure storage
 - legacy local Codex CLI auth state remains supported as a fallback
+- if SeaTurtle only sees Codex CLI fallback state, it can now adopt that into
+  native provider-auth storage instead of permanently staying on fallback
 - repo-local secrets, token dumps, and machine-specific auth files should stay
   ignored
 - do not commit live credentials

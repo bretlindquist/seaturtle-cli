@@ -141,6 +141,17 @@ profiles stored in secure storage.
 Legacy `codex-cli` auth in `~/.codex/auth.json` is still supported as a fallback
 compatibility source.
 
+On the OpenAI/Codex path, `/status` and `ct auth status --json` now surface
+CT-owned runtime truth for:
+
+- account email and detected plan
+- auth source
+- current model and reasoning level
+- context window usage
+- collaboration mode
+- 5h limit
+- weekly limit
+
 ### 4. Use the app
 
 Inside CT, the next-step commands to know first are:
@@ -301,6 +312,7 @@ runtime.
 - replay/resume
 - `TodoWrite` strict-schema turns
 - provider-aware auth and status reporting
+- CT-owned `/status` telemetry for context window, collaboration mode, and 5h/weekly usage windows
 - provider-aware model and effort selection
 - provider-neutral auto-mode critique
 
@@ -311,6 +323,14 @@ Check runtime/auth:
 ```bash
 ct auth status --json
 ```
+
+Useful OpenAI/Codex-specific fields in that JSON now include:
+
+- `openAiCodexAuthSource`
+- `openAiCodexNativeAuthReady`
+- `openAiCodexCliFallbackReady`
+- `openAiCodexCollaborationMode`
+- `openAiCodexUsageTelemetry`
 
 Quick smoke test:
 
