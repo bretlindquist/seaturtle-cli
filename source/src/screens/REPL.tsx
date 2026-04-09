@@ -263,15 +263,8 @@ import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSyste
 import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
 import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
-import {
-  handleConcurrentReplQuery,
-  prepareReplQueryAttempt,
-} from './repl/prepareReplQueryAttempt.js';
 import { executeReplQueuedInput } from './repl/executeReplQueuedInput.js';
-import {
-  finalizeCompletedOuterReplQuery,
-  maybeRestoreCanceledOuterReplQuery,
-} from './repl/finalizeOuterReplQuery.js';
+import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
 import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
 import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJsxCommand.js';
 import { maybeOpenIdleReturnDialog } from './repl/maybeOpenIdleReturnDialog.js';
@@ -2047,31 +2040,26 @@ export function REPL({
     });
   }, [initialMcpClients, resetLoadingState, getToolUseContext, toolPermissionContext, setAppState, customSystemPrompt, onTurnComplete, appendSystemPrompt, canUseTool, mainThreadAgentDefinition, onQueryEvent, sessionTitle, titleDisabled, addNotification]);
   const onQuery = useCallback(async (newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, onBeforeQueryCallback?: (input: string, newMessages: MessageType[]) => Promise<boolean>, input?: string, effort?: EffortValue): Promise<void> => {
-    // If this is a teammate, mark them as active when starting a turn
     if (isAgentSwarmsEnabled()) {
       const teamName = getTeamName();
       const agentName = getAgentName();
       if (teamName && agentName) {
-        // Fire and forget - turn starts immediately, write happens in background
         void setMemberActive(teamName, agentName, true);
       }
     }
 
-    // Concurrent guard via state machine. tryStart() atomically checks
-    // and transitions idle→running, returning the generation number.
-    // Returns null if already running — no separate check-then-set.
-    const thisGeneration = queryGuard.tryStart();
-    if (thisGeneration === null) {
-      handleConcurrentReplQuery({
-        newMessages,
-        getContentText,
-      });
-      return;
-    }
-    try {
-      const { shouldProceed, latestMessages } = await prepareReplQueryAttempt({
-        newMessages,
-        input,
+    await runOuterReplQuery({
+      newMessages,
+      abortController,
+      shouldQuery,
+      additionalAllowedTools,
+      mainLoopModelParam,
+      onQueryImpl,
+      queryGuard,
+      getContentText,
+      input,
+      effort,
+      prepareArgs: {
         resetTimingRefs,
         setMessages,
         responseLengthRef,
@@ -2081,58 +2069,32 @@ export function REPL({
         messagesRef,
         mrOnBeforeQuery,
         onBeforeQueryCallback,
-      });
-      if (!shouldProceed) return;
-      await onQueryImpl(latestMessages, newMessages, abortController, shouldQuery, additionalAllowedTools, mainLoopModelParam, input, effort);
-    } finally {
-      // queryGuard.end() atomically checks generation and transitions
-      // running→idle. Returns false if a newer query owns the guard
-      // (cancel+resubmit race where the stale finally fires as a microtask).
-      if (queryGuard.end(thisGeneration)) {
-        await finalizeCompletedOuterReplQuery({
-          abortController,
-          setLastQueryCompletionTime,
-          skipIdleCheckRef,
-          resetLoadingState,
-          mrOnTurnComplete,
-          messagesRef,
-          sendBridgeResult: sendBridgeResultRef.current,
-          isReplAntBuild: isReplAntBuild(),
-          setAppState,
-          loadingStartTimeRef,
-          totalPausedMsRef,
-          proactiveActive,
-          tasks: store.getState().tasks,
-          swarmStartTimeRef,
-          swarmBudgetInfoRef,
-          setMessages,
-          setAbortController,
-        });
-      }
-
-      // Auto-restore: if the user interrupted before any meaningful response
-      // arrived, rewind the conversation and restore their prompt — same as
-      // opening the message selector and picking the last message.
-      // This runs OUTSIDE the queryGuard.end() check because onCancel calls
-      // forceEnd(), which bumps the generation so end() returns false above.
-      // Guards: reason === 'user-cancel' (onCancel/Esc; programmatic aborts
-      // use 'background'/'interrupt' and must not rewind — note abort() with
-      // no args sets reason to a DOMException, not undefined), !isActive (no
-      // newer query started — cancel+resubmit race), empty input (don't
-      // clobber text typed during loading), no queued commands (user queued
-      // B while A was loading → they've moved on, don't restore A; also
-      // avoids removeLastFromHistory removing B's entry instead of A's),
-      // not viewing a teammate (messagesRef is the main conversation — the
-      // old Up-arrow quick-restore had this guard, preserve it).
-      maybeRestoreCanceledOuterReplQuery({
-        abortController,
-        queryIsActive: queryGuard.isActive,
+      },
+      finalizeArgs: {
+        setLastQueryCompletionTime,
+        skipIdleCheckRef,
+        resetLoadingState,
+        mrOnTurnComplete,
+        messagesRef,
+        sendBridgeResult: sendBridgeResultRef.current,
+        isReplAntBuild: isReplAntBuild(),
+        setAppState,
+        loadingStartTimeRef,
+        totalPausedMsRef,
+        proactiveActive,
+        tasks: store.getState().tasks,
+        swarmStartTimeRef,
+        swarmBudgetInfoRef,
+        setMessages,
+        setAbortController,
+      },
+      restoreCanceledArgs: {
         inputValue: inputValueRef.current,
         viewingAgentTaskId: store.getState().viewingAgentTaskId,
         messagesRef,
         restoreMessageSync: restoreMessageSyncRef.current,
-      });
-    }
+      },
+    });
   }, [onQueryImpl, setAppState, resetLoadingState, queryGuard, mrOnBeforeQuery, mrOnTurnComplete]);
 
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, speculationAccept?: {
