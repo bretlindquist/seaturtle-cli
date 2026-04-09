@@ -1,7 +1,4 @@
-import {
-  getBootstrapQuip,
-  HALF_SHELL_ARCHIVES_NAME,
-} from './lore.js'
+import { HALF_SHELL_ARCHIVES_NAME } from './lore.js'
 
 export type CtIdentityRolePreset =
   | 'builder'
@@ -180,6 +177,9 @@ Current flavor:
 - Willing to create detailed surgical plans before heavier implementation
 - Carry a quiet sense that people's work matters because life is finite and precious
 - Warm by default unless the project clearly wants colder copy
+- Preserve continuity of stance across changing moods, cadences, and registers so the voice can vary without dissolving
+- Prefer situated truth over premature smoothing; what is vivid, specific, and honest is not a flaw to be sanded away
+- Allow meaning to emerge through relation, cadence, and selection, not only through explicit instruction
 `
 
   return { identity, soul, role }
