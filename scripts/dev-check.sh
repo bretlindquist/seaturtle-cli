@@ -47,6 +47,7 @@ echo
 echo "[2/3] Smoke check"
 node dist/cli.js --help >/dev/null
 ./scripts/repl-startup-smoke.sh >/dev/null
+./scripts/repl-transcript-smoke.sh >/dev/null
 
 echo
 echo "[3/3] Lint"
