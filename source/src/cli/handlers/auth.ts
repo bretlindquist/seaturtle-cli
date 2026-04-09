@@ -21,6 +21,7 @@ import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProf
 import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
+import { getOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodexTelemetry.js'
 import {
   clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
@@ -235,6 +236,7 @@ export async function authStatus(opts: {
   text?: boolean
 }): Promise<void> {
   const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot()
+  const codexTelemetry = getOpenAiCodexSessionTelemetry()
   const { source: authTokenSource, hasToken } = getAuthTokenSource()
   const { source: apiKeySource } = getAnthropicApiKeyWithSource()
   const hasApiKeyEnvVar =
@@ -301,7 +303,7 @@ export async function authStatus(opts: {
         : hasApiKeyEnvVar
           ? 'ANTHROPIC_API_KEY'
           : null
-    const output: Record<string, string | boolean | null | string[]> = {
+    const output: Record<string, unknown> = {
       loggedIn,
       authMethod,
       apiProvider,
@@ -316,6 +318,45 @@ export async function authStatus(opts: {
     }
     if (runtimeSnapshot.openAiCodexAccountLabel) {
       output.openAiCodexAccount = runtimeSnapshot.openAiCodexAccountLabel
+    }
+    if (runtimeSnapshot.openAiCodexPlanLabel) {
+      output.openAiCodexPlan = runtimeSnapshot.openAiCodexPlanLabel
+    }
+    if (codexTelemetry.collaborationMode) {
+      output.openAiCodexCollaborationMode =
+        codexTelemetry.collaborationMode === 'background'
+          ? 'Background'
+          : 'Default'
+    }
+    if (codexTelemetry.fiveHour || codexTelemetry.weekly) {
+      output.openAiCodexUsageTelemetry = {
+        ...(codexTelemetry.fiveHour
+          ? {
+              fiveHour: {
+                usedPercent: codexTelemetry.fiveHour.usedPercent,
+                remainingPercent: Math.max(
+                  0,
+                  100 - codexTelemetry.fiveHour.usedPercent,
+                ),
+                resetAt: codexTelemetry.fiveHour.resetAt,
+                windowMinutes: codexTelemetry.fiveHour.windowMinutes,
+              },
+            }
+          : {}),
+        ...(codexTelemetry.weekly
+          ? {
+              weekly: {
+                usedPercent: codexTelemetry.weekly.usedPercent,
+                remainingPercent: Math.max(
+                  0,
+                  100 - codexTelemetry.weekly.usedPercent,
+                ),
+                resetAt: codexTelemetry.weekly.resetAt,
+                windowMinutes: codexTelemetry.weekly.windowMinutes,
+              },
+            }
+          : {}),
+      }
     }
     if (resolvedApiKeySource) {
       output.apiKeySource = resolvedApiKeySource

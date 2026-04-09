@@ -382,6 +382,12 @@ def build_steps() -> list[Step]:
             assertion=assert_equals(EXPECTED_PATH, "OpenAI/Codex replay turn"),
         ),
         Step(
+            name="interactive_status",
+            command=["bash", "scripts/repl-status-smoke.sh"],
+            timeout_s=70,
+            assertion=assert_not_empty,
+        ),
+        Step(
             name="strict_todowrite_plain",
             command=[
                 "node",
