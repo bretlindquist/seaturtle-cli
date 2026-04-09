@@ -366,6 +366,14 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Codex auth',
     value: codexAuthSourceLabel
   });
+  properties.push({
+    label: 'Codex native auth',
+    value: runtimeSnapshot.openAiCodexNativeAuthReady ? 'Ready' : 'Not detected'
+  });
+  properties.push({
+    label: 'Codex CLI fallback',
+    value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
+  });
   if (runtimeSnapshot.openAiCodexAccountLabel) {
     properties.push({
       label: 'Codex account',

@@ -116,12 +116,15 @@ export type MainLoopProviderRuntimeSnapshot = {
   preferred: MainLoopProviderRuntime
   available: MainLoopProviderRuntime[]
   openAiCodexAuthReady: boolean
+  openAiCodexNativeAuthReady: boolean
+  openAiCodexCliFallbackReady: boolean
   openAiCodexAuthSource: string | null
   openAiCodexAccountLabel: string | null
 }
 
 export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSnapshot {
   const anthropic = buildAnthropicMainLoopRuntime(getAPIProvider())
+  const openAiReadiness = getOpenAiCodexAuthReadiness()
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
   const openAiProfile = getDefaultOpenAiCodexOAuthProfile()
   const preferred = shouldPreferOpenAiCodexMainLoop() ? openAiCodex : anthropic
@@ -137,6 +140,8 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     preferred,
     available,
     openAiCodexAuthReady: openAiCodex.authState !== 'not-configured',
+    openAiCodexNativeAuthReady: openAiReadiness.readyViaProfile,
+    openAiCodexCliFallbackReady: openAiReadiness.readyViaExternal,
     openAiCodexAuthSource: openAiCodex.authSource,
     openAiCodexAccountLabel:
       openAiProfile?.emailAddress ??

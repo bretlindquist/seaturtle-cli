@@ -308,6 +308,8 @@ export async function authStatus(opts: {
       mainLoopRuntime: runtimeSnapshot.execution.provider,
       preferredMainLoopRuntime: runtimeSnapshot.preferred.provider,
       openAiCodexAuthReady: runtimeSnapshot.openAiCodexAuthReady,
+      openAiCodexNativeAuthReady: runtimeSnapshot.openAiCodexNativeAuthReady,
+      openAiCodexCliFallbackReady: runtimeSnapshot.openAiCodexCliFallbackReady,
     }
     if (runtimeSnapshot.openAiCodexAuthSource) {
       output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource

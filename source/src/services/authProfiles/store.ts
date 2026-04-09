@@ -23,6 +23,8 @@ export type ProviderAuthReadiness = {
   profileCount: number
   profileModes: ProviderAuthMode[]
   externalSources: string[]
+  readyViaProfile: boolean
+  readyViaExternal: boolean
   ready: boolean
 }
 
@@ -292,17 +294,20 @@ export function getProviderAuthReadiness(
     provider === OPENAI_CODEX_PROVIDER && hasExternalCodexCliAuth()
       ? ['codex-cli']
       : []
+  const readyViaProfile = profiles.length > 0
+  const readyViaExternal =
+    provider === OPENAI_CODEX_PROVIDER && externalSources.length > 0
 
   return {
     provider,
     hasDefaultProfile: hasDefaultProviderAuthProfile(provider),
-    hasAnyProfile: profiles.length > 0,
+    hasAnyProfile: readyViaProfile,
     profileCount: profiles.length,
     profileModes,
     externalSources,
-    ready:
-      profiles.length > 0 ||
-      (provider === OPENAI_CODEX_PROVIDER && externalSources.length > 0),
+    readyViaProfile,
+    readyViaExternal,
+    ready: readyViaProfile || readyViaExternal,
   }
 }
 

@@ -115,9 +115,12 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
         })
 
         const readiness = getOpenAiCodexAuthReadiness()
-        if (!readiness.ready) {
+        if (!readiness.hasDefaultProfile) {
+          const detectedSource = readiness.readyViaExternal
+            ? 'CT still only detected ~/.codex/auth.json fallback auth after login.'
+            : 'CT did not detect a saved native provider auth profile after login.'
           throw new Error(
-            'Native OpenAI/Codex login completed, but CT did not detect a usable provider auth profile afterward.',
+            `Native OpenAI/Codex login completed, but CT did not persist the native auth profile successfully. ${detectedSource}`,
           )
         }
 
@@ -127,11 +130,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
 
         persistPreferredMainProvider('openai-codex')
         logEvent('tengu_openai_codex_login_success', {
-          source: readiness.hasAnyProfile
-            ? 'provider-auth-profile'
-            : readiness.externalSources.includes('codex-cli')
-              ? 'codex-cli'
-              : 'provider-auth-profile',
+          source: 'provider-auth-profile',
         })
         onDone()
       } catch (error) {

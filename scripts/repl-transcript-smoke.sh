@@ -7,8 +7,6 @@ export PATH="/Users/bretlindquist/.bun/bin:$PATH"
 
 cd "$ROOT_DIR"
 
-buildct -dev >/dev/null
-
 OUTPUT_FILE="$(mktemp)"
 
 cleanup() {
