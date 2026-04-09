@@ -1028,6 +1028,8 @@ async function collectChatgptCodexText(params: {
     signal: params.signal,
   })
 
+  recordOpenAiCodexTelemetryFromHeaders(response.headers)
+
   if (!response.ok) {
     const body = await response.text()
     throw new Error(
@@ -1038,8 +1040,6 @@ async function collectChatgptCodexText(params: {
       }),
     )
   }
-
-  recordOpenAiCodexTelemetryFromHeaders(response.headers)
 
   const raw = await response.text()
   let remainder = raw
@@ -1058,6 +1058,12 @@ async function collectChatgptCodexText(params: {
     }
 
     const event = JSON.parse(payload) as ChatgptSseEvent
+    if (
+      event.type === 'response.created' ||
+      event.type === 'response.in_progress'
+    ) {
+      recordOpenAiCodexTelemetryFromEvent(event)
+    }
     switch (event.type) {
       case 'response.output_text.delta':
         if (typeof event.delta === 'string') {
@@ -1276,6 +1282,8 @@ export async function* queryOpenAiCodexWithStreaming(params: {
       signal: params.signal,
     })
 
+    recordOpenAiCodexTelemetryFromHeaders(response.headers)
+
     if (!response.ok) {
       const body = await response.text()
       throw new Error(
@@ -1286,8 +1294,6 @@ export async function* queryOpenAiCodexWithStreaming(params: {
         }),
       )
     }
-
-    recordOpenAiCodexTelemetryFromHeaders(response.headers)
 
     if (!response.body) {
       throw new Error('OpenAI/Codex backend did not provide a streaming body')
