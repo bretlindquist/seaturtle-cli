@@ -10,6 +10,7 @@ import {
   getDefaultOpenAiCodexOAuthProfile,
   getOpenAiCodexAuthReadiness,
 } from '../authProfiles/store.js'
+import { maybeAdoptExternalCodexCliAuthProfile } from '../authProfiles/openaiCodexOAuth.js'
 import {
   type APIProvider,
   getAPIProvider,
@@ -80,6 +81,7 @@ function buildAnthropicMainLoopRuntime(
 }
 
 function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
+  maybeAdoptExternalCodexCliAuthProfile()
   const readiness = getOpenAiCodexAuthReadiness()
   const authSource = readiness.hasDefaultProfile
     ? 'provider-auth-profile'

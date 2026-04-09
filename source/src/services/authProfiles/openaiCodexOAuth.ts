@@ -214,7 +214,22 @@ export function importExternalCodexCliAuthProfile(): {
   }
 }
 
+export function maybeAdoptExternalCodexCliAuthProfile(): boolean {
+  const nativeProfile = getDefaultOpenAiCodexOAuthProfile()
+  if (nativeProfile) {
+    return true
+  }
+
+  const importResult = importExternalCodexCliAuthProfile()
+  if (!importResult.success) {
+    return false
+  }
+
+  return true
+}
+
 export async function getUsableOpenAiCodexAuth(): Promise<OpenAiCodexNativeAuth | null> {
+  maybeAdoptExternalCodexCliAuthProfile()
   const nativeProfile = getDefaultOpenAiCodexOAuthProfile()
   if (nativeProfile) {
     const storedAccountId = getStoredAccountId(nativeProfile)
