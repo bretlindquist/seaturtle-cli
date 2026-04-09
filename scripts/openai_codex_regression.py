@@ -388,6 +388,12 @@ def build_steps() -> list[Step]:
             assertion=assert_not_empty,
         ),
         Step(
+            name="interactive_btw",
+            command=["bash", "scripts/repl-btw-smoke.sh"],
+            timeout_s=90,
+            assertion=assert_not_empty,
+        ),
+        Step(
             name="strict_todowrite_plain",
             command=[
                 "node",
