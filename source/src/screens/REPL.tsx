@@ -52,9 +52,6 @@ import { useCostSummary } from '../costHook.js';
 import { useFpsMetrics } from '../context/fpsMetrics.js';
 import { useAfterFirstRender } from '../hooks/useAfterFirstRender.js';
 import { useDeferredHookMessages } from '../hooks/useDeferredHookMessages.js';
-import { addToHistory } from '../history.js';
-import { prependModeCharacterToInput } from '../components/PromptInput/inputModes.js';
-import { prependToShellHistoryCache } from '../utils/suggestions/shellHistoryCompletion.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { CommandKeybindingHandlers } from '../hooks/useCommandKeybindings.js';
@@ -265,14 +262,6 @@ import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
 import { executeReplQueuedInput } from './repl/executeReplQueuedInput.js';
 import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
-import { submitRemoteReplInput } from './repl/submitRemoteReplInput.js';
-import { maybeRunImmediateLocalJsxCommand } from './repl/maybeRunImmediateLocalJsxCommand.js';
-import { maybeOpenIdleReturnDialog } from './repl/maybeOpenIdleReturnDialog.js';
-import {
-  prepareReplSubmitState,
-} from './repl/prepareReplSubmitState.js';
-import { handleReplSpeculationAcceptance } from './repl/handleReplSpeculationAcceptance.js';
-import { submitLocalReplPrompt } from './repl/submitLocalReplPrompt.js';
 import {
   createReplPromptRequester,
   createSetReplToolPermissionContext,
@@ -285,6 +274,7 @@ import { resumeReplSession } from './repl/resumeReplSession.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
 import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
+import { runReplSubmit } from './repl/runReplSubmit.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2094,172 +2084,109 @@ export function REPL({
   }, options?: {
     fromKeybinding?: boolean;
   }) => {
-    // Re-pin scroll to bottom on submit so the user always sees the new
-    // exchange (matches OpenCode's auto-scroll behavior).
-    repinScroll();
-
-    // Resume loop mode if paused
-    if (feature('PROACTIVE') || feature('KAIROS')) {
-      proactiveModule?.resumeProactive();
-    }
-
-    if (await maybeRunImmediateLocalJsxCommand({
+    await runReplSubmit({
       input,
+      helpers,
+      speculationAccept,
       options,
-      speculationAccept,
-      pastedContents,
-      commands,
-      idleHintShownRef,
-      lastQueryCompletionTimeRef,
-      messagesRef,
-      queryGuard,
-      inputValueRef,
-      setInputValue,
-      helpers,
-      setPastedContents,
-      setToolJSX,
-      addNotification,
-      isFullscreenEnvEnabled,
-      setMessages,
-      stashedPrompt,
-      setStashedPrompt,
-      getToolUseContext,
-      createAbortController,
-      mainLoopModel,
-    })) {
-      return; // Always return early - don't add to history or queue
-    }
-
-    // Remote mode: skip empty input early before any state mutations
-    if (activeRemote.isRemoteMode && !input.trim()) {
-      return;
-    }
-
-    if (maybeOpenIdleReturnDialog({
-      input,
-      speculationAccept,
-      skipIdleCheckRef,
-      lastQueryCompletionTimeRef,
-      setIdleReturnPending,
-      setInputValue,
-      helpers,
-    })) {
-      return;
-    }
-
-    // Add to history for direct user submissions.
-    // Queued command processing (executeQueuedInput) doesn't call onSubmit,
-    // so notifications and already-queued user input won't be added to history here.
-    // Skip history for keybinding-triggered commands (user didn't type the command).
-    if (!options?.fromKeybinding) {
-      addToHistory({
-        display: speculationAccept ? input : prependModeCharacterToInput(input, inputMode),
-        mode: inputMode === 'prompt' ? undefined : inputMode,
-        pastedContents: speculationAccept ? {} : pastedContents
-      });
-      // Add the just-submitted command to the front of the ghost-text
-      // cache so it's suggested immediately (not after the 60s TTL).
-      if (inputMode === 'bash') {
-        prependToShellHistoryCache(input.trim());
-      }
-    }
-
-    // Restore stash if present, but NOT for slash commands or when loading.
-    // - Slash commands (especially interactive ones like /model, /context) hide
-    //   the prompt and show a picker UI. Restoring the stash during a command would
-    //   place the text in a hidden input, and the user would lose it by typing the
-    //   next command. Instead, preserve the stash so it survives across command runs.
-    // - When loading, the submitted input will be queued and handlePromptSubmit
-    //   will clear the input field (onInputChange('')), which would clobber the
-    //   restored stash. Defer restoration to after handlePromptSubmit (below).
-    //   Remote mode is exempt: it sends via WebSocket and returns early without
-    //   calling handlePromptSubmit, so there's no clobbering risk — restore eagerly.
-    // In both deferred cases, the stash is restored after await handlePromptSubmit.
-    const { isSlashCommand } = prepareReplSubmitState({
-      input,
-      speculationAccept,
-      isLoading,
-      isRemoteMode: activeRemote.isRemoteMode,
-      stashedPrompt,
-      options,
-      setInputValue,
-      helpers,
-      setPastedContents,
-      setStashedPrompt,
-      setInputMode,
-      setIDESelection,
-      setSubmitCount,
-      tipPickedThisTurnRef,
-      inputMode,
-      setUserInputOnProcessing,
-      resetTimingRefs,
-      setAppState,
-    });
-
-    if (await handleReplSpeculationAcceptance({
-      speculationAccept,
-      input,
-      setMessages,
-      readFileState,
-      createAbortController,
-      setAbortController,
-      onQuery,
-      mainLoopModel,
-    })) {
-      return;
-    }
-
-    // Remote mode: send input via stream-json instead of local query.
-    // Permission requests from the remote are bridged into toolUseConfirmQueue
-    // and rendered using the standard PermissionRequest component.
-    //
-    // local-jsx slash commands (e.g. /agents, /config) render UI in THIS
-    // process — they have no remote equivalent. Let those fall through to
-    // handlePromptSubmit so they execute locally. Prompt commands and
-    // plain text go to the remote.
-    if (await submitRemoteReplInput({
-      input,
-      pastedContents,
+      repinScroll,
+      resumeProactive: () => {
+        if (feature('PROACTIVE') || feature('KAIROS')) {
+          proactiveModule?.resumeProactive();
+        }
+      },
+      immediateLocalJsxArgs: {
+        pastedContents,
+        commands,
+        idleHintShownRef,
+        lastQueryCompletionTimeRef,
+        messagesRef,
+        queryGuard,
+        inputValueRef,
+        setInputValue,
+        setPastedContents,
+        setToolJSX,
+        addNotification,
+        isFullscreenEnvEnabled,
+        setMessages,
+        stashedPrompt,
+        setStashedPrompt,
+        getToolUseContext,
+        createAbortController,
+        mainLoopModel,
+      },
       activeRemote,
-      isSlashCommand,
-      commands,
-      setMessages,
-    })) {
-      return;
-    }
-
-    await submitLocalReplPrompt({
-      input,
-      helpers,
-      queryGuard,
-      isExternalLoading,
-      inputMode,
-      commands,
-      setInputValue,
-      setInputMode,
-      setPastedContents,
-      setToolJSX,
-      getToolUseContext,
-      messagesRef,
-      mainLoopModel,
-      pastedContents,
-      ideSelection,
-      setUserInputOnProcessing,
-      setAbortController,
-      abortController,
-      onQuery,
-      setAppState,
-      onBeforeQuery,
-      canUseTool,
-      addNotification,
-      setMessages,
-      streamModeRef,
-      hasInterruptibleToolInProgressRef,
-      awaitPendingHooks,
-      isSlashCommand,
-      isLoading,
-      stashedPrompt,
-      setStashedPrompt,
+      skipIdleReturnArgs: {
+        skipIdleCheckRef,
+        lastQueryCompletionTimeRef,
+        setIdleReturnPending,
+        setInputValue,
+      },
+      historyArgs: {
+        inputMode,
+        pastedContents,
+      },
+      prepareArgs: {
+        isLoading,
+        isRemoteMode: activeRemote.isRemoteMode,
+        stashedPrompt,
+        setInputValue,
+        helpers,
+        setPastedContents,
+        setStashedPrompt,
+        setInputMode,
+        setIDESelection,
+        setSubmitCount,
+        tipPickedThisTurnRef,
+        inputMode,
+        setUserInputOnProcessing,
+        resetTimingRefs,
+        setAppState,
+      },
+      speculationArgs: {
+        setMessages,
+        readFileState,
+        createAbortController,
+        setAbortController,
+        onQuery,
+        mainLoopModel,
+      },
+      remoteSubmitArgs: {
+        pastedContents,
+        activeRemote,
+        commands,
+        setMessages,
+      },
+      localSubmitArgs: {
+        queryGuard,
+        isExternalLoading,
+        inputMode,
+        commands,
+        setInputValue,
+        setInputMode,
+        setPastedContents,
+        setToolJSX,
+        getToolUseContext,
+        messagesRef,
+        mainLoopModel,
+        pastedContents,
+        ideSelection,
+        setUserInputOnProcessing,
+        setAbortController,
+        abortController,
+        onQuery,
+        setAppState,
+        onBeforeQuery,
+        canUseTool,
+        addNotification,
+        setMessages,
+        streamModeRef,
+        hasInterruptibleToolInProgressRef,
+        awaitPendingHooks,
+        isLoading,
+        stashedPrompt,
+        setStashedPrompt,
+      },
     });
   }, [queryGuard,
   // isLoading is read at the !isLoading checks above for input-clearing
