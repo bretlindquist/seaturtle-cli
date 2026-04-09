@@ -17,10 +17,7 @@ import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
 import { isEnvTruthy } from '../utils/envUtils.js';
 import { truncateToWidth } from '../utils/format.js';
-import { getCwd } from '../utils/cwd.js';
 import { consumeEarlyInput } from '../utils/earlyInput.js';
-import { setMemberActive } from '../utils/swarm/teamHelpers.js';
-import { getTeamName, getAgentName } from '../utils/teammate.js';
 import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js';
 import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js';
@@ -43,7 +40,6 @@ import { useSkillImprovementSurvey } from '../hooks/useSkillImprovementSurvey.js
 import { useMoreRight } from '../moreright/useMoreRight.js';
 import { type SpinnerMode } from '../components/Spinner.js';
 import { getSystemPrompt } from '../constants/prompts.js';
-import { buildEffectiveSystemPrompt } from '../utils/systemPrompt.js';
 import { getSystemContext, getUserContext } from '../context.js';
 import { getTotalCost } from '../cost-tracker.js';
 import { useCostSummary } from '../costHook.js';
@@ -88,7 +84,6 @@ import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type StreamingToolUse, type StreamingThinking, getContentText, createTurnDurationMessage, createSystemMessage } from '../utils/messages.js';
-import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
@@ -96,17 +91,14 @@ import type { PromptInputHelpers } from '../utils/handlePromptSubmit.js';
 import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { useTelegramBridge } from '../hooks/useTelegramBridge.js';
-import { queryCheckpoint } from '../utils/queryProfiler.js';
 import type { Message as MessageType, UserMessage, ProgressMessage, HookResultMessage } from '../types/message.js';
-import { mergeClients, useMergedClients } from '../hooks/useMergedClients.js';
-import { getQuerySourceForREPL } from '../utils/promptCategory.js';
+import { useMergedClients } from '../hooks/useMergedClients.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useSkillsChange } from '../hooks/useSkillsChange.js';
 import { useManagePlugins } from '../hooks/useManagePlugins.js';
 import { TaskListV2 } from '../components/TaskListV2.js';
 import { useTasksV2WithCollapseEffect } from '../hooks/useTasksV2.js';
-import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
 import { randomUUID } from 'crypto';
@@ -135,7 +127,7 @@ const useScheduledTasks = feature('AGENT_TRIGGERS') ? require('../hooks/useSched
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { useTaskListWatcher } from '../hooks/useTaskListWatcher.js';
-import { type IDEExtensionInstallationStatus, closeOpenDiffs, getConnectedIdeClient, type IdeType } from '../utils/ide.js';
+import { type IDEExtensionInstallationStatus, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { enqueue, type SetAppState, getCommandQueueLength } from '../utils/messageQueueManager.js';
@@ -143,7 +135,6 @@ import { useCommandQueue } from '../hooks/useCommandQueue.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
 import type { ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
 import { shouldShowEffortCallout } from '../components/EffortCallout.js';
-import type { EffortValue } from '../utils/effort.js';
 import { createAbortController } from '../utils/abortController.js';
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
 import { useMemorySurvey } from 'src/components/FeedbackSurvey/useMemorySurvey.js';
@@ -239,16 +230,6 @@ import { ReplPromptSection } from './repl/ReplPromptSection.js';
 import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
-import { useReplQueryEventHandler } from './repl/useReplQueryEventHandler.js';
-import {
-  maybeGenerateFirstQuerySessionTitle,
-  syncTurnAllowedTools,
-} from './repl/queryTurnPreparation.js';
-import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSystemPrompt.js';
-import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
-import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
-import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
-import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 import { runReplSubmit } from './repl/runReplSubmit.js';
 import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
@@ -257,6 +238,7 @@ import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
 import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
 import { useReplCancelController } from './repl/useReplCancelController.js';
 import { useReplUiActions } from './repl/useReplUiActions.js';
+import { useReplQueryController } from './repl/useReplQueryController.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1725,210 +1707,63 @@ export function REPL({
     resetLoadingState,
     setAbortController,
   });
-  const onQueryEvent = useReplQueryEventHandler({
-    setMessages,
+  const { onQuery } = useReplQueryController({
+    initialMcpClients,
+    store,
+    titleDisabled,
+    sessionTitle,
+    agentTitle,
+    haikuTitleAttemptedRef,
+    setHaikuTitle,
+    getRecentUserPromptTexts,
+    setAppState,
+    setLastQueryCompletionTime,
     setConversationId,
+    resetLoadingState,
+    setAbortController,
+    getToolUseContext,
+    toolPermissionContext,
+    appendSystemPrompt,
+    customSystemPrompt,
+    canUseTool,
+    mainThreadAgentDefinition,
+    onTurnComplete,
+    addNotification,
+    messagesRef,
+    setMessages,
+    apiMetricsRef,
+    loadingStartTimeRef,
+    fireCompanionObserver,
+    responseLengthRef,
     setResponseLength,
     setStreamMode,
     setStreamingToolUses,
     setStreamingThinking,
     onStreamingText,
-    responseLengthRef,
-    apiMetricsRef,
     proactiveModule,
     isFullscreenEnabled: isFullscreenEnvEnabled,
+    isReplAntBuild: isReplAntBuild(),
+    getSystemPrompt,
+    getUserContext,
+    getSystemContext,
+    getCoordinatorUserContext,
+    isScratchpadEnabled,
+    getScratchpadDir,
+    terminalFocusRef,
+    queryGuard,
+    resetTimingRefs,
+    setStreamingText,
+    mrOnBeforeQuery,
+    mrOnTurnComplete,
+    sendBridgeResultRef,
+    skipIdleCheckRef,
+    totalPausedMsRef,
+    proactiveActive,
+    swarmStartTimeRef,
+    swarmBudgetInfoRef,
+    inputValueRef,
+    restoreMessageSyncRef,
   });
-  const onQueryImpl = useCallback(async (messagesIncludingNewMessages: MessageType[], newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, input?: string, effort?: EffortValue) => {
-    // Prepare IDE integration for new prompt. Read mcpClients fresh from
-    // store — useManageMCPConnections may have populated it since the
-    // render that captured this closure (same pattern as computeTools).
-    if (shouldQuery) {
-      const freshClients = mergeClients(initialMcpClients, store.getState().mcp.clients);
-      void diagnosticTracker.handleQueryStart(freshClients);
-      const ideClient = getConnectedIdeClient(freshClients);
-      if (ideClient) {
-        void closeOpenDiffs(ideClient);
-      }
-    }
-
-    // Mark onboarding as complete when any user message is sent to Claude
-    void maybeMarkProjectOnboardingComplete();
-
-    // Extract a session title from the first real user message. One-shot
-    // via ref (was tengu_birch_mist experiment: first-message-only to save
-    // Haiku calls). The ref replaces the old `messages.length <= 1` check,
-    // which was broken by SessionStart hook messages (prepended via
-    // useDeferredHookMessages) and attachment messages (appended by
-    // processTextPrompt) — both pushed length past 1 on turn one, so the
-    // title silently fell through to the "Claude Code" default.
-    maybeGenerateFirstQuerySessionTitle({
-      newMessages,
-      titleDisabled,
-      sessionTitle,
-      agentTitle,
-      haikuTitleAttemptedRef,
-      getContentText,
-      generateSessionTitle,
-      setHaikuTitle,
-    });
-
-    // Apply slash-command-scoped allowedTools (from skill frontmatter) to the
-    // store once per turn. This also covers the reset: the next non-skill turn
-    // passes [] and clears it. Must run before the !shouldQuery gate: forked
-    // commands (executeForkedSlashCommand) return shouldQuery=false, and
-    // createGetAppStateWithAllowedTools in forkedAgent.ts reads this field, so
-    // stale skill tools would otherwise leak into forked agent permissions.
-    // Previously this write was hidden inside getToolUseContext's getAppState
-    // (~85 calls/turn); hoisting it here makes getAppState a pure read and stops
-    // ephemeral contexts (permission dialog, BackgroundTasksDialog) from
-    // accidentally clearing it mid-turn.
-    syncTurnAllowedTools({
-      setAppState: store.setState,
-      additionalAllowedTools,
-    });
-
-    // The last message is an assistant message if the user input was a bash command,
-    // or if the user input was an invalid slash command.
-    if (!shouldQuery) {
-      // Manual /compact sets messages directly (shouldQuery=false) bypassing
-      // handleMessageFromStream. Clear context-blocked if a compact boundary
-      // is present so proactive ticks resume after compaction.
-      if (newMessages.some(isCompactBoundaryMessage)) {
-        // Bump conversationId so Messages.tsx row keys change and
-        // stale memoized rows remount with post-compact content.
-        setConversationId(randomUUID());
-        if (feature('PROACTIVE') || feature('KAIROS')) {
-          proactiveModule?.setContextBlocked(false);
-        }
-      }
-      resetLoadingState();
-      setAbortController(null);
-      return;
-    }
-    const toolUseContext = getToolUseContext(messagesIncludingNewMessages, newMessages, abortController, mainLoopModelParam);
-    // getToolUseContext reads tools/mcpClients fresh from store.getState()
-    // (via computeTools/mergeClients). Use those rather than the closure-
-    // captured `tools`/`mcpClients` — useManageMCPConnections may have
-    // flushed new MCP state between the render that captured this closure
-    // and now. Turn 1 via processInitialMessage is the main beneficiary.
-    queryCheckpoint('query_context_loading_start');
-    const {
-      defaultSystemPrompt,
-      userContext,
-      systemContext,
-    } = await loadReplQueryRuntimeContext({
-      toolUseContext,
-      effort,
-      toolPermissionContext,
-      setAppState,
-      mainLoopModel: mainLoopModelParam,
-      fastMode: store.getState().fastMode,
-      getSystemPrompt,
-      getUserContext,
-      getSystemContext,
-      getCoordinatorUserContext,
-      isScratchpadEnabled,
-      getScratchpadDir,
-      terminalFocused: terminalFocusRef.current,
-      proactiveActive:
-        (feature('PROACTIVE') || feature('KAIROS')) &&
-        !!proactiveModule?.isProactiveActive(),
-    });
-    queryCheckpoint('query_context_loading_end');
-    const effectiveAppendSystemPrompt = buildReplTurnAppendSystemPrompt({
-      appendSystemPrompt,
-      currentInput: input ?? '',
-      recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
-      cwd: getCwd(),
-      messageCount: messagesIncludingNewMessages.length,
-    });
-    const systemPrompt = buildEffectiveSystemPrompt({
-      mainThreadAgentDefinition,
-      toolUseContext,
-      customSystemPrompt,
-      defaultSystemPrompt,
-      appendSystemPrompt: effectiveAppendSystemPrompt
-    });
-    toolUseContext.renderedSystemPrompt = systemPrompt;
-    await runReplQueryLoop({
-      messages: messagesIncludingNewMessages,
-      systemPrompt,
-      userContext,
-      systemContext,
-      canUseTool,
-      toolUseContext,
-      onQueryEvent,
-      querySource: getQuerySourceForREPL(),
-    });
-    await finalizeReplQueryTurn({
-      messagesRef,
-      setMessages,
-      setAppState,
-      apiMetricsRef,
-      loadingStartTimeRef,
-      resetLoadingState,
-      addNotification,
-      onTurnComplete,
-      fireCompanionObserver,
-    });
-  }, [initialMcpClients, resetLoadingState, getToolUseContext, toolPermissionContext, setAppState, customSystemPrompt, onTurnComplete, appendSystemPrompt, canUseTool, mainThreadAgentDefinition, onQueryEvent, sessionTitle, titleDisabled, addNotification]);
-  const onQuery = useCallback(async (newMessages: MessageType[], abortController: AbortController, shouldQuery: boolean, additionalAllowedTools: string[], mainLoopModelParam: string, onBeforeQueryCallback?: (input: string, newMessages: MessageType[]) => Promise<boolean>, input?: string, effort?: EffortValue): Promise<void> => {
-    if (isAgentSwarmsEnabled()) {
-      const teamName = getTeamName();
-      const agentName = getAgentName();
-      if (teamName && agentName) {
-        void setMemberActive(teamName, agentName, true);
-      }
-    }
-
-    await runOuterReplQuery({
-      newMessages,
-      abortController,
-      shouldQuery,
-      additionalAllowedTools,
-      mainLoopModelParam,
-      onQueryImpl,
-      queryGuard,
-      getContentText,
-      input,
-      effort,
-      prepareArgs: {
-        resetTimingRefs,
-        setMessages,
-        responseLengthRef,
-        apiMetricsRef,
-        setStreamingToolUses,
-        setStreamingText,
-        messagesRef,
-        mrOnBeforeQuery,
-        onBeforeQueryCallback,
-      },
-      finalizeArgs: {
-        setLastQueryCompletionTime,
-        skipIdleCheckRef,
-        resetLoadingState,
-        mrOnTurnComplete,
-        messagesRef,
-        sendBridgeResult: sendBridgeResultRef.current,
-        isReplAntBuild: isReplAntBuild(),
-        setAppState,
-        loadingStartTimeRef,
-        totalPausedMsRef,
-        proactiveActive,
-        tasks: store.getState().tasks,
-        swarmStartTimeRef,
-        swarmBudgetInfoRef,
-        setMessages,
-        setAbortController,
-      },
-      restoreCanceledArgs: {
-        inputValue: inputValueRef.current,
-        viewingAgentTaskId: store.getState().viewingAgentTaskId,
-        messagesRef,
-        restoreMessageSync: restoreMessageSyncRef.current,
-      },
-    });
-  }, [onQueryImpl, setAppState, resetLoadingState, queryGuard, mrOnBeforeQuery, mrOnTurnComplete]);
 
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, speculationAccept?: {
     state: ActiveSpeculationState;
