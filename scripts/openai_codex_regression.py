@@ -15,12 +15,23 @@ from typing import Callable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 EXPECTED_PATH = str(REPO_ROOT)
+DEFAULT_SELF_TEST_TIMEOUT_S = 2
 
 SKIP_REASON_PATTERNS: list[tuple[str, str]] = [
     ("usage_limit_reached", "OpenAI/Codex usage limit reached"),
     ("429 Too Many Requests", "OpenAI/Codex rate limit reached"),
     ("rate_limit_exceeded", "OpenAI/Codex rate limit reached"),
     ("insufficient_quota", "OpenAI/Codex quota unavailable"),
+]
+
+AUTH_FAILURE_PATTERNS: list[str] = [
+    "Not logged in",
+    "Run /login",
+    "not authenticated",
+    "authentication error",
+    "oauth",
+    "expired",
+    "invalid_grant",
 ]
 
 
@@ -42,6 +53,12 @@ class Step:
     assertion: Callable[[str, str], None]
 
 
+@dataclass(frozen=True)
+class Classification:
+    kind: str
+    reason: str
+
+
 def normalize_output(stdout: str | None, stderr: str | None) -> str:
     return f"{stdout or ''}\n{stderr or ''}"
 
@@ -51,6 +68,14 @@ def classify_skip(output: str) -> str | None:
         if needle in output:
             return reason
     return None
+
+
+def classify_failure(output: str) -> Classification:
+    lowered = output.lower()
+    for needle in AUTH_FAILURE_PATTERNS:
+        if needle.lower() in lowered:
+            return Classification("auth", "authentication/setup failure")
+    return Classification("runtime", "command exited non-zero")
 
 
 def truncate(text: str, limit: int = 4000) -> str:
@@ -72,7 +97,7 @@ def fail_with_diagnostics(
     print(f"{prefix} {step.name}")
     print(f"  command: {shlex.join(step.command)}")
     if exit_code is not None:
-      print(f"  exit_code: {exit_code}")
+        print(f"  exit_code: {exit_code}")
     print(f"  reason: {message}")
     if stdout:
         print("  stdout:")
@@ -161,9 +186,10 @@ def run_step(step: Step, env: dict[str, str]) -> None:
         if skip_reason:
             print(f"SKIP {step.name}: {skip_reason}")
             raise StepSkipped(skip_reason)
+        classified = classify_failure(combined_output)
         fail_with_diagnostics(
             step=step,
-            message="command exited non-zero",
+            message=classified.reason,
             stdout=stdout,
             stderr=stderr,
             exit_code=completed.returncode,
@@ -187,6 +213,92 @@ def run_step(step: Step, env: dict[str, str]) -> None:
 
     duration_s = time.time() - started
     print(f"PASS {step.name} ({duration_s:.1f}s)")
+
+
+def run_self_tests() -> int:
+    env = os.environ.copy()
+    env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
+
+    def assert_contains(expected: str) -> Callable[[str, str], None]:
+        def inner(stdout: str, _stderr: str) -> None:
+            if expected not in stdout:
+                raise StepFailed(f"expected output to contain {expected!r}")
+
+        return inner
+
+    ok_step = Step(
+        name="selftest_pass",
+        command=[
+            "python3",
+            "-c",
+            "print('ok-pass')",
+        ],
+        timeout_s=DEFAULT_SELF_TEST_TIMEOUT_S,
+        assertion=assert_contains("ok-pass"),
+    )
+    run_step(ok_step, env)
+
+    skip_step = Step(
+        name="selftest_skip",
+        command=[
+            "python3",
+            "-c",
+            "import sys; print('usage_limit_reached', file=sys.stderr); raise SystemExit(1)",
+        ],
+        timeout_s=DEFAULT_SELF_TEST_TIMEOUT_S,
+        assertion=assert_not_empty,
+    )
+    try:
+        run_step(skip_step, env)
+    except StepSkipped:
+        pass
+    else:
+        print("FAIL selftest_skip")
+        print("  reason: skip classification did not trigger")
+        return 1
+
+    timeout_step = Step(
+        name="selftest_timeout",
+        command=[
+            "python3",
+            "-c",
+            "import time; time.sleep(5)",
+        ],
+        timeout_s=1,
+        assertion=assert_not_empty,
+    )
+    try:
+        run_step(timeout_step, env)
+    except SystemExit as exc:
+        if exc.code != 1:
+            raise
+    else:
+        print("FAIL selftest_timeout")
+        print("  reason: timeout classification did not trigger")
+        return 1
+
+    auth_step = Step(
+        name="selftest_auth",
+        command=[
+            "python3",
+            "-c",
+            "import sys; print('Not logged in · Run /login', file=sys.stderr); raise SystemExit(1)",
+        ],
+        timeout_s=DEFAULT_SELF_TEST_TIMEOUT_S,
+        assertion=assert_not_empty,
+    )
+    try:
+        run_step(auth_step, env)
+    except SystemExit as exc:
+        if exc.code != 1:
+            raise
+    else:
+        print("FAIL selftest_auth")
+        print("  reason: auth classification did not trigger")
+        return 1
+
+    print("openai-codex-regression self-test passed")
+    return 0
 
 
 def build_steps() -> list[Step]:
@@ -311,6 +423,9 @@ def build_steps() -> list[Step]:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        return run_self_tests()
+
     env = os.environ.copy()
     env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
 
