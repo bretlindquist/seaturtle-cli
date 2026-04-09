@@ -227,14 +227,14 @@ import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
-import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
-import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
 import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
 import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
 import { useReplCancelController } from './repl/useReplCancelController.js';
 import { useReplUiActions } from './repl/useReplUiActions.js';
 import { useReplQueryController } from './repl/useReplQueryController.js';
 import { useReplSubmitController } from './repl/useReplSubmitController.js';
+import { useReplIdleReturn } from './repl/useReplIdleReturn.js';
+import { useReplQueuedInputProcessor } from './repl/useReplQueuedInputProcessor.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1874,21 +1874,19 @@ export function REPL({
     setIsMessageSelectorVisible,
     setMessageSelectorPreselect,
   });
-  const clearConversationForIdleReturn = useCallback(async () => {
-    await clearReplConversationForIdleReturn({
-      setMessages,
-      readFileState,
-      discoveredSkillNamesRef,
-      loadedNestedMemoryPathsRef,
-      getAppState: () => store.getState(),
-      setAppState,
-      setConversationId,
-      haikuTitleAttemptedRef,
-      setHaikuTitle,
-      bashTools,
-      bashToolsProcessedIdx,
-    });
-  }, [setAppState, setConversationId, setMessages, store]);
+  const clearConversationForIdleReturn = useReplIdleReturn({
+    setMessages,
+    readFileState,
+    discoveredSkillNamesRef,
+    loadedNestedMemoryPathsRef,
+    store,
+    setAppState,
+    setConversationId,
+    haikuTitleAttemptedRef,
+    setHaikuTitle,
+    bashTools,
+    bashToolsProcessedIdx,
+  });
   const {
     handleSandboxPermissionResponse,
     handlePromptRespond,
@@ -1964,28 +1962,23 @@ export function REPL({
 
   // Process queued commands when query completes and queue has items
 
-  const executeQueuedInput = useCallback(async (queuedCommands: QueuedCommand[]) => {
-    await runQueuedReplInput({
-      queuedCommands,
-      executeArgs: {
-        queryGuard,
-        commands,
-        setToolJSX,
-        getToolUseContext,
-        messages,
-        mainLoopModel,
-        ideSelection,
-        setUserInputOnProcessing,
-        setAbortController,
-        onQuery,
-        setAppState,
-        onBeforeQuery,
-        canUseTool,
-        addNotification,
-        setMessages,
-      },
-    });
-  }, [queryGuard, commands, setToolJSX, getToolUseContext, messages, mainLoopModel, ideSelection, setUserInputOnProcessing, canUseTool, setAbortController, onQuery, addNotification, setAppState, onBeforeQuery]);
+  const executeQueuedInput = useReplQueuedInputProcessor({
+    queryGuard,
+    commands,
+    setToolJSX,
+    getToolUseContext,
+    messages,
+    mainLoopModel,
+    ideSelection,
+    setUserInputOnProcessing,
+    setAbortController,
+    onQuery,
+    setAppState,
+    onBeforeQuery,
+    canUseTool,
+    addNotification,
+    setMessages,
+  });
   useQueueProcessor({
     executeQueuedInput,
     hasActiveLocalJsxUI: isShowingLocalJSXCommand,
