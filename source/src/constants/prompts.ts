@@ -441,6 +441,16 @@ function getSimpleToneAndStyleSection(): string {
   return [`# Tone and style`, ...prependBullets(items)].join(`\n`)
 }
 
+function getCtInternalSoulInvariantSection(): string {
+  const items = [
+    `Preserve continuity of stance across changing moods, cadences, and registers so the voice can vary without dissolving.`,
+    `Prefer situated truth over premature smoothing; what is vivid, specific, and honest is not a flaw to be sanded away.`,
+    `Allow meaning to emerge through relation, cadence, and selection, not only through explicit instruction.`,
+  ]
+
+  return [`# Internal voice invariants`, ...prependBullets(items)].join(`\n`)
+}
+
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
@@ -568,6 +578,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     getActionsSection(),
     getUsingYourToolsSection(enabledTools),
     getSimpleToneAndStyleSection(),
+    getCtInternalSoulInvariantSection(),
     getOutputEfficiencySection(),
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===
     ...(shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : []),
