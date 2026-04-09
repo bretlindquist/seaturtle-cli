@@ -4,7 +4,7 @@ import { spawnSync } from 'child_process';
 import { getTotalInputTokens } from '../bootstrap/state.js';
 import { count } from '../utils/array.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
-import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
+import { Box, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
 import type { TabStatusKind } from '../ink/hooks/use-tab-status.js';
 import * as React from 'react';
 import { useEffect, useMemo, useRef, useState, useCallback, useDeferredValue, useLayoutEffect } from 'react';
@@ -12,8 +12,7 @@ import { useNotifications } from '../context/notifications.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
 import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import { hasCursorUpViewportYankBug } from '../ink/terminal.js';
-import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../utils/fileStateCache.js';
-import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js';
+import { getProjectRoot, getSessionId } from '../bootstrap/state.js';
 import { asAgentId } from '../types/ids.js';
 import { logForDebugging } from '../utils/debug.js';
 import { QueryGuard } from '../utils/QueryGuard.js';
@@ -25,11 +24,11 @@ import { setMemberActive } from '../utils/swarm/teamHelpers.js';
 import { getTeamName, getAgentName } from '../utils/teammate.js';
 import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
 import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js';
-import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue, registerLeaderSetToolPermissionContext, unregisterLeaderSetToolPermissionContext } from '../utils/swarm/leaderPermissionBridge.js';
+import { registerLeaderToolUseConfirmQueue, unregisterLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js';
 import { endInteractionSpan } from '../utils/telemetry/sessionTracing.js';
 import { useLogMessages } from '../hooks/useLogMessages.js';
 import { useReplBridge } from '../hooks/useReplBridge.js';
-import { type Command, type ResumeEntrypoint } from '../commands.js';
+import type { Command } from '../commands.js';
 import type { PromptInputMode, QueuedCommand, VimMode } from '../types/textInputTypes.js';
 import { selectableUserMessagesFilter } from '../components/MessageSelector.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
@@ -81,7 +80,6 @@ const getCoordinatorUserContext: (mcpClients: ReadonlyArray<{
   [k: string]: string;
 } = feature('COORDINATOR_MODE') ? require('../coordinator/coordinatorMode.js').getCoordinatorUserContext : () => ({});
 /* eslint-enable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
-import useCanUseTool from '../hooks/useCanUseTool.js';
 import type { Tool } from '../Tool.js';
 import { getScratchpadDir, isScratchpadEnabled } from '../utils/permissions/filesystem.js';
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js';
@@ -96,7 +94,6 @@ import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
-import { gracefulShutdownSync } from '../utils/gracefulShutdown.js';
 import type { PromptInputHelpers } from '../utils/handlePromptSubmit.js';
 import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
@@ -114,7 +111,7 @@ import { useTasksV2WithCollapseEffect } from '../hooks/useTasksV2.js';
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
-import { randomUUID, type UUID } from 'crypto';
+import { randomUUID } from 'crypto';
 import { type IDESelection, useIdeSelection } from '../hooks/useIdeSelection.js';
 import { getTools } from '../tools.js';
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
@@ -125,11 +122,9 @@ import type { PastedContent } from '../utils/config.js';
 import { adoptResumedSessionFile, getCurrentSessionTitle, isLoggableMessage, saveWorktreeState, getAgentTranscript } from '../utils/sessionStorage.js';
 import { extractBashToolsFromMessages } from '../utils/queryHelpers.js';
 import { provisionContentReplacementState, type ContentReplacementRecord } from '../utils/toolResultStorage.js';
-import type { LogOption } from '../types/logs.js';
 import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js';
 import { type FileHistorySnapshot } from '../utils/fileHistory.js';
 import { isBgSession, updateSessionName, updateSessionActivity } from '../utils/concurrentSessions.js';
-import { restoreRemoteAgentTasks } from '../tasks/RemoteAgentTask/RemoteAgentTask.js';
 import { useInboxPoller } from '../hooks/useInboxPoller.js';
 // Dead code elimination: conditional import for loop mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -142,15 +137,13 @@ const useScheduledTasks = feature('AGENT_TRIGGERS') ? require('../hooks/useSched
 /* eslint-enable @typescript-eslint/no-require-imports */
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { useTaskListWatcher } from '../hooks/useTaskListWatcher.js';
-import type { SandboxAskCallback } from '../utils/sandbox/sandbox-adapter.js';
 import { type IDEExtensionInstallationStatus, closeOpenDiffs, getConnectedIdeClient, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import exit from '../commands/exit/index.js';
 import { ExitFlow } from '../components/ExitFlow.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { enqueue, type SetAppState, getCommandQueueLength, removeByFilter } from '../utils/messageQueueManager.js';
+import { enqueue, type SetAppState, getCommandQueueLength } from '../utils/messageQueueManager.js';
 import { useCommandQueue } from '../hooks/useCommandQueue.js';
-import { useSessionBackgrounding } from '../hooks/useSessionBackgrounding.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
 import type { ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
 import { shouldShowEffortCallout } from '../components/EffortCallout.js';
@@ -187,7 +180,6 @@ function getRecentUserPromptTexts(messages: MessageType[]): string[] {
     .slice(-3)
 }
 import { useKickOffCheckAndDisableBypassPermissionsIfNeeded, useKickOffCheckAndDisableAutoModeIfNeeded } from 'src/utils/permissions/bypassPermissionsKillswitch.js';
-import { SandboxManager } from 'src/utils/sandbox/sandbox-adapter.js';
 import { useFileHistorySnapshotInit } from 'src/hooks/useFileHistorySnapshotInit.js';
 import { useSettingsErrors } from 'src/hooks/notifs/useSettingsErrors.js';
 import { useMcpConnectivityStatus } from 'src/hooks/notifs/useMcpConnectivityStatus.js';
@@ -261,21 +253,14 @@ import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.
 import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
 import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
-import {
-  createReplPromptRequester,
-  createSetReplToolPermissionContext,
-} from './repl/toolPermissionBridge.js';
-import { buildReplToolUseContext } from './repl/buildReplToolUseContext.js';
-import { restoreReplReadFileState } from './repl/restoreReplReadFileState.js';
-import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
-import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
-import { resumeReplSession } from './repl/resumeReplSession.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
 import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
 import { runReplSubmit } from './repl/runReplSubmit.js';
 import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
 import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
+import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
+import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1501,52 +1486,34 @@ export function REPL({
     ...prev,
     fileHistory: fileHistoryState
   })));
-  const resume = useCallback(async (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => {
-    await resumeReplSession({
-      sessionId,
-      log,
-      entrypoint,
-      prepareArgs: {
-        store,
-        setAppState,
-        mainThreadAgentDefinition,
-        mainLoopModel,
-      },
-      finishArgs: {
-        setAppState,
-        initialMainThreadAgentDefinition,
-        agentDefinitions,
-        setMainThreadAgentDefinition,
-        updateSessionName,
-        restoreReadFileState,
-        resetLoadingState,
-        setAbortController,
-        setConversationId,
-        haikuTitleAttemptedRef,
-        setHaikuTitle,
-        bashTools,
-        bashToolsProcessedIdx,
-        adoptResumedSessionFile,
-        restoreRemoteAgentTasks,
-        store,
-        saveWorktreeState,
-        getCurrentWorktreeSession,
-        setMessages,
-        setToolJSX,
-        setInputValue,
-        contentReplacementStateRef,
-      },
-    });
-  }, [resetLoadingState, setAppState]);
-
-  // Lazy init: useRef(createX()) would call createX on every render and
-  // discard the result. LRUCache construction inside FileStateCache is
-  // expensive (~170ms), so we use useState's lazy initializer to create
-  // it exactly once, then feed that stable reference into useRef.
-  const [initialReadFileState] = useState(() => createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE));
-  const readFileState = useRef(initialReadFileState);
-  const bashTools = useRef(new Set<string>());
-  const bashToolsProcessedIdx = useRef(0);
+  const {
+    resume,
+    readFileState,
+    bashTools,
+    bashToolsProcessedIdx,
+  } = useReplSessionLifecycle({
+    initialMessages,
+    setAppState,
+    store,
+    mainThreadAgentDefinition,
+    mainLoopModel,
+    initialMainThreadAgentDefinition,
+    agentDefinitions,
+    setMainThreadAgentDefinition,
+    updateSessionName,
+    resetLoadingState,
+    setAbortController,
+    setConversationId,
+    haikuTitleAttemptedRef,
+    setHaikuTitle,
+    adoptResumedSessionFile,
+    saveWorktreeState,
+    getCurrentWorktreeSession,
+    setMessages,
+    setToolJSX,
+    setInputValue,
+    contentReplacementStateRef,
+  });
   // Session-scoped skill discovery tracking (feeds was_discovered on
   // tengu_skill_tool_invocation). Must persist across getToolUseContext
   // rebuilds within a session: turn-0 discovery writes via processUserInput
@@ -1558,32 +1525,6 @@ export function REPL({
   // the next discovery cycle re-injects it. Cleared in clearConversation.
   const loadedNestedMemoryPathsRef = useRef(new Set<string>());
 
-  // Helper to restore read file state from messages (used for resume flows)
-  // This allows Claude to edit files that were read in previous sessions
-  const restoreReadFileState = useCallback((messages: MessageType[], cwd: string) => {
-    restoreReplReadFileState({
-      messages,
-      cwd,
-      readFileState,
-      bashTools,
-    });
-  }, []);
-
-  // Extract read file state from initialMessages on mount
-  // This handles CLI flag resume (--resume-session) and ResumeConversation screen
-  // where messages are passed as props rather than through the resume callback
-  useEffect(() => {
-    if (initialMessages && initialMessages.length > 0) {
-      restoreReadFileState(initialMessages, getOriginalCwd());
-      void restoreRemoteAgentTasks({
-        abortController: new AbortController(),
-        getAppState: () => store.getState(),
-        setAppState
-      });
-    }
-    // Only run on mount - initialMessages shouldn't change during component lifetime
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const {
     status: apiKeyStatus,
     reverify
@@ -1749,63 +1690,19 @@ export function REPL({
       }
     }
   }, [messages, showCostDialog, haveShownCostDialog]);
-  const sandboxAskCallback: SandboxAskCallback = useCallback(createSandboxAskCallback({
+  const {
+    canUseTool,
+    getToolUseContext,
+    handleBackgroundSession,
+  } = useReplToolRuntimeBridge({
     setAppState,
     store,
     setSandboxPermissionRequestQueue,
     sandboxBridgeCleanupRef,
     isAgentSwarmsEnabled,
-  }), [setAppState, store]);
-
-  // #34044: if user explicitly set sandbox.enabled=true but deps are missing,
-  // isSandboxingEnabled() returns false silently. Surface the reason once at
-  // mount so users know their security config isn't being enforced. Full
-  // reason goes to debug log; notification points to /sandbox for details.
-  // addNotification is stable (useCallback) so the effect fires once.
-  useEffect(() => {
-    const reason = SandboxManager.getSandboxUnavailableReason();
-    if (!reason) return;
-    if (SandboxManager.isSandboxRequired()) {
-      process.stderr.write(`\nError: sandbox required but unavailable: ${reason}\n` + `  sandbox.failIfUnavailable is set — refusing to start without a working sandbox.\n\n`);
-      gracefulShutdownSync(1, 'other');
-      return;
-    }
-    logForDebugging(`sandbox disabled: ${reason}`, {
-      level: 'warn'
-    });
-    addNotification({
-      key: 'sandbox-unavailable',
-      jsx: <>
-          <Text color="warning">sandbox disabled</Text>
-          <Text dimColor> · /sandbox</Text>
-        </>,
-      priority: 'medium'
-    });
-  }, [addNotification]);
-  if (SandboxManager.isSandboxingEnabled()) {
-    // If sandboxing is enabled (setting.sandbox is defined, initialise the manager)
-    SandboxManager.initialize(sandboxAskCallback).catch(err => {
-      // Initialization/validation failed - display error and exit
-      process.stderr.write(`\n❌ Sandbox Error: ${errorMessage(err)}\n`);
-      gracefulShutdownSync(1, 'other');
-    });
-  }
-  const setToolPermissionContext = useCallback(createSetReplToolPermissionContext({
-    setAppState,
+    addNotification,
     setToolUseConfirmQueue,
-  }), [setAppState, setToolUseConfirmQueue]);
-
-  // Register the leader's setToolPermissionContext for in-process teammates
-  useEffect(() => {
-    registerLeaderSetToolPermissionContext(setToolPermissionContext);
-    return () => unregisterLeaderSetToolPermissionContext();
-  }, [setToolPermissionContext]);
-  const canUseTool = useCanUseTool(setToolUseConfirmQueue, setToolPermissionContext);
-  const requestPrompt = useCallback(createReplPromptRequester({
     setPromptQueue,
-  }), []);
-  const getToolUseContext = useCallback(buildReplToolUseContext({
-    store,
     combinedInitialTools,
     mainThreadAgentDefinition,
     commands,
@@ -1816,21 +1713,18 @@ export function REPL({
     theme,
     allowedAgentTypes,
     thinkingConfig,
-    setAppState,
     setMessages,
     disabled,
     setIsMessageSelectorVisible,
     reverify,
     readFileStateCurrent: readFileState.current,
     setToolJSX,
-    addNotification,
     terminal,
     onChangeDynamicMcpConfig,
     setIDEToInstallExtension,
     loadedNestedMemoryPathsCurrent: loadedNestedMemoryPathsRef.current,
     discoveredSkillNamesCurrent: discoveredSkillNamesRef.current,
     setResponseLength,
-    isReplAntBuild: isReplAntBuild(),
     responseLengthRef,
     apiMetricsRef,
     setStreamMode,
@@ -1841,37 +1735,18 @@ export function REPL({
     hasInterruptibleToolInProgressRef,
     resume,
     setConversationId,
-    requestPrompt,
     customSystemPrompt,
     appendSystemPrompt,
     contentReplacementStateCurrent: contentReplacementStateRef.current,
-  }), [store, combinedInitialTools, mainThreadAgentDefinition, commands, debug, initialMcpClients, ideInstallationStatus, dynamicMcpConfig, theme, allowedAgentTypes, thinkingConfig, setAppState, messages, setMessages, disabled, reverify, setToolJSX, addNotification, terminal, onChangeDynamicMcpConfig, setResponseLength, resume, setConversationId, requestPrompt, customSystemPrompt, appendSystemPrompt]);
-
-  // Session backgrounding (Ctrl+B to background/foreground)
-  const handleBackgroundQuery = useCallback(() => {
-    startReplBackgroundQuery({
-      abortController,
-      removeByFilter,
-      getToolUseContext,
-      messagesRef,
-      mainLoopModel,
-      toolPermissionContext,
-      mainThreadAgentDefinition,
-      customSystemPrompt,
-      appendSystemPrompt,
-      canUseTool,
-      terminalTitle,
-      setAppState,
-    });
-  }, [abortController, mainLoopModel, toolPermissionContext, mainThreadAgentDefinition, getToolUseContext, customSystemPrompt, appendSystemPrompt, canUseTool, setAppState]);
-  const {
-    handleBackgroundSession
-  } = useSessionBackgrounding({
-    setMessages,
-    setIsLoading: setIsExternalLoading,
+    isReplAntBuild: isReplAntBuild(),
+    abortController,
+    messagesRef,
+    mainLoopModel,
+    toolPermissionContext,
+    terminalTitle,
+    setIsExternalLoading,
     resetLoadingState,
     setAbortController,
-    onBackgroundQuery: handleBackgroundQuery
   });
   const onQueryEvent = useReplQueryEventHandler({
     setMessages,
