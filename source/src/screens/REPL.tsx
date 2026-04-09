@@ -1,7 +1,7 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { feature } from 'bun:bundle';
 import { spawnSync } from 'child_process';
-import { snapshotOutputTokensForTurn, getTotalInputTokens } from '../bootstrap/state.js';
+import { getTotalInputTokens } from '../bootstrap/state.js';
 import { count } from '../utils/array.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text, useStdin, useTheme, useTabStatus, useTerminalFocus } from '../ink.js';
@@ -94,7 +94,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import { hasConsoleBillingAccess } from '../utils/billing.js';
 import { logEvent } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
-import { type StreamingToolUse, type StreamingThinking, getContentText, createAssistantMessage, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage } from '../utils/messages.js';
+import { type StreamingToolUse, type StreamingThinking, getContentText, createTurnDurationMessage, createAgentsKilledMessage, createSystemMessage } from '../utils/messages.js';
 import { generateSessionTitle } from '../utils/sessionTitle.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
@@ -290,6 +290,7 @@ import { startReplBackgroundQuery } from './repl/startReplBackgroundQuery.js';
 import { createSandboxAskCallback } from './repl/createSandboxAskCallback.js';
 import { resumeReplSession } from './repl/resumeReplSession.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
+import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1698,62 +1699,29 @@ export function REPL({
     prevDialogRef.current = focusedInputDialog;
   }, [focusedInputDialog, repinScroll]);
   function onCancel() {
-    if (focusedInputDialog === 'elicitation') {
-      // Elicitation dialog handles its own Escape, and closing it shouldn't affect any loading state.
-      return;
-    }
     logForDebugging(`[onCancel] focusedInputDialog=${focusedInputDialog} streamMode=${streamMode}`);
-
-    // Pause proactive mode so the user gets control back.
-    // It will resume when they submit their next input (see onSubmit).
-    if (feature('PROACTIVE') || feature('KAIROS')) {
-      proactiveModule?.pauseProactive();
-    }
-    queryGuard.forceEnd();
-    skipIdleCheckRef.current = false;
-
-    // Preserve partially-streamed text so the user can read what was
-    // generated before pressing Esc. Pushed before resetLoadingState clears
-    // streamingText, and before query.ts yields the async interrupt marker,
-    // giving final order [user, partial-assistant, [Request interrupted by user]].
-    if (streamingText?.trim()) {
-      setMessages(prev => [...prev, createAssistantMessage({
-        content: streamingText
-      })]);
-    }
-    resetLoadingState();
-
-    // Clear any active token budget so the backstop doesn't fire on
-    // a stale budget if the query generator hasn't exited yet.
-    if (feature('TOKEN_BUDGET')) {
-      snapshotOutputTokensForTurn(null);
-    }
-    if (focusedInputDialog === 'tool-permission') {
-      // Tool use confirm handles the abort signal itself
-      toolUseConfirmQueue[0]?.onAbort();
-      setToolUseConfirmQueue([]);
-    } else if (focusedInputDialog === 'prompt') {
-      // Reject all pending prompts and clear the queue
-      for (const item of promptQueue) {
-        item.reject(new Error('Prompt cancelled by user'));
-      }
-      setPromptQueue([]);
-      abortController?.abort('user-cancel');
-    } else if (activeRemote.isRemoteMode) {
-      // Remote mode: send interrupt signal to CCR
-      activeRemote.cancelRequest();
-    } else {
-      abortController?.abort('user-cancel');
-    }
-
-    // Clear the controller so subsequent Escape presses don't see a stale
-    // aborted signal. Without this, canCancelRunningTask is false (signal
-    // defined but .aborted === true), so isActive becomes false if no other
-    // activating conditions hold — leaving the Escape keybinding inactive.
-    setAbortController(null);
-
-    // forceEnd() skips the finally path — fire directly (aborted=true).
-    void mrOnTurnComplete(messagesRef.current, true);
+    cancelActiveReplRequest({
+      focusedInputDialog,
+      queryGuard,
+      skipIdleCheckRef,
+      streamingText,
+      setMessages,
+      resetLoadingState,
+      toolUseConfirmQueue,
+      setToolUseConfirmQueue,
+      promptQueue,
+      setPromptQueue,
+      activeRemote,
+      abortController,
+      setAbortController,
+      messagesRef,
+      mrOnTurnComplete,
+      pauseProactive: () => {
+        if (feature('PROACTIVE') || feature('KAIROS')) {
+          proactiveModule?.pauseProactive();
+        }
+      },
+    });
   }
 
   // Function to handle queued command when canceling a permission request
