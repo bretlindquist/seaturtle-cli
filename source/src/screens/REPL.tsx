@@ -226,6 +226,7 @@ import { ReplPromptSection } from './repl/ReplPromptSection.js';
 import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js';
 import { ReplToolPermissionOverlay } from './repl/ReplToolPermissionOverlay.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
+import { deriveReplCompanionLayout } from './repl/deriveReplCompanionLayout.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
 import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
@@ -2292,17 +2293,13 @@ export function REPL({
   });
   const toolPermissionOverlay = <ReplToolPermissionOverlay focusedInputDialog={focusedInputDialog} toolUseConfirmQueue={toolUseConfirmQueue} onDone={() => setToolUseConfirmQueue(([_, ...tail]) => tail)} onReject={handleQueuedCommandOnCancel} toolUseContext={getToolUseContext(messages, messages, abortController ?? createAbortController(), mainLoopModel)} verbose={verbose} workerBadge={toolUseConfirmQueue[0]?.workerBadge} isFullscreenEnabled={isFullscreenEnvEnabled()} setStickyFooter={setPermissionStickyFooter} />;
 
-  // Narrow terminals: companion collapses to a one-liner that REPL stacks
-  // on its own row (above input in fullscreen, below in scrollback) instead
-  // of row-beside. Wide terminals keep the row layout with sprite on the right.
-  const companionNarrow = transcriptCols < MIN_COLS_FOR_FULL_SPRITE;
-  // Hide the sprite when PromptInput early-returns BackgroundTasksDialog.
-  // The sprite sits as a row sibling of PromptInput, so the dialog's Pane
-  // divider draws at useTerminalSize() width but only gets terminalWidth -
-  // spriteWidth — divider stops short and dialog text wraps early. Don't
-  // check footerSelection: pill FOCUS (arrow-down to tasks pill) must keep
-  // the sprite visible so arrow-right can navigate to it.
-  const companionVisible = !toolJSX?.shouldHidePromptInput && !focusedInputDialog && !showBashesDialog;
+  const { companionNarrow, companionVisible } = deriveReplCompanionLayout({
+    transcriptCols,
+    minColsForFullSprite: MIN_COLS_FOR_FULL_SPRITE,
+    isPromptHidden: !!toolJSX?.shouldHidePromptInput,
+    hasFocusedInputDialog: !!focusedInputDialog,
+    showBashesDialog,
+  });
 
   // In fullscreen, ALL local-jsx slash commands float in the modal slot —
   // FullscreenLayout wraps them in an absolute-positioned bottom-anchored
