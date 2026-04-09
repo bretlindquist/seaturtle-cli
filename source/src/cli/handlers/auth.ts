@@ -330,6 +330,7 @@ export async function authStatus(opts: {
     }
     if (codexTelemetry.fiveHour || codexTelemetry.weekly) {
       output.openAiCodexUsageTelemetry = {
+        updatedAt: codexTelemetry.updatedAt,
         ...(codexTelemetry.fiveHour
           ? {
               fiveHour: {

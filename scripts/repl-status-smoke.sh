@@ -23,6 +23,9 @@ import signal
 import subprocess
 import sys
 import time
+import fcntl
+import struct
+import termios
 
 output_path = sys.argv[1]
 env = os.environ.copy()
@@ -31,6 +34,7 @@ env["TERM"] = env.get("TERM", "xterm-256color")
 env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
 
 master_fd, slave_fd = pty.openpty()
+fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 42, 140, 0, 0))
 proc = subprocess.Popen(
     ["node", "dist/cli.js", "--bare"],
     cwd=os.getcwd(),
@@ -90,10 +94,10 @@ try:
 
     os.write(master_fd, b"/status\r")
     data = read_until(
-        lambda d: b"5h limit:" in d and b"Weekly limit:" in d and b"Context window:" in d,
+        lambda d: b"5h limit:" in d and b"Collaboration mode:" in d,
         20,
     )
-    if b"5h limit:" not in data or b"Weekly limit:" not in data:
+    if b"5h limit:" not in data or b"Collaboration mode:" not in data:
         raise SystemExit(3)
 finally:
     try:
@@ -127,10 +131,35 @@ if grep -Fq 'OpenAI/Codex usage limit reached' "$OUTPUT_FILE"; then
   exit 1
 fi
 
-if ! grep -Fq '5h limit:' "$OUTPUT_FILE" || ! grep -Fq 'Weekly limit:' "$OUTPUT_FILE"; then
+if ! grep -Fq '5h limit:' "$OUTPUT_FILE" || ! grep -Fq 'Collaboration mode:' "$OUTPUT_FILE"; then
   cat "$OUTPUT_FILE"
-  echo "repl-status-smoke failed: /status did not render Codex limit telemetry" >&2
+  echo "repl-status-smoke failed: /status did not render Codex telemetry" >&2
   exit 1
 fi
+
+AUTH_STATUS_JSON="$(node dist/cli.js auth status --json)"
+
+python3 - "$AUTH_STATUS_JSON" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+usage = payload.get("openAiCodexUsageTelemetry")
+
+if not isinstance(usage, dict):
+    raise SystemExit("missing openAiCodexUsageTelemetry in auth status JSON")
+
+if not isinstance(usage.get("updatedAt"), int):
+    raise SystemExit("missing updatedAt in persisted OpenAI/Codex usage telemetry")
+
+five_hour = usage.get("fiveHour")
+weekly = usage.get("weekly")
+if not isinstance(five_hour, dict) or not isinstance(weekly, dict):
+    raise SystemExit("missing fiveHour/weekly usage windows in auth status JSON")
+
+collaboration_mode = payload.get("openAiCodexCollaborationMode")
+if collaboration_mode not in {"Default", "Background"}:
+    raise SystemExit("missing OpenAI/Codex collaboration mode in auth status JSON")
+PY
 
 echo "repl-status-smoke passed"

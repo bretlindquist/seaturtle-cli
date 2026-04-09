@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import figures from 'figures';
 import { basename } from 'path';
 import * as React from 'react';
-import { color, Text } from '../ink.js';
+import { Box, color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
 import {
@@ -170,8 +170,11 @@ export function buildContextWindowProperties({
   messages
 }: {
   mainLoopModel: string;
-  messages: Message[];
+  messages: Message[] | undefined;
 }): Property[] {
+  if (!messages || messages.length === 0) {
+    return [];
+  }
   const currentUsage = getCurrentUsage(messages);
   const contextWindowSize = getContextWindowForModel(mainLoopModel);
   const contextPercentages = calculateContextPercentages(currentUsage, contextWindowSize);

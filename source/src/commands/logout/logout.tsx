@@ -4,6 +4,7 @@ import { ConfigurableShortcutHint } from '../../components/ConfigurableShortcutH
 import { Select } from '../../components/CustomSelect/select.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
 import { Box, Text } from '../../ink.js'
+import { resetOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodexTelemetry.js'
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
 import {
   clearProviderAuthProfiles,
@@ -143,6 +144,7 @@ export async function performLogout({
 }
 
 export async function clearAuthRelatedCaches(): Promise<void> {
+  resetOpenAiCodexSessionTelemetry()
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearTrustedDeviceTokenCache()
   clearBetasCaches()
