@@ -1,0 +1,308 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+export PATH="/Users/bretlindquist/.bun/bin:$PATH"
+export CLAUDE_CODE_USE_OPENAI_CODEX=1
+
+cd "$ROOT_DIR"
+
+OUTPUT_FILE="$(mktemp)"
+INTERNAL_DEBUG_LOG_FILE=0
+if [[ -z "${DEBUG_LOG_FILE:-}" ]]; then
+  DEBUG_LOG_FILE="$(mktemp)"
+  INTERNAL_DEBUG_LOG_FILE=1
+fi
+export DEBUG_LOG_FILE
+SESSION_ID="$(python3 - <<'PY'
+import uuid
+print(uuid.uuid4())
+PY
+)"
+export SESSION_ID
+
+cleanup() {
+  rm -f "$OUTPUT_FILE"
+  if [[ "$INTERNAL_DEBUG_LOG_FILE" == "1" ]]; then
+    rm -f "$DEBUG_LOG_FILE"
+  fi
+}
+trap cleanup EXIT
+
+node dist/cli.js \
+  --session-id "$SESSION_ID" \
+  -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-1" \
+  >/dev/null
+
+for index in 2 3; do
+  node dist/cli.js \
+    --resume "$SESSION_ID" \
+    -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-$index" \
+    >/dev/null
+done
+
+if ! python3 - "$OUTPUT_FILE" <<'PY'
+import fcntl
+import os
+import pty
+import re
+import select
+import signal
+import struct
+import subprocess
+import sys
+import termios
+import time
+
+output_path = sys.argv[1]
+env = os.environ.copy()
+env["PATH"] = f"/Users/bretlindquist/.bun/bin:{env.get('PATH', '')}"
+env["TERM"] = env.get("TERM", "xterm-256color")
+env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
+env["DEBUG"] = "true"
+env["CLAUDE_CODE_DEBUG_LOGS_DIR"] = os.environ["DEBUG_LOG_FILE"]
+
+needle = "transcript-search-smoke-needle"
+session_id = os.environ["SESSION_ID"]
+debug_log_path = os.environ["DEBUG_LOG_FILE"]
+
+master_fd, slave_fd = pty.openpty()
+fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 42, 140, 0, 0))
+proc = subprocess.Popen(
+    ["node", "dist/cli.js", "--resume", session_id, "--bare"],
+    cwd=os.getcwd(),
+    env=env,
+    stdin=slave_fd,
+    stdout=slave_fd,
+    stderr=slave_fd,
+    start_new_session=True,
+)
+os.close(slave_fd)
+
+prompt_marker = b"\xe2\x9d\xaf"
+transcript_marker = b"Showing detailed transcript"
+error_markers = (
+    b"ReferenceError",
+    b"Cannot access",
+    b"is not defined",
+    b"API Error:",
+    b"400 Bad Request",
+    b"No tool call found for function call output",
+    b"Error:",
+    b"OpenAI/Codex usage limit reached",
+)
+
+chunks: list[bytes] = []
+ansi_re = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+def joined() -> bytes:
+    return b"".join(chunks)
+
+def prompt_count() -> int:
+    return joined().count(prompt_marker)
+
+def read_until(predicate, timeout: float) -> bytes:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        ready, _, _ = select.select([master_fd], [], [], 0.2)
+        if master_fd not in ready:
+            continue
+        chunk = os.read(master_fd, 65536)
+        if not chunk:
+            break
+        chunks.append(chunk)
+        data = joined()
+        if any(marker in data for marker in error_markers):
+            return data
+        if predicate(data):
+            return data
+    return joined()
+
+def pump_output(timeout: float = 0.1) -> None:
+    ready, _, _ = select.select([master_fd], [], [], timeout)
+    if master_fd not in ready:
+        return
+    chunk = os.read(master_fd, 65536)
+    if chunk:
+        chunks.append(chunk)
+
+def wait_for_new_fragment(fragment: bytes, timeout: float) -> bytes:
+    starting_size = len(joined())
+    return read_until(lambda data: fragment in data[starting_size:], timeout)
+
+def visible_text(data: bytes) -> str:
+    return ansi_re.sub("", data.decode("utf-8", "ignore"))
+
+def find_last_footer_count_marker(data: bytes) -> str | None:
+    text = visible_text(data)
+    footer_matches = re.findall(r"Transcript · ctrl\+o · n/N · ([1-9]\d*/[1-9]\d*)", text)
+    if footer_matches:
+        return footer_matches[-1]
+    matches = re.findall(r"\b([1-9]\d*/[1-9]\d*)\b", text)
+    if not matches:
+        return None
+    return matches[-1]
+
+def next_marker(marker: str, delta: int) -> str:
+    current, total = marker.split("/", 1)
+    total_n = int(total)
+    current_n = int(current)
+    nxt = ((current_n - 1 + delta) % total_n) + 1
+    return f"{nxt}/{total_n}"
+
+def wait_for_plain_fragment(fragment: str, timeout: float) -> bytes:
+    starting_size = len(joined())
+    return read_until(lambda data: fragment in visible_text(data[starting_size:]), timeout)
+
+def read_debug_log() -> str:
+    try:
+        with open(debug_log_path, encoding="utf-8") as fh:
+            return fh.read()
+    except FileNotFoundError:
+        return ""
+
+def find_last_debug_badge(log_text: str) -> str | None:
+    matches = re.findall(r"badge=([1-9]\d*/[1-9]\d*)", log_text)
+    if not matches:
+        return None
+    return matches[-1]
+
+def wait_for_debug_badge(previous: str | None, timeout: float) -> str | None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        badge = find_last_debug_badge(read_debug_log())
+        if badge is not None and badge != previous:
+            return badge
+        time.sleep(0.1)
+    return find_last_debug_badge(read_debug_log())
+
+def collect_debug_badges() -> list[str]:
+    return re.findall(r"highlight\(.*?badge=([1-9]\d*/[1-9]\d*)", read_debug_log())
+
+def condensed_badges() -> list[str]:
+    condensed: list[str] = []
+    for badge in collect_debug_badges():
+        if not condensed or condensed[-1] != badge:
+            condensed.append(badge)
+    return condensed
+
+def wait_for_badge_quiescence(timeout: float, quiet_period: float = 1.0) -> list[str]:
+    deadline = time.time() + timeout
+    last = condensed_badges()
+    stable_since = time.time()
+    while time.time() < deadline:
+        pump_output(0.1)
+        current = condensed_badges()
+        if current != last:
+            last = current
+            stable_since = time.time()
+        elif time.time() - stable_since >= quiet_period:
+            return current
+        time.sleep(0.1)
+    return condensed_badges()
+
+exit_code = 0
+
+try:
+    read_until(lambda d: prompt_marker in d, 20)
+
+    os.write(master_fd, b"\x0f")
+    data = read_until(lambda d: transcript_marker in d, 15)
+    if transcript_marker not in data:
+        exit_code = 2
+        raise RuntimeError("did not enter transcript mode")
+
+    os.write(master_fd, b"/")
+    data = wait_for_plain_fragment("indexing", 15)
+    if "indexing" not in visible_text(data):
+        exit_code = 3
+        raise RuntimeError("transcript search bar did not open")
+
+    os.write(master_fd, needle.encode())
+    data = wait_for_plain_fragment(needle, 15)
+    if needle not in visible_text(data):
+        exit_code = 4
+        raise RuntimeError("transcript search bar did not receive the query text")
+
+    os.write(master_fd, b"\r")
+    data = wait_for_plain_fragment("Transcript · ctrl+o · n/N ·", 20)
+    current_marker = find_last_footer_count_marker(data)
+    if current_marker is None:
+        exit_code = 5
+        raise RuntimeError("transcript search did not close into footer navigation state")
+
+    baseline_badges = wait_for_badge_quiescence(12)
+    if not baseline_badges:
+        exit_code = 6
+        raise RuntimeError("transcript search never resolved an active badge after close")
+
+    observed: list[str] = []
+    last_badge = baseline_badges[-1]
+    for _ in range(3):
+        os.write(master_fd, b"n")
+        next_badge = wait_for_debug_badge(last_badge, 12)
+        if next_badge is None or next_badge == last_badge:
+            exit_code = 7
+            raise RuntimeError(
+                f"transcript search did not advance after n: baseline={baseline_badges!r} observed={observed!r}"
+            )
+        observed.append(next_badge)
+        last_badge = next_badge
+        wait_for_badge_quiescence(8)
+
+    coherent_cycle_found = False
+    for start in range(len(observed)):
+        window = observed[start:start + 3]
+        if len(window) < 3:
+            break
+        if all(window[index + 1] == next_marker(window[index], 1) for index in range(2)):
+            coherent_cycle_found = True
+            break
+
+    if not coherent_cycle_found:
+        exit_code = 8
+        raise RuntimeError(
+            f"transcript search badge history was not coherent enough: baseline={baseline_badges!r} final={final_badges!r}"
+        )
+except RuntimeError as error:
+    print(str(error), file=sys.stderr)
+finally:
+    try:
+        os.killpg(proc.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        proc.wait(timeout=5)
+    os.close(master_fd)
+
+output = joined().decode("utf-8", "ignore")
+with open(output_path, "w", encoding="utf-8") as fh:
+    fh.write(output)
+sys.exit(exit_code)
+PY
+then
+  cat "$OUTPUT_FILE"
+  echo "repl-transcript-search-smoke failed: transcript search probe did not complete" >&2
+  exit 1
+fi
+
+if grep -Eq 'ReferenceError|Cannot access|is not defined|API Error:|400 Bad Request|No tool call found for function call output|Error:' "$OUTPUT_FILE"; then
+  cat "$OUTPUT_FILE"
+  echo "repl-transcript-search-smoke failed: transcript mode threw a runtime or provider error" >&2
+  exit 1
+fi
+
+if grep -Fq 'OpenAI/Codex usage limit reached' "$OUTPUT_FILE"; then
+  cat "$OUTPUT_FILE"
+  echo "repl-transcript-search-smoke skipped: OpenAI/Codex usage limit reached" >&2
+  exit 1
+fi
+
+echo "repl-transcript-search-smoke passed"

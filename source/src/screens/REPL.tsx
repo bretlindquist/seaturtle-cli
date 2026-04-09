@@ -2199,6 +2199,7 @@ export function REPL({
     jumpRef,
     scanElement,
     searchOpen,
+    searchQuery,
     searchCount,
     searchCurrent,
     searchBadge,
@@ -2302,6 +2303,7 @@ export function REPL({
         {toolJSX.jsx}
       </Box> : null,
       searchOpen,
+      searchQuery,
       searchCount,
       searchCurrent,
       onCloseSearchBar: handleCloseSearchBar,

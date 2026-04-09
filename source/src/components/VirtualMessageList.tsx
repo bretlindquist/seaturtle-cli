@@ -518,6 +518,12 @@ export function VirtualMessageList({
     logForDebugging(`seek(i=${idx} t=${tries}): ${positions.length} positions`);
     if (positions.length === 0) {
       clearActiveResult();
+      if (tries < 3) {
+        beginSeek(idx, wantLast, tries + 1);
+        bumpSeek();
+        logForDebugging(`seek(i=${idx} t=${tries}): retrying empty scan`);
+        return true;
+      }
       if (++phantomBurstRef.current > 20) {
         phantomBurstRef.current = 0;
         return true;
@@ -696,8 +702,15 @@ export function VirtualMessageList({
     const {
       positions
     } = elementPositions.current;
+    const targetMsgIdx = st.snapshot.matches[st.ptr] ?? -1;
     const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
     const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
+    if (usablePositions <= 0 && targetMsgIdx >= 0 && elementPositions.current.msgIdx !== targetMsgIdx) {
+      pendingStepRef.current = delta;
+      logForDebugging(`step: pending delta=${delta} while target ptr=${st.ptr} msgIdx=${targetMsgIdx} is unresolved`);
+      jump(targetMsgIdx, delta < 0);
+      return;
+    }
     const newOrd = st.screenOrd + delta;
     if (newOrd >= 0 && newOrd < usablePositions) {
       st.screenOrd = newOrd;

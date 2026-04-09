@@ -40,6 +40,7 @@ type BuildReplTranscriptModePropsArgs = {
   dumpMode: boolean
   toolJsxNode?: React.ReactNode
   searchOpen: boolean
+  searchQuery: string
   searchCount: number
   searchCurrent: number
   onCloseSearchBar: (query: string) => void

@@ -7,7 +7,6 @@ type UseTranscriptSearchControllerInput = {
   screen: string
   searchOpen: boolean
   searchQuery: string
-  searchCount: number
   jumpRef: RefObject<JumpHandle | null>
   closeSearch: () => void
   commitSearchQuery: (query: string) => void
@@ -15,10 +14,9 @@ type UseTranscriptSearchControllerInput = {
 }
 
 export function useTranscriptSearchController({
-  screen,
+  screen: _screen,
   searchOpen,
   searchQuery,
-  searchCount,
   jumpRef,
   closeSearch,
   commitSearchQuery,
@@ -26,7 +24,6 @@ export function useTranscriptSearchController({
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
   const prevColsRef = useRef(transcriptCols);
-  const prevSearchOpenRef = useRef(searchOpen);
 
   useEffect(() => {
     if (prevColsRef.current !== transcriptCols) {
@@ -39,18 +36,8 @@ export function useTranscriptSearchController({
     }
   }, [clearSearchState, closeSearch, jumpRef, searchOpen, searchQuery, transcriptCols]);
 
-  useEffect(() => {
-    const wasOpen = prevSearchOpenRef.current;
-    prevSearchOpenRef.current = searchOpen;
-    if (!wasOpen || searchOpen || screen !== 'transcript' || !searchQuery) {
-      return;
-    }
-    jumpRef.current?.refreshCurrentMatch?.();
-  }, [jumpRef, screen, searchOpen, searchQuery]);
-
   const handleCloseSearchBar = (q: string) => {
-    const committedQuery = searchCount > 0 ? q : '';
-    commitSearchQuery(committedQuery);
+    commitSearchQuery(q);
     closeSearch();
     if (!q) {
       clearSearchState();

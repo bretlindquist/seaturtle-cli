@@ -35,7 +35,7 @@ export function TranscriptModeFooter({
     'ctrl+e',
   )
   const tail = searchBadge
-    ? ' · n/N next/prev match'
+    ? ''
     : virtualScroll
       ? ` · ${figures.arrowUp}${figures.arrowDown} scroll · home/end top/bottom`
       : suppressShowAll
@@ -43,6 +43,9 @@ export function TranscriptModeFooter({
         : ` · ${showAllShortcut} to ${
             showAllInTranscript ? 'collapse' : 'show all'
           }`
+  const lead = searchBadge
+    ? `Transcript · ${toggleShortcut} · n/N · ${searchBadge.current}/${searchBadge.count}`
+    : `Showing detailed transcript · ${toggleShortcut} to toggle`
 
   return (
     <Box
@@ -59,20 +62,13 @@ export function TranscriptModeFooter({
       width="100%"
     >
       <Text dimColor>
-        Showing detailed transcript · {toggleShortcut} to toggle
+        {lead}
         {tail}
       </Text>
       {status ? (
         <>
           <Box flexGrow={1} />
           <Text>{status} </Text>
-        </>
-      ) : searchBadge ? (
-        <>
-          <Box flexGrow={1} />
-          <Text dimColor>
-            match {searchBadge.current}/{searchBadge.count}{'  '}
-          </Text>
         </>
       ) : null}
     </Box>

@@ -45,6 +45,7 @@ type ReplTranscriptModeProps = {
   dumpMode: boolean
   toolJsxNode?: ReactNode
   searchOpen: boolean
+  searchQuery: string
   searchCount: number
   searchCurrent: number
   onCloseSearchBar: (query: string) => void
@@ -82,6 +83,7 @@ export function ReplTranscriptMode({
   dumpMode,
   toolJsxNode,
   searchOpen,
+  searchQuery,
   searchCount,
   searchCurrent,
   onCloseSearchBar,
@@ -94,7 +96,7 @@ export function ReplTranscriptMode({
       <Messages messages={transcriptMessages} tools={tools} commands={commands} verbose={true} toolJSX={null} toolUseConfirmQueue={[]} inProgressToolUseIDs={inProgressToolUseIDs} isMessageSelectorVisible={false} conversationId={conversationId} screen="transcript" agentDefinitions={agentDefinitions} streamingToolUses={transcriptStreamingToolUses} showAllInTranscript={showAllInTranscript} onOpenRateLimitOptions={onOpenRateLimitOptions} isLoading={isLoading} hidePastThinking={true} streamingThinking={streamingThinking} scrollRef={transcriptScrollRef} jumpRef={jumpRef} searchProgress={searchProgress} scanElement={scanElement} disableRenderCap={dumpMode} />
     </Box>;
   const transcriptSearchElement = <TranscriptSearchBar jumpRef={jumpRef}
-    initialQuery=""
+    initialQuery={searchQuery}
     count={searchCount}
     current={searchCurrent}
     onClose={onCloseSearchBar}

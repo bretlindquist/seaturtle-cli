@@ -394,6 +394,12 @@ def build_steps() -> list[Step]:
             assertion=assert_not_empty,
         ),
         Step(
+            name="interactive_transcript_search",
+            command=["bash", "scripts/repl-transcript-search-smoke.sh"],
+            timeout_s=120,
+            assertion=assert_not_empty,
+        ),
+        Step(
             name="strict_todowrite_plain",
             command=[
                 "node",
