@@ -26,6 +26,10 @@ import type { Tools } from '../../Tool.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { formatDuration } from '../../utils/format.js'
 import type { Options } from './claude.js'
+import {
+  recordOpenAiCodexTelemetryFromEvent,
+  recordOpenAiCodexTelemetryFromHeaders,
+} from './openaiCodexTelemetry.js'
 
 const DEFAULT_CHATGPT_CODEX_BASE_URL =
   'https://chatgpt.com/backend-api/codex'
@@ -1035,6 +1039,8 @@ async function collectChatgptCodexText(params: {
     )
   }
 
+  recordOpenAiCodexTelemetryFromHeaders(response.headers)
+
   const raw = await response.text()
   let remainder = raw
   let pendingText = ''
@@ -1281,6 +1287,8 @@ export async function* queryOpenAiCodexWithStreaming(params: {
       )
     }
 
+    recordOpenAiCodexTelemetryFromHeaders(response.headers)
+
     if (!response.body) {
       throw new Error('OpenAI/Codex backend did not provide a streaming body')
     }
@@ -1317,6 +1325,12 @@ export async function* queryOpenAiCodexWithStreaming(params: {
         }
 
         const event = JSON.parse(payload) as ChatgptSseEvent
+        if (
+          event.type === 'response.created' ||
+          event.type === 'response.in_progress'
+        ) {
+          recordOpenAiCodexTelemetryFromEvent(event)
+        }
         switch (event.type) {
           case 'response.output_item.added': {
             const item =

@@ -5,6 +5,10 @@ import * as React from 'react';
 import { color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
+import {
+  getOpenAiCodexSessionTelemetry,
+  type OpenAiCodexUsageWindow,
+} from '../services/api/openaiCodexTelemetry.js';
 import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
 import { getTelegramTranscriptionConfig } from '../services/telegram/transcription.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
@@ -29,6 +33,8 @@ import { permissionModeTitle } from './permissions/PermissionMode.js';
 import { getDisplayedEffortLevel, modelSupportsEffort, type EffortValue } from './effort.js';
 import { calculateContextPercentages, getContextWindowForModel } from './context.js';
 import { getCurrentUsage } from './tokens.js';
+import { formatResetTime } from './format.js';
+import { ProgressBar } from '../components/design-system/ProgressBar.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
@@ -305,9 +311,33 @@ export function buildAccountProperties(): Property[] {
   }
   return properties;
 }
+
+function formatCodexLimitLeftText(window: OpenAiCodexUsageWindow): string {
+  return `${Math.max(0, 100 - Math.floor(window.usedPercent))}% left`;
+}
+
+function renderCodexLimitValue(
+  window: OpenAiCodexUsageWindow,
+): React.ReactNode {
+  const leftPercent = Math.max(0, 100 - window.usedPercent);
+  const resetText =
+    window.resetAt !== null
+      ? `resets ${formatResetTime(window.resetAt, false, true)}`
+      : null;
+
+  return <Box flexDirection="column">
+      <Box flexDirection="row" gap={1}>
+        <ProgressBar ratio={leftPercent / 100} width={20} fillColor="rate_limit_fill" emptyColor="rate_limit_empty" />
+        <Text>{formatCodexLimitLeftText(window)}</Text>
+      </Box>
+      {resetText && <Text dimColor>{resetText}</Text>}
+    </Box>;
+}
+
 export function buildAPIProviderProperties(): Property[] {
   const apiProvider = getAPIProvider();
   const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot();
+  const codexTelemetry = getOpenAiCodexSessionTelemetry();
   const properties: Property[] = [];
   if (apiProvider !== 'firstParty') {
     const providerLabel = {
@@ -427,6 +457,24 @@ export function buildAPIProviderProperties(): Property[] {
     });
   }
   if (runtimeSnapshot.execution.family === 'openai') {
+    if (codexTelemetry.collaborationMode) {
+      properties.push({
+        label: 'Collaboration mode',
+        value: codexTelemetry.collaborationMode === 'background' ? 'Background' : 'Default'
+      });
+    }
+    if (codexTelemetry.fiveHour) {
+      properties.push({
+        label: '5h limit',
+        value: renderCodexLimitValue(codexTelemetry.fiveHour)
+      });
+    }
+    if (codexTelemetry.weekly) {
+      properties.push({
+        label: 'Weekly limit',
+        value: renderCodexLimitValue(codexTelemetry.weekly)
+      });
+    }
     properties.push({
       label: 'OpenAI/Codex gates',
       value: ['auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
