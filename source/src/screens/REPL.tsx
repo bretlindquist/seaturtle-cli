@@ -260,7 +260,6 @@ import { buildReplTurnAppendSystemPrompt } from './repl/buildReplTurnAppendSyste
 import { loadReplQueryRuntimeContext } from './repl/loadReplQueryRuntimeContext.js';
 import { finalizeReplQueryTurn } from './repl/finalizeReplQueryTurn.js';
 import { runReplQueryLoop } from './repl/runReplQueryLoop.js';
-import { executeReplQueuedInput } from './repl/executeReplQueuedInput.js';
 import { runOuterReplQuery } from './repl/runOuterReplQuery.js';
 import {
   createReplPromptRequester,
@@ -276,6 +275,7 @@ import { cancelActiveReplRequest } from './repl/cancelActiveReplRequest.js';
 import { restoreQueuedCancelInput } from './repl/restoreQueuedCancelInput.js';
 import { runReplSubmit } from './repl/runReplSubmit.js';
 import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
+import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -2426,13 +2426,6 @@ export function REPL({
     enter: enterMessageActions,
     handlers: messageActionHandlers
   } = useMessageActions(cursor, setCursor, cursorNavRef, messageActionCaps);
-  async function onInit() {
-    await runReplStartupInitialization({
-      reverify,
-      readFileState,
-    });
-  }
-
   // Register cost summary tracker
   useCostSummary(useFpsMetrics());
 
@@ -2453,23 +2446,25 @@ export function REPL({
   // Process queued commands when query completes and queue has items
 
   const executeQueuedInput = useCallback(async (queuedCommands: QueuedCommand[]) => {
-    await executeReplQueuedInput({
+    await runQueuedReplInput({
       queuedCommands,
-      queryGuard,
-      commands,
-      setToolJSX,
-      getToolUseContext,
-      messages,
-      mainLoopModel,
-      ideSelection,
-      setUserInputOnProcessing,
-      setAbortController,
-      onQuery,
-      setAppState,
-      onBeforeQuery,
-      canUseTool,
-      addNotification,
-      setMessages,
+      executeArgs: {
+        queryGuard,
+        commands,
+        setToolJSX,
+        getToolUseContext,
+        messages,
+        mainLoopModel,
+        ideSelection,
+        setUserInputOnProcessing,
+        setAbortController,
+        onQuery,
+        setAppState,
+        onBeforeQuery,
+        canUseTool,
+        addNotification,
+        setMessages,
+      },
     });
   }, [queryGuard, commands, setToolJSX, getToolUseContext, messages, mainLoopModel, ideSelection, setUserInputOnProcessing, canUseTool, setAbortController, onQuery, addNotification, setAppState, onBeforeQuery]);
   useQueueProcessor({
@@ -2590,7 +2585,10 @@ export function REPL({
 
   // Initial load
   useEffect(() => {
-    void onInit();
+    void runReplStartupInitialization({
+      reverify,
+      readFileState,
+    });
 
     // Cleanup on unmount
     return () => {
