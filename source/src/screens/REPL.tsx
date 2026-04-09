@@ -225,6 +225,7 @@ import { ReplMainBottomRow } from './repl/ReplMainBottomRow.js';
 import { ReplPromptSection } from './repl/ReplPromptSection.js';
 import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js';
 import { ReplToolPermissionOverlay } from './repl/ReplToolPermissionOverlay.js';
+import { buildReplBottomDialogProps } from './repl/buildReplBottomDialogProps.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplCompanionLayout } from './repl/deriveReplCompanionLayout.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
@@ -2353,7 +2354,7 @@ export function REPL({
     voiceInterimRange: voice.interimRange,
     onBackgroundSession: handleBackgroundSession,
   });
-  const bottomDialogSection = <ReplBottomDialogSection permissionOverlaysProps={{
+  const bottomDialogProps = buildReplBottomDialogProps({
     focusedInputDialog,
     sandboxHostPattern: sandboxPermissionRequestQueue[0]?.hostPattern,
     onSandboxPermissionResponse: handleSandboxPermissionResponse,
@@ -2363,9 +2364,7 @@ export function REPL({
     pendingWorkerRequest,
     pendingSandboxRequest,
     workerSandboxRequest: workerSandboxPermissions.queue[0],
-    onWorkerSandboxPermissionResponse: handleWorkerSandboxPermissionResponse
-  }} focusedDialogsProps={{
-    focusedInputDialog,
+    onWorkerSandboxPermissionResponse: handleWorkerSandboxPermissionResponse,
     elicitationEvent: elicitation.queue[0],
     onElicitationResponse: handleElicitationResponse,
     onElicitationWaitingDismiss: handleElicitationWaitingDismiss,
@@ -2393,8 +2392,9 @@ export function REPL({
     onHintResponse: handleHintResponse,
     lspRecommendation,
     onLspResponse: handleLspResponse,
-    onDesktopUpsellDone: handleDesktopUpsellDone
-  }} ultraplanChoiceDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null} ultraplanLaunchDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
+    onDesktopUpsellDone: handleDesktopUpsellDone,
+  });
+  const bottomDialogSection = <ReplBottomDialogSection permissionOverlaysProps={bottomDialogProps.permissionOverlaysProps} focusedDialogsProps={bottomDialogProps.focusedDialogsProps} ultraplanChoiceDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null} ultraplanLaunchDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
     const blurb = ultraplanLaunchPending.blurb;
     setAppState(prev => prev.ultraplanLaunchPending ? {
       ...prev,
