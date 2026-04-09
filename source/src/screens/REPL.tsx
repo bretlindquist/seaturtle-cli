@@ -87,7 +87,6 @@ import { type StreamingToolUse, type StreamingThinking, getContentText, createTu
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
 import { escapeXml } from '../utils/xml.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
-import type { PromptInputHelpers } from '../utils/handlePromptSubmit.js';
 import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
 import { useTelegramBridge } from '../hooks/useTelegramBridge.js';
@@ -130,10 +129,9 @@ import { useTaskListWatcher } from '../hooks/useTaskListWatcher.js';
 import { type IDEExtensionInstallationStatus, type IdeType } from '../utils/ide.js';
 import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { enqueue, type SetAppState, getCommandQueueLength } from '../utils/messageQueueManager.js';
+import { enqueue, getCommandQueueLength } from '../utils/messageQueueManager.js';
 import { useCommandQueue } from '../hooks/useCommandQueue.js';
 import { diagnosticTracker } from '../services/diagnosticTracking.js';
-import type { ActiveSpeculationState } from '../services/PromptSuggestion/speculation.js';
 import { shouldShowEffortCallout } from '../components/EffortCallout.js';
 import { createAbortController } from '../utils/abortController.js';
 import { useFeedbackSurvey } from 'src/components/FeedbackSurvey/useFeedbackSurvey.js';
@@ -221,8 +219,6 @@ import { useTranscriptEscapeHotkeys } from './repl/useTranscriptEscapeHotkeys.js
 import { useTranscriptSearchFeature } from './repl/useTranscriptSearchFeature.js';
 import { useTranscriptModeState } from './repl/useTranscriptModeState.js';
 import { useReplDialogActions } from './repl/useReplDialogActions.js';
-import { useInitialMessageProcessing } from './repl/useInitialMessageProcessing.js';
-import { useIncomingSubmissions } from './repl/useIncomingSubmissions.js';
 import { useReplSupportEffects } from './repl/useReplSupportEffects.js';
 import { ReplMainScrollableContent } from './repl/ReplMainScrollableContent.js';
 import { ReplMainBottomRow } from './repl/ReplMainBottomRow.js';
@@ -231,7 +227,6 @@ import { ReplMessageSelectorSection } from './repl/ReplMessageSelectorSection.js
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
-import { runReplSubmit } from './repl/runReplSubmit.js';
 import { clearReplConversationForIdleReturn } from './repl/clearReplConversationForIdleReturn.js';
 import { runQueuedReplInput } from './repl/runQueuedReplInput.js';
 import { useReplSessionLifecycle } from './repl/useReplSessionLifecycle.js';
@@ -239,6 +234,7 @@ import { useReplToolRuntimeBridge } from './repl/useReplToolRuntimeBridge.js';
 import { useReplCancelController } from './repl/useReplCancelController.js';
 import { useReplUiActions } from './repl/useReplUiActions.js';
 import { useReplQueryController } from './repl/useReplQueryController.js';
+import { useReplSubmitController } from './repl/useReplSubmitController.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
 // creating a new [] literal on every render in remote mode, which would
@@ -1765,168 +1761,64 @@ export function REPL({
     restoreMessageSyncRef,
   });
 
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, speculationAccept?: {
-    state: ActiveSpeculationState;
-    speculationSessionTimeSavedMs: number;
-    setAppState: SetAppState;
-  }, options?: {
-    fromKeybinding?: boolean;
-  }) => {
-    await runReplSubmit({
-      input,
-      helpers,
-      speculationAccept,
-      options,
-      repinScroll,
-      resumeProactive: () => {
-        if (feature('PROACTIVE') || feature('KAIROS')) {
-          proactiveModule?.resumeProactive();
-        }
-      },
-      immediateLocalJsxArgs: {
-        pastedContents,
-        commands,
-        idleHintShownRef,
-        lastQueryCompletionTimeRef,
-        messagesRef,
-        queryGuard,
-        inputValueRef,
-        setInputValue,
-        setPastedContents,
-        setToolJSX,
-        addNotification,
-        isFullscreenEnvEnabled,
-        setMessages,
-        stashedPrompt,
-        setStashedPrompt,
-        getToolUseContext,
-        createAbortController,
-        mainLoopModel,
-      },
-      activeRemote,
-      skipIdleReturnArgs: {
-        skipIdleCheckRef,
-        lastQueryCompletionTimeRef,
-        setIdleReturnPending,
-        setInputValue,
-      },
-      historyArgs: {
-        inputMode,
-        pastedContents,
-      },
-      prepareArgs: {
-        isLoading,
-        isRemoteMode: activeRemote.isRemoteMode,
-        stashedPrompt,
-        setInputValue,
-        helpers,
-        setPastedContents,
-        setStashedPrompt,
-        setInputMode,
-        setIDESelection,
-        setSubmitCount,
-        tipPickedThisTurnRef,
-        inputMode,
-        setUserInputOnProcessing,
-        resetTimingRefs,
-        setAppState,
-      },
-      speculationArgs: {
-        setMessages,
-        readFileState,
-        createAbortController,
-        setAbortController,
-        onQuery,
-        mainLoopModel,
-      },
-      remoteSubmitArgs: {
-        pastedContents,
-        activeRemote,
-        commands,
-        setMessages,
-      },
-      localSubmitArgs: {
-        queryGuard,
-        isExternalLoading,
-        inputMode,
-        commands,
-        setInputValue,
-        setInputMode,
-        setPastedContents,
-        setToolJSX,
-        getToolUseContext,
-        messagesRef,
-        mainLoopModel,
-        pastedContents,
-        ideSelection,
-        setUserInputOnProcessing,
-        setAbortController,
-        abortController,
-        onQuery,
-        setAppState,
-        onBeforeQuery,
-        canUseTool,
-        addNotification,
-        setMessages,
-        streamModeRef,
-        hasInterruptibleToolInProgressRef,
-        awaitPendingHooks,
-        isLoading,
-        stashedPrompt,
-        setStashedPrompt,
-      },
-    });
-  }, [queryGuard,
-  // isLoading is read at the !isLoading checks above for input-clearing
-  // and submitCount gating. It's derived from isQueryActive || isExternalLoading,
-  // so including it here ensures the closure captures the fresh value.
-  isLoading, isExternalLoading, inputMode, commands, setInputValue, setInputMode, setPastedContents, setSubmitCount, setIDESelection, setToolJSX, getToolUseContext,
-  // messages is read via messagesRef.current inside the callback to
-  // keep onSubmit stable across message updates (see L2384/L2400/L2662).
-  // Without this, each setMessages call (~30× per turn) recreates
-  // onSubmit, pinning the REPL render scope (1776B) + that render's
-  // messages array in downstream closures (PromptInput, handleAutoRunIssue).
-  // Heap analysis showed ~9 REPL scopes and ~15 messages array versions
-  // accumulating after #20174/#20175, all traced to this dep.
-  mainLoopModel, pastedContents, ideSelection, setUserInputOnProcessing, setAbortController, addNotification, onQuery, stashedPrompt, setStashedPrompt, setAppState, onBeforeQuery, canUseTool, remoteSession, setMessages, awaitPendingHooks, repinScroll]);
-  useInitialMessageProcessing({
-    initialMessage,
-    isLoading,
-    setMessages,
-    readFileStateRef: readFileState,
-    discoveredSkillNamesRef,
-    loadedNestedMemoryPathsRef,
-    getAppState: () => store.getState(),
-    setAppState,
-    setConversationId,
-    resetConversationChrome: () => {
-      haikuTitleAttemptedRef.current = false;
-      setHaikuTitle(undefined);
-      bashTools.current.clear();
-      bashToolsProcessedIdx.current = 0;
-    },
-    awaitPendingHooks,
-    onSubmit,
-    onQuery,
-    createAbortController,
-    setAbortController,
-    mainLoopModel,
-  });
   const {
+    onSubmit,
     onAgentSubmit,
     handleIncomingPrompt,
-  } = useIncomingSubmissions({
-    queryIsActive: () => queryGuard.isActive,
-    createAbortController,
-    setAbortController,
-    onQuery,
-    mainLoopModel,
-    setAppState,
+  } = useReplSubmitController({
+    queryGuard,
+    isLoading,
+    isExternalLoading,
+    inputMode,
+    commands,
     setInputValue,
+    setInputMode,
+    setPastedContents,
+    setSubmitCount,
+    setIDESelection,
+    setToolJSX,
     getToolUseContext,
-    messagesRef,
-    canUseTool,
+    mainLoopModel,
+    pastedContents,
+    ideSelection,
+    setUserInputOnProcessing,
+    setAbortController,
     addNotification,
+    onQuery,
+    stashedPrompt,
+    setStashedPrompt,
+    setAppState,
+    onBeforeQuery,
+    canUseTool,
+    activeRemote,
+    setMessages,
+    awaitPendingHooks,
+    repinScroll,
+    proactiveModule,
+    idleHintShownRef,
+    lastQueryCompletionTimeRef,
+    messagesRef,
+    inputValueRef,
+    isFullscreenEnvEnabled,
+    skipIdleCheckRef,
+    setIdleReturnPending,
+    helpersResetArgs: {
+      resetTimingRefs,
+    },
+    tipPickedThisTurnRef,
+    readFileState,
+    abortController,
+    streamModeRef,
+    hasInterruptibleToolInProgressRef,
+    initialMessage,
+    discoveredSkillNamesRef,
+    loadedNestedMemoryPathsRef,
+    store,
+    setConversationId,
+    haikuTitleAttemptedRef,
+    setHaikuTitle,
+    bashTools,
+    bashToolsProcessedIdx,
   });
 
   const {
