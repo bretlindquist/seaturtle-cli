@@ -54,7 +54,6 @@ import { useBackgroundTaskNavigation } from '../hooks/useBackgroundTaskNavigatio
 import { useSwarmInitialization } from '../hooks/useSwarmInitialization.js';
 import { useTeammateViewAutoExit } from '../hooks/useTeammateViewAutoExit.js';
 import { isHumanTurn } from '../utils/messagePredicates.js';
-import { logError } from '../utils/log.js';
 // Dead code elimination: conditional imports
 /* eslint-disable custom-rules/no-process-env-top-level, @typescript-eslint/no-require-imports */
 const useVoiceIntegration: typeof import('../hooks/useVoiceIntegration.js').useVoiceIntegration = feature('VOICE_MODE') ? require('../hooks/useVoiceIntegration.js').useVoiceIntegration : () => ({
@@ -85,7 +84,6 @@ import { logEvent } from 'src/services/analytics/index.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js';
 import { type StreamingToolUse, type StreamingThinking, getContentText, createTurnDurationMessage, createSystemMessage } from '../utils/messages.js';
 import { BASH_INPUT_TAG, COMMAND_MESSAGE_TAG, COMMAND_NAME_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js';
-import { escapeXml } from '../utils/xml.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
 import { useQueueProcessor } from '../hooks/useQueueProcessor.js';
 import { useMailboxBridge } from '../hooks/useMailboxBridge.js';
@@ -225,7 +223,9 @@ import { ReplToolPermissionOverlay } from './repl/ReplToolPermissionOverlay.js';
 import { buildReplBottomDialogProps } from './repl/buildReplBottomDialogProps.js';
 import { buildReplMainModeProps } from './repl/buildReplMainModeProps.js';
 import { buildReplPromptSectionProps } from './repl/buildReplPromptSectionProps.js';
+import { buildReplToolPermissionOverlayProps } from './repl/buildReplToolPermissionOverlayProps.js';
 import { buildReplTranscriptModeProps } from './repl/buildReplTranscriptModeProps.js';
+import { createUltraplanLaunchChoiceHandler } from './repl/createUltraplanLaunchChoiceHandler.js';
 import { deriveReplCompanionLayout } from './repl/deriveReplCompanionLayout.js';
 import { deriveReplDisplayState } from './repl/deriveReplDisplayState.js';
 import { runReplStartupInitialization } from './repl/runReplStartupInitialization.js';
@@ -2328,7 +2328,18 @@ export function REPL({
     userInputOnProcessing,
     userInputBaseline: userInputBaselineRef.current,
   });
-  const toolPermissionOverlay = <ReplToolPermissionOverlay focusedInputDialog={focusedInputDialog} toolUseConfirmQueue={toolUseConfirmQueue} onDone={() => setToolUseConfirmQueue(([_, ...tail]) => tail)} onReject={handleQueuedCommandOnCancel} toolUseContext={getToolUseContext(messages, messages, abortController ?? createAbortController(), mainLoopModel)} verbose={verbose} workerBadge={toolUseConfirmQueue[0]?.workerBadge} isFullscreenEnabled={isFullscreenEnvEnabled()} setStickyFooter={setPermissionStickyFooter} />;
+  const toolPermissionOverlayProps = buildReplToolPermissionOverlayProps({
+    focusedInputDialog,
+    toolUseConfirmQueue,
+    onDone: () => setToolUseConfirmQueue(([_, ...tail]) => tail),
+    onReject: handleQueuedCommandOnCancel,
+    toolUseContext: getToolUseContext(messages, messages, abortController ?? createAbortController(), mainLoopModel),
+    verbose,
+    workerBadge: toolUseConfirmQueue[0]?.workerBadge,
+    isFullscreenEnabled: isFullscreenEnvEnabled(),
+    setStickyFooter: setPermissionStickyFooter,
+  });
+  const toolPermissionOverlay = <ReplToolPermissionOverlay {...toolPermissionOverlayProps} />;
 
   const { companionNarrow, companionVisible } = deriveReplCompanionLayout({
     transcriptCols,
@@ -2430,36 +2441,15 @@ export function REPL({
     onLspResponse: handleLspResponse,
     onDesktopUpsellDone: handleDesktopUpsellDone,
   });
-  const bottomDialogSection = <ReplBottomDialogSection permissionOverlaysProps={bottomDialogProps.permissionOverlaysProps} focusedDialogsProps={bottomDialogProps.focusedDialogsProps} ultraplanChoiceDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null} ultraplanLaunchDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={(choice, opts) => {
-    const blurb = ultraplanLaunchPending.blurb;
-    setAppState(prev => prev.ultraplanLaunchPending ? {
-      ...prev,
-      ultraplanLaunchPending: undefined
-    } : prev);
-    if (choice === 'cancel') return;
-    setMessages(prev => [...prev, createCommandInputMessage(formatCommandInputTags('ultraplan', blurb))]);
-    const appendStdout = (msg: string) => setMessages(prev => [...prev, createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${escapeXml(msg)}</${LOCAL_COMMAND_STDOUT_TAG}>`)]);
-    const appendWhenIdle = (msg: string) => {
-      if (!queryGuard.isActive) {
-        appendStdout(msg);
-        return;
-      }
-      const unsub = queryGuard.subscribe(() => {
-        if (queryGuard.isActive) return;
-        unsub();
-        if (!store.getState().ultraplanSessionUrl) return;
-        appendStdout(msg);
-      });
-    };
-    void launchUltraplan({
-      blurb,
-      getAppState: () => store.getState(),
-      setAppState,
-      signal: createAbortController().signal,
-      disconnectedBridge: opts?.disconnectedBridge,
-      onSessionReady: appendWhenIdle
-    }).then(appendStdout).catch(logError);
-  }} /> : null} />;
+  const ultraplanLaunchDialog = feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-launch' && ultraplanLaunchPending && <UltraplanLaunchDialog onChoice={createUltraplanLaunchChoiceHandler({
+    blurb: ultraplanLaunchPending.blurb,
+    setAppState,
+    setMessages,
+    queryGuard,
+    getAppState: () => store.getState(),
+    createAbortSignal: () => createAbortController().signal,
+  })} /> : null;
+  const bottomDialogSection = <ReplBottomDialogSection permissionOverlaysProps={bottomDialogProps.permissionOverlaysProps} focusedDialogsProps={bottomDialogProps.focusedDialogsProps} ultraplanChoiceDialog={feature('ULTRAPLAN') ? focusedInputDialog === 'ultraplan-choice' && ultraplanPendingChoice && <UltraplanChoiceDialog plan={ultraplanPendingChoice.plan} sessionId={ultraplanPendingChoice.sessionId} taskId={ultraplanPendingChoice.taskId} setMessages={setMessages} readFileState={readFileState.current} getAppState={() => store.getState()} setConversationId={setConversationId} /> : null} ultraplanLaunchDialog={ultraplanLaunchDialog} />;
 
   // <AlternateScreen> at the root: everything below is inside its
   // <Box height={rows}>. Handlers/contexts are zero-height so ScrollBox's
