@@ -488,7 +488,9 @@ What they do:
 - `dev-check`
   - runs the main repo build/smoke path
 - `openai-codex-check`
-  - runs the OpenAI/Codex regression harness
+  - runs the live OpenAI/Codex regression harness
+  - reports named steps with explicit `PASS`, `FAIL`, `SKIP`, and timeout
+    outcomes so long provider runs are diagnosable instead of ambiguous
 
 When the live Codex account is quota-limited, the OpenAI/Codex regression
 harness exits with an explicit skip instead of reporting a false regression.

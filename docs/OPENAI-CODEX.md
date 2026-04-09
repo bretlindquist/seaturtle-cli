@@ -115,9 +115,14 @@ Notes:
 - `npm run lint:openai-codex` is the repo-local lint gate for the OpenAI/Codex
   ported surfaces
 - `npm run dev-check` is the main repo build/smoke check
-- `npm run openai-codex-check` is the provider regression harness
+- `npm run openai-codex-check` is the live provider regression harness
+- `npm run openai-codex-check` reports named steps with explicit `PASS`,
+  `FAIL`, `SKIP`, and timeout outcomes so long provider checks are diagnosable
+  instead of looking ambiguously stalled
 - if the live OpenAI/Codex account is quota-limited, the OpenAI harness exits
   with an explicit skip instead of reporting a false regression
+- `dev-check` proves the local app builds and boots; `openai-codex-check`
+  proves the live OpenAI/Codex provider path still works end to end
 
 ## Future Expansion Areas
 
