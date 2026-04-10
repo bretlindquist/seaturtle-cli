@@ -12,6 +12,7 @@ export const CT_USER_FILENAME = 'user.md'
 export const CT_BOOTSTRAP_FILENAME = 'bootstrap.md'
 export const CT_ATTUNEMENT_FILENAME = 'attunement.md'
 export const CT_SESSION_FILENAME = 'session.md'
+export const CT_TODO_FILENAME = 'todo.md'
 export const CT_STATE_DIRNAME = 'state'
 export const CT_ARCHIVES_FILENAME = 'archives.json'
 export const CT_GAME_STATE_FILENAME = 'game-state.json'
@@ -51,6 +52,10 @@ export function getCtBootstrapPath(root: string = getCtProjectRoot()): string {
 
 export function getCtSessionPath(root: string = getCtProjectRoot()): string {
   return join(getCtProjectDir(root), CT_SESSION_FILENAME)
+}
+
+export function getCtTodoPath(root: string = getCtProjectRoot()): string {
+  return join(getCtProjectDir(root), CT_TODO_FILENAME)
 }
 
 export function getCtAttunementPath(root: string = getCtProjectRoot()): string {
