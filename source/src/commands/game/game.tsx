@@ -35,6 +35,7 @@ import {
   applySwordsOfChaosEventBatchToSave,
   buildSwordsProceduralOptions,
   completeSwordsSessionZero,
+  consumeSwordsPendingSeaTurtleOpening,
   ensureSwordsOfChaosRuntimeReady,
   finalizeSwordsCustomCharacter,
   finalizeSwordsPremadeCharacter,
@@ -45,7 +46,8 @@ import {
   getSwordsEncounterPlaceName,
   getSwordsOfChaosRelevantMemory,
   getSwordsOfChaosRetreatNarration,
-  getSwordsOpeningLabel,
+  maybeBuildSwordsDealerChoiceBeat,
+  maybeBuildSwordsSceneStateBeat,
   getSwordsPremadeCharacterOptions,
   getSwordsSessionZeroPreludeCopy,
   getSwordsSessionZeroScene,
@@ -57,11 +59,13 @@ import {
   type SwordsCharacterCustomField,
   type SwordsCharacterProceduralOption,
   type SwordsDramaticBeatLine,
+  type SwordsDramaticBeatSegment,
   type SwordsDramaticBeatScript,
   type SwordsOfChaosCreationMode,
   type SwordsOfChaosOpeningChoice,
   type SwordsOfChaosSecondChoice,
   type SwordsOfChaosDmSceneResponse,
+  type SwordsOfChaosRelevantMemory,
 } from '../../services/swordsOfChaos/index.js'
 
 type OnExit = (
@@ -114,10 +118,14 @@ type SwordsDramaticBeatState = {
   focus: SwordsDramaticBeatScript['focus']
   lines: SwordsDramaticBeatLine[]
   revealed: number
+  queuedBeats: SwordsDramaticBeatSegment[]
   followup:
     | {
         type: 'opening'
         openingChoice: SwordsOfChaosOpeningChoice
+      }
+    | {
+        type: 'return-to-second-beat'
       }
     | {
         type: 'result'
@@ -127,159 +135,9 @@ type SwordsDramaticBeatState = {
     | null
 }
 
-function buildSwordsOpeningBeat(
-  openingChoice: SwordsOfChaosOpeningChoice,
-  place: string,
-): SwordsDramaticBeatScript {
-  switch (openingChoice) {
-    case 'draw-steel':
-      return {
-        focus: 'strike',
-        lines: [
-          { text: `Your hand finds the hilt before ${place} decides whether it knows you.`, tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'Rain ticks against metal.', tone: 'quiet' },
-          { text: '', tone: 'quiet' },
-          { text: '*tink*', tone: 'sound' },
-          { text: '', tone: 'quiet' },
-          {
-            text: 'A blade meets yours sooner than it should. Someone here was faster than the moment.',
-            tone: 'accent',
-          },
-        ],
-      }
-    case 'bow-slightly':
-      return {
-        focus: 'hold',
-        lines: [
-          { text: 'You dip your head just enough to make the gesture deliberate.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: `For one suspended breath, ${place} answers by holding still with you.`, tone: 'quiet' },
-          { text: '', tone: 'quiet' },
-          { text: 'Then the room remembers it is dangerous.', tone: 'accent' },
-        ],
-      }
-    case 'talk-like-you-belong':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'The words leave your mouth with more confidence than permission.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'No one interrupts.', tone: 'quiet' },
-          { text: '', tone: 'quiet' },
-          { text: 'Which is worse.', tone: 'accent' },
-          { text: '', tone: 'quiet' },
-          {
-            text: `Something in ${place} lets you keep talking just to hear what you will dare next.`,
-            tone: 'accent',
-          },
-        ],
-      }
-  }
-}
-
-function buildSwordsSecondBeat(
-  secondChoice: SwordsOfChaosSecondChoice,
-  place: string,
-): SwordsDramaticBeatScript {
-  switch (secondChoice) {
-    case 'cut-the-sign-chain':
-      return {
-        focus: 'strike',
-        lines: [
-          { text: `You move first, and ${place} answers at once.`, tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'Metal protests. Something hidden wakes up angry.', tone: 'accent' },
-        ],
-      }
-    case 'hold-the-line':
-      return {
-        focus: 'hold',
-        lines: [
-          { text: 'You hold your ground.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          {
-            text: `That is when ${place} has to reveal whether it wanted your fear or your steadiness.`,
-            tone: 'accent',
-          },
-        ],
-      }
-    case 'lower-the-blade':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'You refuse the obvious script.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'The moment wobbles. Something that expected violence has to improvise.', tone: 'accent' },
-        ],
-      }
-    case 'keep-bowing':
-      return {
-        focus: 'hold',
-        lines: [
-          { text: 'You stay with the gesture longer than comfort would advise.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: `That is long enough for ${place} to understand you meant it.`, tone: 'accent' },
-        ],
-      }
-    case 'meet-the-gaze':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'You lift your eyes instead of your guard.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          {
-            text: 'Whatever was watching has to decide whether that counts as courage or invitation.',
-            tone: 'accent',
-          },
-        ],
-      }
-    case 'ask-the-price':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'You ask the question that turns a mood into a bargain.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: `In ${place}, that is usually when the real danger starts listening.`, tone: 'accent' },
-        ],
-      }
-    case 'name-a-false-title':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'You give the lie a proper name and let it stand upright.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'For a second, even the room seems tempted to believe you.', tone: 'accent' },
-        ],
-      }
-    case 'laugh-like-you-mean-it':
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'You laugh at exactly the wrong moment.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'Which is sometimes the closest thing to a key the world will accept.', tone: 'accent' },
-        ],
-      }
-    case 'double-down':
-      return {
-        focus: 'strike',
-        lines: [
-          { text: 'You keep going past the point where caution would have shut up.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: `Now ${place} has to decide whether to expose you or take your side.`, tone: 'accent' },
-        ],
-      }
-    default:
-      return {
-        focus: 'tighten',
-        lines: [
-          { text: 'The scene shifts under the weight of what you chose.', tone: 'plain' },
-          { text: '', tone: 'quiet' },
-          { text: 'Whatever happens next belongs to the choice now.', tone: 'accent' },
-        ],
-      }
-  }
+type SwordsSceneRevealState = {
+  key: string
+  revealed: number
 }
 
 function renderBeatLine(
@@ -319,6 +177,72 @@ function renderBeatLine(
   return <Text key={key} dimColor>{line.text}</Text>
 }
 
+function getSwordsJourneyPanelLines(
+  relevantMemory: SwordsOfChaosRelevantMemory,
+): string[] {
+  const lines: string[] = []
+  const development = relevantMemory.characterDevelopment
+  const magicState = relevantMemory.magicState
+
+  if (development?.title) {
+    lines.push(`Arc: ${development.title} · stage ${development.stage}`)
+  }
+
+  if (relevantMemory.chapterTitle) {
+    const chapterLine = relevantMemory.currentObjective
+      ? `${relevantMemory.chapterTitle} · ${relevantMemory.currentObjective}`
+      : relevantMemory.chapterTitle
+    lines.push(`Chapter: ${chapterLine}`)
+  } else if (relevantMemory.currentObjective) {
+    lines.push(`Objective: ${relevantMemory.currentObjective}`)
+  }
+
+  if (development?.lesson) {
+    lines.push(`Lesson: ${development.lesson}`)
+  } else if (development?.pressure) {
+    lines.push(`Pressure: ${development.pressure}`)
+  }
+
+  if (magicState && magicState.activeImpossible !== 'none') {
+    const magicLine =
+      magicState.lastOmen ??
+      (magicState.activeImpossible === 'crossing'
+        ? 'A crossing pressure is active around you.'
+        : magicState.activeImpossible === 'witness'
+          ? 'An impossible witness pressure is active around you.'
+          : magicState.activeImpossible === 'relic-sign'
+            ? 'The uncanny is behaving like evidence around you now.'
+            : 'A quiet omen is active around you now.')
+    lines.push(`Uncanny: ${magicLine}`)
+  }
+
+  if (relevantMemory.carryForward) {
+    lines.push(`Aftermath: ${relevantMemory.carryForward}`)
+  }
+
+  return lines.slice(0, 4)
+}
+
+function renderSwordsJourneyPanel(
+  relevantMemory: SwordsOfChaosRelevantMemory,
+): React.ReactNode {
+  const lines = getSwordsJourneyPanelLines(relevantMemory)
+  if (lines.length === 0) {
+    return null
+  }
+
+  return (
+    <Box flexDirection="column" marginTop={1}>
+      <Text dimColor>What the journey knows about you:</Text>
+      {lines.map(line => (
+        <Text key={line} dimColor>
+          {line}
+        </Text>
+      ))}
+    </Box>
+  )
+}
+
 function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [screen, setScreen] = React.useState<Screen>('menu')
   const [swordsEncounter, setSwordsEncounter] = React.useState<SwordsEncounter>({
@@ -350,8 +274,16 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       focus: 'hold',
       lines: [],
       revealed: 0,
+      queuedBeats: [],
       followup: null,
     })
+  const [swordsSceneReveal, setSwordsSceneReveal] =
+    React.useState<SwordsSceneRevealState>({
+      key: '',
+      revealed: 0,
+    })
+  const [swordsSceneGateSeenKey, setSwordsSceneGateSeenKey] =
+    React.useState<string | null>(null)
   const projectRoot = getCtProjectRoot()
   const archiveSummary = getCtArchiveSummary(projectRoot)
   const canonCallback = getCtCanonCallback(projectRoot)
@@ -359,17 +291,31 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   const [swordsRuntimeSave, setSwordsRuntimeSave] = React.useState(() =>
     ensureSwordsOfChaosRuntimeReady(),
   )
+  const [swordsOpeningMemorySnapshot, setSwordsOpeningMemorySnapshot] =
+    React.useState<SwordsOfChaosRelevantMemory | null>(null)
   const swordsRelevantMemory = React.useMemo(
     () => getSwordsOfChaosRelevantMemory(swordsRuntimeSave),
     [swordsRuntimeSave],
   )
+  const swordsOpeningMemory = swordsOpeningMemorySnapshot ?? swordsRelevantMemory
   const swordsOpeningScene = React.useMemo<SwordsOfChaosDmSceneResponse>(
     () =>
       renderSwordsOfChaosHybridScene({
         stage: 'opening',
-        relevantMemory: swordsRelevantMemory,
+        relevantMemory: swordsOpeningMemory,
       }),
-    [swordsRelevantMemory],
+    [swordsOpeningMemory],
+  )
+  const swordsSecondBeatScene = React.useMemo<SwordsOfChaosDmSceneResponse | null>(
+    () =>
+      swordsEncounter.openingChoice
+        ? renderSwordsOfChaosHybridScene({
+            stage: 'second-beat',
+            openingChoice: swordsEncounter.openingChoice,
+            relevantMemory: swordsRelevantMemory,
+          })
+        : null,
+    [swordsEncounter.openingChoice, swordsRelevantMemory],
   )
   const swordsEncounterLocus = getSwordsEncounterLocus(swordsRelevantMemory)
   const swordsEncounterPlace = getSwordsEncounterPlaceName(swordsEncounterLocus)
@@ -403,6 +349,59 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
         : swordsDramaticBeat.focus === 'tighten'
           ? 230
           : 300
+      : null,
+  )
+
+  const activeSwordsScene =
+    screen === 'swords-of-chaos'
+      ? swordsSecondBeatScene ?? swordsOpeningScene
+      : null
+  const activeSwordsSceneParagraphs = React.useMemo(
+    () =>
+      activeSwordsScene
+        ? activeSwordsScene.sceneText.split('\n\n').filter(Boolean)
+        : [],
+    [activeSwordsScene],
+  )
+  const activeSwordsSceneKey =
+    activeSwordsScene
+      ? `${swordsEncounterLocus}:${swordsEncounter.openingChoice ?? 'opening'}:${activeSwordsScene.subtitle}:${activeSwordsScene.sceneText}`
+      : ''
+  const swordsSceneGateKey =
+    swordsEncounter.openingChoice && swordsRelevantMemory.sceneState
+      ? `${swordsEncounter.openingChoice}:${swordsRelevantMemory.sceneState.kind}:${swordsRelevantMemory.sceneState.status}:${swordsRelevantMemory.sceneState.pendingReveal}`
+      : null
+
+  React.useEffect(() => {
+    if (!activeSwordsScene || !activeSwordsSceneKey) {
+      return
+    }
+
+    setSwordsSceneReveal(current =>
+      current.key === activeSwordsSceneKey
+        ? current
+        : {
+            key: activeSwordsSceneKey,
+            revealed: 0,
+          },
+    )
+  }, [activeSwordsScene, activeSwordsSceneKey])
+
+  useInterval(
+    () => {
+      setSwordsSceneReveal(current => ({
+        ...current,
+        revealed: Math.min(
+          current.revealed + 1,
+          activeSwordsSceneParagraphs.length,
+        ),
+      }))
+    },
+    screen === 'swords-of-chaos' &&
+      activeSwordsSceneParagraphs.length > 0 &&
+      swordsSceneReveal.key === activeSwordsSceneKey &&
+      swordsSceneReveal.revealed < activeSwordsSceneParagraphs.length
+      ? 260
       : null,
   )
 
@@ -440,6 +439,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
   function beginSwordsDramaticBeat(input: {
     subtitle: string
     script: SwordsDramaticBeatScript
+    queuedBeats?: SwordsDramaticBeatSegment[]
     followup: SwordsDramaticBeatState['followup']
   }): void {
     setSwordsDramaticBeat({
@@ -448,21 +448,41 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       focus: input.script.focus,
       lines: input.script.lines,
       revealed: 0,
+      queuedBeats: input.queuedBeats ?? [],
       followup: input.followup,
     })
     setScreen('swords-dramatic-beat')
   }
 
   function continueSwordsDramaticBeat(): void {
+    if (swordsDramaticBeat.queuedBeats.length > 0) {
+      const [nextBeat, ...remainingBeats] = swordsDramaticBeat.queuedBeats
+      setSwordsDramaticBeat(current => ({
+        ...current,
+        subtitle: nextBeat?.subtitle ?? current.subtitle,
+        focus: nextBeat?.script.focus ?? current.focus,
+        lines: nextBeat?.script.lines ?? current.lines,
+        revealed: 0,
+        queuedBeats: remainingBeats,
+      }))
+      return
+    }
+
     if (!swordsDramaticBeat.followup) {
       setScreen('swords-of-chaos')
       return
     }
 
     if (swordsDramaticBeat.followup.type === 'opening') {
+      setSwordsSceneGateSeenKey(null)
       setSwordsEncounter({
         openingChoice: swordsDramaticBeat.followup.openingChoice,
       })
+      setScreen('swords-of-chaos')
+      return
+    }
+
+    if (swordsDramaticBeat.followup.type === 'return-to-second-beat') {
       setScreen('swords-of-chaos')
       return
     }
@@ -477,6 +497,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     setSwordsEncounter({
       openingChoice: null,
     })
+    setSwordsSceneGateSeenKey(null)
 
     if (swordsNeedsCreation) {
       resetSwordsCreationState()
@@ -489,6 +510,12 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       return
     }
 
+    setSwordsOpeningMemorySnapshot(swordsRelevantMemory)
+    if (swordsRelevantMemory.seaturtleOpeningPending) {
+      setSwordsRuntimeSave(current =>
+        consumeSwordsPendingSeaTurtleOpening(current),
+      )
+    }
     setScreen('swords-of-chaos')
   }
 
@@ -703,8 +730,16 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     openingChoice: SwordsOfChaosOpeningChoice,
     secondChoice: SwordsOfChaosSecondChoice,
   ): void {
+    setSwordsOpeningMemorySnapshot(null)
+    setSwordsSceneGateSeenKey(null)
     const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
       encounterLocus: getSwordsEncounterLocus(swordsRelevantMemory),
+      character: swordsRuntimeSave.character,
+      currentDevelopment: swordsRuntimeSave.characterDevelopment,
+      currentMagic: swordsRuntimeSave.magic,
+      currentChapter: swordsRelevantMemory.storyChapter,
+      previousObjective: swordsRelevantMemory.currentObjective,
+      relevantMemory: swordsRelevantMemory,
       seaturtleWitnessed: swordsRelevantMemory.seaturtleGlimpsed,
     })
     const outcome = resolution.outcome
@@ -735,6 +770,8 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     stage: 'opening' | 'second-beat',
     openingChoice?: SwordsOfChaosOpeningChoice,
   ): void {
+    setSwordsOpeningMemorySnapshot(null)
+    setSwordsSceneGateSeenKey(null)
     recordSwordsOfChaosRetreat(stage)
     showResult(
       getSwordsOfChaosRetreatNarration({
@@ -1233,11 +1270,17 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
     const openingChoice = swordsEncounter.openingChoice
 
     if (openingChoice) {
-      const secondBeatScene = renderSwordsOfChaosHybridScene({
-        stage: 'second-beat',
-        openingChoice,
-        relevantMemory: swordsRelevantMemory,
-      })
+      const secondBeatScene = swordsSecondBeatScene
+      if (!secondBeatScene) {
+        return null
+      }
+      const secondBeatFullyRevealed =
+        swordsSceneReveal.key === activeSwordsSceneKey &&
+        swordsSceneReveal.revealed >= activeSwordsSceneParagraphs.length
+      const secondBeatNeedsContinuationGate =
+        secondBeatFullyRevealed &&
+        !!swordsSceneGateKey &&
+        swordsSceneGateSeenKey !== swordsSceneGateKey
 
       return (
         <Dialog
@@ -1251,58 +1294,135 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           }}
         >
           <Box flexDirection="column" gap={1}>
-            <Text dimColor>{secondBeatScene.sceneText}</Text>
-            {secondBeatScene.hintText ? (
+            <Box flexDirection="column">
+              {activeSwordsSceneParagraphs
+                .slice(0, swordsSceneReveal.revealed)
+                .map((paragraph, index) => (
+                  <Text key={`${activeSwordsSceneKey}-${index}`} dimColor>
+                    {paragraph}
+                  </Text>
+                ))}
+            </Box>
+            {secondBeatFullyRevealed
+              ? renderSwordsJourneyPanel(swordsRelevantMemory)
+              : null}
+            {secondBeatFullyRevealed &&
+            !secondBeatNeedsContinuationGate &&
+            secondBeatScene.hintText ? (
               <Text dimColor>{secondBeatScene.hintText}</Text>
             ) : null}
-            <Select
-              options={[
-                ...secondBeatScene.options,
-                {
-                  label: 'Make your own move',
-                  value: 'free-response',
-                  description: 'Answer the scene in your own words',
-                },
-                {
-                  label: `Step back out of ${swordsEncounterPlace}`,
-                  value: 'back',
-                  description: 'Leave before the place decides for you',
-                },
-              ]}
-              onChange={value => {
-                if (value === 'back') {
+            {secondBeatNeedsContinuationGate ? (
+              <Select
+                options={[
+                  {
+                    label: 'Continue the committed scene',
+                    value: 'continue-scene',
+                    description:
+                      'Let the consequence already in motion unfold before choosing again',
+                  },
+                ]}
+                onChange={() => {
+                  setSwordsSceneGateSeenKey(swordsSceneGateKey)
+                  const sceneStateBeat = maybeBuildSwordsSceneStateBeat({
+                    openingChoice,
+                    relevantMemory: swordsRelevantMemory,
+                  })
+
+                  if (!sceneStateBeat) {
+                    return
+                  }
+
+                  const [firstBeat, ...queuedBeats] = sceneStateBeat.beats
+                  if (!firstBeat) {
+                    return
+                  }
+
+                  beginSwordsDramaticBeat({
+                    subtitle: firstBeat.subtitle,
+                    script: firstBeat.script,
+                    queuedBeats,
+                    followup: {
+                      type: 'return-to-second-beat',
+                    },
+                  })
+                }}
+                onCancel={() => {
                   setSwordsEncounter({
                     openingChoice: null,
                   })
                   retreatFromSwordsOfChaos('second-beat', openingChoice)
-                  return
-                }
+                }}
+              />
+            ) : secondBeatFullyRevealed ? (
+              <Select
+                options={[
+                  ...secondBeatScene.options,
+                  {
+                    label: 'Make your own move',
+                    value: 'free-response',
+                    description: 'Answer the scene in your own words',
+                  },
+                  {
+                    label: `Step back out of ${swordsEncounterPlace}`,
+                    value: 'back',
+                    description: 'Leave before the place decides for you',
+                  },
+                ]}
+                onChange={value => {
+                  if (value === 'back') {
+                    setSwordsEncounter({
+                      openingChoice: null,
+                    })
+                    retreatFromSwordsOfChaos('second-beat', openingChoice)
+                    return
+                  }
 
-                if (value === 'free-response') {
-                  beginSwordsFreeResponse('second-beat', openingChoice)
-                  return
-                }
+                  if (value === 'free-response') {
+                    beginSwordsFreeResponse('second-beat', openingChoice)
+                    return
+                  }
 
-                beginSwordsDramaticBeat({
-                  subtitle: `${getSwordsOpeningLabel(openingChoice)} changes the room.`,
-                  script: buildSwordsSecondBeat(
-                    value as SwordsOfChaosSecondChoice,
-                    swordsEncounterPlace,
-                  ),
-                  followup: {
-                    type: 'result',
+                  const dealerChoiceBeat = maybeBuildSwordsDealerChoiceBeat({
+                    stage: 'second-beat',
                     openingChoice,
                     secondChoice: value as SwordsOfChaosSecondChoice,
-                  },
-                })
-              }}
-              onCancel={() => {
-                setSwordsEncounter({
-                  openingChoice: null,
-                })
-                retreatFromSwordsOfChaos('second-beat', openingChoice)
-              }}
-            />
+                    relevantMemory: swordsRelevantMemory,
+                  })
+
+                if (dealerChoiceBeat) {
+                  setSwordsSceneGateSeenKey(null)
+                  const [firstBeat, ...queuedBeats] = dealerChoiceBeat.beats
+                  if (!firstBeat) {
+                    return
+                  }
+                  beginSwordsDramaticBeat({
+                    subtitle: firstBeat.subtitle,
+                    script: firstBeat.script,
+                    queuedBeats,
+                    followup: {
+                      type: 'result',
+                      openingChoice,
+                        secondChoice: value as SwordsOfChaosSecondChoice,
+                      },
+                    })
+                    return
+                  }
+
+                  finishSwordsOfChaos(
+                    openingChoice,
+                    value as SwordsOfChaosSecondChoice,
+                  )
+                }}
+                onCancel={() => {
+                  setSwordsEncounter({
+                    openingChoice: null,
+                  })
+                  retreatFromSwordsOfChaos('second-beat', openingChoice)
+                }}
+              />
+            ) : (
+              <Text dimColor>The scene is still arriving…</Text>
+            )}
           </Box>
         </Dialog>
       )
@@ -1315,49 +1435,84 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
         onCancel={() => retreatFromSwordsOfChaos('opening')}
       >
         <Box flexDirection="column" gap={1}>
-          <Text dimColor>{swordsOpeningScene.sceneText}</Text>
-          {swordsOpeningScene.hintText ? (
+          <Box flexDirection="column">
+            {activeSwordsSceneParagraphs
+              .slice(0, swordsSceneReveal.revealed)
+              .map((paragraph, index) => (
+                <Text key={`${activeSwordsSceneKey}-${index}`} dimColor>
+                  {paragraph}
+                </Text>
+              ))}
+          </Box>
+          {swordsSceneReveal.key === activeSwordsSceneKey &&
+          swordsSceneReveal.revealed >= activeSwordsSceneParagraphs.length
+            ? renderSwordsJourneyPanel(swordsOpeningMemory)
+            : null}
+          {swordsSceneReveal.key === activeSwordsSceneKey &&
+          swordsSceneReveal.revealed >= activeSwordsSceneParagraphs.length &&
+          swordsOpeningScene.hintText ? (
             <Text dimColor>{swordsOpeningScene.hintText}</Text>
           ) : null}
-          <Select
-            options={[
-              ...swordsOpeningScene.options,
-              {
-                label: 'Make your own move',
-                value: 'free-response',
-                description: 'Answer the opening in your own words',
-              },
-              {
-                label: 'Retreat to safer waters',
-                value: 'back',
-                description: `Leave ${swordsEncounterPlace} before the moment closes around you`,
-              },
-            ]}
-            onChange={value => {
-              if (value === 'back') {
-                retreatFromSwordsOfChaos('opening')
-                return
-              }
-
-              if (value === 'free-response') {
-                beginSwordsFreeResponse('opening')
-                return
-              }
-
-              beginSwordsDramaticBeat({
-                subtitle: `${getSwordsOpeningLabel(value as SwordsOfChaosOpeningChoice)} begins the trouble.`,
-                script: buildSwordsOpeningBeat(
-                  value as SwordsOfChaosOpeningChoice,
-                  swordsEncounterPlace,
-                ),
-                followup: {
-                  type: 'opening',
-                  openingChoice: value as SwordsOfChaosOpeningChoice,
+          {swordsSceneReveal.key === activeSwordsSceneKey &&
+          swordsSceneReveal.revealed >= activeSwordsSceneParagraphs.length ? (
+            <Select
+              options={[
+                ...swordsOpeningScene.options,
+                {
+                  label: 'Make your own move',
+                  value: 'free-response',
+                  description: 'Answer the opening in your own words',
                 },
-              })
-            }}
-            onCancel={() => retreatFromSwordsOfChaos('opening')}
-          />
+                {
+                  label: 'Retreat to safer waters',
+                  value: 'back',
+                  description: `Leave ${swordsEncounterPlace} before the moment closes around you`,
+                },
+              ]}
+              onChange={value => {
+                if (value === 'back') {
+                  retreatFromSwordsOfChaos('opening')
+                  return
+                }
+
+                if (value === 'free-response') {
+                  beginSwordsFreeResponse('opening')
+                  return
+                }
+
+                const dealerChoiceBeat = maybeBuildSwordsDealerChoiceBeat({
+                  stage: 'opening',
+                  openingChoice: value as SwordsOfChaosOpeningChoice,
+                  relevantMemory: swordsRelevantMemory,
+                })
+
+                if (dealerChoiceBeat) {
+                  const [firstBeat, ...queuedBeats] = dealerChoiceBeat.beats
+                  if (!firstBeat) {
+                    return
+                  }
+                  beginSwordsDramaticBeat({
+                    subtitle: firstBeat.subtitle,
+                    script: firstBeat.script,
+                    queuedBeats,
+                    followup: {
+                      type: 'opening',
+                      openingChoice: value as SwordsOfChaosOpeningChoice,
+                    },
+                  })
+                  return
+                }
+
+                setSwordsEncounter({
+                  openingChoice: value as SwordsOfChaosOpeningChoice,
+                })
+                setSwordsSceneGateSeenKey(null)
+              }}
+              onCancel={() => retreatFromSwordsOfChaos('opening')}
+            />
+          ) : (
+            <Text dimColor>The scene is still arriving…</Text>
+          )}
         </Box>
       </Dialog>
     )
@@ -1381,6 +1536,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           <Text dimColor>- games played: {archiveSummary.gamesPlayed}</Text>
           <Text dimColor>- wins: {archiveSummary.wins}</Text>
           <Text dimColor>- losses: {archiveSummary.losses}</Text>
+          {renderSwordsJourneyPanel(swordsRelevantMemory)}
           {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
           <Select
             options={[

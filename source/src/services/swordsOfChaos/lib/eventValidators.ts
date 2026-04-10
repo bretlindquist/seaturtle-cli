@@ -50,9 +50,88 @@ function validateMutationEvent(event: SwordsOfChaosMutationEvent): void {
         throw new Error('Invalid callback_marker_add event')
       }
       return
+    case 'character_development_update':
+      if (
+        ![
+          'edge',
+          'composure',
+          'nerve',
+          'witness',
+          'threshold',
+          'myth',
+        ].includes(event.development.focus) ||
+        !event.development.title.trim() ||
+        !event.development.lesson.trim() ||
+        !event.development.pressure.trim() ||
+        typeof event.development.stage !== 'number' ||
+        typeof event.development.lastUpdatedAt !== 'number' ||
+        !event.milestone.trim() ||
+        typeof event.xpDelta !== 'number'
+      ) {
+        throw new Error('Invalid character_development_update event')
+      }
+      return
+    case 'magic_state_update':
+      if (
+        typeof event.magic.rarityBudget !== 'number' ||
+        typeof event.magic.omensSeen !== 'number' ||
+        typeof event.magic.crossingsOpened !== 'number' ||
+        !['none', 'omen', 'crossing', 'witness', 'relic-sign'].includes(
+          event.magic.activeImpossible,
+        ) ||
+        (event.magic.lastOmen !== null && !event.magic.lastOmen.trim()) ||
+        (event.magic.lastManifestationAt !== null &&
+          typeof event.magic.lastManifestationAt !== 'number')
+      ) {
+        throw new Error('Invalid magic_state_update event')
+      }
+      return
     case 'encounter_memory_record':
       if (!event.encounter.trim() || !event.opener.trim()) {
         throw new Error('Invalid encounter_memory_record event')
+      }
+      return
+    case 'story_state_update':
+      if (
+        !event.activeLocus.trim() ||
+        !event.activeThread.trim() ||
+        typeof event.chapter !== 'number' ||
+        !event.chapterTitle.trim() ||
+        !['low', 'rising', 'high'].includes(event.tension) ||
+        !event.currentObjective.trim() ||
+        !event.carryForward.trim() ||
+        !event.continuation.summary.trim() ||
+        !event.continuation.nextPressure.trim() ||
+        !event.sceneState.commitment.trim() ||
+        !event.sceneState.hazard.trim() ||
+        !event.sceneState.pendingReveal.trim() ||
+        ![
+          'watcher-pressure',
+          'wrong-name-echo',
+          'oath-binding',
+          'threshold-strain',
+          'relic-resonance',
+          'unquiet-aftermath',
+        ].includes(event.continuation.kind) ||
+        !['linger', 'press', 'reveal'].includes(event.continuation.pacing) ||
+        ![
+          'watched-approach',
+          'threshold-contest',
+          'name-pressure',
+          'relic-nearness',
+          'oath-test',
+          'unquiet-scene',
+        ].includes(event.sceneState.kind) ||
+        !['live', 'complicating', 'revealing', 'paying-off'].includes(
+          event.sceneState.status,
+        ) ||
+        typeof event.sceneState.beatsElapsed !== 'number' ||
+        !['relic', 'title', 'oath', 'truth', 'refusal'].includes(
+          event.lastOutcomeKey,
+        ) ||
+        typeof event.advancedAt !== 'number'
+      ) {
+        throw new Error('Invalid story_state_update event')
       }
       return
   }

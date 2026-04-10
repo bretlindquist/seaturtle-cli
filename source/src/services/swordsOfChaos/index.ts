@@ -10,6 +10,7 @@ export {
   applySwordsOfChaosEventBatchToSave,
   buildSwordsProceduralOptions,
   completeSwordsSessionZero,
+  consumeSwordsPendingSeaTurtleOpening,
   ensureSwordsOfChaosRuntimeReady,
   finalizeSwordsCustomCharacter,
   finalizeSwordsPremadeCharacter,
@@ -31,12 +32,18 @@ export {
   getSwordsSecondBeatVariant,
 } from './lib/shells.js'
 export { renderSwordsOfChaosHybridScene } from './lib/hybridDm.js'
-export { adjudicateSwordsFreeResponse, classifySwordsFreeResponse } from './lib/liveDm.js'
+export {
+  adjudicateSwordsFreeResponse,
+  classifySwordsFreeResponse,
+  maybeBuildSwordsDealerChoiceBeat,
+  maybeBuildSwordsSceneStateBeat,
+} from './lib/liveDm.js'
 export { getSwordsOfChaosRelevantMemory } from './lib/relevantMemory.js'
 export { getSwordsOfChaosRetreatNarration } from './lib/edgeNarration.js'
 export { recordSwordsOfChaosRetreat } from './lib/retreats.js'
 export {
   getSwordsEncounterLocus,
+  getSwordsEncounterLocusFromMemoryKey,
   getSwordsEncounterMemoryKey,
   getSwordsEncounterPlaceName,
   isSwordsEncounterMemoryKey,
@@ -89,6 +96,7 @@ export type {
   SwordsDmAction,
   SwordsDmActionKind,
   SwordsDmAdjudication,
+  SwordsDramaticBeatSegment,
   SwordsFreeResponseIntent,
   SwordsFreeResponseRisk,
   SwordsFreeResponseTactic,

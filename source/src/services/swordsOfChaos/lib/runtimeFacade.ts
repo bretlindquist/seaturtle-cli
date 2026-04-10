@@ -38,6 +38,20 @@ function shouldTriggerSeaTurtleGlimpse(save: SwordsOfChaosSaveFile): boolean {
   return alleyVisits >= 3 && hasCanonThread
 }
 
+function consumeWorldFlag(
+  save: SwordsOfChaosSaveFile,
+  flag: string,
+): SwordsOfChaosSaveFile {
+  if (!save.worldFlags.includes(flag)) {
+    return save
+  }
+
+  return {
+    ...save,
+    worldFlags: save.worldFlags.filter(existingFlag => existingFlag !== flag),
+  }
+}
+
 export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
   let save = ensureSwordsOfChaosSaveExists()
 
@@ -53,6 +67,10 @@ export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
           {
             kind: 'world_flag_add',
             flag: 'seaturtle:glimpsed-in-swords-of-chaos',
+          },
+          {
+            kind: 'world_flag_add',
+            flag: 'seaturtle:pending-opening-glimpse',
           },
         ],
       }),
@@ -76,6 +94,17 @@ export function ensureSwordsOfChaosRuntimeReady(): SwordsOfChaosSaveFile {
     },
   })
   return save
+}
+
+export function consumeSwordsPendingSeaTurtleOpening(
+  save: SwordsOfChaosSaveFile,
+): SwordsOfChaosSaveFile {
+  const next = consumeWorldFlag(save, 'seaturtle:pending-opening-glimpse')
+  if (next === save) {
+    return save
+  }
+
+  return saveSwordsOfChaosSave(next)
 }
 
 export function swordsNeedsCharacterCreation(

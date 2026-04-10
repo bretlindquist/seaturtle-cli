@@ -1,3 +1,10 @@
+import type { SwordsOfChaosCharacterDevelopment } from './save.js'
+import type {
+  SwordsOfChaosMagicState,
+  SwordsOfChaosSceneState,
+  SwordsOfChaosStoryContinuation,
+} from './save.js'
+
 export type SwordsOfChaosHistoryEventRecord = {
   at: number
   kind:
@@ -56,6 +63,35 @@ export type SwordsOfChaosMutationEvent =
       encounter: string
       opener: string
       route?: string
+    }
+  | {
+      kind: 'character_development_update'
+      development: SwordsOfChaosCharacterDevelopment & {
+        focus: NonNullable<SwordsOfChaosCharacterDevelopment['focus']>
+        title: string
+        lesson: string
+        pressure: string
+      }
+      milestone: string
+      xpDelta: number
+    }
+  | {
+      kind: 'magic_state_update'
+      magic: SwordsOfChaosMagicState
+    }
+  | {
+      kind: 'story_state_update'
+      activeLocus: string
+      activeThread: string
+      chapter: number
+      chapterTitle: string
+      tension: 'low' | 'rising' | 'high'
+      currentObjective: string
+      carryForward: string
+      continuation: SwordsOfChaosStoryContinuation
+      sceneState: SwordsOfChaosSceneState
+      lastOutcomeKey: 'relic' | 'title' | 'oath' | 'truth' | 'refusal'
+      advancedAt: number
     }
 
 export type SwordsOfChaosEventBatch = {

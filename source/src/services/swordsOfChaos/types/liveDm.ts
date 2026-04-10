@@ -84,3 +84,8 @@ export type SwordsDramaticBeatScript = {
   focus: 'hold' | 'tighten' | 'strike'
   lines: SwordsDramaticBeatLine[]
 }
+
+export type SwordsDramaticBeatSegment = {
+  subtitle: string
+  script: SwordsDramaticBeatScript
+}

@@ -35,9 +35,9 @@ export const SWORDS_OF_CHAOS_OPENING_OPTIONS: SwordsOpeningOption[] = [
 
 export const SWORDS_OF_CHAOS_OPENING_SHELL: SwordsOpeningShell = {
   subtitle:
-    'A short BBS alleyway. A trench-coat turtle. Three different ways to make the night interesting.',
+    'A short BBS alleyway. A figure under a broken lamp. Three different ways to make the night interesting.',
   sceneText:
-    'Neon rain. A humming sign. A trench-coat turtle under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
+    'Neon rain. A humming sign. Someone in a trench coat under one broken lamp.\n\nThe first move matters here. Pick the posture that feels most like trouble you can survive.',
   hintText: 'Choose a stance, not just an action.',
 }
 
@@ -135,7 +135,7 @@ export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
 > = {
   'draw-steel': {
     subtitle:
-      'The trench-coat turtle shifts one step sideways. The broken sign hums louder.',
+      'The figure under the broken lamp shifts one step sideways. The sign hums louder.',
     intro:
       'You have announced yourself with steel. Now the alley wants to know whether you came for theater, balance, or trouble.',
     options: [
@@ -158,7 +158,7 @@ export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   },
   'bow-slightly': {
     subtitle:
-      'The turtle returns the gesture by half a breath. The rain keeps score.',
+      'The figure returns the gesture by half a breath. The rain keeps score.',
     intro:
       'Respect bought you a second moment. The alley now wants to see whether your calm is discipline, courage, or curiosity.',
     options: [
@@ -181,7 +181,7 @@ export const SWORDS_OF_CHAOS_SECOND_BEATS: Record<
   },
   'talk-like-you-belong': {
     subtitle:
-      'The trench-coat turtle lets the silence run just long enough to become dangerous.',
+      'The figure in the trench coat lets the silence run just long enough to become dangerous.',
     intro:
       'You walked in as if this place already knew you. Now you have to prove whether that was charm, nerve, or a spectacular mistake.',
     options: [

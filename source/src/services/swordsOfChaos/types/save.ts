@@ -1,3 +1,5 @@
+import type { SwordsOfChaosEncounterLocus } from './worldMap.js'
+
 export type SwordsOfChaosPlayerState = {
   level: number
   hp: number
@@ -35,6 +37,22 @@ export type SwordsOfChaosSeaTurtleState = {
   lastAppearanceAt: number | null
 }
 
+export type SwordsOfChaosCharacterDevelopment = {
+  focus:
+    | 'edge'
+    | 'composure'
+    | 'nerve'
+    | 'witness'
+    | 'threshold'
+    | 'myth'
+    | null
+  title: string | null
+  lesson: string | null
+  pressure: string | null
+  stage: number
+  lastUpdatedAt: number | null
+}
+
 export type SwordsOfChaosRunHistorySummary = {
   runsStarted: number
   runsFinished: number
@@ -54,10 +72,68 @@ export type SwordsOfChaosThreadMemory = {
   lastSeenAt: number | null
 }
 
+export type SwordsOfChaosStoryContinuation = {
+  kind:
+    | 'watcher-pressure'
+    | 'wrong-name-echo'
+    | 'oath-binding'
+    | 'threshold-strain'
+    | 'relic-resonance'
+    | 'unquiet-aftermath'
+  summary: string
+  nextPressure: string
+  pacing: 'linger' | 'press' | 'reveal'
+}
+
+export type SwordsOfChaosSceneState = {
+  kind:
+    | 'watched-approach'
+    | 'threshold-contest'
+    | 'name-pressure'
+    | 'relic-nearness'
+    | 'oath-test'
+    | 'unquiet-scene'
+  status: 'live' | 'complicating' | 'revealing' | 'paying-off'
+  commitment: string
+  hazard: string
+  pendingReveal: string
+  beatsElapsed: number
+  lastProgressedAt: number | null
+}
+
+export type SwordsOfChaosMagicState = {
+  rarityBudget: number
+  omensSeen: number
+  crossingsOpened: number
+  activeImpossible:
+    | 'none'
+    | 'omen'
+    | 'crossing'
+    | 'witness'
+    | 'relic-sign'
+  lastOmen: string | null
+  lastManifestationAt: number | null
+}
+
+export type SwordsOfChaosStoryState = {
+  activeLocus: SwordsOfChaosEncounterLocus | null
+  activeThread: string | null
+  chapter: number
+  chapterTitle: string | null
+  tension: 'low' | 'rising' | 'high'
+  currentObjective: string | null
+  carryForward: string | null
+  continuation: SwordsOfChaosStoryContinuation | null
+  sceneState: SwordsOfChaosSceneState | null
+  lastOutcomeKey: 'relic' | 'title' | 'oath' | 'truth' | 'refusal' | null
+  lastAdvancedAt: number | null
+}
+
 export type SwordsOfChaosSaveFile = {
   version: 1
   player: SwordsOfChaosPlayerState
   character: SwordsOfChaosCharacterSheet
+  characterDevelopment: SwordsOfChaosCharacterDevelopment
   sessionZero: SwordsOfChaosSessionZeroState
   inventory: string[]
   conditions: string[]
@@ -73,6 +149,8 @@ export type SwordsOfChaosSaveFile = {
   threadCandidates: string[]
   threadMemory: Record<string, SwordsOfChaosThreadMemory>
   encounterMemory: Record<string, SwordsOfChaosEncounterMemory>
+  story: SwordsOfChaosStoryState
+  magic: SwordsOfChaosMagicState
   seaturtle: SwordsOfChaosSeaTurtleState
   runHistorySummary: SwordsOfChaosRunHistorySummary
 }

@@ -1,4 +1,14 @@
 import { getSwordsEncounterLocus, getSwordsEncounterPlaceName } from './worldMap.js'
+import {
+  getSwordsCharacterReactionLine,
+  getSwordsCharacterTemptationLine,
+} from './characterPlanner.js'
+import { getSwordsMagicLine } from './magicPlanner.js'
+import {
+  getSwordsCarryForwardPressure,
+  getSwordsContinuationLead,
+  getSwordsSceneStateLead,
+} from './storyPlanner.js'
 import type { SwordsOfChaosSceneStage } from '../types/dm.js'
 import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
 import type { SwordsOfChaosOpeningChoice, SwordsOfChaosSecondChoice } from '../types/outcomes.js'
@@ -6,6 +16,8 @@ import type {
   SwordsDmAction,
   SwordsDmAdjudication,
   SwordsDramaticBeatLine,
+  SwordsDramaticBeatSegment,
+  SwordsDramaticBeatScript,
   SwordsFreeResponseIntent,
   SwordsFreeResponseTarget,
   SwordsFreeResponseTactic,
@@ -230,6 +242,339 @@ function buildBeatScript(
   }
 }
 
+function buildDealerChoiceBeatScript(input: {
+  stage: SwordsOfChaosSceneStage
+  place: string
+  locus: ReturnType<typeof getSwordsEncounterLocus>
+  openingChoice: SwordsOfChaosOpeningChoice
+  secondChoice?: SwordsOfChaosSecondChoice
+}): SwordsDramaticBeatScript | null {
+  if (input.stage === 'opening') {
+    switch (input.locus) {
+      case 'space-station':
+        if (input.openingChoice === 'bow-slightly') {
+          return buildBeatScript('hold', [
+            { text: 'You let the corridor decide whether it recognizes the gesture.' },
+            { text: '', tone: 'quiet' },
+            { text: 'A soft chime answers from somewhere that should no longer have power.', tone: 'sound' },
+            { text: '', tone: 'quiet' },
+            { text: 'Then the pressure door gives a tiny mechanical shiver, like a thought trying not to become a decision.', tone: 'accent' },
+          ])
+        }
+        if (input.openingChoice === 'talk-like-you-belong') {
+          return buildBeatScript('tighten', [
+            { text: 'Your voice enters the static as if it expects to be obeyed.' },
+            { text: '', tone: 'quiet' },
+            { text: '*krk*', tone: 'sound' },
+            { text: '', tone: 'quiet' },
+            { text: 'An old speaker almost answers you, then thinks better of it.', tone: 'accent' },
+          ])
+        }
+        return buildBeatScript('strike', [
+          { text: 'You take the corridor like contested ground.' },
+          { text: '', tone: 'quiet' },
+          { text: '*clank*', tone: 'sound' },
+          { text: '', tone: 'quiet' },
+          { text: 'Something deeper in the ring has started moving in answer.', tone: 'accent' },
+        ])
+      case 'dark-dungeon':
+        return buildBeatScript('hold', [
+          { text: `You commit yourself to ${input.place} and let the dark hear that commitment.` },
+          { text: '', tone: 'quiet' },
+          { text: 'A faint *clank* answers from farther down than the stair should go.', tone: 'sound' },
+          { text: '', tone: 'quiet' },
+          { text: 'When your hand finds the wall, the stone feels softer than stone has any right to feel.', tone: 'accent' },
+        ])
+      case 'old-tree':
+        return buildBeatScript('tighten', [
+          { text: 'The roots do not move away from you. They make room.' },
+          { text: '', tone: 'quiet' },
+          { text: '*tik*', tone: 'sound' },
+          { text: '', tone: 'quiet' },
+          { text: 'Somewhere inside the trunk, a hidden mechanism has just admitted that it heard you.', tone: 'accent' },
+        ])
+      case 'ocean-ship':
+        return buildBeatScript('hold', [
+          { text: 'The deck takes your weight and answers by shifting under it.' },
+          { text: '', tone: 'quiet' },
+          { text: 'Below, something knocks once against the hatch, as if checking whether you truly mean to stay.', tone: 'sound' },
+          { text: '', tone: 'quiet' },
+          { text: 'The lantern swing slows, and for one second the whole ship seems to lean in your direction.', tone: 'accent' },
+        ])
+      default:
+        return null
+    }
+  }
+
+  switch (input.secondChoice) {
+    case 'hold-the-line':
+    case 'keep-bowing':
+      return buildBeatScript('hold', [
+        { text: 'You do not break the line you chose.' },
+        { text: '', tone: 'quiet' },
+        { text: 'That is when the hidden part of the scene has to decide whether to reveal itself or keep pretending it is only atmosphere.', tone: 'accent' },
+      ])
+    case 'ask-the-price':
+    case 'meet-the-gaze':
+      return buildBeatScript('tighten', [
+        { text: 'You press the scene for an answer instead of release.' },
+        { text: '', tone: 'quiet' },
+        { text: '*tick*', tone: 'sound' },
+        { text: '', tone: 'quiet' },
+        { text: 'Something in the pressure around you shifts from mood into intention.', tone: 'accent' },
+      ])
+    case 'double-down':
+    case 'cut-the-sign-chain':
+      return buildBeatScript('strike', [
+        { text: 'The choice lands too hard to take back now.' },
+        { text: '', tone: 'quiet' },
+        { text: 'The scene answers immediately, but not all at once.', tone: 'accent' },
+      ])
+    default:
+      return null
+  }
+}
+
+function buildCarryForwardDealerChoiceBeats(input: {
+  stage: SwordsOfChaosSceneStage
+  place: string
+  locus: ReturnType<typeof getSwordsEncounterLocus>
+  relevantMemory?: SwordsOfChaosRelevantMemory
+}): SwordsDramaticBeatSegment[] {
+  const carry = input.relevantMemory?.carryForward?.toLowerCase()
+  if (!carry) {
+    return []
+  }
+
+  const pressure = getSwordsCarryForwardPressure(input.relevantMemory, input.locus)
+  const beats: SwordsDramaticBeatSegment[] = []
+  const continuationLead = getSwordsContinuationLead(input.relevantMemory)
+  const sceneStateLead = getSwordsSceneStateLead(input.relevantMemory)
+  const magicLine = getSwordsMagicLine(input.relevantMemory, input.locus)
+
+  if (pressure.length > 0 || continuationLead || sceneStateLead || magicLine) {
+    beats.push({
+      subtitle: `Last chapter is still in the room in ${input.place}.`,
+      script: buildBeatScript('tighten', [
+        {
+          text:
+            sceneStateLead ??
+            continuationLead ??
+            magicLine ??
+            pressure[0] ??
+            'The previous chapter has not finished arriving yet.',
+        },
+        { text: '', tone: 'quiet' },
+        {
+          text:
+            input.stage === 'opening'
+              ? 'Your committed move has already started pulling on that unfinished consequence.'
+              : 'You are no longer only choosing inside a scene. You are choosing inside what the last scene changed.',
+          tone: 'accent',
+        },
+      ]),
+    })
+  }
+
+  if (input.relevantMemory?.continuation?.kind === 'watcher-pressure') {
+    beats.push({
+      subtitle: `Something continues to watch in ${input.place}.`,
+      script: buildBeatScript('hold', [
+        { text: 'A second silence arrives after the first one, and it is too deliberate to belong to empty architecture.' },
+        { text: '', tone: 'quiet' },
+        { text: 'Whatever learned to watch you last chapter has not gone blind between scenes.', tone: 'accent' },
+      ]),
+    })
+  } else if (input.relevantMemory?.continuation?.kind === 'wrong-name-echo') {
+    beats.push({
+      subtitle: `The wrong name keeps working in ${input.place}.`,
+      script: buildBeatScript('tighten', [
+        { text: 'Somewhere ahead, the place rehearses the wrong version of itself under its breath.' },
+        { text: '', tone: 'quiet' },
+        { text: 'It no longer sounds accidental. It sounds practiced.', tone: 'accent' },
+      ]),
+    })
+  } else if (input.relevantMemory?.continuation?.kind === 'oath-binding') {
+    beats.push({
+      subtitle: `The promise still has weight in ${input.place}.`,
+      script: buildBeatScript('hold', [
+        { text: 'The committed choice does not move alone. It drags a promise behind it.' },
+        { text: '', tone: 'quiet' },
+        { text: 'That changes the way the place is allowed to answer you.', tone: 'accent' },
+      ]),
+    })
+  } else if (input.relevantMemory?.continuation?.kind === 'threshold-strain') {
+    beats.push({
+      subtitle: `A threshold is still deciding in ${input.place}.`,
+      script: buildBeatScript('tighten', [
+        { text: 'The boundary ahead feels less shut than occupied.' },
+        { text: '', tone: 'quiet' },
+        { text: 'Whatever you chose before taught this threshold to pay attention.', tone: 'accent' },
+      ]),
+    })
+  } else if (input.relevantMemory?.continuation?.kind === 'relic-resonance') {
+    beats.push({
+      subtitle: `The relic consequence lingers in ${input.place}.`,
+      script: buildBeatScript('strike', [
+        { text: 'A shell-green glint appears where no glint should survive the light here.' },
+        { text: '', tone: 'quiet' },
+        { text: 'The last chapter left material proof behind, and this moment has just put your hand back near it.', tone: 'accent' },
+      ]),
+    })
+  }
+
+  return beats.slice(0, 2)
+}
+
+export function maybeBuildSwordsDealerChoiceBeat(input: {
+  stage: SwordsOfChaosSceneStage
+  openingChoice: SwordsOfChaosOpeningChoice
+  secondChoice?: SwordsOfChaosSecondChoice
+  relevantMemory?: SwordsOfChaosRelevantMemory
+}): {
+  beats: SwordsDramaticBeatSegment[]
+} | null {
+  const locus = getSwordsEncounterLocus(input.relevantMemory)
+  const place = getSwordsEncounterPlaceName(locus)
+  const script = buildDealerChoiceBeatScript({
+    stage: input.stage,
+    place,
+    locus,
+    openingChoice: input.openingChoice,
+    secondChoice: input.secondChoice,
+  })
+
+  if (!script) {
+    return null
+  }
+
+  const beats: SwordsDramaticBeatSegment[] = [
+    {
+      subtitle:
+        input.stage === 'opening'
+          ? `The scene takes your choice seriously in ${place}.`
+          : `The consequence is still arriving in ${place}.`,
+      script,
+    },
+  ]
+
+  beats.push(
+    ...buildCarryForwardDealerChoiceBeats({
+      stage: input.stage,
+      place,
+      locus,
+      relevantMemory: input.relevantMemory,
+    }),
+  )
+
+  if (input.stage === 'opening') {
+    if (locus === 'dark-dungeon') {
+      beats.push({
+        subtitle: `The dark keeps answering in ${place}.`,
+        script: buildBeatScript('hold', [
+          { text: 'The soft wall gives a little under your fingertips, as if breath were trapped behind the stone.' },
+          { text: '', tone: 'quiet' },
+          { text: 'Nothing rushes you. That is how this place tries to hurry you.', tone: 'accent' },
+        ]),
+      })
+    } else if (locus === 'space-station' && input.openingChoice === 'bow-slightly') {
+      beats.push({
+        subtitle: `The station considers you in ${place}.`,
+        script: buildBeatScript('tighten', [
+          { text: 'A panel light that should be dead flickers once, then steadies.' },
+          { text: '', tone: 'quiet' },
+          { text: 'Some part of the ring has decided you are worth classifying before it decides whether you are welcome.', tone: 'accent' },
+        ]),
+      })
+    }
+  } else if (input.secondChoice === 'hold-the-line' || input.secondChoice === 'keep-bowing') {
+    beats.push({
+      subtitle: `The pressure gathers in ${place}.`,
+      script: buildBeatScript('hold', [
+        { text: 'You keep still long enough for the scene to become embarrassed by its own mask.' },
+        { text: '', tone: 'quiet' },
+        { text: 'Then the concealed part begins deciding how much of itself it can afford to show you.', tone: 'accent' },
+      ]),
+    })
+  }
+
+  if (input.relevantMemory?.continuation?.pacing === 'linger' && beats.length < 3) {
+    beats.push({
+      subtitle: `The scene refuses to hurry in ${place}.`,
+      script: buildBeatScript('hold', [
+        { text: input.relevantMemory.continuation.nextPressure },
+        { text: '', tone: 'quiet' },
+        { text: 'The story wants you to sit inside the consequence for one more beat before it asks for anything new.', tone: 'accent' },
+      ]),
+    })
+  }
+
+  if (
+    input.relevantMemory?.sceneState?.status === 'revealing' &&
+    beats.length < 3
+  ) {
+    beats.push({
+      subtitle: `The scene is preparing to disclose itself in ${place}.`,
+      script: buildBeatScript('tighten', [
+        { text: input.relevantMemory.sceneState.pendingReveal },
+        { text: '', tone: 'quiet' },
+        { text: 'You are still inside the consequence of a choice already made. The next reveal belongs to that choice, not to a fresh menu.', tone: 'accent' },
+      ]),
+    })
+  }
+
+  return {
+    beats,
+  }
+}
+
+export function maybeBuildSwordsSceneStateBeat(input: {
+  openingChoice: SwordsOfChaosOpeningChoice
+  relevantMemory?: SwordsOfChaosRelevantMemory
+}): {
+  beats: SwordsDramaticBeatSegment[]
+} | null {
+  const sceneState = input.relevantMemory?.sceneState
+  if (!sceneState) {
+    return null
+  }
+
+  const locus = getSwordsEncounterLocus(input.relevantMemory)
+  const place = getSwordsEncounterPlaceName(locus)
+
+  const primary: SwordsDramaticBeatSegment = {
+    subtitle: `The committed scene keeps unfolding in ${place}.`,
+    script: buildBeatScript(
+      sceneState.status === 'revealing' ? 'tighten' : 'hold',
+      [
+        { text: sceneState.commitment },
+        { text: '', tone: 'quiet' },
+        { text: sceneState.hazard, tone: 'accent' },
+      ],
+    ),
+  }
+
+  const beats: SwordsDramaticBeatSegment[] = [primary]
+
+  if (sceneState.status === 'revealing' || sceneState.status === 'complicating') {
+    beats.push({
+      subtitle: `The next reveal belongs to the choice already made in ${place}.`,
+      script: buildBeatScript('tighten', [
+        { text: sceneState.pendingReveal },
+        { text: '', tone: 'quiet' },
+        {
+          text: 'The scene is still cashing the intent you already committed to, so it withholds the next real choice for one more beat.',
+          tone: 'accent',
+        },
+      ]),
+    })
+  }
+
+  return {
+    beats,
+  }
+}
+
 function buildSecondBeatActions(
   intent: SwordsFreeResponseIntent,
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
@@ -250,6 +595,14 @@ function buildSecondBeatActions(
 
   if (relevantMemory?.seaturtleGlimpsed && intent.tone === 'careful') {
     actions.push({ kind: 'seaturtle_brush', note: 'A quieter line invites a rare SeaTurtle brush.' })
+  }
+
+  if (relevantMemory?.characterDevelopment?.focus === 'witness' && intent.target === 'witness') {
+    actions.push({ kind: 'reveal_clue', note: 'A witness-shaped character pressure makes the hidden observer more likely to answer.' })
+  }
+
+  if (relevantMemory?.characterDevelopment?.focus === 'edge' && intent.risk === 'high') {
+    actions.push({ kind: 'hard_consequence', note: 'The world is already testing what you do with force.' })
   }
 
   return actions
@@ -302,13 +655,19 @@ function buildSecondBeatLines(
   intent: SwordsFreeResponseIntent,
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): ReturnType<typeof buildBeatScript> {
+  const reaction = getSwordsCharacterReactionLine(
+    relevantMemory,
+    getSwordsEncounterLocus(relevantMemory),
+  )
+  const temptation = getSwordsCharacterTemptationLine(relevantMemory)
+
   if (intent.risk === 'high') {
     return buildBeatScript('strike', [
       { text: 'You press harder instead of backing off.' },
       { text: '', tone: 'quiet' },
       { text: `The pressure in ${place} sharpens at once.`, tone: 'accent' },
       { text: '', tone: 'quiet' },
-      { text: 'Now something has to answer cleanly.', tone: 'plain' },
+      { text: reaction ?? 'Now something has to answer cleanly.', tone: 'plain' },
     ])
   }
 
@@ -323,6 +682,7 @@ function buildSecondBeatLines(
             : `That forces ${place} to reveal more of itself than it wanted to.`,
         tone: 'accent',
       },
+      ...(temptation ? [{ text: '', tone: 'quiet' as const }, { text: temptation, tone: 'plain' as const }] : []),
     ])
   }
 
@@ -337,6 +697,7 @@ function buildSecondBeatLines(
             : 'For a moment, even the room seems tempted to adopt it.',
         tone: 'accent',
       },
+      ...(reaction ? [{ text: '', tone: 'quiet' as const }, { text: reaction, tone: 'plain' as const }] : []),
     ])
   }
 
@@ -344,6 +705,7 @@ function buildSecondBeatLines(
     { text: 'You make the move in your own words, and the scene takes it seriously.' },
     { text: '', tone: 'quiet' },
     { text: `Now ${place} has to answer the intent behind it.`, tone: 'accent' },
+    ...(reaction ? [{ text: '', tone: 'quiet' as const }, { text: reaction, tone: 'plain' as const }] : []),
   ])
 }
 

@@ -34,6 +34,31 @@ export function getSwordsEncounterMemoryKey(
   }
 }
 
+export function getSwordsEncounterLocusFromMemoryKey(
+  key: string,
+): SwordsOfChaosEncounterLocus | null {
+  switch (key) {
+    case 'ashfall-post-apocalyptic-ruin':
+      return 'post-apocalyptic-ruin'
+    case 'red-dust-mars-outpost':
+      return 'mars-outpost'
+    case 'old-tree-bramble-latch':
+      return 'old-tree'
+    case 'black-deck-ocean-ship':
+      return 'ocean-ship'
+    case 'failing-ring-space-station':
+      return 'space-station'
+    case 'foxfire-fae-grove':
+      return 'fae-realm'
+    case 'seductive-dark-dungeon':
+      return 'dark-dungeon'
+    case 'trench-coat-turtle-alley':
+      return 'alley'
+    default:
+      return null
+  }
+}
+
 export function isSwordsEncounterMemoryKey(thread: string): boolean {
   return (
     thread === 'trench-coat-turtle-alley' ||

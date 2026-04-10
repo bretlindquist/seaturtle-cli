@@ -1,3 +1,9 @@
+import type {
+  SwordsOfChaosCharacterDevelopment,
+  SwordsOfChaosSceneState,
+  SwordsOfChaosStoryContinuation,
+} from './save.js'
+
 export type SwordsOfChaosRelevantMemory = {
   familiarPlace?: string
   encounterShift?:
@@ -17,13 +23,31 @@ export type SwordsOfChaosRelevantMemory = {
   recentRelic?: string
   liveThread?: string
   canonThread?: string
+  activeThread?: string
   liveThreadTitle?: string
   canonThreadTitle?: string
+  storyChapter: number
+  chapterTitle?: string
+  storyTension: 'low' | 'rising' | 'high'
+  currentObjective?: string
+  carryForward?: string
+  continuation?: SwordsOfChaosStoryContinuation
+  sceneState?: SwordsOfChaosSceneState
+  characterDevelopment?: SwordsOfChaosCharacterDevelopment
+  lastOutcomeKey?: 'relic' | 'title' | 'oath' | 'truth' | 'refusal'
   threadOmen?: string
   seaturtleGlimpsed: boolean
+  seaturtleOpeningPending: boolean
   seaturtleBond: number
   seaturtleFavor: number
   recurringSymbol?: string
+  magicState?: {
+    rarityBudget: number
+    omensSeen: number
+    crossingsOpened: number
+    activeImpossible: 'none' | 'omen' | 'crossing' | 'witness' | 'relic-sign'
+    lastOmen?: string
+  }
 }
 
 export type SwordsOfChaosDerivedMemory = {
@@ -44,8 +68,25 @@ export type SwordsOfChaosDerivedMemory = {
   recentRelic?: string
   liveThread?: string
   canonThread?: string
+  activeThread?: string
   liveThreadTitle?: string
   canonThreadTitle?: string
+  storyChapter: number
+  chapterTitle?: string
+  storyTension: 'low' | 'rising' | 'high'
+  currentObjective?: string
+  carryForward?: string
+  continuation?: SwordsOfChaosStoryContinuation
+  sceneState?: SwordsOfChaosSceneState
+  characterDevelopment?: SwordsOfChaosCharacterDevelopment
+  lastOutcomeKey?: 'relic' | 'title' | 'oath' | 'truth' | 'refusal'
   threadOmen?: string
   recurringSymbol?: string
+  magicState?: {
+    rarityBudget: number
+    omensSeen: number
+    crossingsOpened: number
+    activeImpossible: 'none' | 'omen' | 'crossing' | 'witness' | 'relic-sign'
+    lastOmen?: string
+  }
 }

@@ -92,6 +92,28 @@ function applySeaTurtleFavorRecord(
   }
 }
 
+function applyStoryStateUpdate(
+  save: SwordsOfChaosSaveFile,
+  event: Extract<SwordsOfChaosMutationEvent, { kind: 'story_state_update' }>,
+): SwordsOfChaosSaveFile {
+  return {
+    ...save,
+    story: {
+      activeLocus: event.activeLocus as SwordsOfChaosSaveFile['story']['activeLocus'],
+      activeThread: event.activeThread,
+      chapter: event.chapter,
+      chapterTitle: event.chapterTitle,
+      tension: event.tension,
+      currentObjective: event.currentObjective,
+      carryForward: event.carryForward,
+      continuation: event.continuation,
+      sceneState: event.sceneState,
+      lastOutcomeKey: event.lastOutcomeKey,
+      lastAdvancedAt: event.advancedAt,
+    },
+  }
+}
+
 function applyMutationEvent(
   save: SwordsOfChaosSaveFile,
   event: SwordsOfChaosMutationEvent,
@@ -131,6 +153,21 @@ function applyMutationEvent(
         ...save,
         callbackMarkers: appendUnique(save.callbackMarkers, event.marker),
       }
+    case 'character_development_update':
+      return {
+        ...save,
+        characterDevelopment: event.development,
+        progression: {
+          ...save.progression,
+          milestones: appendUnique(save.progression.milestones, event.milestone),
+          xp: save.progression.xp + event.xpDelta,
+        },
+      }
+    case 'magic_state_update':
+      return {
+        ...save,
+        magic: event.magic,
+      }
     case 'run_history_update':
       return {
         ...save,
@@ -144,6 +181,8 @@ function applyMutationEvent(
       }
     case 'encounter_memory_record':
       return applyEncounterMemoryRecord(save, event)
+    case 'story_state_update':
+      return applyStoryStateUpdate(save, event)
   }
 }
 

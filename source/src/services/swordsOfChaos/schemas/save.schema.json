@@ -6,6 +6,9 @@
   "required": [
     "version",
     "player",
+    "character",
+    "characterDevelopment",
+    "sessionZero",
     "inventory",
     "conditions",
     "progression",
@@ -16,6 +19,8 @@
     "threadCandidates",
     "threadMemory",
     "encounterMemory",
+    "story",
+    "magic",
     "seaturtle",
     "runHistorySummary"
   ],
@@ -36,6 +41,48 @@
             "type": "number"
           }
         }
+      },
+      "additionalProperties": false
+    },
+    "character": {
+      "type": "object",
+      "required": ["name", "creationMode", "archetype", "className", "species", "origin", "strength", "flaw", "keepsake", "drive", "omen"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "creationMode": { "type": ["string", "null"] },
+        "archetype": { "type": ["string", "null"] },
+        "className": { "type": ["string", "null"] },
+        "species": { "type": ["string", "null"] },
+        "origin": { "type": ["string", "null"] },
+        "strength": { "type": ["string", "null"] },
+        "flaw": { "type": ["string", "null"] },
+        "keepsake": { "type": ["string", "null"] },
+        "drive": { "type": ["string", "null"] },
+        "omen": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "characterDevelopment": {
+      "type": "object",
+      "required": ["focus", "title", "lesson", "pressure", "stage", "lastUpdatedAt"],
+      "properties": {
+        "focus": { "type": ["string", "null"] },
+        "title": { "type": ["string", "null"] },
+        "lesson": { "type": ["string", "null"] },
+        "pressure": { "type": ["string", "null"] },
+        "stage": { "type": "number" },
+        "lastUpdatedAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "sessionZero": {
+      "type": "object",
+      "required": ["completed", "originPlace", "firstContact", "completedAt"],
+      "properties": {
+        "completed": { "type": "boolean" },
+        "originPlace": { "type": ["string", "null"] },
+        "firstContact": { "type": ["string", "null"] },
+        "completedAt": { "type": ["number", "null"] }
       },
       "additionalProperties": false
     },
@@ -119,6 +166,60 @@
         },
         "additionalProperties": false
       }
+    },
+    "story": {
+      "type": "object",
+      "required": ["activeLocus", "activeThread", "chapter", "chapterTitle", "tension", "currentObjective", "carryForward", "continuation", "sceneState", "lastOutcomeKey", "lastAdvancedAt"],
+      "properties": {
+        "activeLocus": { "type": ["string", "null"] },
+        "activeThread": { "type": ["string", "null"] },
+        "chapter": { "type": "number" },
+        "chapterTitle": { "type": ["string", "null"] },
+        "tension": { "type": "string" },
+        "currentObjective": { "type": ["string", "null"] },
+        "carryForward": { "type": ["string", "null"] },
+        "continuation": {
+          "type": ["object", "null"],
+          "properties": {
+            "kind": { "type": "string" },
+            "summary": { "type": "string" },
+            "nextPressure": { "type": "string" },
+            "pacing": { "type": "string" }
+          },
+          "required": ["kind", "summary", "nextPressure", "pacing"],
+          "additionalProperties": false
+        },
+        "sceneState": {
+          "type": ["object", "null"],
+          "properties": {
+            "kind": { "type": "string" },
+            "status": { "type": "string" },
+            "commitment": { "type": "string" },
+            "hazard": { "type": "string" },
+            "pendingReveal": { "type": "string" },
+            "beatsElapsed": { "type": "number" },
+            "lastProgressedAt": { "type": ["number", "null"] }
+          },
+          "required": ["kind", "status", "commitment", "hazard", "pendingReveal", "beatsElapsed", "lastProgressedAt"],
+          "additionalProperties": false
+        },
+        "lastOutcomeKey": { "type": ["string", "null"] },
+        "lastAdvancedAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "magic": {
+      "type": "object",
+      "required": ["rarityBudget", "omensSeen", "crossingsOpened", "activeImpossible", "lastOmen", "lastManifestationAt"],
+      "properties": {
+        "rarityBudget": { "type": "number" },
+        "omensSeen": { "type": "number" },
+        "crossingsOpened": { "type": "number" },
+        "activeImpossible": { "type": "string" },
+        "lastOmen": { "type": ["string", "null"] },
+        "lastManifestationAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
     },
     "seaturtle": {
       "type": "object",

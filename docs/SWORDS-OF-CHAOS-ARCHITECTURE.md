@@ -28,43 +28,45 @@ flowchart TD
     J --> K["memoryModel.ts"]
     K --> L["encounterMemory"]
     K --> M["threadMemory"]
-    K --> N["SeaTurtle state"]
-    K --> O["worldMap.ts"]
+    K --> N["story state / continuation / scene state"]
+    K --> O["SeaTurtle state"]
+    K --> P["worldMap.ts"]
 
-    B --> P["renderSwordsOfChaosHybridScene()"]
-    P --> Q["hybridDm.ts"]
-    Q --> R["shells.ts"]
-    R --> S["swordsOfChaosShells.ts"]
-    Q --> O
+    B --> Q["renderSwordsOfChaosHybridScene()"]
+    Q --> R["hybridDm.ts"]
+    R --> S["shells.ts"]
+    S --> T["swordsOfChaosShells.ts"]
+    R --> P
+    R --> U["storyPlanner.ts / characterPlanner.ts / sceneActionPlanner.ts / magicPlanner.ts"]
 
-    B --> T["resolveSwordsOfChaosRoute()"]
-    T --> U["resolution.ts"]
-    U --> V["outcomes.ts"]
-    V --> W["swordsOfChaosOutcomes.ts"]
-    U --> X["event batch"]
+    B --> V["resolveSwordsOfChaosRoute()"]
+    V --> W["resolution.ts"]
+    W --> X["outcomes.ts"]
+    X --> Y["swordsOfChaosOutcomes.ts"]
+    W --> Z["event batch"]
 
-    X --> Y["eventValidators.ts"]
-    Y --> Z["eventProcessor.ts"]
-    Z --> AA["eventApplier.ts"]
-    AA --> F
-    Z --> H
+    Z --> AA["eventValidators.ts"]
+    AA --> AB["eventProcessor.ts"]
+    AB --> AC["eventApplier.ts"]
+    AC --> F
+    AB --> H
 
-    U --> AB["host echoes"]
-    AB --> I
-    I --> AC["Half-Shell Archives / CT project memory echoes"]
+    W --> AD["host echoes"]
+    AD --> I
+    I --> AE["Half-Shell Archives / CT project memory echoes"]
 
-    K --> AD["Encounter family shift"]
-    AD --> AE["alley"]
-    AD --> AF["old-tree"]
-    AD --> AG["ocean-ship"]
-    AD --> AH["post-apocalyptic-ruin"]
-    AD --> AI["space-station"]
-    AD --> AJ["mars-outpost"]
-    AD --> AK["fae-realm"]
-    AD --> AL["dark-dungeon"]
+    K --> AF["Encounter family shift"]
+    AF --> AG["alley"]
+    AF --> AH["old-tree"]
+    AF --> AI["ocean-ship"]
+    AF --> AJ["post-apocalyptic-ruin"]
+    AF --> AK["space-station"]
+    AF --> AL["mars-outpost"]
+    AF --> AM["fae-realm"]
+    AF --> AN["dark-dungeon"]
 
-    N --> AM["rare SeaTurtle glimpse"]
-    AM --> AN["quiet-line favor path"]
+    O --> AO["rare SeaTurtle glimpse"]
+    AO --> AP["quiet-line favor path"]
 ```
 
 ## Current Architecture Truths
@@ -72,15 +74,56 @@ flowchart TD
 - `game.tsx` is the host surface, not the game engine.
 - `swordsOfChaos/` owns the game truth.
 - local save state and event history are the canonical memory layer.
+- the save truth now includes:
+  - story chapter/objective/tension
+  - continuation state
+  - unfolding scene state
+  - character development state
+  - magical pressure state
 - only selected high-salience outcomes echo back into SeaTurtle archives.
 - encounter progression is driven by:
   - canonized threads
   - encounter memory
+  - continuation and scene state
+  - character development pressure
+  - magical pressure
   - rare SeaTurtle state
 - the hybrid DM seam is bounded and deterministic right now:
-  - runtime-owned shells
+  - runtime-owned resolution and event truth
   - runtime-owned outcomes
   - runtime-owned event application
+  - planner-owned scene action generation
+  - planner-owned pacing and pressure shaping
+
+## Current Planner Ownership
+
+The present planner stack is:
+
+- `storyPlanner.ts`
+  - chapter advancement
+  - objective and tension progression
+  - carry-forward and continuation shaping
+  - outcome variation framing
+- `characterPlanner.ts`
+  - character arc advancement
+  - world-facing recognition, temptation, and payoff pressure
+- `sceneActionPlanner.ts`
+  - scene-native opening and second-beat action surfaces
+- `magicPlanner.ts`
+  - tracked uncanny escalation, omens, crossings, and impossible pressure
+
+## Host Surface Responsibilities
+
+`game.tsx` now owns:
+
+- typed scene reveal pacing
+- dealer's-choice dramatic beats
+- continuation gating before the next real choice
+- the compact journey panel that surfaces current arc, objective, aftermath,
+  and active uncanny pressure
+
+It does not own canon. It only presents canon generated and persisted by the
+runtime.
 
 ## Why This Matters
 

@@ -4,13 +4,41 @@ import {
   buildSwordsOfChaosSaveSummary,
 } from './dmPromptBuilder.js'
 import {
-  getSwordsOpeningOptions,
   getSwordsOpeningLabel,
   getSwordsOpeningShellVariant,
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
 } from './shells.js'
+import { getSwordsMagicLine, getSwordsMagicPressure } from './magicPlanner.js'
+import {
+  getSwordsOpeningActionSet,
+  getSwordsSceneStakesLine,
+  getSwordsSecondBeatActionSet,
+} from './sceneActionPlanner.js'
 import { getSwordsSeaTurtleFavoredSecondChoice } from './seaturtleChoice.js'
+import {
+  applySwordsCharacterPressureToSecondBeatOptions,
+  getSwordsCharacterDevelopmentHint,
+  getSwordsCharacterDevelopmentLine,
+  getSwordsCharacterDevelopmentPressure,
+  getSwordsCharacterReactionLine,
+  getSwordsCharacterRecognitionLine,
+  getSwordsCharacterTemptationLine,
+} from './characterPlanner.js'
+import {
+  applySwordsCarryForwardToSecondBeatOptions,
+  applySwordsStoryPressureToOpeningOptions,
+  applySwordsStoryPressureToSecondBeatOptions,
+  getSwordsAftermathLine,
+  getSwordsCarryForwardPressure,
+  getSwordsContinuationLead,
+  getSwordsContinuationPressure,
+  getSwordsSceneStateLead,
+  getSwordsSceneStatePressure,
+  getSwordsStoryChapterLine,
+  getSwordsStorySecondBeatLead,
+  getSwordsStorySecondBeatPressure,
+} from './storyPlanner.js'
 import {
   getSwordsEncounterLocus,
   getSwordsRecurringSymbol,
@@ -42,79 +70,6 @@ function limitSceneAccents(
   )
 
   return filtered.slice(0, 1)
-}
-
-function getOpeningOptionsForLocus(
-  locus: ReturnType<typeof getSwordsEncounterLocus>,
-): SwordsOpeningOption[] {
-  const options = getSwordsOpeningOptions()
-
-  if (locus === 'alley') {
-    return options
-  }
-
-  return options.map(option => {
-    switch (locus) {
-      case 'old-tree':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Rest your hand on the hilt and step under the hanging roots' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Offer the old tree the courtesy you would give an armed host' }
-        }
-        return { ...option, description: 'Speak like you have crossed this threshold before and expect to pass again' }
-      case 'ocean-ship':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Set your stance on the wet deck and let the crew see you are ready' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Give the ship a sailor’s courtesy and see what answers it' }
-        }
-        return { ...option, description: 'Talk like you belong on this vessel and were merely late to the watch' }
-      case 'fae-realm':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Let your hand drift toward steel and see whether the grove calls it rude' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Offer precise courtesy and wait to see who claims it' }
-        }
-        return { ...option, description: 'Speak as if you know the old forms and expect the grove to remember you' }
-      case 'space-station':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Square up in the corridor with the blade ready for whatever opens first' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Give the failing station a formal nod and see if protocol survives' }
-        }
-        return { ...option, description: 'Talk like you know this ring, this corridor, and the machine listening behind it' }
-      case 'mars-outpost':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Set yourself against the dust and let the outpost see you are not soft' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Offer the cracked beacon a small respect and wait for the answer' }
-        }
-        return { ...option, description: 'Speak like a survivor who has already done a season in this dead place' }
-      case 'post-apocalyptic-ruin':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Step through the ash with the blade ready and the street in view' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Give the ruined district the courtesy of treating its dead as present' }
-        }
-        return { ...option, description: 'Talk like you know who used to rule this street and why it fell' }
-      case 'dark-dungeon':
-        if (option.value === 'draw-steel') {
-          return { ...option, description: 'Raise steel before the whispering dark decides you are prey' }
-        }
-        if (option.value === 'bow-slightly') {
-          return { ...option, description: 'Offer the dark a measured calm and see whether it mistakes that for permission' }
-        }
-        return { ...option, description: 'Speak into the dungeon like you have answered its questions before' }
-      default:
-        return option
-    }
-  })
 }
 
 function getBiomeRecallLanguage(
@@ -299,11 +254,11 @@ function getSecondBeatLead(
   if (!relevantMemory?.familiarPlace) {
     switch (openingChoice) {
       case 'draw-steel':
-        return 'Steel got you this far. The turtle has not moved, which is its own kind of answer.'
+        return 'Steel got you this far. The figure under the broken lamp has not moved, which is its own kind of answer.'
       case 'bow-slightly':
         return 'Courtesy got you this far. Nothing in the alley has relaxed, but nothing has thrown you out either.'
       case 'talk-like-you-belong':
-        return 'The bluff got you this far. The turtle is still listening, which is more dangerous than interruption.'
+        return 'The bluff got you this far. The figure is still listening, which is more dangerous than interruption.'
     }
   }
 
@@ -545,7 +500,7 @@ function renderDeterministicScene(
         : familiar && returningAgain
         ? payload.relevantMemory?.canonThread
           ? getSwordsOpeningShellVariant('threadmarked')
-          : payload.relevantMemory?.seaturtleGlimpsed
+          : payload.relevantMemory?.seaturtleOpeningPending
             ? getSwordsOpeningShellVariant('seaturtle')
             : getSwordsOpeningShellVariant('returning')
         : familiar
@@ -553,6 +508,14 @@ function renderDeterministicScene(
           : getSwordsOpeningShellVariant('default')
     const atmosphereLine = getOpeningAtmosphereLine(payload.relevantMemory, locus)
     const openingTail = limitSceneAccents(locus, [
+      getSwordsStoryChapterLine(payload.relevantMemory),
+      getSwordsCharacterDevelopmentLine(payload.relevantMemory),
+      getSwordsCharacterRecognitionLine(payload.relevantMemory),
+      getSwordsCharacterReactionLine(payload.relevantMemory, locus),
+      getSwordsMagicLine(payload.relevantMemory, locus),
+      getSwordsAftermathLine(payload.relevantMemory, locus),
+      getSwordsContinuationLead(payload.relevantMemory),
+      getSwordsSceneStateLead(payload.relevantMemory),
       familiar
         ? payload.relevantMemory?.roadNotTakenHint ??
           'The place waits to see what you do differently this time.'
@@ -563,14 +526,27 @@ function renderDeterministicScene(
     ])
     return {
       subtitle: openingShell.subtitle,
-      sceneText: [openingShell.sceneText, ...openingTail].join('\n\n'),
+      sceneText: [
+        openingShell.sceneText,
+        getSwordsSceneStakesLine({
+          locus,
+          relevantMemory: payload.relevantMemory,
+        }),
+        ...openingTail,
+      ].join('\n\n'),
       options: applyOpeningCallbackMemory(
-        getOpeningOptionsForLocus(locus),
+        applySwordsStoryPressureToOpeningOptions({
+          options: getSwordsOpeningActionSet({
+            locus,
+            relevantMemory: payload.relevantMemory,
+          }),
+          relevantMemory: payload.relevantMemory,
+        }),
         payload.relevantMemory,
       ),
       hintText:
         familiar && returningAgain && !payload.relevantMemory?.canonThread
-          ? payload.relevantMemory?.seaturtleGlimpsed
+          ? payload.relevantMemory?.seaturtleOpeningPending
             ? openingShell.hintText
             : 'The alley remembers your last answer. It is more interested in the one you withheld.'
           : openingShell.hintText,
@@ -605,29 +581,74 @@ function renderDeterministicScene(
   const canonPressure = getCanonThreadPressure(payload.relevantMemory)
   const secondBeatTail =
     locus === 'alley'
-      ? canonPressure
-        ? [canonPressure]
-        : []
-      : []
+      ? [
+          ...(canonPressure ? [canonPressure] : []),
+          ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
+          ...getSwordsContinuationPressure(payload.relevantMemory),
+          ...getSwordsSceneStatePressure(payload.relevantMemory),
+          ...getSwordsCarryForwardPressure(payload.relevantMemory, locus),
+          ...getSwordsStorySecondBeatPressure(payload.relevantMemory),
+        ]
+      : [
+          ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
+          ...getSwordsContinuationPressure(payload.relevantMemory),
+          ...getSwordsSceneStatePressure(payload.relevantMemory),
+          ...getSwordsCarryForwardPressure(payload.relevantMemory, locus),
+          ...getSwordsStorySecondBeatPressure(payload.relevantMemory),
+        ]
   return {
     subtitle:
       payload.relevantMemory?.canonThread && returningAgain
         ? `${secondBeat.subtitle} The air behind it feels occupied.`
         : secondBeat.subtitle,
     sceneText: [
+      ...(getSwordsStorySecondBeatLead(payload.relevantMemory)
+        ? [getSwordsStorySecondBeatLead(payload.relevantMemory) as string]
+        : []),
+      getSwordsSceneStakesLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }),
+      ...(getSwordsContinuationLead(payload.relevantMemory)
+        ? [getSwordsContinuationLead(payload.relevantMemory) as string]
+        : []),
+      ...(getSwordsSceneStateLead(payload.relevantMemory)
+        ? [getSwordsSceneStateLead(payload.relevantMemory) as string]
+        : []),
+      ...(getSwordsCharacterReactionLine(payload.relevantMemory, locus)
+        ? [getSwordsCharacterReactionLine(payload.relevantMemory, locus) as string]
+        : []),
       getSecondBeatLead(payload.openingChoice, payload.relevantMemory),
       secondBeat.intro,
       ...secondBeatTail,
     ].join('\n\n'),
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
-      secondBeat.options,
+      applySwordsCarryForwardToSecondBeatOptions({
+        options: applySwordsCharacterPressureToSecondBeatOptions({
+          options: applySwordsStoryPressureToSecondBeatOptions({
+            openingChoice: payload.openingChoice,
+            options: getSwordsSecondBeatActionSet({
+              openingChoice: payload.openingChoice,
+              locus,
+              relevantMemory: payload.relevantMemory,
+            }),
+            locus,
+            relevantMemory: payload.relevantMemory,
+          }),
+          relevantMemory: payload.relevantMemory,
+        }),
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }),
       payload.relevantMemory,
     ),
-    hintText: getSecondBeatHint(
-      payload.openingChoice,
-      payload.relevantMemory,
-    ),
+    hintText:
+      getSwordsCharacterTemptationLine(payload.relevantMemory) ??
+      getSwordsCharacterDevelopmentHint(payload.relevantMemory) ??
+      getSecondBeatHint(payload.openingChoice, payload.relevantMemory),
   }
 }
 
