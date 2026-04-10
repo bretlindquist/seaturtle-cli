@@ -520,7 +520,8 @@ export type GlobalConfig = {
   respectGitignore: boolean // Whether file picker should respect .gitignore files (default: true). Note: .ignore files are always respected
 
   // Copy command behavior
-  copyFullResponse: boolean // Whether /copy always copies the full response instead of showing the picker
+  copyFullResponse: boolean // @deprecated Use copyCommandBehavior instead.
+  copyCommandBehavior?: 'showMenu' | 'copyLatestResponse'
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
@@ -681,6 +682,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     cachedGrowthBookFeatures: {},
     respectGitignore: true,
     copyFullResponse: false,
+    copyCommandBehavior: 'showMenu',
   }
 }
 
@@ -720,6 +722,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'lspRecommendationNeverPlugins',
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
+  'copyCommandBehavior',
   'copyOnSelect',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',

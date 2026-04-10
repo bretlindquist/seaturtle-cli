@@ -137,7 +137,9 @@ function getConfigHelpText(setting: Setting): string {
     case 'respectGitignore':
       return 'Hide ignored files from CT file pickers unless you explicitly target them.';
     case 'copyFullResponse':
-      return 'Copy the complete assistant response rather than a shortened display version.';
+      return 'Legacy copy behavior toggle.';
+    case 'copyCommandBehavior':
+      return setting.value === 'copyLatestResponse' ? 'Skip the /copy menu and immediately copy the latest full assistant response.' : 'Always open the /copy menu so you can choose the latest response or a code block.';
     case 'copyOnSelect':
       return 'Copy selected terminal text to the clipboard automatically.';
     case 'autoUpdatesChannel':
@@ -699,22 +701,26 @@ export function Config({
       });
     }
   }, {
-    id: 'copyFullResponse',
-    label: 'Always copy full response (skip /copy picker)',
-    value: globalConfig.copyFullResponse,
-    type: 'boolean' as const,
-    onChange(copyFullResponse: boolean) {
+    id: 'copyCommandBehavior',
+    label: 'Copy menu default',
+    value: globalConfig.copyCommandBehavior ?? (globalConfig.copyFullResponse ? 'copyLatestResponse' : 'showMenu'),
+    options: ['showMenu', 'copyLatestResponse'],
+    type: 'enum' as const,
+    onChange(copyCommandBehavior: string) {
+      const nextBehavior = copyCommandBehavior === 'copyLatestResponse' ? 'copyLatestResponse' : 'showMenu';
       saveGlobalConfig(current_7 => ({
         ...current_7,
-        copyFullResponse
+        copyCommandBehavior: nextBehavior,
+        copyFullResponse: nextBehavior === 'copyLatestResponse'
       }));
       setGlobalConfig({
         ...getGlobalConfig(),
-        copyFullResponse
+        copyCommandBehavior: nextBehavior,
+        copyFullResponse: nextBehavior === 'copyLatestResponse'
       });
       logEvent('tengu_config_changed', {
-        setting: 'copyFullResponse' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        value: String(copyFullResponse) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+        setting: 'copyCommandBehavior' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: nextBehavior as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
     }
   },
@@ -1250,8 +1256,10 @@ export function Config({
     if (globalConfig.respectGitignore !== initialConfig.current.respectGitignore) {
       formattedChanges.push(`${globalConfig.respectGitignore ? 'Enabled' : 'Disabled'} respect .gitignore in file picker`);
     }
-    if (globalConfig.copyFullResponse !== initialConfig.current.copyFullResponse) {
-      formattedChanges.push(`${globalConfig.copyFullResponse ? 'Enabled' : 'Disabled'} always copy full response`);
+    const currentCopyBehavior = globalConfig.copyCommandBehavior ?? (globalConfig.copyFullResponse ? 'copyLatestResponse' : 'showMenu');
+    const initialCopyBehavior = initialConfig.current.copyCommandBehavior ?? (initialConfig.current.copyFullResponse ? 'copyLatestResponse' : 'showMenu');
+    if (currentCopyBehavior !== initialCopyBehavior) {
+      formattedChanges.push(`Copy menu default: ${currentCopyBehavior === 'copyLatestResponse' ? 'copy latest response' : 'show menu'}`);
     }
     if (globalConfig.copyOnSelect !== initialConfig.current.copyOnSelect) {
       formattedChanges.push(`${globalConfig.copyOnSelect ? 'Enabled' : 'Disabled'} copy on select`);
@@ -1796,6 +1804,8 @@ export function Config({
                                 <NotifChannelLabel value={setting_2.value.toString()} />
                               </Text> : setting_2.id === 'defaultPermissionMode' ? <Text color={isSelected ? 'suggestion' : undefined}>
                                 {permissionModeTitle(setting_2.value as PermissionMode)}
+                              </Text> : setting_2.id === 'copyCommandBehavior' ? <Text color={isSelected ? 'suggestion' : undefined}>
+                                {setting_2.value === 'copyLatestResponse' ? 'Always copy latest response' : 'Show menu'}
                               </Text> : setting_2.id === 'autoUpdatesChannel' && autoUpdaterDisabledReason ? <Box flexDirection="column">
                                 <Text color={isSelected ? 'suggestion' : undefined}>
                                   disabled
