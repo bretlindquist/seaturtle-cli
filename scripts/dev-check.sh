@@ -52,11 +52,11 @@ bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
 bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/config_help_selftest.ts >/dev/null
+bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/voice_identity_selftest.ts >/dev/null
 bun scripts/session_resume_copy_selftest.ts >/dev/null
 bun scripts/telegram_typing_lifecycle_selftest.ts >/dev/null
 bun scripts/telegram_runtime_contract_selftest.ts >/dev/null
-bash scripts/repl-footer-controls-smoke.sh >/dev/null
 
 echo
 echo "[3/3] Lint"
