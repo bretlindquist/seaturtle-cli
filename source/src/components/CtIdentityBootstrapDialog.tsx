@@ -1,6 +1,10 @@
 import React, { useState } from 'react'
-import { overwriteProjectCtIdentityFiles } from '../services/projectIdentity/bootstrap.js'
 import {
+  ensureProjectCtIdentityBootstrap,
+  overwriteProjectCtIdentityFiles,
+} from '../services/projectIdentity/bootstrap.js'
+import {
+  getProjectCtIdentityBootstrapPromptKind,
   markCtIdentityBootstrapComplete,
   markCtIdentityBootstrapSkipped,
   shouldUseSeaTurtleFallbackIntro,
@@ -36,21 +40,29 @@ export function CtIdentityBootstrapDialog({
   const [focus, setFocus] = useState<CtIdentityFocusPreset>('speed')
   const useFallbackIntro =
     mode === 'startup' && shouldUseSeaTurtleFallbackIntro()
+  const promptKind =
+    mode === 'startup'
+      ? getProjectCtIdentityBootstrapPromptKind()
+      : 'existing-layer'
   const seenCount = getCurrentProjectConfig().ctIdentityBootstrap?.seenCount ?? 0
   const quip = getBootstrapQuip(Math.max(seenCount - 1, 0))
 
-  function finishWithStarterDefaults(): void {
+  async function finishWithStarterDefaults(): Promise<void> {
+    await ensureProjectCtIdentityBootstrap()
     clearMemoryFileCaches()
     markCtIdentityBootstrapComplete('defaulted')
     onDone()
   }
 
-  function finishGuidedCustomization(tone: CtIdentityTonePreset): void {
+  async function finishGuidedCustomization(
+    tone: CtIdentityTonePreset,
+  ): Promise<void> {
     const guided = buildGuidedCtIdentity({
       role,
       focus,
       tone,
     })
+    await ensureProjectCtIdentityBootstrap()
     overwriteProjectCtIdentityFiles(guided)
     clearMemoryFileCaches()
     markCtIdentityBootstrapComplete('guided')
@@ -68,13 +80,17 @@ export function CtIdentityBootstrapDialog({
         </Text>
         <Text>
           {useFallbackIntro
-            ? 'I already set up a stock private starter kit in `.ct/` so we could keep moving.'
-            : 'CT already created a private `.ct/` layer for this project, along with a tiny compatibility bridge.'}
+            ? promptKind === 'existing-layer'
+              ? 'There is already a private `.ct/` starter kit here, so we can keep it or tune it.'
+              : 'I can create a private `.ct/` starter kit for this project if you want one.'
+            : promptKind === 'existing-layer'
+              ? 'This project already has a private `.ct/` layer, along with a tiny compatibility bridge.'
+              : 'CT can create a private `.ct/` layer for this project, along with a tiny compatibility bridge.'}
         </Text>
         <Text>
           {useFallbackIntro
-            ? `If you want, we can keep the stock SeaTurtle starter kit, or tune how I think, sound, and work in this project. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
-            : `This is a small first conversation, not a form. We can tune how I think, sound, and work in this project, keep the stock starter kit, or skip for now. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
+            ? `If you want, we can use the stock SeaTurtle starter kit, or tune how I think, sound, and work in this project. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
+            : `This is a small first conversation, not a form. We can tune how I think, sound, and work in this project, create the stock starter kit, or skip for now. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
         </Text>
         <Box>
           <Select
@@ -82,7 +98,10 @@ export function CtIdentityBootstrapDialog({
               useFallbackIntro
                 ? [
                     {
-                      label: 'Keep the stock SeaTurtle starter kit',
+                      label:
+                        promptKind === 'existing-layer'
+                          ? 'Keep the stock SeaTurtle starter kit'
+                          : 'Create the stock SeaTurtle starter kit',
                       value: 'default',
                     },
                     {
@@ -96,7 +115,10 @@ export function CtIdentityBootstrapDialog({
                       value: 'guided',
                     },
                     {
-                      label: 'Keep the stock SeaTurtle starter kit',
+                      label:
+                        promptKind === 'existing-layer'
+                          ? 'Keep the stock SeaTurtle starter kit'
+                          : 'Create the stock SeaTurtle starter kit',
                       value: 'default',
                     },
                     {
@@ -112,7 +134,7 @@ export function CtIdentityBootstrapDialog({
               }
 
               if (value === 'default') {
-                finishWithStarterDefaults()
+                void finishWithStarterDefaults()
                 return
               }
 
@@ -123,7 +145,7 @@ export function CtIdentityBootstrapDialog({
             }}
             onCancel={() => {
               if (useFallbackIntro) {
-                finishWithStarterDefaults()
+                void finishWithStarterDefaults()
                 return
               }
 
@@ -255,7 +277,7 @@ export function CtIdentityBootstrapDialog({
             },
           ]}
           onChange={value =>
-            finishGuidedCustomization(value as CtIdentityTonePreset)
+            void finishGuidedCustomization(value as CtIdentityTonePreset)
           }
           onCancel={() => setScreen('focus')}
         />

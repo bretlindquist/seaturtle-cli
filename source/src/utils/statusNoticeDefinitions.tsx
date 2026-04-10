@@ -17,6 +17,8 @@ import { pickCtGreeting, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIde
 import { getCtArchives } from '../services/projectIdentity/archives.js';
 import { getCtHaikuDisplay, markStartupHaikuShown, shouldShowStartupHaiku } from '../services/projectIdentity/haiku.js';
 import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
+import { getProjectCtIdentityBootstrapFileState } from '../services/projectIdentity/state.js';
+import { hasCtIdentityLayer } from '../services/projectIdentity/bootstrapPromptCore.js';
 import { getSessionResumeAffordanceText } from '../services/sessionResume/sessionResumeCopy.js';
 import { isBareMode } from './envUtils.js';
 
@@ -217,17 +219,22 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
   type: 'info',
   isActive: () => {
     const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
-    return !bootstrap?.hasCompletedSetup;
+    return !bootstrap?.hasCompletedSetup && bootstrap?.mode !== 'skipped';
   },
   render: () => {
     const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    const hasIdentityLayer = hasCtIdentityLayer(getProjectCtIdentityBootstrapFileState());
     const seenCount = bootstrap?.seenCount ?? 0;
     const isSeaTurtleIntro = seenCount >= 3;
     return <Box flexDirection="row">
         <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
         <Text>
-          {isSeaTurtleIntro ? `I'm 🐢 SeaTurtle, or CT for short. I already set up a private starter kit for this project. Over time, this layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.` : 'CT set up a private `.ct/` layer for this project.'}
-          <Text dimColor> · use /ct whenever you want to retune it or edit the private CT files directly</Text>
+          {hasIdentityLayer
+            ? isSeaTurtleIntro
+              ? `I'm 🐢 SeaTurtle, or CT for short. There is a private starter kit for this project. Over time, this layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
+              : 'This project has a private `.ct/` layer.'
+            : 'CT can create a private `.ct/` layer for this project when you are ready.'}
+          <Text dimColor> · use /ct whenever you want to {hasIdentityLayer ? 'retune it or edit the private CT files directly' : 'create or tune it'}</Text>
           <Text dimColor> · {getSessionResumeAffordanceText()}</Text>
         </Text>
       </Box>;

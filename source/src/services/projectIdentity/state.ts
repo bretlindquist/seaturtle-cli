@@ -3,19 +3,58 @@ import {
   getCurrentProjectConfig,
   saveCurrentProjectConfig,
 } from '../../utils/config.js'
+import { getFsImplementation } from '../../utils/fsOperations.js'
+import {
+  getCtIdentityPath,
+  getCtProjectDir,
+  getCtProjectRoot,
+  getCtRouterPath,
+  getCtSoulPath,
+} from './paths.js'
+import {
+  getCtIdentityBootstrapPromptKind,
+  shouldAdvanceCtIdentityBootstrapSeenCount,
+  shouldPromptCtIdentityBootstrap,
+  type CtIdentityBootstrapFileState,
+  type CtIdentityBootstrapPromptKind,
+} from './bootstrapPromptCore.js'
 
 export function getProjectCtIdentityBootstrapState() {
   return getCurrentProjectConfig().ctIdentityBootstrap
 }
 
+export function getProjectCtIdentityBootstrapFileState(
+  root: string = getCtProjectRoot(),
+): CtIdentityBootstrapFileState {
+  const fs = getFsImplementation()
+  return {
+    projectDirExists: fs.existsSync(getCtProjectDir(root)),
+    routerExists: fs.existsSync(getCtRouterPath(root)),
+    identityExists: fs.existsSync(getCtIdentityPath(root)),
+    soulExists: fs.existsSync(getCtSoulPath(root)),
+  }
+}
+
+export function getProjectCtIdentityBootstrapPromptKind(): CtIdentityBootstrapPromptKind {
+  return getCtIdentityBootstrapPromptKind(
+    getProjectCtIdentityBootstrapFileState(),
+  )
+}
+
 export const shouldAdvanceCtIdentitySeenCount = memoize((): boolean => {
-  const bootstrap = getProjectCtIdentityBootstrapState()
-  return !bootstrap?.hasCompletedSetup && (bootstrap?.seenCount ?? 0) < 3
+  return shouldAdvanceCtIdentityBootstrapSeenCount({
+    bootstrap: getProjectCtIdentityBootstrapState(),
+    files: getProjectCtIdentityBootstrapFileState(),
+    isInteractive: true,
+  })
 })
 
 export const shouldShowCtIdentityBootstrapDialog = memoize((): boolean => {
-  const bootstrap = getProjectCtIdentityBootstrapState()
-  return !bootstrap?.hasCompletedSetup && (bootstrap?.seenCount ?? 0) <= 3
+  return shouldPromptCtIdentityBootstrap({
+    bootstrap: getProjectCtIdentityBootstrapState(),
+    files: getProjectCtIdentityBootstrapFileState(),
+    isInteractive: true,
+  })
 })
 
 export function shouldUseSeaTurtleFallbackIntro(): boolean {

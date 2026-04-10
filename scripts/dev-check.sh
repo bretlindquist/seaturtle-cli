@@ -54,6 +54,7 @@ bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/config_help_selftest.ts >/dev/null
 bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
+bun scripts/ct_identity_bootstrap_prompt_selftest.ts >/dev/null
 bun scripts/voice_identity_selftest.ts >/dev/null
 bun scripts/session_resume_copy_selftest.ts >/dev/null
 bun scripts/telegram_typing_lifecycle_selftest.ts >/dev/null

@@ -20,7 +20,6 @@ import {
 } from './bootstrap/state.js'
 import { getCommands } from './commands.js'
 import { initSessionMemory } from './services/SessionMemory/sessionMemory.js'
-import { ensureProjectCtIdentityBootstrap } from './services/projectIdentity/bootstrap.js'
 import {
   incrementCtIdentitySeenCount,
   shouldAdvanceCtIdentitySeenCount,
@@ -165,9 +164,8 @@ export async function setup(
   // IMPORTANT: setCwd() must be called before any other code that depends on the cwd
   setCwd(cwd)
 
-  // Materialize the private CT project identity layer on first load so the
-  // project has a usable local baseline before guided customization exists.
-  await ensureProjectCtIdentityBootstrap()
+  // First-run identity setup is consent-based. Startup may advance prompt
+  // bookkeeping, but `.ct/` is only created after the user chooses setup.
   if (!getIsNonInteractiveSession() && shouldAdvanceCtIdentitySeenCount()) {
     incrementCtIdentitySeenCount()
   }
