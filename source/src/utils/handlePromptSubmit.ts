@@ -72,6 +72,7 @@ type BaseExecutionParams = {
     mainLoopModel: string,
     onBeforeQuery?: (input: string, newMessages: Message[]) => Promise<boolean>,
     input?: string,
+    inputMode?: EditablePromptInputMode,
     effort?: EffortValue,
   ) => Promise<void>
   setAppState: (updater: (prev: AppState) => AppState) => void
@@ -647,6 +648,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             : mainLoopModel,
           shouldCallBeforeQuery ? onBeforeQuery : undefined,
           primaryInput,
+          isPromptLikeInputMode(primaryMode) ? primaryMode : undefined,
           effort,
         )
       } else {

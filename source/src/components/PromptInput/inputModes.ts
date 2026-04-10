@@ -35,7 +35,8 @@ const MODE_LABELS: Record<EditablePromptInputMode, string> = {
 const MODE_DESCRIPTIONS: Record<EditablePromptInputMode, string> = {
   prompt: 'general purpose',
   convo: 'conversational, playful, human',
-  discovery: 'broad exploration and idea-stretching',
+  discovery:
+    'engaging brainstorming, dot-connecting, and idea-surfacing from the user with a little Socratic and devil’s-advocate pressure',
   planning: 'structure, scope, sequencing',
   execution: 'make the change and move',
   research: 'investigate with evidence',

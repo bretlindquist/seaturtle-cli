@@ -21,6 +21,7 @@ import { buildReplTurnAppendSystemPrompt } from './buildReplTurnAppendSystemProm
 import { runReplQueryLoop } from './runReplQueryLoop.js';
 import { finalizeReplQueryTurn } from './finalizeReplQueryTurn.js';
 import { useReplQueryEventHandler } from './useReplQueryEventHandler.js';
+import type { EditablePromptInputMode } from '../../types/textInputTypes.js';
 
 export function useReplQueryController({
   initialMcpClients,
@@ -158,6 +159,7 @@ export function useReplQueryController({
       additionalAllowedTools: string[],
       mainLoopModelParam: string,
       input?: string,
+      inputMode?: EditablePromptInputMode,
       effort?: unknown,
     ) => {
       if (shouldQuery) {
@@ -231,6 +233,7 @@ export function useReplQueryController({
       const effectiveAppendSystemPrompt = buildReplTurnAppendSystemPrompt({
         appendSystemPrompt,
         currentInput: input ?? '',
+        inputMode,
         recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
         cwd: getCwd(),
         messageCount: messagesIncludingNewMessages.length,
@@ -316,6 +319,7 @@ export function useReplQueryController({
       mainLoopModelParam: string,
       onBeforeQueryCallback?: (input: string, newMessages: any[]) => Promise<boolean>,
       input?: string,
+      inputMode?: EditablePromptInputMode,
       effort?: unknown,
     ): Promise<void> => {
       if (isAgentSwarmsEnabled()) {
@@ -336,6 +340,7 @@ export function useReplQueryController({
         queryGuard,
         getContentText,
         input,
+        inputMode,
         effort,
         prepareArgs: {
           resetTimingRefs,

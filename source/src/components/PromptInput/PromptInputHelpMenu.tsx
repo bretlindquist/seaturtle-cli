@@ -103,7 +103,8 @@ export function PromptInputHelpMenu({
 
       <Box flexDirection="column" width={middleWidth}>
         <Hint dimColor={dimColor}>double tap esc to clear input</Hint>
-        <Hint dimColor={dimColor}>{cycleModeShortcut} to cycle permission mode</Hint>
+        <Hint dimColor={dimColor}>{cycleModeShortcut} to focus execution or permissions</Hint>
+        <Hint dimColor={dimColor}>shift + ↑ / ↓ to change focused footer control</Hint>
         <Hint dimColor={dimColor}>
           {transcriptShortcut} for verbose output
         </Hint>

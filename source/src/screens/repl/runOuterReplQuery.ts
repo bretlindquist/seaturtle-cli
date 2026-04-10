@@ -1,5 +1,6 @@
 import { finalizeCompletedOuterReplQuery, maybeRestoreCanceledOuterReplQuery } from './finalizeOuterReplQuery.js';
 import { handleConcurrentReplQuery, prepareReplQueryAttempt } from './prepareReplQueryAttempt.js';
+import type { EditablePromptInputMode } from '../../types/textInputTypes.js';
 
 export async function runOuterReplQuery<TMessage>({
   newMessages,
@@ -11,6 +12,7 @@ export async function runOuterReplQuery<TMessage>({
   queryGuard,
   getContentText,
   input,
+  inputMode,
   effort,
   prepareArgs,
   finalizeArgs,
@@ -29,6 +31,7 @@ export async function runOuterReplQuery<TMessage>({
     additionalAllowedTools: string[],
     mainLoopModelParam: string,
     input?: string,
+    inputMode?: EditablePromptInputMode,
     effort?: unknown,
   ) => Promise<void>
   queryGuard: {
@@ -38,6 +41,7 @@ export async function runOuterReplQuery<TMessage>({
   }
   getContentText: (content: unknown) => string | null
   input?: string
+  inputMode?: EditablePromptInputMode
   effort?: unknown
   prepareArgs: Omit<
     Parameters<typeof prepareReplQueryAttempt<TMessage>>[0],
@@ -79,6 +83,7 @@ export async function runOuterReplQuery<TMessage>({
       additionalAllowedTools,
       mainLoopModelParam,
       input,
+      inputMode,
       effort,
     );
   } finally {

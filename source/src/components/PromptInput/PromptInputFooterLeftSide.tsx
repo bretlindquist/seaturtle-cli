@@ -14,7 +14,7 @@ import type { ToolPermissionContext } from '../../Tool.js';
 import { isVimModeEnabled } from './utils.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js';
-import { isDefaultMode, permissionModeSymbol, permissionModeTitle, getModeColor } from '../../utils/permissions/PermissionMode.js';
+import { isDefaultMode, permissionModeTitle, getModeColor } from '../../utils/permissions/PermissionMode.js';
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js';
 import { isBackgroundTask } from '../../tasks/types.js';
 import { isPanelAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js';
@@ -42,7 +42,9 @@ import { useHasSelection, useSelection } from '../../ink/hooks/use-selection.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { getPlatform } from '../../utils/platform.js';
 import { PrBadge } from '../PrBadge.js';
-import { getPromptInputModeLabel, isPromptLikeInputMode } from './inputModes.js';
+import { isPromptLikeInputMode } from './inputModes.js';
+import type { FooterControlGroup } from './footerControlModel.js';
+import { getFooterExecutionModeLabel } from './footerControlModel.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -73,6 +75,7 @@ type Props = {
   setHistoryQuery: (query: string) => void;
   historyFailedMatch: boolean;
   onOpenTasksDialog?: (taskId?: string) => void;
+  footerControlGroup?: FooterControlGroup | null;
 };
 function ProactiveCountdown() {
   const $ = _c(7);
@@ -127,115 +130,73 @@ function ProactiveCountdown() {
   }
   return t4;
 }
-export function PromptInputFooterLeftSide(t0) {
-  const $ = _c(28);
-  const {
-    exitMessage,
-    vimMode,
-    mode,
-    toolPermissionContext,
-    suppressHint,
-    canQueueMessage,
-    isLoading,
-    tasksSelected,
-    teamsSelected,
-    tmuxSelected,
-    teammateFooterIndex,
-    isPasting,
-    isSearching,
-    historyQuery,
-    setHistoryQuery,
-    historyFailedMatch,
-    onOpenTasksDialog
-  } = t0;
+export function PromptInputFooterLeftSide({
+  exitMessage,
+  vimMode,
+  mode,
+  toolPermissionContext,
+  suppressHint,
+  canQueueMessage,
+  isLoading,
+  tasksSelected,
+  teamsSelected,
+  tmuxSelected,
+  teammateFooterIndex,
+  isPasting,
+  isSearching,
+  historyQuery,
+  setHistoryQuery,
+  historyFailedMatch,
+  onOpenTasksDialog,
+  footerControlGroup,
+}: Props): React.ReactNode {
   if (exitMessage.show) {
-    let t1;
-    if ($[0] !== exitMessage.key) {
-      t1 = <Text dimColor={true} key="exit-message">Press {exitMessage.key} again to exit</Text>;
-      $[0] = exitMessage.key;
-      $[1] = t1;
-    } else {
-      t1 = $[1];
-    }
-    return t1;
+    return (
+      <Text dimColor key="exit-message">
+        Press {exitMessage.key} again to exit
+      </Text>
+    )
   }
+
   if (isPasting) {
-    let t1;
-    if ($[2] === Symbol.for("react.memo_cache_sentinel")) {
-      t1 = <Text dimColor={true} key="pasting-message">Pasting text…</Text>;
-      $[2] = t1;
-    } else {
-      t1 = $[2];
-    }
-    return t1;
+    return (
+      <Text dimColor key="pasting-message">
+        Pasting text…
+      </Text>
+    )
   }
-  const queueShortcut = getShortcutDisplay('chat:queueMessage', 'Chat', 'tab');
-  let t1;
-  if ($[3] !== isSearching || $[4] !== vimMode) {
-    t1 = isVimModeEnabled() && vimMode === "INSERT" && !isSearching;
-    $[3] = isSearching;
-    $[4] = vimMode;
-    $[5] = t1;
-  } else {
-    t1 = $[5];
-  }
-  const showVim = t1;
-  let t2;
-  if ($[6] !== historyFailedMatch || $[7] !== historyQuery || $[8] !== isSearching || $[9] !== setHistoryQuery) {
-    t2 = isSearching && <HistorySearchInput value={historyQuery} onChange={setHistoryQuery} historyFailedMatch={historyFailedMatch} />;
-    $[6] = historyFailedMatch;
-    $[7] = historyQuery;
-    $[8] = isSearching;
-    $[9] = setHistoryQuery;
-    $[10] = t2;
-  } else {
-    t2 = $[10];
-  }
-  let t3;
-  if ($[11] !== showVim) {
-    t3 = showVim ? <Text dimColor={true} key="vim-insert">-- INSERT --</Text> : null;
-    $[11] = showVim;
-    $[12] = t3;
-  } else {
-    t3 = $[12];
-  }
-  const t4 = !suppressHint && !showVim;
-  const queueHint =
-    canQueueMessage && !isSearching && !showVim ? (
-      <Text dimColor={true}>{
-        `${queueShortcut} to queue message`
-      }</Text>
-    ) : null;
-  let t5;
-  if ($[13] !== isLoading || $[14] !== mode || $[15] !== onOpenTasksDialog || $[16] !== t4 || $[17] !== tasksSelected || $[18] !== teammateFooterIndex || $[19] !== teamsSelected || $[20] !== tmuxSelected || $[21] !== toolPermissionContext) {
-    t5 = <ModeIndicator mode={mode} toolPermissionContext={toolPermissionContext} showHint={t4} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} onOpenTasksDialog={onOpenTasksDialog} />;
-    $[13] = isLoading;
-    $[14] = mode;
-    $[15] = onOpenTasksDialog;
-    $[16] = t4;
-    $[17] = tasksSelected;
-    $[18] = teammateFooterIndex;
-    $[19] = teamsSelected;
-    $[20] = tmuxSelected;
-    $[21] = toolPermissionContext;
-    $[22] = t5;
-  } else {
-    t5 = $[22];
-  }
-  let t6;
-  if ($[23] !== queueHint || $[24] !== t2 || $[25] !== t3 || $[26] !== t5) {
-    t6 = <Box justifyContent="flex-start" gap={1}>{t2}{t3}{queueHint}{t5}</Box>;
-    $[23] = queueHint;
-    $[24] = t2;
-    $[25] = t3;
-    $[26] = t5;
-  } else {
-    t6 = $[27];
-  }
-  if ($[27] !== t6) {
-    $[27] = t6;
-  }
-  return t6;
+
+  const queueShortcut = getShortcutDisplay('chat:queueMessage', 'Chat', 'tab')
+  const showVim = isVimModeEnabled() && vimMode === 'INSERT' && !isSearching
+  const showHint = !suppressHint && !showVim
+
+  return (
+    <Box justifyContent="flex-start" gap={1}>
+      {isSearching ? (
+        <HistorySearchInput
+          value={historyQuery}
+          onChange={setHistoryQuery}
+          historyFailedMatch={historyFailedMatch}
+        />
+      ) : null}
+      {showVim ? <Text dimColor>-- INSERT --</Text> : null}
+      {canQueueMessage && !isSearching && !showVim ? (
+        <Text dimColor>{queueShortcut} to queue message</Text>
+      ) : null}
+      <ModeIndicator
+        mode={mode}
+        toolPermissionContext={toolPermissionContext}
+        showHint={showHint}
+        isLoading={isLoading}
+        tasksSelected={tasksSelected}
+        teamsSelected={teamsSelected}
+        teammateFooterIndex={teammateFooterIndex}
+        tmuxSelected={tmuxSelected}
+        onOpenTasksDialog={onOpenTasksDialog}
+        footerControlGroup={footerControlGroup}
+      />
+    </Box>
+  )
 }
 type ModeIndicatorProps = {
   mode: PromptInputMode;
@@ -247,7 +208,25 @@ type ModeIndicatorProps = {
   tmuxSelected: boolean;
   teammateFooterIndex?: number;
   onOpenTasksDialog?: (taskId?: string) => void;
+  footerControlGroup?: FooterControlGroup | null;
 };
+function FooterControl({
+  label,
+  value,
+  focused,
+  color,
+}: {
+  label: string
+  value: string
+  focused: boolean
+  color?: string
+}): React.ReactNode {
+  return (
+    <Text color={focused ? color : undefined} dimColor={!focused}>
+      <Text dimColor={!focused}>{label}:</Text> <Text bold={focused}>{value}</Text>
+    </Text>
+  )
+}
 function ModeIndicator({
   mode,
   toolPermissionContext,
@@ -257,7 +236,8 @@ function ModeIndicator({
   teamsSelected,
   tmuxSelected,
   teammateFooterIndex,
-  onOpenTasksDialog
+  onOpenTasksDialog,
+  footerControlGroup,
 }: ModeIndicatorProps): React.ReactNode {
   const {
     columns
@@ -359,25 +339,41 @@ function ModeIndicator({
   // the local permission mode shown here doesn't reflect the agent's state.
   // Rendered before the tasks pill so a long pill label (e.g. ultraplan URL)
   // doesn't push the mode indicator off-screen.
-  const modePart = currentMode && hasActiveMode && !getIsRemoteMode() ? <Text color={getModeColor(currentMode)} key="mode">
-        {permissionModeSymbol(currentMode)}{' '}
-        {permissionModeTitle(currentMode).toLowerCase()} on
-        {shouldShowModeHint && <Text dimColor>
-            {' '}
-            <KeyboardShortcutHint shortcut={modeCycleShortcut} action="cycle" parens />
-          </Text>}
-      </Text> : null;
+  const executionPart = isPromptLikeInputMode(mode) ? (
+    <FooterControl
+      key="execution-control"
+      label="Execution"
+      value={getFooterExecutionModeLabel(mode)}
+      focused={footerControlGroup === 'execution'}
+      color="ide"
+    />
+  ) : null;
+  const modePart = !getIsRemoteMode() ? (
+    <FooterControl
+      key="permission-control"
+      label="Permissions"
+      value={permissionModeTitle(currentMode).toLowerCase()}
+      focused={footerControlGroup === 'permissions'}
+      color={getModeColor(currentMode)}
+    />
+  ) : null;
+  const controlHint = shouldShowModeHint ? (
+    <Text dimColor key="control-hint">
+      <KeyboardShortcutHint
+        shortcut={modeCycleShortcut}
+        action="focus footer controls"
+        parens
+      />
+      {footerControlGroup ? <Text dimColor> shift+↑↓ to change</Text> : null}
+    </Text>
+  ) : null;
 
   // Build parts array - exclude BackgroundTaskStatus when we have teammate pills
   // (teammate pills get their own row)
   const parts = [
-  ...(isPromptLikeInputMode(mode) && mode !== 'prompt'
-      ? [
-          <Text dimColor key="input-mode">
-            /mode · {getPromptInputModeLabel(mode)} lane
-          </Text>,
-        ]
-      : []),
+  ...(executionPart ? [executionPart] : []),
+  ...(modePart ? [modePart] : []),
+  ...(controlHint ? [controlHint] : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
             <Text color="ide">{figures.circleDouble} remote</Text>
@@ -408,7 +404,7 @@ function ModeIndicator({
   if (hasTeammatePills) {
     // Don't append spinner hints when viewing a completed teammate —
     // the "esc to return to team lead" hint already replaces "esc to interrupt"
-    const otherParts = [...(modePart ? [modePart] : []), ...parts, ...(isViewingCompletedTeammate ? [] : hintParts)];
+    const otherParts = [...parts, ...(isViewingCompletedTeammate ? [] : hintParts)];
     return <Box flexDirection="column">
         <Box>
           <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} />
@@ -489,10 +485,6 @@ function ModeIndicator({
   // flexShrink=0 keeps mode + pill at natural width; the remaining parts
   // truncate at the tail as one string inside the Text wrapper.
   return <Box height={1} overflow="hidden">
-      {modePart && <Box flexShrink={0}>
-          {modePart}
-          {(tasksPart || parts.length > 0) && <Text dimColor> · </Text>}
-        </Box>}
       {tasksPart && <Box flexShrink={0}>
           {tasksPart}
           {parts.length > 0 && <Text dimColor> · </Text>}

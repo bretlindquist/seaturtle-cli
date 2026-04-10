@@ -73,7 +73,6 @@ import { isMacosOptionChar, MACOS_OPTION_SPECIAL_CHARS } from '../../utils/keybo
 import { logError } from '../../utils/log.js';
 import { isOpus1mMergeEnabled, modelDisplayString } from '../../utils/model/model.js';
 import { setAutoModeActive } from '../../utils/permissions/autoModeState.js';
-import { cyclePermissionMode, getNextPermissionMode } from '../../utils/permissions/getNextPermissionMode.js';
 import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js';
 import { getPlatform } from '../../utils/platform.js';
 import type { ProcessUserInputContext } from '../../utils/processUserInput/processUserInput.js';
@@ -110,6 +109,13 @@ import { shouldHideTasksFooter } from '../tasks/taskStatusUtils.js';
 import { TeamsDialog } from '../teams/TeamsDialog.js';
 import VimTextInput from '../VimTextInput.js';
 import { getModeFromInput, getValueFromInput, isPromptLikeInputMode } from './inputModes.js';
+import {
+  getAdjacentExecutionMode,
+  getAvailableFooterControlGroups,
+  getFooterPermissionMode,
+  getNextFooterControlGroup,
+  type FooterControlGroup,
+} from './footerControlModel.js';
 import { FOOTER_TEMPORARY_STATUS_TIMEOUT, Notifications } from './Notifications.js';
 import PromptInputFooter from './PromptInputFooter.js';
 import type { SuggestionItem } from './PromptInputFooterSuggestions.js';
@@ -297,7 +303,7 @@ function PromptInput({
   const hasTungstenSession = useAppState(s => "external" === 'ant' && s.tungstenActiveSession !== undefined);
   const tmuxFooterVisible = "external" === 'ant' && hasTungstenSession;
   // WebBrowser pill — visible when a browser is open
-  const bagelFooterVisible = useAppState(s => false);
+  const bagelFooterVisible = useAppState(_s => false);
   const teamContext = useAppState(s => s.teamContext);
   const queuedCommands = useCommandQueue();
   const promptSuggestionState = useAppState(s => s.promptSuggestion);
@@ -412,6 +418,7 @@ function PromptInput({
   const [showAutoModeOptIn, setShowAutoModeOptIn] = useState(false);
   const [previousModeBeforeAuto, setPreviousModeBeforeAuto] = useState<PermissionMode | null>(null);
   const autoModeOptInTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [footerControlGroup, setFooterControlGroup] = useState<FooterControlGroup | null>(null);
 
   // Check if cursor is on the first line of input
   const isCursorOnFirstLine = useMemo(() => {
@@ -475,7 +482,6 @@ function PromptInput({
   }, [rawFooterSelection, footerItemSelected, setAppState]);
   const tasksSelected = footerItemSelected === 'tasks';
   const tmuxSelected = footerItemSelected === 'tmux';
-  const bagelSelected = footerItemSelected === 'bagel';
   const teamsSelected = footerItemSelected === 'teams';
   const bridgeSelected = footerItemSelected === 'bridge';
   function selectFooterItem(item: FooterItem | null): void {
@@ -1434,16 +1440,13 @@ function PromptInput({
     }
   }, [helpOpen]);
 
-  // Handler for chat:cycleMode - cycle through permission modes
-  const handleCycleMode = useCallback(() => {
-    // When viewing a teammate, cycle their mode instead of the leader's
+  const applyPermissionModeChange = useCallback((delta: 1 | -1) => {
     if (isAgentSwarmsEnabled() && viewedTeammate && viewingAgentTaskId) {
       const teammateContext: ToolPermissionContext = {
         ...toolPermissionContext,
         mode: viewedTeammate.permissionMode
       };
-      // Pass undefined for teamContext (unused but kept for API compatibility)
-      const nextMode = getNextPermissionMode(teammateContext, undefined);
+      const nextMode = getFooterPermissionMode(teammateContext, delta);
       logEvent('tengu_mode_cycle', {
         to: nextMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
@@ -1467,101 +1470,60 @@ function PromptInput({
           }
         };
       });
-      if (helpOpen) {
-        setHelpOpen(false);
-      }
       return;
     }
 
-    // Compute the next mode without triggering side effects first
-    logForDebugging(`[auto-mode] handleCycleMode: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current}`);
-    const nextMode = getNextPermissionMode(toolPermissionContext, teamContext);
-
-    // Check if user is entering auto mode for the first time. Gated on the
-    // persistent settings flag (hasAutoModeOptIn) rather than the broader
-    // hasAutoModeOptInAnySource so that --enable-auto-mode users still see
-    // the warning dialog once — the CLI flag should grant carousel access,
-    // not bypass the safety text.
+    logForDebugging(`[auto-mode] applyPermissionModeChange: currentMode=${toolPermissionContext.mode} isAutoModeAvailable=${toolPermissionContext.isAutoModeAvailable} showAutoModeOptIn=${showAutoModeOptIn} timeoutPending=${!!autoModeOptInTimeoutRef.current} delta=${delta}`);
+    const nextMode = getFooterPermissionMode(toolPermissionContext, delta);
     let isEnteringAutoModeFirstTime = false;
     if (feature('TRANSCRIPT_CLASSIFIER')) {
-      isEnteringAutoModeFirstTime = nextMode === 'auto' && toolPermissionContext.mode !== 'auto' && !hasAutoModeOptIn() && !viewingAgentTaskId; // Only show for primary agent, not subagents
+      isEnteringAutoModeFirstTime = nextMode === 'auto' && toolPermissionContext.mode !== 'auto' && !hasAutoModeOptIn() && !viewingAgentTaskId;
     }
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (isEnteringAutoModeFirstTime) {
-        // Store previous mode so we can revert if user declines
-        setPreviousModeBeforeAuto(toolPermissionContext.mode);
-
-        // Only update the UI mode label — do NOT call transitionPermissionMode
-        // or cyclePermissionMode yet; we haven't confirmed with the user.
-        setAppState(prev => ({
-          ...prev,
-          toolPermissionContext: {
-            ...prev.toolPermissionContext,
-            mode: 'auto'
-          }
-        }));
-        setToolPermissionContext({
-          ...toolPermissionContext,
+    if (feature('TRANSCRIPT_CLASSIFIER') && isEnteringAutoModeFirstTime) {
+      setPreviousModeBeforeAuto(toolPermissionContext.mode);
+      setAppState(prev => ({
+        ...prev,
+        toolPermissionContext: {
+          ...prev.toolPermissionContext,
           mode: 'auto'
-        });
-
-        // Show opt-in dialog after 400ms debounce
-        if (autoModeOptInTimeoutRef.current) {
-          clearTimeout(autoModeOptInTimeoutRef.current);
         }
-        autoModeOptInTimeoutRef.current = setTimeout((setShowAutoModeOptIn, autoModeOptInTimeoutRef) => {
-          setShowAutoModeOptIn(true);
-          autoModeOptInTimeoutRef.current = null;
-        }, 400, setShowAutoModeOptIn, autoModeOptInTimeoutRef);
-        if (helpOpen) {
-          setHelpOpen(false);
-        }
-        return;
+      }));
+      setToolPermissionContext({
+        ...toolPermissionContext,
+        mode: 'auto'
+      });
+      if (autoModeOptInTimeoutRef.current) {
+        clearTimeout(autoModeOptInTimeoutRef.current);
       }
+      autoModeOptInTimeoutRef.current = setTimeout((setShowAutoModeOptIn, autoModeOptInTimeoutRef) => {
+        setShowAutoModeOptIn(true);
+        autoModeOptInTimeoutRef.current = null;
+      }, 400, setShowAutoModeOptIn, autoModeOptInTimeoutRef);
+      return;
     }
 
-    // Dismiss auto mode opt-in dialog if showing or pending (user is cycling away).
-    // Do NOT revert to previousModeBeforeAuto here — shift+tab means "advance the
-    // carousel", not "decline". Reverting causes a ping-pong loop: auto reverts to
-    // the prior mode, whose next mode is auto again, forever.
-    // The dialog's own decline button (handleAutoModeOptInDecline) handles revert.
-    if (feature('TRANSCRIPT_CLASSIFIER')) {
-      if (showAutoModeOptIn || autoModeOptInTimeoutRef.current) {
-        if (showAutoModeOptIn) {
-          logEvent('tengu_auto_mode_opt_in_dialog_decline', {});
-        }
-        setShowAutoModeOptIn(false);
-        if (autoModeOptInTimeoutRef.current) {
-          clearTimeout(autoModeOptInTimeoutRef.current);
-          autoModeOptInTimeoutRef.current = null;
-        }
-        setPreviousModeBeforeAuto(null);
-        // Fall through — mode is 'auto', cyclePermissionMode below goes to 'default'.
+    if (feature('TRANSCRIPT_CLASSIFIER') && (showAutoModeOptIn || autoModeOptInTimeoutRef.current)) {
+      if (showAutoModeOptIn) {
+        logEvent('tengu_auto_mode_opt_in_dialog_decline', {});
       }
+      setShowAutoModeOptIn(false);
+      if (autoModeOptInTimeoutRef.current) {
+        clearTimeout(autoModeOptInTimeoutRef.current);
+        autoModeOptInTimeoutRef.current = null;
+      }
+      setPreviousModeBeforeAuto(null);
     }
 
-    // Now that we know this is NOT the first-time auto mode path,
-    // call cyclePermissionMode to apply side effects (e.g. strip
-    // dangerous permissions, activate classifier)
-    const {
-      context: preparedContext
-    } = cyclePermissionMode(toolPermissionContext, teamContext);
+    const preparedContext = transitionPermissionMode(toolPermissionContext.mode, nextMode, toolPermissionContext);
     logEvent('tengu_mode_cycle', {
       to: nextMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
     });
-
-    // Track when user enters plan mode
     if (nextMode === 'plan') {
       saveGlobalConfig(current => ({
         ...current,
         lastPlanModeUse: Date.now()
       }));
     }
-
-    // Set the mode via setAppState directly because setToolPermissionContext
-    // intentionally preserves the existing mode (to prevent coordinator mode
-    // corruption from workers). Then call setToolPermissionContext to trigger
-    // recheck of queued permission prompts.
     setAppState(prev => ({
       ...prev,
       toolPermissionContext: {
@@ -1573,15 +1535,17 @@ function PromptInput({
       ...preparedContext,
       mode: nextMode
     });
-
-    // If this is a teammate, update config.json so team lead sees the change
     syncTeammateMode(nextMode, teamContext?.teamName);
+  }, [toolPermissionContext, teamContext, viewingAgentTaskId, viewedTeammate, setAppState, setToolPermissionContext, showAutoModeOptIn]);
 
-    // Close help tips if they're open when mode is cycled
+  // Handler for chat:cycleMode - move focus between footer control groups
+  const handleCycleMode = useCallback(() => {
+    const availableGroups = getAvailableFooterControlGroups(!(isAgentSwarmsEnabled() && viewedTeammate && viewingAgentTaskId));
+    setFooterControlGroup(prev => getNextFooterControlGroup(prev, availableGroups));
     if (helpOpen) {
       setHelpOpen(false);
     }
-  }, [toolPermissionContext, teamContext, viewingAgentTaskId, viewedTeammate, setAppState, setToolPermissionContext, helpOpen, showAutoModeOptIn]);
+  }, [helpOpen, viewedTeammate, viewingAgentTaskId]);
 
   // Handler for auto mode opt-in dialog acceptance
   const handleAutoModeOptInAccept = useCallback(() => {
@@ -1891,7 +1855,7 @@ function PromptInput({
     context: 'Footer',
     isActive: !!footerItemSelected && !isModalOverlayActive
   });
-  useInput((char, key) => {
+  useInput((char, key, event) => {
     // Skip all input handling when a full-screen dialog is open. These dialogs
     // render via early return, but hooks run unconditionally — so without this
     // guard, Escape inside a dialog leaks to the double-press message-selector.
@@ -1917,6 +1881,20 @@ function PromptInput({
     }
 
     // Footer navigation is handled via useKeybindings above (Footer context)
+    if (footerControlGroup && key.shift && !key.ctrl && !key.meta && (key.upArrow || key.downArrow)) {
+      if (footerControlGroup === 'execution') {
+        if (isPromptLikeInputMode(mode)) {
+          onModeChange(getAdjacentExecutionMode(mode, key.upArrow ? -1 : 1));
+        }
+      } else {
+        applyPermissionModeChange(key.upArrow ? -1 : 1);
+      }
+      if (helpOpen) {
+        setHelpOpen(false);
+      }
+      event.stopImmediatePropagation();
+      return;
+    }
 
     // NOTE: ctrl+_, ctrl+g, ctrl+s are handled via Chat context keybindings above
 
@@ -1925,6 +1903,7 @@ function PromptInput({
     // above, so anything reaching here is genuinely not a footer action.
     // onChange clears footerSelection, so no explicit deselect.
     if (footerItemSelected && char && !key.ctrl && !key.meta && !key.escape && !key.return) {
+      setFooterControlGroup(null);
       onChange(input.slice(0, cursorOffset) + char + input.slice(cursorOffset));
       setCursorOffset(cursorOffset + char.length);
       return;
@@ -2300,7 +2279,7 @@ function PromptInput({
             {textInputElement}
           </Box>
         </Box>}
-      <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} canQueueMessage={input.trim().length > 0 && !isLoading && (isPromptLikeInputMode(mode) || mode === 'bash')} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
+      <PromptInputFooter apiKeyStatus={apiKeyStatus} debug={debug} exitMessage={exitMessage} vimMode={isVimModeEnabled() ? vimMode : undefined} mode={mode} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={setIsAutoUpdating} suggestions={suggestions} selectedSuggestion={selectedSuggestion} maxColumnWidth={maxColumnWidth} toolPermissionContext={effectiveToolPermissionContext} helpOpen={helpOpen} suppressHint={input.length > 0} canQueueMessage={input.trim().length > 0 && !isLoading && (isPromptLikeInputMode(mode) || mode === 'bash')} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} bridgeSelected={bridgeSelected} tmuxSelected={tmuxSelected} teammateFooterIndex={teammateFooterIndex} footerControlGroup={footerControlGroup} ideSelection={ideSelection} mcpClients={mcpClients} isPasting={isPasting} isInputWrapped={isInputWrapped} messages={messages} isSearching={isSearchingHistory} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={isFullscreenEnvEnabled() ? handleOpenTasksDialog : undefined} />
       {isFullscreenEnvEnabled() ? null : autoModeOptInDialog}
       {isFullscreenEnvEnabled() ?
     // position=absolute takes zero layout height so the spinner
