@@ -22,7 +22,7 @@ import {
   transcribeTelegramAudioFile,
 } from './transcription.js'
 
-type TelegramInboundPayload =
+export type TelegramInboundPayload =
   | {
       kind: 'text'
       chatId: string

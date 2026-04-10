@@ -38,6 +38,12 @@ import {
   type TelegramBotIdentity,
   type TelegramUpdate,
 } from '../../services/telegram/client.js'
+import {
+  getTelegramCapabilityModeHelp,
+  getTelegramCapabilityModeLabel,
+  resolveTelegramCapabilityMode,
+  type TelegramCapabilityMode,
+} from '../../services/telegram/runtimeContract.js'
 
 type Props = {
   onExit: (result?: string, options?: { display?: CommandResultDisplay }) => void
@@ -124,6 +130,7 @@ type Screen =
   | { state: 'default-chat-select' }
   | { state: 'delete-profile-select' }
   | { state: 'doctor' }
+  | { state: 'capability-select' }
   | { state: 'permissions-help' }
   | { state: 'test-sending' }
   | { state: 'clear-confirm' }
@@ -244,6 +251,15 @@ function buildTelegramDoctorItems(params: {
     )
   }
 
+  if (
+    params.snapshot.capabilityMode === 'research' &&
+    ['default', 'dontAsk', 'plan'].includes(params.defaultPermissionMode)
+  ) {
+    items.push(
+      'Telegram is set to research mode, but the current permission mode may still prompt or block tool and web-backed work.',
+    )
+  }
+
   if (items.length === 0) {
     items.push('Telegram looks healthy for the current project.')
   }
@@ -263,6 +279,9 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
   const activeTelegramConfig = getTelegramConfig()
   const defaultPermissionMode = permissionModeFromString(
     getSettings_DEPRECATED().permissions?.defaultMode ?? 'default',
+  )
+  const telegramCapabilityMode = resolveTelegramCapabilityMode(
+    currentBinding?.capabilityMode ?? snapshot.capabilityMode,
   )
 
   let transportStatus = 'Not configured'
@@ -1182,6 +1201,13 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             If you want CT over Telegram to research, use tools, and avoid
             approval stalls, choose <Text bold>Full access</Text>.
           </Text>
+          <Text>
+            Current Telegram mode:{' '}
+            <Text bold>{getTelegramCapabilityModeLabel(telegramCapabilityMode)}</Text>
+          </Text>
+          <Text dimColor>
+            {getTelegramCapabilityModeHelp(telegramCapabilityMode)}
+          </Text>
           <Text dimColor>
             Don&apos;t Ask is not full access. It denies unapproved actions
             without prompting.
@@ -1202,6 +1228,83 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                 permissions: {
                   defaultMode: value,
                 },
+              })
+              setScreen({ state: 'overview' })
+            }}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
+  if (screen.state === 'capability-select') {
+    const options: Array<{
+      label: React.ReactNode
+      value: TelegramCapabilityMode | 'back'
+    }> = [
+      {
+        label: (
+          <Text>
+            Conversation <Text dimColor>(lighter back-and-forth)</Text>
+          </Text>
+        ),
+        value: 'convo',
+      },
+      {
+        label: (
+          <Text>
+            Research <Text dimColor>(tools and evidence-first)</Text>
+          </Text>
+        ),
+        value: 'research',
+      },
+      {
+        label: <Text>Back to Telegram overview</Text>,
+        value: 'back',
+      },
+    ]
+
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Telegram mode"
+        onCancel={() => setScreen({ state: 'overview' })}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text>
+            Choose how Telegram prompts enter CT for this project.
+          </Text>
+          <Text>
+            Current mode:{' '}
+            <Text bold>{getTelegramCapabilityModeLabel(telegramCapabilityMode)}</Text>
+          </Text>
+          <Text dimColor>
+            {getTelegramCapabilityModeHelp(telegramCapabilityMode)}
+          </Text>
+          <Select
+            options={options}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen({ state: 'overview' })
+                return
+              }
+
+              if (!currentBinding) {
+                setScreen({
+                  state: 'error',
+                  message:
+                    'Bind this project to a Telegram bot before changing the Telegram mode.',
+                })
+                return
+              }
+
+              saveCurrentProjectTelegramBinding({
+                profileId: currentBinding.profileId,
+                allowedChatIds: currentBinding.allowedChatIds,
+                pollTimeoutSeconds: currentBinding.pollTimeoutSeconds,
+                capabilityMode: value,
+                defaultChatId: currentBinding.defaultChatId,
+                lastInboundChatId: currentBinding.lastInboundChatId,
               })
               setScreen({ state: 'overview' })
             }}
@@ -1330,6 +1433,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             label="Permission mode"
             value={permissionModeTitle(defaultPermissionMode)}
           />
+          <StatusLine
+            label="Telegram mode"
+            value={getTelegramCapabilityModeLabel(telegramCapabilityMode)}
+          />
           <StatusLine label="Voice transcription" value={voiceStatus} />
           {snapshot.botUsername ? (
             <StatusLine label="Bot" value={`@${snapshot.botUsername}`} />
@@ -1364,6 +1471,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                 : []),
               ...(currentBinding
                 ? [
+                    {
+                      label: <Text>Set Telegram mode for this project</Text>,
+                      value: 'capability',
+                    },
                     {
                       label: <Text>Allowlist another chat for this project</Text>,
                       value: 'add-chat',
@@ -1437,6 +1548,11 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                   label: currentBindingLabel,
                   botToken,
                 })
+                return
+              }
+
+              if (value === 'capability') {
+                setScreen({ state: 'capability-select' })
                 return
               }
 

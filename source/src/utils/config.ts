@@ -83,6 +83,7 @@ export type TelegramProjectBinding = {
   profileId: string
   allowedChatIds: string[]
   pollTimeoutSeconds?: number
+  capabilityMode?: 'convo' | 'research'
   defaultChatId?: string
   lastInboundChatId?: string
   pairedAt?: number

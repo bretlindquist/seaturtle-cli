@@ -13,11 +13,17 @@ import type {
   SecureStorageData,
   TelegramBotSecret,
 } from '../../utils/secureStorage/types.js'
+import {
+  DEFAULT_TELEGRAM_CAPABILITY_MODE,
+  resolveTelegramCapabilityMode,
+  type TelegramCapabilityMode,
+} from './runtimeContract.js'
 
 export type TelegramConfig = {
   botToken: string
   allowedChatIds: Set<string>
   pollTimeoutSeconds: number
+  capabilityMode: TelegramCapabilityMode
   profileId?: string
   defaultChatId?: string
   lastInboundChatId?: string
@@ -30,6 +36,7 @@ export type TelegramConfigSnapshot = {
   ready: boolean
   source: 'none' | 'env' | 'project'
   envOverride: boolean
+  capabilityMode: TelegramCapabilityMode
   profileId?: string
   botUsername?: string
   botDisplayName?: string
@@ -67,6 +74,7 @@ export type ResolvedTelegramConfigState = {
   botUsername?: string
   botDisplayName?: string
   projectPath?: string
+  capabilityMode: TelegramCapabilityMode
   defaultChatId?: string
   lastInboundChatId?: string
   brokenReason?: string
@@ -272,6 +280,7 @@ function normalizeProjectBinding(
       typeof raw.pollTimeoutSeconds === 'number' && raw.pollTimeoutSeconds > 0
         ? raw.pollTimeoutSeconds
         : DEFAULT_POLL_TIMEOUT_SECONDS,
+    capabilityMode: resolveTelegramCapabilityMode(raw.capabilityMode),
     defaultChatId:
       typeof raw.defaultChatId === 'string' ? raw.defaultChatId : undefined,
     lastInboundChatId:
@@ -332,6 +341,7 @@ function getLegacyFallbackBinding(): TelegramProjectBinding | null {
     allowedChatIds: appConfig?.allowedChatIds ?? [],
     pollTimeoutSeconds:
       appConfig?.pollTimeoutSeconds ?? DEFAULT_POLL_TIMEOUT_SECONDS,
+    capabilityMode: DEFAULT_TELEGRAM_CAPABILITY_MODE,
     defaultChatId: appConfig?.lastPairedChatId,
     lastInboundChatId: appConfig?.lastPairedChatId,
     pairedAt: appConfig?.pairedAt,
@@ -352,6 +362,7 @@ function resolveProjectBoundConfig(): ResolvedTelegramConfigState {
       botToken: null,
       allowedChatIds: new Set(),
       pollTimeoutSeconds: DEFAULT_POLL_TIMEOUT_SECONDS,
+      capabilityMode: DEFAULT_TELEGRAM_CAPABILITY_MODE,
     }
   }
 
@@ -365,6 +376,7 @@ function resolveProjectBoundConfig(): ResolvedTelegramConfigState {
     allowedChatIds: new Set(projectBinding.allowedChatIds),
     pollTimeoutSeconds:
       projectBinding.pollTimeoutSeconds ?? DEFAULT_POLL_TIMEOUT_SECONDS,
+    capabilityMode: resolveTelegramCapabilityMode(projectBinding.capabilityMode),
     profileId: projectBinding.profileId,
     botUsername: profileMeta?.botUsername,
     botDisplayName: profileMeta?.botDisplayName,
@@ -394,6 +406,7 @@ function getResolvedTelegramConfigState(): ResolvedTelegramConfigState {
       pollTimeoutSeconds: parsePollTimeout(
         process.env.CLAUDE_CODE_TELEGRAM_POLL_TIMEOUT_SEC,
       ),
+      capabilityMode: DEFAULT_TELEGRAM_CAPABILITY_MODE,
       brokenReason: !botToken
         ? 'Environment override is missing CLAUDE_CODE_TELEGRAM_BOT_TOKEN'
         : allowedChatIds.size === 0
@@ -415,6 +428,7 @@ export function getTelegramConfig(): TelegramConfig | null {
     botToken: resolved.botToken,
     allowedChatIds: resolved.allowedChatIds,
     pollTimeoutSeconds: resolved.pollTimeoutSeconds,
+    capabilityMode: resolved.capabilityMode,
     profileId: resolved.profileId,
     defaultChatId: resolved.defaultChatId,
     lastInboundChatId: resolved.lastInboundChatId,
@@ -431,6 +445,7 @@ export function getTelegramConfigSnapshot(): TelegramConfigSnapshot {
     ready: Boolean(resolved.botToken) && resolved.allowedChatIds.size > 0,
     source: resolved.source,
     envOverride: resolved.envOverride,
+    capabilityMode: resolved.capabilityMode,
     profileId: resolved.profileId,
     botUsername: resolved.botUsername,
     botDisplayName: resolved.botDisplayName,
@@ -573,6 +588,7 @@ export function saveCurrentProjectTelegramBinding(params: {
   profileId: string
   allowedChatIds: string[]
   pollTimeoutSeconds?: number
+  capabilityMode?: TelegramCapabilityMode
   defaultChatId?: string
   lastInboundChatId?: string
 }): void {
@@ -588,6 +604,9 @@ export function saveCurrentProjectTelegramBinding(params: {
         params.pollTimeoutSeconds && params.pollTimeoutSeconds > 0
           ? params.pollTimeoutSeconds
           : DEFAULT_POLL_TIMEOUT_SECONDS,
+      capabilityMode: resolveTelegramCapabilityMode(
+        params.capabilityMode ?? current.telegram?.capabilityMode,
+      ),
       defaultChatId: params.defaultChatId,
       lastInboundChatId: params.lastInboundChatId,
       pairedAt: current.telegram?.pairedAt ?? now,

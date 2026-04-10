@@ -1,6 +1,4 @@
-import { randomUUID } from 'crypto'
 import { useEffect, useMemo, useRef } from 'react'
-import { useMailbox } from '../context/mailbox.js'
 import type { Message } from '../types/message.js'
 import { enqueue } from '../utils/messageQueueManager.js'
 import { extractTextContent, stripPromptXMLTags } from '../utils/messages.js'
@@ -23,6 +21,7 @@ import {
   resolveTelegramInboundPayload,
 } from '../services/telegram/media.js'
 import { createTelegramTypingLifecycle } from '../services/telegram/typingLifecycle.js'
+import { buildTelegramInboundQueuedCommand } from '../services/telegram/runtimeContract.js'
 
 type PendingTelegramResponse = {
   chatId: string
@@ -129,7 +128,6 @@ async function getOutboundPayload(
 }
 
 export function useTelegramBridge({ isLoading, messages }: Props): void {
-  const mailbox = useMailbox()
   const snapshot = getTelegramConfigSnapshot()
   const config = useMemo(
     () => getTelegramConfig(),
@@ -137,6 +135,7 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
       snapshot.botTokenConfigured,
       snapshot.allowedChatIdsCount,
       snapshot.pollTimeoutSeconds,
+      snapshot.capabilityMode,
       snapshot.ready,
       snapshot.source,
       snapshot.profileId,
@@ -194,20 +193,12 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
               startIndex: null,
             })
             typingLifecycleRef.current?.start(inbound.chatId)
-            if (inbound.kind === 'text') {
-              mailbox.send({
-                id: randomUUID(),
-                source: 'user',
-                content: inbound.text,
-                from: `telegram:${inbound.chatId}`,
-                timestamp: new Date().toISOString(),
-              })
-            } else {
-              enqueue({
-                value: inbound.content,
-                mode: 'prompt',
-                skipSlashCommands: true,
-              })
+            const queuedCommand = buildTelegramInboundQueuedCommand(
+              inbound,
+              config.capabilityMode,
+            )
+            if (queuedCommand) {
+              enqueue(queuedCommand)
             }
           }
         } catch (error) {
@@ -231,7 +222,7 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
       typingLifecycleRef.current?.stopAll()
       typingLifecycleRef.current = null
     }
-  }, [config, mailbox])
+  }, [config])
 
   useEffect(() => {
     if (!config) {
