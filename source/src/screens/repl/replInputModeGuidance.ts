@@ -4,11 +4,11 @@ const MODE_GUIDANCE: Partial<Record<EditablePromptInputMode, string>> = {
   convo:
     'Convo mode: stay human, fluid, and genuinely conversational. Favor back-and-forth, warmth, and live exchange over premature structure.',
   discovery:
-    "Discovery mode: treat the user's mind as the primary source of what is being uncovered. Help bring latent thoughts to the surface through engaging back-and-forth, Socratic questions, occasional devil's-advocate pressure, big-picture thinking, and an optimistic sense of possibility. Prefer surfacing, connecting, and testing promising threads over presenting a finished answer too early.",
+    "Discovery mode: treat the user's mind as the primary source of what is being uncovered. Help bring latent thoughts to the surface through engaging back-and-forth, Socratic questions, occasional devil's-advocate pressure, big-picture thinking, and an optimistic sense of possibility. Prefer surfacing, connecting, and testing promising threads over presenting a finished answer too early. Do not turn discovery into research-lite or planning-lite unless the user asks to source claims or sequence action.",
   research:
-    'Research mode: investigate carefully, ground claims in evidence, separate knowns from unknowns, and make confidence levels legible.',
+    'Research mode: investigate outside the exchange, ground claims in evidence, separate knowns from unknowns, and make confidence levels legible.',
   planning:
-    'Planning mode: translate the work into structure, sequence, tradeoffs, and concrete next steps without jumping ahead of the necessary shape.',
+    'Planning mode: translate a chosen direction into structure, sequence, tradeoffs, and concrete next steps without jumping ahead of the necessary shape.',
   execution:
     'Execution mode: optimize for decisive progress, concrete changes, and clear delivery while staying aligned with the request and the current plan.',
   review:

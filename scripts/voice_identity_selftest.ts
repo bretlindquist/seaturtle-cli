@@ -7,7 +7,10 @@ import {
 } from '../source/src/services/projectIdentity/defaults.ts'
 import { getPromptInputModeDescription } from '../source/src/components/PromptInput/inputModes.ts'
 import { getReplInputModeGuidance } from '../source/src/screens/repl/replInputModeGuidance.ts'
-import { buildCtConversationPostureAddendum } from '../source/src/services/projectIdentity/conversationPosture.ts'
+import {
+  buildCtConversationPostureAddendum,
+  classifyCtConversationPosture,
+} from '../source/src/services/projectIdentity/conversationPosture.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -25,6 +28,9 @@ includesAll(
   SHIPPED_DEFAULT_CT_IDENTITY,
   [
     'do not create motion just to avoid stillness',
+    'discovery surfaces, connects, and tests',
+    'research gathers evidence',
+    'planning sequences',
     'Preserve continuity of stance across changing moods, cadences, and registers',
     'Prefer situated truth over premature smoothing',
   ],
@@ -34,6 +40,7 @@ includesAll(
 includesAll(
   SHIPPED_DEFAULT_CT_SOUL,
   [
+    'Strong at discovery before research is warranted',
     'Some truths only appear in stillness',
     'Form is not falseness.',
     "let the user's own half-formed thought keep some of its living texture",
@@ -43,7 +50,10 @@ includesAll(
 
 includesAll(
   SHIPPED_DEFAULT_CT_ROLE,
-  ['let discovery feel like shared emergence rather than thinly veiled planning'],
+  [
+    'let discovery feel like shared emergence rather than thinly veiled planning',
+    'do not confuse brainstorming with evidence-gathering',
+  ],
   'SHIPPED_DEFAULT_CT_ROLE',
 )
 
@@ -51,6 +61,8 @@ includesAll(
   SHIPPED_DEFAULT_CT_BOOTSTRAP,
   [
     "treat the user's mind as the primary source of the thing being uncovered",
+    'In research moments, go outside the exchange for evidence',
+    'In planning moments, translate a chosen direction',
   ],
   'SHIPPED_DEFAULT_CT_BOOTSTRAP',
 )
@@ -69,6 +81,14 @@ assert(
   discoveryDescription.includes('before they harden into research or planning'),
   'discovery mode description should describe its place before research/planning',
 )
+assert(
+  getPromptInputModeDescription('research').includes('outside the exchange'),
+  'research mode description should distinguish outside evidence gathering',
+)
+assert(
+  getPromptInputModeDescription('planning').includes('chosen direction'),
+  'planning mode description should distinguish chosen-direction sequencing',
+)
 
 const discoveryGuidance = getReplInputModeGuidance('discovery')
 assert(discoveryGuidance, 'discovery mode guidance should exist')
@@ -79,6 +99,7 @@ includesAll(
     'Socratic questions',
     "devil's-advocate pressure",
     'optimistic sense of possibility',
+    'research-lite or planning-lite',
   ],
   'discovery mode guidance',
 )
@@ -95,8 +116,28 @@ includesAll(
     "user's own mind as the main landscape being explored",
     "devil's-advocate pressure",
     'discovery should feel like opening, not closing',
+    'Keep discovery distinct from research and planning',
   ],
   'explore addendum',
+)
+
+assert(
+  classifyCtConversationPosture({
+    currentInput: 'can we brainstorm and connect the dots before we plan?',
+  }) === 'explore',
+  'brainstorming should classify as exploration/discovery posture',
+)
+assert(
+  classifyCtConversationPosture({
+    currentInput: 'lol what a world',
+  }) === 'open',
+  'light banter should stay open instead of becoming project steering',
+)
+assert(
+  classifyCtConversationPosture({
+    currentInput: 'fix source/src/services/projectIdentity/defaults.ts',
+  }) === 'work',
+  'explicit file-edit requests should classify as work',
 )
 
 console.log('voice-identity selftest passed')

@@ -36,9 +36,9 @@ const MODE_DESCRIPTIONS: Record<EditablePromptInputMode, string> = {
   prompt: 'general purpose',
   convo: 'free talk, human exchange, and live back-and-forth',
   discovery:
-    'engaging discovery that helps surface, connect, and test ideas already forming in the user before they harden into research or planning',
-  research: 'investigate carefully with evidence and visible confidence',
-  planning: 'shape scope, sequence, tradeoffs, and next steps',
+    'engaging, Socratic discovery that surfaces and connects ideas before they harden into research or planning',
+  research: 'investigate outside the exchange with evidence and visible confidence',
+  planning: 'shape a chosen direction into sequence, tradeoffs, and next steps',
   execution: 'make the change decisively and move the work forward',
   review: 'inspect for risks, regressions, and missing validation',
   debug: 'trace, isolate, and disprove until the failure is clear',

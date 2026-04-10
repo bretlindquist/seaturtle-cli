@@ -69,6 +69,11 @@ const EXPLORATION_MARKERS = [
   'big picture',
   'zoom out',
   'brainstorm',
+  'brainstorming',
+  'discover',
+  'discovery',
+  'surface ideas',
+  'connect the dots',
   'research',
   'plan this',
   'planning',
@@ -596,6 +601,7 @@ The user appears to want big-picture thinking, conversation, exploration, or phi
 - Treat the user's own mind as the main landscape being explored; help bring latent thoughts to the surface instead of replacing them with a polished answer too early.
 - Use occasional devil's-advocate pressure to test the shape of an idea, not to flatten its possibility.
 - Keep some optimism and spaciousness in the exchange; discovery should feel like opening, not closing.
+- Keep discovery distinct from research and planning: ask, connect, challenge, and imagine before sourcing claims or sequencing action.
 - Allow tangents when the tangent is the point.
 - Do not flatten broad human or project questions into task triage, category menus, or productivity coaching.
 - Meet the idea first, then narrow only if the user wants to execute.
