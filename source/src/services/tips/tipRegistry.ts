@@ -14,13 +14,14 @@ import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
 import { isKairosCronEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { is1PApiCustomer } from '../../utils/auth.js'
 import { countConcurrentSessions } from '../../utils/concurrentSessions.js'
-import { getGlobalConfig } from '../../utils/config.js'
+import { getCurrentProjectConfig, getGlobalConfig } from '../../utils/config.js'
 import {
   getEffortEnvOverride,
   modelSupportsEffort,
 } from '../../utils/effort.js'
 import { env } from '../../utils/env.js'
 import { cacheKeys } from '../../utils/fileStateCache.js'
+import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getWorktreeCount } from '../../utils/git.js'
 import {
   detectRunningIDEsCached,
@@ -53,10 +54,20 @@ import {
   formatCreditAmount,
   getCachedReferrerReward,
 } from '../api/referral.js'
+import { getCtTodoPath } from '../projectIdentity/paths.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
 import type { Tip, TipContext } from './types.js'
 
 let _isOfficialMarketplaceInstalledCache: boolean | undefined
+
+function hasProjectTodoFile(): boolean {
+  try {
+    return getFsImplementation().existsSync(getCtTodoPath())
+  } catch {
+    return false
+  }
+}
+
 async function isOfficialMarketplaceInstalled(): Promise<boolean> {
   if (_isOfficialMarketplaceInstalledCache !== undefined) {
     return _isOfficialMarketplaceInstalledCache
@@ -277,6 +288,76 @@ const externalTips: Tip[] = [
     isRelevant: async () => true,
   },
   {
+    id: 'project-todo-command',
+    content: async () =>
+      'Use /todo to create or extend .ct/todo.md for this project without breaking your flow.',
+    cooldownSessions: 8,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.todoFeatureEnabled !== false && !hasProjectTodoFile()
+    },
+  },
+  {
+    id: 'status-dashboard',
+    content: async () =>
+      'Use /status to inspect CT runtime health, auth source, limits, and integrations in one place.',
+    cooldownSessions: 8,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.numStartups > 2
+    },
+  },
+  {
+    id: 'config-help',
+    content: async () =>
+      'Use /config to tune defaults like permissions, copy behavior, tips, and notifications.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.numStartups > 2
+    },
+  },
+  {
+    id: 'transcript-search',
+    content: async () =>
+      'Open the transcript with Ctrl+O, then use / to search and n or N to move between matches.',
+    cooldownSessions: 8,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.numStartups > 3
+    },
+  },
+  {
+    id: 'copy-menu',
+    content: async () =>
+      'Use /copy for the copy menu. When Show menu is your default, Enter twice copies the latest response fast.',
+    cooldownSessions: 8,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.copyCommandBehavior !== 'copyLatestResponse'
+    },
+  },
+  {
+    id: 'execution-lanes',
+    content: async () =>
+      'Use /mode to switch lanes like convo, discovery, research, planning, execution, review, and debug.',
+    cooldownSessions: 8,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return config.numStartups > 3
+    },
+  },
+  {
+    id: 'telegram-setup',
+    content: async () =>
+      'Run /telegram to pair this project with Telegram so CT can keep working with you away from the terminal.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      const config = getGlobalConfig()
+      return !getCurrentProjectConfig().telegram && config.numStartups > 4
+    },
+  },
+  {
     id: 'vscode-command-install',
     content: async () =>
       `Open the Command Palette (Cmd+Shift+P) and run "Shell Command: Install '${env.terminal === 'vscode' ? 'code' : env.terminal}' command in PATH" to enable IDE integration`,
@@ -402,8 +483,8 @@ const externalTips: Tip[] = [
     id: 'shift-tab',
     content: async () =>
       process.env.USER_TYPE === 'ant'
-        ? `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode and auto mode`
-        : `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to cycle between default mode, auto-accept edit mode, and plan mode`,
+        ? `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to focus footer controls, then use Shift+Up or Shift+Down to change the selected value.`
+        : `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to focus execution lanes or permissions, then use Shift+Up or Shift+Down to change them.`,
     cooldownSessions: 10,
     isRelevant: async () => true,
   },
