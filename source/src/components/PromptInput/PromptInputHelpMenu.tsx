@@ -90,8 +90,8 @@ export function PromptInputHelpMenu({
   return (
     <Box paddingX={paddingX} flexDirection="row" gap={gap}>
       <Box flexDirection="column" width={leftWidth}>
-        <Hint dimColor={dimColor}>! for bash mode</Hint>
-        <Hint dimColor={dimColor}>/mode for chat lane</Hint>
+        <Hint dimColor={dimColor}>! for shell commands</Hint>
+        <Hint dimColor={dimColor}>/mode for execution lane</Hint>
         <Hint dimColor={dimColor}>/ for commands</Hint>
         <Hint dimColor={dimColor}>@ for file paths</Hint>
         <Hint dimColor={dimColor}>&amp; for background</Hint>

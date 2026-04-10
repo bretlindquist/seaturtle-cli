@@ -8,9 +8,9 @@ export const PROMPT_LIKE_INPUT_MODES = [
   'prompt',
   'convo',
   'discovery',
+  'research',
   'planning',
   'execution',
-  'research',
   'review',
   'debug',
 ] as const satisfies readonly EditablePromptInputMode[]
@@ -34,14 +34,14 @@ const MODE_LABELS: Record<EditablePromptInputMode, string> = {
 
 const MODE_DESCRIPTIONS: Record<EditablePromptInputMode, string> = {
   prompt: 'general purpose',
-  convo: 'conversational, playful, human',
+  convo: 'free talk, human exchange, and live back-and-forth',
   discovery:
-    'engaging brainstorming, dot-connecting, and idea-surfacing from the user with a little Socratic and devil’s-advocate pressure',
-  planning: 'structure, scope, sequencing',
-  execution: 'make the change and move',
-  research: 'investigate with evidence',
-  review: 'inspect for risks and gaps',
-  debug: 'trace, isolate, and disprove',
+    'engaging brainstorming that helps surface and connect ideas already forming in the user, with a little Socratic and devil’s-advocate pressure',
+  research: 'investigate carefully with evidence and visible confidence',
+  planning: 'shape scope, sequence, tradeoffs, and next steps',
+  execution: 'make the change decisively and move the work forward',
+  review: 'inspect for risks, regressions, and missing validation',
+  debug: 'trace, isolate, and disprove until the failure is clear',
   bash: 'shell commands',
   'orphaned-permission': 'permission follow-up',
 } as const

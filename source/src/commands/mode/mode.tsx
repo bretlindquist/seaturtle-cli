@@ -19,6 +19,8 @@ const MODE_ALIASES: Record<string, EditablePromptInputMode> = {
   conversational: 'convo',
   discovery: 'discovery',
   discover: 'discovery',
+  brainstorm: 'discovery',
+  brainstorming: 'discovery',
   planning: 'planning',
   plan: 'planning',
   execution: 'execution',
