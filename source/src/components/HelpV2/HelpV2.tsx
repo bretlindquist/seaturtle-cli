@@ -2,7 +2,7 @@ import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
 import { useExitOnCtrlCDWithKeybindings } from 'src/hooks/useExitOnCtrlCDWithKeybindings.js';
 import { useShortcutDisplay } from 'src/keybindings/useShortcutDisplay.js';
-import { builtInCommandNames, type Command, type CommandResultDisplay, INTERNAL_ONLY_COMMANDS } from '../../commands.js';
+import { builtInCommandNames, type Command, type CommandResultDisplay } from '../../commands.js';
 import { useIsInsideModal } from '../../context/modalContext.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { Box, Link, Text } from '../../ink.js';
@@ -11,13 +11,14 @@ import { Pane } from '../design-system/Pane.js';
 import { Tab, Tabs } from '../design-system/Tabs.js';
 import { Commands } from './Commands.js';
 import { General } from './General.js';
+import { PRODUCT_DOCS_URL } from '../../constants/product.js';
 type Props = {
   onClose: (result?: string, options?: {
     display?: CommandResultDisplay;
   }) => void;
   commands: Command[];
 };
-export function HelpV2(t0) {
+export function HelpV2(t0: Props) {
   const $ = _c(44);
   const {
     onClose,
@@ -111,6 +112,7 @@ export function HelpV2(t0) {
       t6 = $[25];
     }
     tabs.push(t6);
+    // eslint-disable-next-line no-constant-condition, no-constant-binary-expression -- ant-only tab is compiled out in CT builds
     if (false && antOnlyCommands.length > 0) {
       let t7;
       if ($[26] !== antOnlyCommands || $[27] !== close || $[28] !== columns || $[29] !== maxHeight) {
@@ -138,7 +140,7 @@ export function HelpV2(t0) {
   const t5 = insideModal ? undefined : maxHeight;
   let t6;
   if ($[31] !== tabs) {
-    t6 = <Tabs title={false ? "/help" : `CT v${MACRO.VERSION}`} color="professionalBlue" defaultTab="general">{tabs}</Tabs>;
+    t6 = <Tabs title={`CT v${MACRO.VERSION}`} color="professionalBlue" defaultTab="general">{tabs}</Tabs>;
     $[31] = tabs;
     $[32] = t6;
   } else {
@@ -146,7 +148,7 @@ export function HelpV2(t0) {
   }
   let t7;
   if ($[33] === Symbol.for("react.memo_cache_sentinel")) {
-    t7 = <Box marginTop={1}><Text>For more help:{" "}<Link url="https://code.claude.com/docs/en/overview" /></Text></Box>;
+    t7 = <Box marginTop={1}><Text>For more help:{" "}<Link url={PRODUCT_DOCS_URL} /></Text></Box>;
     $[33] = t7;
   } else {
     t7 = $[33];
