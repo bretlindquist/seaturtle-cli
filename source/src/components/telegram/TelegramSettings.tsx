@@ -19,6 +19,15 @@ import {
   type TelegramConfig,
 } from '../../services/telegram/config.js'
 import {
+  getSettings_DEPRECATED,
+  updateSettingsForSource,
+} from '../../utils/settings/settings.js'
+import {
+  permissionModeFromString,
+  permissionModeTitle,
+  type PermissionMode,
+} from '../../utils/permissions/PermissionMode.js'
+import {
   getTelegramTranscriptionConfig,
   getTelegramTranscriptionGateMessage,
 } from '../../services/telegram/transcription.js'
@@ -115,6 +124,7 @@ type Screen =
   | { state: 'default-chat-select' }
   | { state: 'delete-profile-select' }
   | { state: 'doctor' }
+  | { state: 'permissions-help' }
   | { state: 'test-sending' }
   | { state: 'clear-confirm' }
   | { state: 'error'; message: string }
@@ -141,6 +151,24 @@ function Bullet({ children }: { children: React.ReactNode }): React.ReactNode {
       <Text>{children}</Text>
     </Box>
   )
+}
+
+function getTelegramPermissionHelp(mode: PermissionMode): string {
+  switch (mode) {
+    case 'bypassPermissions':
+      return 'Full access. Telegram-driven CT can use tools and web/research paths without approval prompts.'
+    case 'acceptEdits':
+      return 'Auto-accept file edits, but CT may still stop for other risky actions.'
+    case 'dontAsk':
+      return "Never prompt, but deny anything not already allowed. This is quieter, not broader."
+    case 'plan':
+      return 'Planning only. Good for discussion, not for autonomous Telegram execution.'
+    case 'auto':
+      return 'CT can choose an automatic mode when supported, but it is not the clearest broad-access default for Telegram.'
+    case 'default':
+    default:
+      return 'Ask before higher-risk actions. Good for terminal use, but Telegram can feel blocked when approvals are needed.'
+  }
 }
 
 function buildChatCandidates(updates: TelegramUpdate[]): TelegramChatCandidate[] {
@@ -181,6 +209,7 @@ function buildTelegramDoctorItems(params: {
   snapshot: ReturnType<typeof getTelegramConfigSnapshot>
   currentBinding: ReturnType<typeof getCurrentProjectTelegramBindingSnapshot>
   transcriptionEnabled: boolean
+  defaultPermissionMode: PermissionMode
 }): string[] {
   const items: string[] = []
 
@@ -209,6 +238,12 @@ function buildTelegramDoctorItems(params: {
     items.push(getTelegramTranscriptionGateMessage())
   }
 
+  if (params.defaultPermissionMode === 'dontAsk') {
+    items.push(
+      "Telegram is using Don't Ask right now, which denies unapproved actions instead of granting broader access.",
+    )
+  }
+
   if (items.length === 0) {
     items.push('Telegram looks healthy for the current project.')
   }
@@ -226,6 +261,9 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
   const profiles = listTelegramBotProfiles()
   const transcription = getTelegramTranscriptionConfig()
   const activeTelegramConfig = getTelegramConfig()
+  const defaultPermissionMode = permissionModeFromString(
+    getSettings_DEPRECATED().permissions?.defaultMode ?? 'default',
+  )
 
   let transportStatus = 'Not configured'
   if (snapshot.ready) {
@@ -252,6 +290,7 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
     snapshot,
     currentBinding,
     transcriptionEnabled: Boolean(transcription),
+    defaultPermissionMode,
   })
 
   React.useEffect(() => {
@@ -1089,6 +1128,89 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
     )
   }
 
+  if (screen.state === 'permissions-help') {
+    const options: Array<{
+      label: React.ReactNode
+      value: PermissionMode | 'back'
+    }> = [
+      {
+        label: (
+          <Text>
+            Ask before risky actions <Text dimColor>(default)</Text>
+          </Text>
+        ),
+        value: 'default',
+      },
+      {
+        label: (
+          <Text>
+            Accept edits automatically <Text dimColor>(faster file work)</Text>
+          </Text>
+        ),
+        value: 'acceptEdits',
+      },
+      {
+        label: (
+          <Text>
+            Full access <Text dimColor>(never ask)</Text>
+          </Text>
+        ),
+        value: 'bypassPermissions',
+      },
+      {
+        label: <Text>Back to Telegram overview</Text>,
+        value: 'back',
+      },
+    ]
+
+    return (
+      <Dialog
+        title="Telegram"
+        subtitle="Permissions and research"
+        onCancel={() => setScreen({ state: 'overview' })}
+      >
+        <Box flexDirection="column" gap={1}>
+          <Text>
+            Telegram uses the same permission runtime as CT in the terminal.
+          </Text>
+          <Text>
+            Current default mode:{' '}
+            <Text bold>{permissionModeTitle(defaultPermissionMode)}</Text>
+          </Text>
+          <Text dimColor>{getTelegramPermissionHelp(defaultPermissionMode)}</Text>
+          <Text>
+            If you want CT over Telegram to research, use tools, and avoid
+            approval stalls, choose <Text bold>Full access</Text>.
+          </Text>
+          <Text dimColor>
+            Don&apos;t Ask is not full access. It denies unapproved actions
+            without prompting.
+          </Text>
+          <Text dimColor>
+            For research-heavy Telegram work, ask directly for research or use
+            <Text bold> /mode research</Text> in the conversation.
+          </Text>
+          <Select
+            options={options}
+            onChange={value => {
+              if (value === 'back') {
+                setScreen({ state: 'overview' })
+                return
+              }
+
+              updateSettingsForSource('userSettings', {
+                permissions: {
+                  defaultMode: value,
+                },
+              })
+              setScreen({ state: 'overview' })
+            }}
+          />
+        </Box>
+      </Dialog>
+    )
+  }
+
   if (screen.state === 'test-sending') {
     return (
       <Dialog
@@ -1204,6 +1326,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
             label="Long poll"
             value={`${snapshot.pollTimeoutSeconds}s`}
           />
+          <StatusLine
+            label="Permission mode"
+            value={permissionModeTitle(defaultPermissionMode)}
+          />
           <StatusLine label="Voice transcription" value={voiceStatus} />
           {snapshot.botUsername ? (
             <StatusLine label="Bot" value={`@${snapshot.botUsername}`} />
@@ -1263,6 +1389,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                     },
                   ]
                 : []),
+              {
+                label: <Text>Telegram permissions and research help</Text>,
+                value: 'permissions-help',
+              },
               {
                 label: <Text>Run Telegram doctor</Text>,
                 value: 'doctor',
@@ -1327,6 +1457,11 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
 
               if (value === 'doctor') {
                 setScreen({ state: 'doctor' })
+                return
+              }
+
+              if (value === 'permissions-help') {
+                setScreen({ state: 'permissions-help' })
                 return
               }
 
