@@ -8,6 +8,7 @@ import type { LogOption } from '../../types/logs.js';
 import { getCwd } from '../../utils/cwd.js';
 import { formatRelativeTimeAgo } from '../../utils/format.js';
 import { getSessionResumeFeedFooterText } from '../../services/sessionResume/sessionResumeCopy.js';
+import type { StartupUpdateSignal } from '../../services/update/startupUpdateSignalCore.js';
 import type { FeedConfig, FeedLine } from './Feed.js';
 export function createRecentActivityFeed(activities: LogOption[]): FeedConfig {
   const lines: FeedLine[] = activities.map(log => {
@@ -36,6 +37,20 @@ export function createWhatsNewFeed(releaseNotes: string[]): FeedConfig {
     lines,
     footer: lines.length > 0 ? '/release-notes for more' : undefined,
     emptyMessage: 'Check the CT changelog for updates'
+  };
+}
+export function createStartupUpdateFeed(signal: StartupUpdateSignal): FeedConfig {
+  return {
+    title: 'Update available',
+    lines: [{
+      text: `SeaTurtle ${signal.latestVersion} is available`
+    }, {
+      text: `Current version: ${signal.currentVersion}`
+    }, {
+      text: `${signal.action.label}: ${signal.action.command}`
+    }],
+    footer: `/status for runtime info · channel ${signal.channel}`,
+    emptyMessage: 'SeaTurtle is up to date'
   };
 }
 export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {

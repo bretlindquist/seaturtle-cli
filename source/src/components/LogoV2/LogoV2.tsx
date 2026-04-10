@@ -8,7 +8,7 @@ import { getLayoutMode, calculateLayoutDimensions, calculateOptimalLeftWidth, fo
 import { truncate } from '../../utils/format.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { FeedColumn } from './FeedColumn.js';
-import { createRecentActivityFeed, createWhatsNewFeed, createProjectOnboardingFeed, createGuestPassesFeed } from './feedConfigs.js';
+import { createRecentActivityFeed, createWhatsNewFeed, createProjectOnboardingFeed, createGuestPassesFeed, createStartupUpdateFeed } from './feedConfigs.js';
 import { getGlobalConfig, saveGlobalConfig } from 'src/utils/config.js';
 import { resolveThemeSetting } from 'src/utils/systemTheme.js';
 import { getInitialSettings } from 'src/utils/settings/settings.js';
@@ -43,6 +43,8 @@ import { getEffortSuffix } from '../../utils/effort.js';
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
 import { renderModelSetting } from '../../utils/model/model.js';
 import { SeaTurtleMark, SeaTurtleWordmark } from './SeaTurtleMark.js';
+import { getStartupUpdateSignal } from '../../services/update/startupUpdateSignal.js';
+import type { StartupUpdateSignal } from '../../services/update/startupUpdateSignalCore.js';
 const LEFT_PANEL_MAX_WIDTH = 50;
 export function LogoV2() {
   const $ = _c(94);
@@ -69,6 +71,18 @@ export function LogoV2() {
   const showSandboxStatus = t1;
   const showGuestPassesUpsell = useShowGuestPassesUpsell();
   const showOverageCreditUpsell = useShowOverageCreditUpsell();
+  const [startupUpdateSignal, setStartupUpdateSignal] = useState<StartupUpdateSignal | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void getStartupUpdateSignal().then(signal => {
+      if (!cancelled) {
+        setStartupUpdateSignal(signal);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const agent = useAppState(_temp);
   const effortValue = useAppState(_temp2);
   const config = getGlobalConfig();
@@ -113,14 +127,7 @@ export function LogoV2() {
     t3 = $[4];
   }
   useEffect(t2, t3);
-  let t4;
-  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
-    t4 = !hasReleaseNotes && !showOnboarding && !isEnvTruthy(process.env.CLAUDE_CODE_FORCE_FULL_LOGO);
-    $[5] = t4;
-  } else {
-    t4 = $[5];
-  }
-  const isCondensedMode = t4;
+  const isCondensedMode = !startupUpdateSignal && !hasReleaseNotes && !showOnboarding && !isEnvTruthy(process.env.CLAUDE_CODE_FORCE_FULL_LOGO);
   let t5;
   let t6;
   if ($[6] !== showGuestPassesUpsell) {
@@ -418,7 +425,7 @@ export function LogoV2() {
   } else {
     t24 = $[61];
   }
-  const t25 = layoutMode === "horizontal" && <FeedColumn feeds={showOnboarding ? [createProjectOnboardingFeed(getSteps()), createRecentActivityFeed(activities)] : showGuestPassesUpsell ? [createRecentActivityFeed(activities), createGuestPassesFeed()] : showOverageCreditUpsell ? [createRecentActivityFeed(activities), createOverageCreditFeed()] : [createRecentActivityFeed(activities), createWhatsNewFeed(changelog)]} maxWidth={rightWidth} />;
+  const t25 = layoutMode === "horizontal" && <FeedColumn feeds={startupUpdateSignal ? [createRecentActivityFeed(activities), createStartupUpdateFeed(startupUpdateSignal)] : showOnboarding ? [createProjectOnboardingFeed(getSteps()), createRecentActivityFeed(activities)] : showGuestPassesUpsell ? [createRecentActivityFeed(activities), createGuestPassesFeed()] : showOverageCreditUpsell ? [createRecentActivityFeed(activities), createOverageCreditFeed()] : [createRecentActivityFeed(activities), createWhatsNewFeed(changelog)]} maxWidth={rightWidth} />;
   let t26;
   if ($[62] !== T2 || $[63] !== t15 || $[64] !== t23 || $[65] !== t24 || $[66] !== t25) {
     t26 = <T2 flexDirection={t15} paddingX={t16} gap={t17}>{t23}{t24}{t25}</T2>;
