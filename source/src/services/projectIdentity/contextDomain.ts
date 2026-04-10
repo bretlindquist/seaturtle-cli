@@ -81,7 +81,8 @@ Do not let unrelated banter, gameplay, or side-channel residue steer the working
 
 This is a git-backed project session and the current turn is exploratory with an explicit project invitation.
 Keep the discussion broad enough to think well, but do not let gameplay, casual chat, or side-question residue muddy project planning.
-Research and ideation should stay discovery-shaped until the user clearly promotes them into execution.`
+Research and ideation should stay discovery-shaped until the user clearly promotes them into execution.
+Help the user's own half-formed thinking come into view before collapsing the exchange into a plan.`
     case 'companion_chat':
       return `Current context domain: companion_chat
 
