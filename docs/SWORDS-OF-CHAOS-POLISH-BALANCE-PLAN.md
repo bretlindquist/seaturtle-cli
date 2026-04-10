@@ -46,6 +46,8 @@ If every scene is myth-breaking, none of them are.
 
 ### 1. Scene Families And Stakes
 
+Status: implemented
+
 Problem:
 - loci are doing too much work
 - choices can still feel like elegant pressure styles rather than concrete
@@ -74,6 +76,8 @@ Success:
 
 ### 2. Expanded Move Grammar
 
+Status: implemented
+
 Problem:
 - the visible menu still maps mostly to force, restraint, and assertion
 
@@ -84,6 +88,12 @@ Target:
 
 Success:
 - visible choices feel behaviorally different, not just tonally different
+
+Current implementation:
+- the planner maps visible choices onto move grammar such as threaten,
+  observe, invoke, deceive, bargain, endure, follow, and profane
+- internal route keys stay stable while player-facing action descriptions now
+  imply different risks and costs
 
 ### 3. Recurring Presences
 
