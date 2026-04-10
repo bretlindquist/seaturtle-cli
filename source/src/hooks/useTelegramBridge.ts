@@ -7,6 +7,7 @@ import { extractTextContent, stripPromptXMLTags } from '../utils/messages.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import {
+  sendTelegramChatAction,
   sendTelegramDocument,
   sendTelegramMessage,
   sendTelegramPhoto,
@@ -21,6 +22,7 @@ import {
   classifyTelegramOutboundAttachments,
   resolveTelegramInboundPayload,
 } from '../services/telegram/media.js'
+import { createTelegramTypingLifecycle } from '../services/telegram/typingLifecycle.js'
 
 type PendingTelegramResponse = {
   chatId: string
@@ -146,11 +148,18 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
   const offsetRef = useRef<number | undefined>(undefined)
   const pendingResponsesRef = useRef<PendingTelegramResponse[]>([])
   const previousLoadingRef = useRef(isLoading)
+  const typingLifecycleRef = useRef<ReturnType<typeof createTelegramTypingLifecycle> | null>(null)
 
   useEffect(() => {
     if (!config) {
+      typingLifecycleRef.current?.stopAll()
+      typingLifecycleRef.current = null
       return
     }
+
+    typingLifecycleRef.current = createTelegramTypingLifecycle(chatId =>
+      sendTelegramChatAction(config, chatId, 'typing'),
+    )
 
     let cancelled = false
     let abortController: AbortController | null = null
@@ -184,6 +193,7 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
               chatId: inbound.chatId,
               startIndex: null,
             })
+            typingLifecycleRef.current?.start(inbound.chatId)
             if (inbound.kind === 'text') {
               mailbox.send({
                 id: randomUUID(),
@@ -218,6 +228,8 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
     return () => {
       cancelled = true
       abortController?.abort()
+      typingLifecycleRef.current?.stopAll()
+      typingLifecycleRef.current = null
     }
   }, [config, mailbox])
 
@@ -260,6 +272,8 @@ export function useTelegramBridge({ isLoading, messages }: Props): void {
               `[telegram] send failed: ${errorMessage(error)}`,
               { level: 'error' },
             )
+          } finally {
+            typingLifecycleRef.current?.stop(pending.chatId)
           }
         })()
         queue.shift()

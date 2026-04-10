@@ -90,6 +90,8 @@ type TelegramSendMessageResponse = {
   ok: boolean
 }
 
+type TelegramSendChatAction = 'typing'
+
 export type TelegramBotIdentity = {
   id: number
   username?: string
@@ -221,6 +223,32 @@ export async function sendTelegramMessage(
   const payload = (await response.json()) as TelegramSendMessageResponse
   if (!payload.ok) {
     throw new Error('Telegram sendMessage returned ok=false')
+  }
+}
+
+export async function sendTelegramChatAction(
+  config: TelegramConfig,
+  chatId: string,
+  action: TelegramSendChatAction = 'typing',
+): Promise<void> {
+  const response = await fetch(`${getBaseUrl(config.botToken)}/sendChatAction`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      action,
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Telegram sendChatAction failed with ${response.status}`)
+  }
+
+  const payload = (await response.json()) as TelegramSendMessageResponse
+  if (!payload.ok) {
+    throw new Error('Telegram sendChatAction returned ok=false')
   }
 }
 

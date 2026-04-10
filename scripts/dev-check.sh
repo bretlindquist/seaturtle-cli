@@ -50,6 +50,7 @@ node dist/cli.js auth status --json >/dev/null
 python3 scripts/openai_codex_regression.py --self-test >/dev/null
 bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
+bun scripts/telegram_typing_lifecycle_selftest.ts >/dev/null
 bash scripts/repl-footer-controls-smoke.sh >/dev/null
 
 echo
