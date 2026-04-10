@@ -4311,7 +4311,7 @@ async function run(): Promise<CommanderCommand> {
     }
   }
 
-  // Remote Control command — connect local environment to claude.ai/code.
+  // Remote Control command — connect local environment to the hosted web client.
   // The actual command is intercepted by the fast-path in cli.tsx before
   // Commander.js runs, so this registration exists only for help output.
   // Always hidden: isBridgeEnabled() at this point (before enableConfigs)
@@ -4322,7 +4322,7 @@ async function run(): Promise<CommanderCommand> {
   if (feature('BRIDGE_MODE')) {
     program.command('remote-control', {
       hidden: true
-    }).alias('rc').description('Connect your local environment for remote-control sessions via claude.ai/code').action(async () => {
+    }).alias('rc').description('Connect your local environment for remote-control sessions via the hosted web client').action(async () => {
       // Unreachable — cli.tsx fast-path handles this command before main.tsx loads.
       // If somehow reached, delegate to bridgeMain.
       const {

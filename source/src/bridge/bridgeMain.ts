@@ -1941,7 +1941,7 @@ DESCRIPTION
   Remote Control allows you to control sessions on your local device from
   the web client (currently hosted at https://claude.ai/code). Run this
   command in the directory you want to work in, then connect from the mobile
-  app or web.
+  app or the web client.
 ${serverDescription}
 NOTES
   - You must be logged in with a claude.ai account that has a subscription
