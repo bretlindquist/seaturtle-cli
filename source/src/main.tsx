@@ -4368,7 +4368,7 @@ async function run(): Promise<CommanderCommand> {
 
   // claude up — run the project's CLAUDE.md "# claude up" setup instructions.
   if ("external" === 'ant') {
-    program.command('up').description('[ANT-ONLY] Initialize or upgrade the local dev environment using the "# claude up" section of the nearest CLAUDE.md').action(async () => {
+    program.command('up').description('[ANT-ONLY] Initialize or upgrade the local dev environment using the "# claude up" section of the nearest SEATURTLE.md or compatible instruction file').action(async () => {
       const {
         up
       } = await import('src/cli/up.js');
