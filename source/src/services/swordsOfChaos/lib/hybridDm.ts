@@ -15,6 +15,12 @@ import {
   getSwordsSceneStakesLine,
   getSwordsSecondBeatActionSet,
 } from './sceneActionPlanner.js'
+import {
+  applySwordsPresenceToOpeningOptions,
+  applySwordsPresenceToSecondBeatOptions,
+  getSwordsPresenceLine,
+  getSwordsPresencePressure,
+} from './presencePlanner.js'
 import { getSwordsSeaTurtleFavoredSecondChoice } from './seaturtleChoice.js'
 import {
   applySwordsCharacterPressureToSecondBeatOptions,
@@ -532,18 +538,32 @@ function renderDeterministicScene(
           locus,
           relevantMemory: payload.relevantMemory,
         }),
+        ...(getSwordsPresenceLine({
+          locus,
+          relevantMemory: payload.relevantMemory,
+        })
+          ? [
+              getSwordsPresenceLine({
+                locus,
+                relevantMemory: payload.relevantMemory,
+              }) as string,
+            ]
+          : []),
         ...openingTail,
       ].join('\n\n'),
-      options: applyOpeningCallbackMemory(
-        applySwordsStoryPressureToOpeningOptions({
-          options: getSwordsOpeningActionSet({
-            locus,
+      options: applySwordsPresenceToOpeningOptions({
+        options: applyOpeningCallbackMemory(
+          applySwordsStoryPressureToOpeningOptions({
+            options: getSwordsOpeningActionSet({
+              locus,
+              relevantMemory: payload.relevantMemory,
+            }),
             relevantMemory: payload.relevantMemory,
           }),
-          relevantMemory: payload.relevantMemory,
-        }),
-        payload.relevantMemory,
-      ),
+          payload.relevantMemory,
+        ),
+        relevantMemory: payload.relevantMemory,
+      }),
       hintText:
         familiar && returningAgain && !payload.relevantMemory?.canonThread
           ? payload.relevantMemory?.seaturtleOpeningPending
@@ -584,6 +604,7 @@ function renderDeterministicScene(
       ? [
           ...(canonPressure ? [canonPressure] : []),
           ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsPresencePressure(payload.relevantMemory),
           ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
           ...getSwordsContinuationPressure(payload.relevantMemory),
           ...getSwordsSceneStatePressure(payload.relevantMemory),
@@ -592,6 +613,7 @@ function renderDeterministicScene(
         ]
       : [
           ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsPresencePressure(payload.relevantMemory),
           ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
           ...getSwordsContinuationPressure(payload.relevantMemory),
           ...getSwordsSceneStatePressure(payload.relevantMemory),
@@ -611,6 +633,17 @@ function renderDeterministicScene(
         locus,
         relevantMemory: payload.relevantMemory,
       }),
+      ...(getSwordsPresenceLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      })
+        ? [
+            getSwordsPresenceLine({
+              locus,
+              relevantMemory: payload.relevantMemory,
+            }) as string,
+          ]
+        : []),
       ...(getSwordsContinuationLead(payload.relevantMemory)
         ? [getSwordsContinuationLead(payload.relevantMemory) as string]
         : []),
@@ -626,21 +659,24 @@ function renderDeterministicScene(
     ].join('\n\n'),
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
-      applySwordsCarryForwardToSecondBeatOptions({
-        options: applySwordsCharacterPressureToSecondBeatOptions({
-          options: applySwordsStoryPressureToSecondBeatOptions({
-            openingChoice: payload.openingChoice,
-            options: getSwordsSecondBeatActionSet({
+      applySwordsPresenceToSecondBeatOptions({
+        options: applySwordsCarryForwardToSecondBeatOptions({
+          options: applySwordsCharacterPressureToSecondBeatOptions({
+            options: applySwordsStoryPressureToSecondBeatOptions({
               openingChoice: payload.openingChoice,
+              options: getSwordsSecondBeatActionSet({
+                openingChoice: payload.openingChoice,
+                locus,
+                relevantMemory: payload.relevantMemory,
+              }),
               locus,
               relevantMemory: payload.relevantMemory,
             }),
-            locus,
             relevantMemory: payload.relevantMemory,
           }),
+          locus,
           relevantMemory: payload.relevantMemory,
         }),
-        locus,
         relevantMemory: payload.relevantMemory,
       }),
       payload.relevantMemory,

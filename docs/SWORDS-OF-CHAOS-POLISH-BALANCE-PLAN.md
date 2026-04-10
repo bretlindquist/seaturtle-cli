@@ -97,6 +97,8 @@ Current implementation:
 
 ### 3. Recurring Presences
 
+Status: implemented
+
 Problem:
 - lore is present, but relationship pressure is still thin
 
@@ -107,6 +109,14 @@ Target:
 Success:
 - the player can recognize entities and pressures across scenes without needing
   an explicit cast screen
+
+Current implementation:
+- recurring presences are planner-derived from existing story, continuation,
+  scene, character, and magic state
+- active presences include the Watcher, Debtor, False Guide, Threshold Herald,
+  and Wrong-Name Voice
+- presences add scene lines, pressure lines, and option rewrites without adding
+  new save schema
 
 ### 4. Chapter Confrontations
 
