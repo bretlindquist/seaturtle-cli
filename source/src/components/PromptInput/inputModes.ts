@@ -36,7 +36,7 @@ const MODE_DESCRIPTIONS: Record<EditablePromptInputMode, string> = {
   prompt: 'general purpose',
   convo: 'free talk, human exchange, and live back-and-forth',
   discovery:
-    'engaging brainstorming that helps surface and connect ideas already forming in the user, with a little Socratic and devil’s-advocate pressure',
+    'engaging discovery that helps surface, connect, and test ideas already forming in the user',
   research: 'investigate carefully with evidence and visible confidence',
   planning: 'shape scope, sequence, tradeoffs, and next steps',
   execution: 'make the change decisively and move the work forward',
