@@ -35,6 +35,21 @@ type Props = {
   diagnosticsPromise: Promise<Diagnostic[]>
 }
 
+type StatusSectionData = {
+  title: string
+  properties: Property[]
+}
+
+function pickProperties(
+  properties: Property[],
+  labels: string[],
+): Property[] {
+  const wanted = new Set(labels)
+  return properties.filter(
+    property => property.label !== undefined && wanted.has(property.label),
+  )
+}
+
 function buildPrimarySection({
   mainLoopModel,
   effortValue,
@@ -45,30 +60,50 @@ function buildPrimarySection({
   effortValue: AppState['effortValue']
   permissionMode: AppState['toolPermissionContext']['mode']
   messages: AppState['messages']
-}): Property[] {
+}): StatusSectionData[] {
   const sessionId = getSessionId()
   const customTitle = getCurrentSessionTitle(sessionId)
   const nameValue = customTitle ?? <Text dimColor>/rename to add a name</Text>
+  const runtimeProperties = buildAPIProviderProperties()
+  const accountProperties = buildAccountProperties()
 
   return [
-    { label: 'Version', value: MACRO.VERSION },
     {
-      label: 'Model',
-      value: getStatusModelDisplayLabel(mainLoopModel, effortValue),
+      title: 'Session',
+      properties: [
+        { label: 'Version', value: MACRO.VERSION },
+        {
+          label: 'Model',
+          value: getStatusModelDisplayLabel(mainLoopModel, effortValue),
+        },
+        { label: 'Directory', value: getCwd() },
+        {
+          label: 'Permissions',
+          value: getStatusPermissionLabel(permissionMode),
+        },
+        { label: 'Session', value: sessionId },
+        { label: 'Session name', value: nameValue },
+        ...buildContextWindowProperties({
+          mainLoopModel,
+          messages,
+        }),
+      ],
     },
-    { label: 'Directory', value: getCwd() },
     {
-      label: 'Permissions',
-      value: getStatusPermissionLabel(permissionMode),
+      title: 'Runtime',
+      properties: [
+        ...pickProperties(runtimeProperties, [
+          'Main model runtime',
+          'Codex status',
+          'Codex auth',
+          'Account',
+          'Collaboration mode',
+          '5h limit',
+          'Weekly limit',
+        ]),
+        ...pickProperties(accountProperties, ['Login method', 'Email']),
+      ],
     },
-    ...buildContextWindowProperties({
-      mainLoopModel,
-      messages,
-    }),
-    { label: 'Session', value: sessionId },
-    { label: 'Session name', value: nameValue },
-    ...buildAccountProperties(),
-    ...buildAPIProviderProperties(),
   ]
 }
 
@@ -80,17 +115,24 @@ function buildSecondarySection({
   mcp: AppState['mcp']
   theme: ThemeName
   context: LocalJSXCommandContext
-}): Property[] {
+}): StatusSectionData[] {
   return [
-    ...buildIDEProperties(
-      mcp.clients,
-      context.options.ideInstallationStatus,
-      theme,
-    ),
-    ...buildMcpProperties(mcp.clients, theme),
-    ...buildTelegramProperties(theme),
-    ...buildSandboxProperties(),
-    ...buildSettingSourcesProperties(),
+    {
+      title: 'Integrations',
+      properties: [
+        ...buildIDEProperties(
+          mcp.clients,
+          context.options.ideInstallationStatus,
+          theme,
+        ),
+        ...buildMcpProperties(mcp.clients, theme),
+        ...buildTelegramProperties(theme),
+      ],
+    },
+    {
+      title: 'Environment',
+      properties: [...buildSettingSourcesProperties(), ...buildSandboxProperties()],
+    },
   ]
 }
 
@@ -121,23 +163,39 @@ function PropertyValue({
   }
 
   if (typeof value === 'string') {
-    return <Text>{value}</Text>
+    return <Text wrap="wrap">{value}</Text>
   }
 
   return value
 }
 
-function PropertySection({ properties }: { properties: Property[] }): React.ReactNode {
+function PropertySection({
+  title,
+  properties,
+}: StatusSectionData): React.ReactNode {
   if (properties.length === 0) {
     return null
   }
 
   return (
     <Box flexDirection="column">
+      <Text bold color="permission">
+        {title}
+      </Text>
       {properties.map(({ label, value }, j) => (
         <Box key={j} flexDirection="row" gap={1} flexShrink={0}>
-          {label !== undefined && <Text bold>{label}:</Text>}
-          <PropertyValue value={value} />
+          {label !== undefined ? (
+            <Box width={20} flexShrink={0}>
+              <Text bold dimColor>
+                {label}:
+              </Text>
+            </Box>
+          ) : (
+            <Box width={20} flexShrink={0} />
+          )}
+          <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+            <PropertyValue value={value} />
+          </Box>
         </Box>
       ))}
     </Box>
@@ -146,11 +204,13 @@ function PropertySection({ properties }: { properties: Property[] }): React.Reac
 
 function AsyncPropertySection({
   promise,
+  title,
 }: {
   promise: Promise<Property[]>
+  title: string
 }): React.ReactNode {
   const properties = use(promise)
-  return <PropertySection properties={properties} />
+  return <PropertySection title={title} properties={properties} />
 }
 
 export function Status({
@@ -170,13 +230,13 @@ export function Status({
 
   const sections = React.useMemo(
     () => [
-      buildPrimarySection({
+      ...buildPrimarySection({
         mainLoopModel,
         effortValue,
         permissionMode,
         messages,
       }),
-      buildSecondarySection({
+      ...buildSecondarySection({
         mcp,
         theme,
         context,
@@ -187,13 +247,20 @@ export function Status({
 
   return (
     <Box flexDirection="column" flexGrow={grow}>
-      <Box flexDirection="column" gap={1} flexGrow={grow}>
+      <Box flexDirection="column" flexGrow={grow}>
         {sections.map((properties, i) => (
-          <PropertySection key={i} properties={properties} />
+          <PropertySection
+            key={properties.title || i}
+            title={properties.title}
+            properties={properties.properties}
+          />
         ))}
 
         <Suspense fallback={null}>
-          <AsyncPropertySection promise={instructionPropertiesPromise} />
+          <AsyncPropertySection
+            title="Instructions"
+            promise={instructionPropertiesPromise}
+          />
         </Suspense>
 
         <Suspense fallback={null}>
@@ -222,8 +289,10 @@ function Diagnostics({
   if (diagnostics.length === 0) return null
 
   return (
-    <Box flexDirection="column" paddingBottom={1}>
-      <Text bold>System Diagnostics</Text>
+    <Box flexDirection="column" gap={1} paddingBottom={1}>
+      <Text bold color="permission">
+        Diagnostics
+      </Text>
       {diagnostics.map((diagnostic, i) => (
         <Box key={i} flexDirection="row" gap={1} paddingX={1}>
           <Text color="error">{figures.warning}</Text>

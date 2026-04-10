@@ -113,7 +113,10 @@ export function Settings(t0) {
   }
   const tabs = t8;
   const t9 = defaultTab !== "Config" && defaultTab !== "Gates";
-  const t10 = tabsHidden || insideModal ? undefined : contentHeight;
+  const t10 =
+    tabsHidden || insideModal || selectedTab === 'Status'
+      ? undefined
+      : contentHeight;
   let t11;
   if ($[19] !== selectedTab || $[20] !== t10 || $[21] !== t9 || $[22] !== tabs || $[23] !== tabsHidden) {
     t11 = <Pane color="permission"><Tabs color="permission" selectedTab={selectedTab} onTabChange={setSelectedTab} hidden={tabsHidden} initialHeaderFocused={t9} contentHeight={t10}>{tabs}</Tabs></Pane>;

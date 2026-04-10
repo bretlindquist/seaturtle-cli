@@ -427,36 +427,11 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Main model runtime',
     value: runtimeSnapshot.execution.displayName
   });
-  const codexAuthSourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'Provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'Not configured';
-  const codexStatusLabel = runtimeSnapshot.execution.family === 'openai' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'openai' ? 'Preferred but not active' : runtimeSnapshot.openAiCodexAuthReady ? 'Available' : 'Not configured';
-  properties.push({
-    label: 'Codex status',
-    value: codexStatusLabel
-  });
-  properties.push({
-    label: 'Codex auth',
-    value: codexAuthSourceLabel
-  });
-  properties.push({
-    label: 'Codex native auth',
-    value: runtimeSnapshot.openAiCodexNativeAuthReady ? 'Ready' : 'Not detected'
-  });
-  properties.push({
-    label: 'Codex CLI fallback',
-    value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
-  });
   if (runtimeSnapshot.openAiCodexAccountLabel) {
     const codexAccountLabel = runtimeSnapshot.openAiCodexPlanLabel ? `${runtimeSnapshot.openAiCodexAccountLabel} (${runtimeSnapshot.openAiCodexPlanLabel})` : runtimeSnapshot.openAiCodexAccountLabel;
     properties.push({
       label: 'Account',
       value: codexAccountLabel
-    });
-  }
-  if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
-    const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
-    properties.push({
-      label: 'Preferred runtime',
-      value: `${runtimeSnapshot.preferred.displayName} (${preferredSuffix})`
     });
   }
   if (runtimeSnapshot.execution.family === 'openai') {
@@ -478,6 +453,33 @@ export function buildAPIProviderProperties(): Property[] {
         value: renderCodexLimitValue(codexTelemetry.weekly)
       });
     }
+  }
+  const codexAuthSourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'Provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'Not configured';
+  const codexStatusLabel = runtimeSnapshot.execution.family === 'openai' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'openai' ? 'Preferred but not active' : runtimeSnapshot.openAiCodexAuthReady ? 'Available' : 'Not configured';
+  properties.push({
+    label: 'Codex status',
+    value: codexStatusLabel
+  });
+  properties.push({
+    label: 'Codex auth',
+    value: codexAuthSourceLabel
+  });
+  properties.push({
+    label: 'Codex native auth',
+    value: runtimeSnapshot.openAiCodexNativeAuthReady ? 'Ready' : 'Not detected'
+  });
+  properties.push({
+    label: 'Codex CLI fallback',
+    value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
+  });
+  if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
+    const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
+    properties.push({
+      label: 'Preferred runtime',
+      value: `${runtimeSnapshot.preferred.displayName} (${preferredSuffix})`
+    });
+  }
+  if (runtimeSnapshot.execution.family === 'openai') {
     properties.push({
       label: 'OpenAI/Codex gates',
       value: ['auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
