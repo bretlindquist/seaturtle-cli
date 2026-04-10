@@ -55,6 +55,15 @@ import {
   getCachedReferrerReward,
 } from '../api/referral.js'
 import { getCtTodoPath } from '../projectIdentity/paths.js'
+import {
+  shouldShowConfigHelpTip,
+  shouldShowCopyMenuTip,
+  shouldShowExecutionLanesTip,
+  shouldShowProjectTodoCommandTip,
+  shouldShowStatusDashboardTip,
+  shouldShowTelegramSetupTip,
+  shouldShowTranscriptSearchTip,
+} from './ctFeatureDiscovery.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
 import type { Tip, TipContext } from './types.js'
 
@@ -294,7 +303,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 8,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.todoFeatureEnabled !== false && !hasProjectTodoFile()
+      return shouldShowProjectTodoCommandTip(config, hasProjectTodoFile())
     },
   },
   {
@@ -304,7 +313,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 8,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 2
+      return shouldShowStatusDashboardTip(config)
     },
   },
   {
@@ -314,7 +323,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 2
+      return shouldShowConfigHelpTip(config)
     },
   },
   {
@@ -324,7 +333,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 8,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 3
+      return shouldShowTranscriptSearchTip(config)
     },
   },
   {
@@ -334,7 +343,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 8,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.copyCommandBehavior !== 'copyLatestResponse'
+      return shouldShowCopyMenuTip(config)
     },
   },
   {
@@ -344,7 +353,7 @@ const externalTips: Tip[] = [
     cooldownSessions: 8,
     async isRelevant() {
       const config = getGlobalConfig()
-      return config.numStartups > 3
+      return shouldShowExecutionLanesTip(config)
     },
   },
   {
@@ -354,7 +363,10 @@ const externalTips: Tip[] = [
     cooldownSessions: 10,
     async isRelevant() {
       const config = getGlobalConfig()
-      return !getCurrentProjectConfig().telegram && config.numStartups > 4
+      return shouldShowTelegramSetupTip(
+        config,
+        Boolean(getCurrentProjectConfig().telegram),
+      )
     },
   },
   {
