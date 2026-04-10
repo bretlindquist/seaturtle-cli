@@ -17,6 +17,8 @@ import { pickCtGreeting, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIde
 import { getCtArchives } from '../services/projectIdentity/archives.js';
 import { getCtHaikuDisplay, markStartupHaikuShown, shouldShowStartupHaiku } from '../services/projectIdentity/haiku.js';
 import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
+import { getSessionResumeAffordanceText } from '../services/sessionResume/sessionResumeCopy.js';
+import { isBareMode } from './envUtils.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -226,6 +228,7 @@ const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
         <Text>
           {isSeaTurtleIntro ? `I'm 🐢 SeaTurtle, or CT for short. I already set up a private starter kit for this project. Over time, this layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.` : 'CT set up a private `.ct/` layer for this project.'}
           <Text dimColor> · use /ct whenever you want to retune it or edit the private CT files directly</Text>
+          <Text dimColor> · {getSessionResumeAffordanceText()}</Text>
         </Text>
       </Box>;
   }
@@ -271,10 +274,15 @@ function CtIdentityGreetingNoticeBody({
   });
   const prompt = display.kind === 'greeting' ? display.text : '';
   const haikuLines = display.kind === 'haiku' ? display.text.split('\n') : [];
-  const [visibleChars, setVisibleChars] = React.useState(0);
+  const [visibleChars, setVisibleChars] = React.useState(() =>
+    isBareMode() ? prompt.length : 0
+  );
 
   React.useEffect(() => {
-    if (display.kind === 'haiku') {
+    if (display.kind === 'haiku' || isBareMode()) {
+      if (isBareMode()) {
+        setVisibleChars(prompt.length);
+      }
       markStartupHaikuShown();
       return;
     }
@@ -305,6 +313,7 @@ function CtIdentityGreetingNoticeBody({
         Use /ct to edit `.ct/session.md`, /haiku to tune the rare creative tide, or retune CT whenever you want to
         steer the project.
       </Text>
+      <Text dimColor>{getSessionResumeAffordanceText()}</Text>
       {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
       {display.kind === 'haiku' ? <Box marginTop={1} flexDirection="column">
           {haikuLines.map((line, index) => <Text key={index} color="claude">{line}</Text>)}

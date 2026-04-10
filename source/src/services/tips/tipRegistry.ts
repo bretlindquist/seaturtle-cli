@@ -55,6 +55,7 @@ import {
   getCachedReferrerReward,
 } from '../api/referral.js'
 import { getCtTodoPath } from '../projectIdentity/paths.js'
+import { getSessionResumeTipText } from '../sessionResume/sessionResumeCopy.js'
 import {
   shouldShowConfigHelpTip,
   shouldShowCopyMenuTip,
@@ -468,8 +469,7 @@ const externalTips: Tip[] = [
   },
   {
     id: 'continue',
-    content: async () =>
-      'Run ct --continue or ct --resume to resume a conversation',
+    content: async () => getSessionResumeTipText(),
     cooldownSessions: 10,
     isRelevant: async () => true,
   },

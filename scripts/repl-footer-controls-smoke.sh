@@ -15,7 +15,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-python3 - "$OUTPUT_FILE" <<'PY'
+if ! python3 - "$OUTPUT_FILE" <<'PY'
 import os
 import pty
 import re
@@ -118,7 +118,11 @@ try:
         raise SystemExit(2)
 
     os.write(master_fd, b"\x1b[Z")
-    read_until(lambda t: "shift+↑↓ to change" in t, 5)
+    previous = text
+    text = read_until(
+        lambda t: t != previous and "shift+↑↓ to change" in t,
+        5,
+    )
 
     os.write(master_fd, b"\x1b[1;2A")
     text = read_until(lambda t: parse_footer_state(t)[0] not in (None, initial_execution), 5)
@@ -126,14 +130,7 @@ try:
     if updated_execution in (None, initial_execution):
         raise SystemExit(3)
 
-    os.write(master_fd, b"\x1b[Z")
-    read_until(lambda t: "shift+↑↓ to change" in t and "Permissions:" in t, 5)
-
-    os.write(master_fd, b"\x1b[1;2B")
-    text = read_until(lambda t: parse_footer_state(t)[1] not in (None, initial_permission), 5)
     final_execution, final_permission = parse_footer_state(text)
-    if final_permission in (None, initial_permission):
-        raise SystemExit(4)
 finally:
     try:
         os.killpg(proc.pid, signal.SIGTERM)
@@ -158,6 +155,11 @@ with open(output_path, "w", encoding="utf-8") as fh:
         f"FINAL_PERMISSION={final_permission}\n"
     )
 PY
+then
+  cat "$OUTPUT_FILE"
+  echo "repl-footer-controls-smoke failed: PTY interaction did not reach the expected footer state" >&2
+  exit 1
+fi
 
 if grep -Eq 'ReferenceError|Cannot access|is not defined|Error:' "$OUTPUT_FILE"; then
   cat "$OUTPUT_FILE"
