@@ -1,5 +1,7 @@
 import {
   getSessionResumeAffordanceText,
+  getSessionResumeFeedFooterText,
+  getNoResumableSessionsText,
   getSessionResumeTipText,
 } from '../source/src/services/sessionResume/sessionResumeCopy.ts'
 
@@ -35,6 +37,22 @@ assert(
 assert(
   tip.includes('ct --continue') && tip.includes('ct --resume'),
   'resume tip should mention both explicit resume paths',
+)
+
+const feedFooter = getSessionResumeFeedFooterText()
+assert(
+  feedFooter === '/continue for last · /resume for picker',
+  'recent activity footer should expose the canonical resume affordance',
+)
+
+const noResumable = getNoResumableSessionsText()
+assert(
+  noResumable.includes('/resume opens the picker'),
+  'no-resume message should explain picker discovery',
+)
+assert(
+  noResumable.includes('/continue resumes the most recent session'),
+  'no-resume message should explain the direct continue path',
 )
 
 console.log('session-resume-copy selftest passed')

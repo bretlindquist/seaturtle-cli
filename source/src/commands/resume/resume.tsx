@@ -20,6 +20,7 @@ import { getWorktreePaths } from '../../utils/getWorktreePaths.js';
 import { logError } from '../../utils/log.js';
 import { getLastSessionLog, getSessionIdFromLog, isCustomTitleEnabled, isLiteLog, loadAllProjectsMessageLogs, loadFullLog, loadSameRepoMessageLogs, searchSessionsByCustomTitle } from '../../utils/sessionStorage.js';
 import { validateUuid } from '../../utils/uuid.js';
+import { getNoResumableSessionsText } from '../../services/sessionResume/sessionResumeCopy.js';
 type ResumeResult = {
   resultType: 'sessionNotFound';
   arg: string;
@@ -114,7 +115,7 @@ function ResumeCommand({
         return;
       }
       setLogs(resumable);
-    } catch (_err) {
+    } catch {
       onDone('Failed to load conversations');
     } finally {
       setLoading(false);
@@ -214,8 +215,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const worktreePaths = await getWorktreePaths(getOriginalCwd());
   const logs = await loadSameRepoMessageLogs(worktreePaths);
   if (logs.length === 0) {
-    const message =
-      'No conversations found to resume. /resume opens the picker when sessions exist, and /continue resumes the most recent session in this directory.';
+    const message = getNoResumableSessionsText();
     return <ResumeError message={message} args={arg} onDone={() => onDone(message)} />;
   }
 
