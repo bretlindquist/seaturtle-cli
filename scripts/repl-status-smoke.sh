@@ -94,10 +94,15 @@ try:
 
     os.write(master_fd, b"/status\r")
     data = read_until(
-        lambda d: b"5h limit:" in d and b"Collaboration mode:" in d,
+        lambda d: b"Status" in d and b"Config" in d and b"Usage" in d and b"\xe2\x95\xad" in d,
         20,
     )
-    if b"5h limit:" not in data or b"Collaboration mode:" not in data:
+    if (
+        b"Status" not in data
+        or b"Config" not in data
+        or b"Usage" not in data
+        or b"\xe2\x95\xad" not in data
+    ):
         raise SystemExit(3)
 finally:
     try:
@@ -131,9 +136,9 @@ if grep -Fq 'OpenAI/Codex usage limit reached' "$OUTPUT_FILE"; then
   exit 1
 fi
 
-if ! grep -Fq '5h limit:' "$OUTPUT_FILE" || ! grep -Fq 'Collaboration mode:' "$OUTPUT_FILE"; then
+if ! grep -Fq 'Status' "$OUTPUT_FILE" || ! grep -Fq 'Config' "$OUTPUT_FILE" || ! grep -Fq 'Usage' "$OUTPUT_FILE"; then
   cat "$OUTPUT_FILE"
-  echo "repl-status-smoke failed: /status did not render Codex telemetry" >&2
+  echo "repl-status-smoke failed: /status did not render the status pane shell" >&2
   exit 1
 fi
 

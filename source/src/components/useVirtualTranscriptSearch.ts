@@ -122,6 +122,16 @@ export function useVirtualTranscriptSearch({
 
   const bumpSeek = useCallback(() => setSeekGen(g => g + 1), [])
 
+  const drainPendingStep = useCallback(() => {
+    const pending = pendingStepRef.current
+    pendingStepRef.current = 0
+    if (pending) {
+      stepRef.current(pending)
+      return true
+    }
+    return false
+  }, [])
+
   const beginSeek = useCallback((idx: number, wantLast: boolean, tries: number) => {
     scanRequestRef.current = {
       idx,
@@ -140,7 +150,7 @@ export function useVirtualTranscriptSearch({
       if (tries > 1) {
         scanRequestRef.current = null
         logForDebugging(`seek(i=${idx}): no mount after scrollToIndex, skip`)
-        stepRef.current(wantLast ? -1 : 1)
+        drainPendingStep()
         return true
       }
       beginSeek(idx, wantLast, tries + 1)
@@ -148,7 +158,7 @@ export function useVirtualTranscriptSearch({
       bumpSeek()
       return true
     },
-    [beginSeek, bumpSeek],
+    [beginSeek, bumpSeek, drainPendingStep],
   )
 
   const finishSeekAtMountedElement = useCallback(
@@ -185,7 +195,7 @@ export function useVirtualTranscriptSearch({
           phantomBurstRef.current = 0
           return true
         }
-        stepRef.current(wantLast ? -1 : 1)
+        drainPendingStep()
         return true
       }
       phantomBurstRef.current = 0
@@ -209,7 +219,15 @@ export function useVirtualTranscriptSearch({
       }
       return true
     },
-    [beginSeek, bumpSeek, clearActiveResult, scanElement, scrollRef, jumpStateRef],
+    [
+      beginSeek,
+      bumpSeek,
+      clearActiveResult,
+      drainPendingStep,
+      scanElement,
+      scrollRef,
+      jumpStateRef,
+    ],
   )
 
   function targetFor(index: number): number {
@@ -217,23 +235,31 @@ export function useVirtualTranscriptSearch({
     return Math.max(0, top - HEADROOM)
   }
 
+  function getUsableCurrentPositions(st: TranscriptSearchEngineState): {
+    msgIdx: number
+    positions: MatchPosition[]
+    usablePositions: number
+  } {
+    const { msgIdx, positions } = elementPositions.current
+    const currentMessageOccurrenceCount =
+      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st)
+    return {
+      msgIdx,
+      positions,
+      usablePositions: Math.min(positions.length, currentMessageOccurrenceCount),
+    }
+  }
+
   function highlight(ord: number): void {
     const s = scrollRef.current
-    const { msgIdx, positions } = elementPositions.current
+    const { msgIdx, positions, usablePositions } = getUsableCurrentPositions(
+      searchState.current,
+    )
     if (!s || positions.length === 0 || msgIdx < 0) {
       clearActiveResult()
       return
     }
     const st = searchState.current
-    const expectedOccurrences = Math.max(
-      0,
-      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st),
-    )
-    if (expectedOccurrences === 0) {
-      clearActiveResult()
-      return
-    }
-    const usablePositions = Math.min(positions.length, expectedOccurrences)
     if (usablePositions <= 0) {
       clearActiveResult()
       return
@@ -312,11 +338,8 @@ export function useVirtualTranscriptSearch({
       return
     }
     if (startPtrRef.current < 0) startPtrRef.current = st.cursor.ptr
-    const { positions } = elementPositions.current
+    const { usablePositions } = getUsableCurrentPositions(st)
     const targetMsgIdx = getTranscriptSearchEngineCurrentMessageIndex(st) ?? -1
-    const currentMessageOccurrenceCount =
-      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st)
-    const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount)
     if (
       usablePositions <= 0 &&
       targetMsgIdx >= 0 &&
@@ -439,10 +462,7 @@ export function useVirtualTranscriptSearch({
       clearActiveResult()
       return
     }
-    const { msgIdx, positions } = elementPositions.current
-    const currentMessageOccurrenceCount =
-      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st)
-    const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount)
+    const { msgIdx, usablePositions } = getUsableCurrentPositions(st)
     if (
       msgIdx === getTranscriptSearchEngineCurrentMessageIndex(st) &&
       usablePositions > 0

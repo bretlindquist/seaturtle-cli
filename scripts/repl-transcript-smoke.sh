@@ -67,6 +67,15 @@ def read_until(predicate, timeout):
             return data
     return b"".join(chunks)
 
+def enter_transcript_mode(timeout: float) -> bytes:
+    attempts = (b"\x0f", b"\x1b[111;5u")
+    for index, sequence in enumerate(attempts):
+        os.write(master_fd, sequence)
+        data = read_until(lambda d: transcript_marker in d, timeout if index == len(attempts) - 1 else 2)
+        if transcript_marker in data:
+            return data
+    return b"".join(chunks)
+
 try:
     read_until(lambda d: b"\xe2\x9d\xaf" in d, 20)
 
@@ -75,8 +84,7 @@ try:
     if b"Status" not in data:
         raise SystemExit(2)
 
-    os.write(master_fd, b"\x0f")
-    data = read_until(lambda d: transcript_marker in d, 10)
+    data = enter_transcript_mode(10)
     if transcript_marker not in data:
         raise SystemExit(3)
 

@@ -24,6 +24,11 @@ export function useTranscriptSearchController({
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
   const prevColsRef = useRef(transcriptCols);
+  const refreshAfterLayout = () => {
+    setTimeout(() => {
+      jumpRef.current?.refreshCurrentMatch();
+    }, 0);
+  };
 
   useEffect(() => {
     if (prevColsRef.current !== transcriptCols) {
@@ -37,18 +42,22 @@ export function useTranscriptSearchController({
   }, [clearSearchState, closeSearch, jumpRef, searchOpen, searchQuery, transcriptCols]);
 
   const handleCloseSearchBar = (q: string) => {
+    jumpRef.current?.setSearchQuery(q);
     commitSearchQuery(q);
     closeSearch();
     if (!q) {
       clearSearchState();
       jumpRef.current?.setSearchQuery('');
+      return;
     }
+    refreshAfterLayout();
   };
 
   const handleCancelSearchBar = () => {
     closeSearch();
     jumpRef.current?.setSearchQuery('');
     jumpRef.current?.setSearchQuery(searchQuery);
+    refreshAfterLayout();
   };
 
   return {

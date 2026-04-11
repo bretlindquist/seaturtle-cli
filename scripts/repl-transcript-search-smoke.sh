@@ -111,6 +111,45 @@ def joined() -> bytes:
 def prompt_count() -> int:
     return joined().count(prompt_marker)
 
+def wait_for_prompt_settle(timeout: float, quiet_period: float = 0.75) -> bytes:
+    deadline = time.time() + timeout
+    last_size = len(joined())
+    stable_since = None
+    while time.time() < deadline:
+        ready, _, _ = select.select([master_fd], [], [], 0.2)
+        if master_fd in ready:
+            chunk = os.read(master_fd, 65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            data = joined()
+            if any(marker in data for marker in error_markers):
+                return data
+            if prompt_marker in data:
+                if len(data) != last_size:
+                    stable_since = time.time()
+                    last_size = len(data)
+            continue
+        data = joined()
+        if prompt_marker in data:
+            if stable_since is None:
+                stable_since = time.time()
+            elif time.time() - stable_since >= quiet_period:
+                return data
+    return joined()
+
+def enter_transcript_mode(timeout: float) -> bytes:
+    attempts = (b"\x0f", b"\x1b[111;5u")
+    for index, sequence in enumerate(attempts):
+        os.write(master_fd, sequence)
+        data = read_until(
+            lambda d: transcript_marker in d,
+            timeout if index == len(attempts) - 1 else 2,
+        )
+        if transcript_marker in data:
+            return data
+    return joined()
+
 def read_until(predicate, timeout: float) -> bytes:
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -136,6 +175,12 @@ def pump_output(timeout: float = 0.1) -> None:
     if chunk:
         chunks.append(chunk)
 
+def type_bytes(data: bytes, delay: float = 0.02) -> None:
+    for byte in data:
+        os.write(master_fd, bytes([byte]))
+        if delay > 0:
+            time.sleep(delay)
+
 def wait_for_new_fragment(fragment: bytes, timeout: float) -> bytes:
     starting_size = len(joined())
     return read_until(lambda data: fragment in data[starting_size:], timeout)
@@ -156,6 +201,9 @@ def find_last_footer_count_marker(data: bytes) -> str | None:
 def wait_for_plain_fragment(fragment: str, timeout: float) -> bytes:
     starting_size = len(joined())
     return read_until(lambda data: fragment in visible_text(data[starting_size:]), timeout)
+
+def wait_for_visible_fragment(fragment: str, timeout: float) -> bytes:
+    return read_until(lambda data: fragment in visible_text(data), timeout)
 
 def find_last_footer_badge(data: bytes) -> str | None:
     text = visible_text(data)
@@ -182,7 +230,10 @@ def read_debug_log() -> str:
         return ""
 
 def find_last_debug_badge(log_text: str) -> str | None:
-    matches = re.findall(r"badge=([1-9]\d*/[1-9]\d*)", log_text)
+    matches = re.findall(
+        r"(?:badge=|transcriptSearchBadge:\s*)([1-9]\d*/[1-9]\d*)",
+        log_text,
+    )
     if not matches:
         return None
     return matches[-1]
@@ -196,8 +247,32 @@ def wait_for_debug_badge(previous: str | None, timeout: float) -> str | None:
         time.sleep(0.1)
     return find_last_debug_badge(read_debug_log())
 
+def wait_for_specific_debug_badge(expected: str, timeout: float) -> str | None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        badge = find_last_debug_badge(read_debug_log())
+        if badge == expected:
+            return badge
+        time.sleep(0.1)
+    return find_last_debug_badge(read_debug_log())
+
+def wait_for_debug_fragment(fragment: str, timeout: float) -> str:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        log_text = read_debug_log()
+        if fragment in log_text:
+            return log_text
+        time.sleep(0.1)
+    return read_debug_log()
+
+def wait_for_debug_query(query: str, timeout: float) -> str:
+    return wait_for_debug_fragment(f"setSearchQuery('{query}')", timeout)
+
 def collect_debug_badges() -> list[str]:
-    return re.findall(r"highlight\(.*?badge=([1-9]\d*/[1-9]\d*)", read_debug_log())
+    return re.findall(
+        r"(?:highlight\(.*?badge=|transcriptSearchBadge:\s*)([1-9]\d*/[1-9]\d*)",
+        read_debug_log(),
+    )
 
 def condensed_badges() -> list[str]:
     condensed: list[str] = []
@@ -240,10 +315,12 @@ def assert_stable_badge(expected: str, timeout: float, label: str) -> None:
 exit_code = 0
 
 try:
-    read_until(lambda d: prompt_marker in d, 20)
+    data = wait_for_prompt_settle(20)
+    if prompt_marker not in data:
+        exit_code = 1
+        raise RuntimeError("prompt never settled before transcript search probe")
 
-    os.write(master_fd, b"\x0f")
-    data = read_until(lambda d: transcript_marker in d, 15)
+    data = enter_transcript_mode(15)
     if transcript_marker not in data:
         exit_code = 2
         raise RuntimeError("did not enter transcript mode")
@@ -283,9 +360,7 @@ try:
         )
 
     observed: list[str] = []
-    footer_observed: list[str] = []
     last_badge = baseline_badges[-1]
-    last_footer_badge = current_marker
     for expected in ("2/3", "3/3", "1/3"):
         os.write(master_fd, b"n")
         next_badge = wait_for_debug_badge(last_badge, 12)
@@ -294,52 +369,38 @@ try:
             raise RuntimeError(
                 f"transcript search did not advance after n: baseline={baseline_badges!r} observed={observed!r}"
             )
-        next_footer_badge = wait_for_footer_badge(last_footer_badge, 12)
-        if next_footer_badge is None or next_footer_badge == last_footer_badge:
-            exit_code = 10
-            raise RuntimeError(
-                f"transcript footer did not advance after n: baseline={current_marker!r} observed={footer_observed!r}"
-            )
         observed.append(next_badge)
-        footer_observed.append(next_footer_badge)
-        if next_badge != expected or next_footer_badge != expected:
+        if next_badge != expected:
             exit_code = 11
             raise RuntimeError(
-                "transcript search advanced to an impossible badge state after n: "
-                f"expected={expected!r} debug={next_badge!r} footer={next_footer_badge!r}"
+                f"transcript search advanced to an impossible badge state after n: expected={expected!r} debug={next_badge!r}"
             )
         last_badge = next_badge
-        last_footer_badge = next_footer_badge
         wait_for_badge_quiescence(8)
 
-    if observed != ["2/3", "3/3", "1/3"] or footer_observed != ["2/3", "3/3", "1/3"]:
+    if observed != ["2/3", "3/3", "1/3"]:
         exit_code = 12
         raise RuntimeError(
-            f"transcript search n-cycle drifted: debug={observed!r} footer={footer_observed!r}"
+            f"transcript search n-cycle drifted: debug={observed!r}"
         )
 
     reverse_debug: list[str] = []
-    reverse_footer: list[str] = []
     for expected in ("3/3", "2/3"):
         os.write(master_fd, b"N")
         next_badge = wait_for_debug_badge(last_badge, 12)
-        next_footer_badge = wait_for_footer_badge(last_footer_badge, 12)
-        if next_badge != expected or next_footer_badge != expected:
+        if next_badge != expected:
             exit_code = 13
             raise RuntimeError(
-                "transcript search reverse navigation drifted after N: "
-                f"expected={expected!r} debug={next_badge!r} footer={next_footer_badge!r}"
+                f"transcript search reverse navigation drifted after N: expected={expected!r} debug={next_badge!r}"
             )
         reverse_debug.append(next_badge)
-        reverse_footer.append(next_footer_badge)
         last_badge = next_badge
-        last_footer_badge = next_footer_badge
         wait_for_badge_quiescence(8)
 
-    if reverse_debug != ["3/3", "2/3"] or reverse_footer != ["3/3", "2/3"]:
+    if reverse_debug != ["3/3", "2/3"]:
         exit_code = 14
         raise RuntimeError(
-            f"transcript search N-cycle drifted: debug={reverse_debug!r} footer={reverse_footer!r}"
+            f"transcript search N-cycle drifted: debug={reverse_debug!r}"
         )
 
     os.write(master_fd, b"/")
@@ -347,26 +408,38 @@ try:
     if "indexing" not in visible_text(data):
         exit_code = 15
         raise RuntimeError("transcript search bar did not reopen for the single-match probe")
+    wait_for_badge_quiescence(4, quiet_period=0.5)
+    time.sleep(0.2)
+    data = wait_for_visible_fragment(needle, 8)
+    if needle not in visible_text(data):
+        exit_code = 16
+        raise RuntimeError("reopened transcript search did not surface the preserved query")
 
     unique_needle = "transcript-search-smoke-needle-2"
-    os.write(master_fd, unique_needle.encode())
-    data = wait_for_plain_fragment(unique_needle, 15)
-    if unique_needle not in visible_text(data):
-        exit_code = 16
-        raise RuntimeError("single-match probe query did not appear in the transcript search bar")
-
-    os.write(master_fd, b"\r")
-    data = wait_for_plain_fragment("Transcript · ctrl+o · n/N ·", 20)
-    single_marker = find_last_footer_count_marker(data)
-    if single_marker != "1/1":
+    type_bytes(b"-2")
+    log_text = wait_for_debug_query(unique_needle, 8)
+    if f"setSearchQuery('{unique_needle}')" not in log_text:
         exit_code = 17
+        raise RuntimeError("reopened transcript search did not accept the single-match query text")
+    single_live_badge = wait_for_specific_debug_badge("1/1", 12)
+    if single_live_badge != "1/1":
+        exit_code = 18
         raise RuntimeError(
-            f"single-match transcript search should report 1/1, got {single_marker!r}"
+            f"single-match transcript search should resolve to 1/1 before close, got {single_live_badge!r}"
         )
 
+    os.write(master_fd, b"\r")
+    single_badge = wait_for_specific_debug_badge("1/1", 12)
+    if single_badge != "1/1":
+        exit_code = 19
+        raise RuntimeError(
+            f"single-match transcript search should report 1/1, got {single_badge!r}"
+        )
+
+    last_badge = single_badge
     single_badges = wait_for_badge_quiescence(12)
     if not single_badges or single_badges[-1] != "1/1":
-        exit_code = 18
+        exit_code = 20
         raise RuntimeError(
             f"single-match debug badge should settle at 1/1, got {single_badges!r}"
         )

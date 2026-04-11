@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { logForDebugging } from '../../utils/debug.js';
 
 export type TranscriptSearchProgressSink = {
   reportMatches: (count: number, current: number) => void;
@@ -18,6 +19,7 @@ export function useTranscriptSearchTracker() {
   });
 
   const onSearchMatchesChange = useCallback((count: number, current: number) => {
+    logForDebugging(`transcriptSearchBadge: ${current}/${count}`);
     setSearchProgressState({
       count,
       current,
@@ -50,13 +52,13 @@ export function useTranscriptSearchTracker() {
 
   const searchBadge = useMemo<TranscriptSearchBadge | undefined>(
     () =>
-      searchQuery && searchProgressState.count > 0
+      searchProgressState.count > 0
         ? {
             current: searchProgressState.current,
             count: searchProgressState.count,
           }
         : undefined,
-    [searchProgressState, searchQuery],
+    [searchProgressState],
   );
 
   return {
