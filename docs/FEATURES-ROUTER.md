@@ -358,11 +358,16 @@ Keywords:
 - skills
 - plugins
 - marketplace
+- agency
+- agents
 - mcp
 - hooks
 
 Next steps:
 
+- Use `/agency install marketing` to install optional Agency specialist agents into your user agent directory
+- Use `/agency status` to inspect the installed Agency pack and tracked upstream commit
+- Use `/agents` to inspect or use installed custom agents
 - Use `/skills` for project and user skills
 - Use `/mcp` for MCP server visibility and setup status
 - Use `/hooks` to inspect hook configuration
@@ -371,6 +376,8 @@ Next steps:
 Important truth:
 
 - a fresh install may legitimately show no skills yet
+- `/agency` manages an optional third-party markdown agent pack and installs it as native SeaTurtle agents
+- installed Agency agents run through the normal agent/subagent runtime after installation
 - `/hooks` is primarily a configuration viewer
 - `/mcp` should be the first place to inspect MCP readiness from the app
 
