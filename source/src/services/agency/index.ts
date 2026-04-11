@@ -20,6 +20,8 @@ const AGENCY_MANIFEST_VERSION = 1
 const AGENCY_STATE_DIR = 'agency'
 const AGENCY_MANIFEST_FILE = 'agency-agents.json'
 const AGENCY_PROJECTS_DIR = 'projects'
+const AGENCY_CATALOGS_DIR = 'catalogs'
+const AGENCY_CATALOG_CACHE_TTL_MS = 10 * 60 * 1000
 
 const SUPPORTED_TOOL_NAMES = new Set([
   'Bash',
@@ -103,6 +105,10 @@ export type AgencyCatalog = {
   entries: AgencyCatalogEntry[]
 }
 
+type PersistedAgencyCatalog = AgencyCatalog & {
+  cachedAt: number
+}
+
 export type AgencyInstallResult = {
   manifest: AgencyManifest
   installed: AgencyManifestEntry[]
@@ -167,6 +173,14 @@ function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
 
+function getAgencyCatalogCachePath(ref: string): string {
+  return join(
+    getAgencyStateDir(),
+    AGENCY_CATALOGS_DIR,
+    `${slugify(ref || AGENCY_DEFAULT_REF) || AGENCY_DEFAULT_REF}.json`,
+  )
+}
+
 function getCanonicalAgencyProjectRoot(): string {
   return findCanonicalGitRoot(getProjectRoot()) ?? getProjectRoot()
 }
@@ -224,6 +238,69 @@ function sanitizeStringArray(input: unknown): string[] {
   }
 
   return input.filter((value): value is string => typeof value === 'string')
+}
+
+function readAgencyCatalogCache(ref: string): PersistedAgencyCatalog | null {
+  const raw = readJsonFile<Partial<PersistedAgencyCatalog>>(
+    getAgencyCatalogCachePath(ref),
+  )
+  if (
+    !raw ||
+    typeof raw.repoUrl !== 'string' ||
+    typeof raw.ref !== 'string' ||
+    typeof raw.commit !== 'string' ||
+    !Array.isArray(raw.divisions) ||
+    !Array.isArray(raw.entries) ||
+    typeof raw.cachedAt !== 'number'
+  ) {
+    return null
+  }
+
+  const entries = raw.entries.filter(
+    (entry): entry is AgencyCatalogEntry =>
+      !!entry &&
+      typeof entry === 'object' &&
+      typeof entry.id === 'string' &&
+      typeof entry.title === 'string' &&
+      typeof entry.description === 'string' &&
+      typeof entry.division === 'string' &&
+      typeof entry.upstreamPath === 'string' &&
+      typeof entry.sourceSha === 'string' &&
+      typeof entry.localFilename === 'string' &&
+      typeof entry.body === 'string',
+  )
+
+  return {
+    repoUrl: raw.repoUrl,
+    ref: raw.ref,
+    commit: raw.commit,
+    divisions: sanitizeStringArray(raw.divisions),
+    entries: entries.map(entry => ({
+      ...entry,
+      toolNames: Array.isArray(entry.toolNames)
+        ? sanitizeStringArray(entry.toolNames)
+        : undefined,
+    })),
+    cachedAt: raw.cachedAt,
+  }
+}
+
+function writeAgencyCatalogCache(
+  ref: string,
+  catalog: AgencyCatalog,
+  cachedAt: number = Date.now(),
+): void {
+  writeJsonFile(getAgencyCatalogCachePath(ref), {
+    ...catalog,
+    cachedAt,
+  } satisfies PersistedAgencyCatalog)
+}
+
+function isAgencyCatalogCacheFresh(
+  cachedAt: number,
+  now: number = Date.now(),
+): boolean {
+  return now - cachedAt <= AGENCY_CATALOG_CACHE_TTL_MS
 }
 
 export function readAgencyManifest(
@@ -448,7 +525,23 @@ async function fetchTree(commitSha: string): Promise<string[]> {
 
 export async function fetchAgencyCatalog(
   ref: string = AGENCY_DEFAULT_REF,
+  options?: { forceRefresh?: boolean },
 ): Promise<AgencyCatalog> {
+  const cached = readAgencyCatalogCache(ref)
+  if (
+    !options?.forceRefresh &&
+    cached &&
+    isAgencyCatalogCacheFresh(cached.cachedAt)
+  ) {
+    return {
+      repoUrl: cached.repoUrl,
+      ref: cached.ref,
+      commit: cached.commit,
+      divisions: cached.divisions,
+      entries: cached.entries,
+    }
+  }
+
   const commit = await resolveCommitSha(ref)
   const paths = await fetchTree(commit)
   const entries = await Promise.all(
@@ -480,7 +573,7 @@ export async function fetchAgencyCatalog(
     }),
   )
 
-  return {
+  const catalog: AgencyCatalog = {
     repoUrl: AGENCY_REPO_URL,
     ref,
     commit,
@@ -489,6 +582,9 @@ export async function fetchAgencyCatalog(
     ),
     entries,
   }
+
+  writeAgencyCatalogCache(ref, catalog)
+  return catalog
 }
 
 function findEntriesForTarget(
@@ -596,7 +692,7 @@ export async function installAgencySelection(
   scope: AgencyInstallScope = 'user',
   ref: string = AGENCY_DEFAULT_REF,
 ): Promise<AgencyInstallResult> {
-  const catalog = await fetchAgencyCatalog(ref)
+  const catalog = await fetchAgencyCatalog(ref, { forceRefresh: true })
   const selection = findEntriesForTarget(catalog, rawTarget)
   const existingManifest = readAgencyManifest(scope)
   const existingManagedIds = new Set(
@@ -693,7 +789,7 @@ export async function updateAgencyInstall(
     throw new Error('Agency is not installed. Run /agency install first.')
   }
 
-  const catalog = await fetchAgencyCatalog(manifest.ref)
+  const catalog = await fetchAgencyCatalog(manifest.ref, { forceRefresh: true })
   const catalogById = new Map(catalog.entries.map(entry => [entry.id, entry]))
   const fs = getFsImplementation()
   const updated: AgencyManifestEntry[] = []
