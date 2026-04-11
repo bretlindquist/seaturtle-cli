@@ -469,9 +469,6 @@ export function VirtualMessageList({
       positions: []
     };
   }, [clearActiveResult]);
-  const reportSearchProgress = useCallback((total: number, current: number) => {
-    searchProgress?.reportMatches(total, current);
-  }, [searchProgress]);
   const setSearchEngineState = useCallback((next: TranscriptSearchEngineState) => {
     searchState.current = next;
     setMatchedMessageIdxs(new Set(next.snapshot.matches));
@@ -626,7 +623,7 @@ export function VirtualMessageList({
     );
     searchState.current = currentState;
     const badge = getTranscriptSearchEngineBadge(currentState);
-    reportSearchProgress(badge.count, badge.current);
+    reportTranscriptSearchEngineBadge(searchProgress, currentState);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${badge.current}/${badge.count}`);
   }
   highlightRef.current = highlight;

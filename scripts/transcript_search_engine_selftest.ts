@@ -90,6 +90,14 @@ function run(): void {
     join(repoRoot, 'source/src/screens/repl/ReplShellHelpers.tsx'),
     'utf8',
   )
+  const staticJumpSource = readFileSync(
+    join(repoRoot, 'source/src/screens/repl/useStaticTranscriptJump.ts'),
+    'utf8',
+  )
+  const virtualMessageListSource = readFileSync(
+    join(repoRoot, 'source/src/components/VirtualMessageList.tsx'),
+    'utf8',
+  )
 
   assert.match(
     transcriptModeSource,
@@ -105,6 +113,26 @@ function run(): void {
     transcriptHelpersSource,
     /searchBadge\.current\}\/\{searchBadge\.count/,
     'search bar should render transcript navigation state from the shared search badge',
+  )
+  assert.match(
+    staticJumpSource,
+    /reportTranscriptSearchEngineBadge\(searchProgress, engine\)/,
+    'static transcript adapter should report empty and populated badge state through the shared engine helper',
+  )
+  assert.doesNotMatch(
+    staticJumpSource,
+    /searchProgress\.reportMatches\(0,\s*0\)/,
+    'static transcript adapter should not hand-roll empty badge reporting',
+  )
+  assert.match(
+    virtualMessageListSource,
+    /reportTranscriptSearchEngineBadge\(searchProgress, currentState\)/,
+    'virtual transcript adapter should report active badge state through the shared engine helper',
+  )
+  assert.doesNotMatch(
+    virtualMessageListSource,
+    /const reportSearchProgress = useCallback/,
+    'virtual transcript adapter should not keep a separate local badge-reporting helper',
   )
 }
 

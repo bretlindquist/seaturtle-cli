@@ -46,11 +46,12 @@ export function useStaticTranscriptJump({
       setSearchQuery: (query: string) => {
         const normalized = normalizeTranscriptSearchQuery(query);
         if (!normalized) {
+          const engine = createEmptyTranscriptSearchEngineState()
           stateRef.current = {
             query: '',
-            engine: createEmptyTranscriptSearchEngineState(),
+            engine,
           };
-          searchProgress.reportMatches(0, 0);
+          reportTranscriptSearchEngineBadge(searchProgress, engine);
           return;
         }
 
