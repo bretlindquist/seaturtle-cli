@@ -8,7 +8,7 @@ import { type AutoUpdaterResult, getLatestVersion, getMaxVersion, type InstallSt
 import { getGlobalConfig, isAutoUpdaterDisabled } from '../utils/config.js';
 import { logForDebugging } from '../utils/debug.js';
 import { getCurrentInstallationType } from '../utils/doctorDiagnostic.js';
-import { installOrUpdateClaudePackage, localInstallationExists } from '../utils/localInstaller.js';
+import { getLocalInstallDirDisplayPath, installOrUpdateClaudePackage, localInstallationExists } from '../utils/localInstaller.js';
 import { removeInstalledSymlink } from '../utils/nativeInstaller/index.js';
 import { gt, gte } from '../utils/semver.js';
 import { getInitialSettings } from '../utils/settings/settings.js';
@@ -49,7 +49,10 @@ export function AutoUpdater({
     if (isUpdatingRef.current) {
       return;
     }
-    if ("production" === 'test' || "production" === 'development') {
+    if (
+      process.env.NODE_ENV === 'test' ||
+      process.env.NODE_ENV === 'development'
+    ) {
       logForDebugging('AutoUpdater: Skipping update check in test/dev environment');
       return;
     }
@@ -190,7 +193,7 @@ export function AutoUpdater({
       {(autoUpdaterResult?.status === 'install_failed' || autoUpdaterResult?.status === 'no_permissions') && <Text color="error" wrap="truncate">
           ✗ Auto-update failed &middot; Try <Text bold>ct doctor</Text> or{' '}
           <Text bold>
-            {hasLocalInstall ? `cd ~/.claude/local && npm update ${MACRO.PACKAGE_URL}` : `npm i -g ${MACRO.PACKAGE_URL}`}
+            {hasLocalInstall ? `cd ${getLocalInstallDirDisplayPath()} && npm update ${MACRO.PACKAGE_URL}` : `npm i -g ${MACRO.PACKAGE_URL}`}
           </Text>
         </Text>}
     </Box>;
