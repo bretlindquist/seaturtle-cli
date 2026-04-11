@@ -382,6 +382,7 @@ Important truth:
 - `/agency` manages an optional third-party markdown agent pack and installs it as native SeaTurtle agents
 - project-scoped Agency state stays private in the user config home while the installed agent markdown lives in the project
 - installed Agency agents run through the normal agent/subagent runtime after installation
+- see [AGENCY.md](./AGENCY.md) for the full `/agency` lifecycle, scope, cache, and runtime model
 - `/hooks` is primarily a configuration viewer
 - `/mcp` should be the first place to inspect MCP readiness from the app
 
