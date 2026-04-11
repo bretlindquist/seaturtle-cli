@@ -22,9 +22,9 @@ import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscript
 import {
   buildTranscriptSearchEngineState,
   createEmptyTranscriptSearchEngineState,
-  getTranscriptSearchEngineCurrent,
   getTranscriptSearchEngineCurrentMessageOccurrenceCount,
-  getTranscriptSearchEngineTotal,
+  getTranscriptSearchEngineBadge,
+  reportTranscriptSearchEngineBadge,
   setTranscriptSearchEngineCursorToOccurrence,
   type TranscriptSearchEngineState,
 } from '../screens/repl/transcriptSearchEngine.js';
@@ -625,10 +625,9 @@ export function VirtualMessageList({
       idx,
     );
     searchState.current = currentState;
-    const total = getTranscriptSearchEngineTotal(currentState);
-    const current = getTranscriptSearchEngineCurrent(currentState);
-    reportSearchProgress(total, current);
-    logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
+    const badge = getTranscriptSearchEngineBadge(currentState);
+    reportSearchProgress(badge.count, badge.current);
+    logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${badge.current}/${badge.count}`);
   }
   highlightRef.current = highlight;
 
@@ -709,7 +708,6 @@ export function VirtualMessageList({
         matches
       }
     } = st;
-    const total = getTranscriptSearchEngineTotal(st);
     if (matches.length === 0) return;
 
     // Seek in-flight — queue this press (one-deep, latest overwrites).
@@ -773,10 +771,7 @@ export function VirtualMessageList({
       cursor: newCursor,
     };
     jump(matches[newCursor.ptr]!, delta < 0);
-    reportSearchProgress(
-      total,
-      getTranscriptSearchEngineCurrent(searchState.current),
-    );
+    reportTranscriptSearchEngineBadge(searchProgress, searchState.current);
   }
   stepRef.current = step;
   const jumpToIndex = useCallback((i: number) => {
@@ -799,7 +794,6 @@ export function VirtualMessageList({
           }
         : undefined,
     );
-    const total = getTranscriptSearchEngineTotal(nextState);
     if (nextState.snapshot.matches.length > 0 && s) {
       const curTop =
         searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
@@ -817,17 +811,12 @@ export function VirtualMessageList({
     } else if (searchAnchor.current >= 0 && s) {
       s.scrollTo(searchAnchor.current);
     }
-    reportSearchProgress(
-      total,
-      nextState.snapshot.matches.length > 0
-        ? getTranscriptSearchEngineCurrent(nextState)
-        : 0,
-    );
+    reportTranscriptSearchEngineBadge(searchProgress, nextState);
   }, [
     extractSearchText,
     jump,
-    reportSearchProgress,
     resetSearchViewportState,
+    searchProgress,
     scrollRef,
     setSearchEngineState,
   ]);

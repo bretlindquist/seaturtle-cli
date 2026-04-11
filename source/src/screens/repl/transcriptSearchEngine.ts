@@ -1,4 +1,5 @@
 import type { RenderableMessage } from '../../types/message.js';
+import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
 import {
   buildTranscriptSearchSnapshot,
   clampTranscriptSearchCursor,
@@ -15,6 +16,11 @@ import {
 export type TranscriptSearchEngineState = {
   snapshot: TranscriptSearchSnapshot;
   cursor: TranscriptSearchCursor;
+};
+
+export type TranscriptSearchEngineBadge = {
+  count: number;
+  current: number;
 };
 
 export function createEmptyTranscriptSearchEngineState(): TranscriptSearchEngineState {
@@ -69,6 +75,28 @@ export function getTranscriptSearchEngineCurrent(state: TranscriptSearchEngineSt
     state.cursor.ptr,
     state.cursor.occurrenceOrdinal,
   );
+}
+
+export function getTranscriptSearchEngineBadge(
+  state: TranscriptSearchEngineState,
+): TranscriptSearchEngineBadge {
+  const count = getTranscriptSearchEngineTotal(state);
+  return {
+    count,
+    current: count > 0 ? getTranscriptSearchEngineCurrent(state) : 0,
+  };
+}
+
+export function reportTranscriptSearchEngineBadge(
+  sink: TranscriptSearchProgressSink | undefined,
+  state: TranscriptSearchEngineState,
+): void {
+  if (!sink) {
+    return;
+  }
+
+  const badge = getTranscriptSearchEngineBadge(state);
+  sink.reportMatches(badge.count, badge.current);
 }
 
 export function getTranscriptSearchEngineCurrentMessageOccurrenceCount(

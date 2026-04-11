@@ -7,8 +7,7 @@ import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.
 import {
   buildTranscriptSearchEngineState,
   createEmptyTranscriptSearchEngineState,
-  getTranscriptSearchEngineCurrent,
-  getTranscriptSearchEngineTotal,
+  reportTranscriptSearchEngineBadge,
   setTranscriptSearchEngineCursor,
 } from './transcriptSearchEngine.js';
 import {
@@ -66,29 +65,26 @@ export function useStaticTranscriptJump({
               }
             : undefined,
         );
-        const count = getTranscriptSearchEngineTotal(engine);
 
         stateRef.current = {
           query: normalized,
           engine,
         };
-        searchProgress.reportMatches(count, count > 0 ? getTranscriptSearchEngineCurrent(engine) : 0);
+        reportTranscriptSearchEngineBadge(searchProgress, engine);
       },
       nextMatch: () => {
         const { engine } = stateRef.current;
-        const count = getTranscriptSearchEngineTotal(engine);
-        if (count === 0) return;
+        if (engine.snapshot.matches.length === 0) return;
         const next = getTranscriptSearchNextCursor(engine.snapshot, engine.cursor);
         stateRef.current.engine = setTranscriptSearchEngineCursor(engine, next);
-        searchProgress.reportMatches(count, getTranscriptSearchEngineCurrent(stateRef.current.engine));
+        reportTranscriptSearchEngineBadge(searchProgress, stateRef.current.engine);
       },
       prevMatch: () => {
         const { engine } = stateRef.current;
-        const count = getTranscriptSearchEngineTotal(engine);
-        if (count === 0) return;
+        if (engine.snapshot.matches.length === 0) return;
         const next = getTranscriptSearchPreviousCursor(engine.snapshot, engine.cursor);
         stateRef.current.engine = setTranscriptSearchEngineCursor(engine, next);
-        searchProgress.reportMatches(count, getTranscriptSearchEngineCurrent(stateRef.current.engine));
+        reportTranscriptSearchEngineBadge(searchProgress, stateRef.current.engine);
       },
     }),
     [searchProgress],
