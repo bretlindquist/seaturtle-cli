@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { dirname, join, posix } from 'path'
+import { getProjectRoot } from '../../bootstrap/state.js'
 import { parseFrontmatter } from '../../utils/frontmatterParser.js'
 import { getClaudeConfigHomeDir } from '../../utils/envUtils.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
@@ -9,6 +10,7 @@ import { jsonStringify } from '../../utils/slowOperations.js'
 import { getClaudeCodeUserAgent } from '../../utils/userAgent.js'
 import { formatAgentAsMarkdown } from '../../components/agents/agentFileUtils.js'
 import { parseAgentToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
+import { findCanonicalGitRoot } from '../../utils/git.js'
 
 const AGENCY_OWNER = 'msitarzewski'
 const AGENCY_REPO = 'agency-agents'
@@ -17,6 +19,7 @@ const AGENCY_DEFAULT_REF = 'main'
 const AGENCY_MANIFEST_VERSION = 1
 const AGENCY_STATE_DIR = 'agency'
 const AGENCY_MANIFEST_FILE = 'agency-agents.json'
+const AGENCY_PROJECTS_DIR = 'projects'
 
 const SUPPORTED_TOOL_NAMES = new Set([
   'Bash',
@@ -47,6 +50,8 @@ type GitHubTreeResponse = {
   }>
 }
 
+export type AgencyInstallScope = 'user' | 'project'
+
 export type AgencySelectionKind = 'all' | 'division' | 'agent'
 
 export type AgencyManifestEntry = {
@@ -66,7 +71,8 @@ export type AgencyManifest = {
   repoUrl: string
   ref: string
   installedCommit: string
-  scope: 'user'
+  scope: AgencyInstallScope
+  projectRoot?: string
   installedAt: number
   updatedAt: number
   selections: {
@@ -126,11 +132,33 @@ function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
 
-export function getAgencyManifestPath(): string {
+function getCanonicalAgencyProjectRoot(): string {
+  return findCanonicalGitRoot(getProjectRoot()) ?? getProjectRoot()
+}
+
+function getProjectManifestId(projectRoot: string): string {
+  return sha256(projectRoot).slice(0, 16)
+}
+
+export function getAgencyManifestPath(
+  scope: AgencyInstallScope = 'user',
+): string {
+  if (scope === 'project') {
+    return join(
+      getAgencyStateDir(),
+      AGENCY_PROJECTS_DIR,
+      `${getProjectManifestId(getCanonicalAgencyProjectRoot())}.json`,
+    )
+  }
+
   return join(getAgencyStateDir(), AGENCY_MANIFEST_FILE)
 }
 
-function getAgencyAgentsDir(): string {
+function getAgencyAgentsDir(scope: AgencyInstallScope): string {
+  if (scope === 'project') {
+    return join(getCanonicalAgencyProjectRoot(), '.claude', 'agents')
+  }
+
   return join(getClaudeConfigHomeDir(), 'agents')
 }
 
@@ -163,8 +191,10 @@ function sanitizeStringArray(input: unknown): string[] {
   return input.filter((value): value is string => typeof value === 'string')
 }
 
-export function readAgencyManifest(): AgencyManifest | null {
-  const raw = readJsonFile<Partial<AgencyManifest>>(getAgencyManifestPath())
+export function readAgencyManifest(
+  scope: AgencyInstallScope = 'user',
+): AgencyManifest | null {
+  const raw = readJsonFile<Partial<AgencyManifest>>(getAgencyManifestPath(scope))
   if (!raw || raw.version !== AGENCY_MANIFEST_VERSION) {
     return null
   }
@@ -173,7 +203,7 @@ export function readAgencyManifest(): AgencyManifest | null {
     typeof raw.repoUrl !== 'string' ||
     typeof raw.ref !== 'string' ||
     typeof raw.installedCommit !== 'string' ||
-    raw.scope !== 'user' ||
+    (raw.scope !== 'user' && raw.scope !== 'project') ||
     !Array.isArray(raw.entries)
   ) {
     return null
@@ -204,7 +234,10 @@ export function readAgencyManifest(): AgencyManifest | null {
     repoUrl: raw.repoUrl,
     ref: raw.ref,
     installedCommit: raw.installedCommit,
-    scope: 'user',
+    scope: raw.scope,
+    ...(typeof raw.projectRoot === 'string'
+      ? { projectRoot: raw.projectRoot }
+      : {}),
     installedAt:
       typeof raw.installedAt === 'number' ? raw.installedAt : Date.now(),
     updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : Date.now(),
@@ -223,8 +256,23 @@ export function readAgencyManifest(): AgencyManifest | null {
   }
 }
 
+function readAllAgencyManifests(): AgencyManifest[] {
+  const manifests: AgencyManifest[] = []
+  const userManifest = readAgencyManifest('user')
+  if (userManifest) {
+    manifests.push(userManifest)
+  }
+
+  const projectManifest = readAgencyManifest('project')
+  if (projectManifest) {
+    manifests.push(projectManifest)
+  }
+
+  return manifests
+}
+
 export function writeAgencyManifest(manifest: AgencyManifest): void {
-  writeJsonFile(getAgencyManifestPath(), manifest)
+  writeJsonFile(getAgencyManifestPath(manifest.scope), manifest)
 }
 
 function sha256(text: string): string {
@@ -458,11 +506,12 @@ function findEntriesForTarget(
 
 export async function installAgencySelection(
   rawTarget: string | undefined,
+  scope: AgencyInstallScope = 'user',
   ref: string = AGENCY_DEFAULT_REF,
 ): Promise<AgencyInstallResult> {
   const catalog = await fetchAgencyCatalog(ref)
   const selection = findEntriesForTarget(catalog, rawTarget)
-  const existingManifest = readAgencyManifest()
+  const existingManifest = readAgencyManifest(scope)
   const existingManagedIds = new Set(
     existingManifest?.entries.map(entry => entry.id) ?? [],
   )
@@ -474,7 +523,7 @@ export async function installAgencySelection(
   const fs = getFsImplementation()
 
   for (const entry of selection.entries) {
-    const localPath = join(getAgencyAgentsDir(), entry.localFilename)
+    const localPath = join(getAgencyAgentsDir(scope), entry.localFilename)
     const normalizedMarkdown = buildNormalizedMarkdown(entry)
     const nextHash = sha256(normalizedMarkdown)
     const managedEntry = existingById.get(entry.id)
@@ -519,7 +568,10 @@ export async function installAgencySelection(
     repoUrl: catalog.repoUrl,
     ref: catalog.ref,
     installedCommit: catalog.commit,
-    scope: 'user',
+    scope,
+    ...(scope === 'project'
+      ? { projectRoot: getCanonicalAgencyProjectRoot() }
+      : {}),
     installedAt: existingManifest?.installedAt ?? now,
     updatedAt: now,
     selections: {
@@ -546,8 +598,10 @@ export async function installAgencySelection(
   }
 }
 
-export async function updateAgencyInstall(): Promise<AgencyUpdateResult> {
-  const manifest = readAgencyManifest()
+export async function updateAgencyInstall(
+  scope: AgencyInstallScope = 'user',
+): Promise<AgencyUpdateResult> {
+  const manifest = readAgencyManifest(scope)
   if (!manifest) {
     throw new Error('Agency is not installed. Run /agency install first.')
   }
@@ -672,8 +726,9 @@ function resolveInstalledEntriesForTarget(
 
 export function removeAgencyInstall(
   rawTarget: string | undefined,
+  scope: AgencyInstallScope = 'user',
 ): AgencyRemoveResult {
-  const manifest = readAgencyManifest()
+  const manifest = readAgencyManifest(scope)
   if (!manifest) {
     throw new Error('Agency is not installed. Run /agency install first.')
   }
@@ -708,7 +763,7 @@ export function removeAgencyInstall(
   )
 
   if (remaining.length === 0) {
-    const manifestPath = getAgencyManifestPath()
+    const manifestPath = getAgencyManifestPath(scope)
     if (fs.existsSync(manifestPath)) {
       fs.unlinkSync(manifestPath)
     }
@@ -729,70 +784,88 @@ export function removeAgencyInstall(
 
 export function getAgencyStatusSummary(): {
   installed: boolean
-  manifest: AgencyManifest | null
+  manifests: AgencyManifest[]
 } {
-  const manifest = readAgencyManifest()
+  const manifests = readAllAgencyManifests()
   return {
-    installed: manifest !== null,
-    manifest,
+    installed: manifests.length > 0,
+    manifests,
   }
 }
 
 export function getAgencyHelpText(): string {
   return [
-    'Use /agency install <all|division|agent> to install optional Agency agents into your user agent directory.',
+    'Use /agency install <all|division|agent> to install optional Agency agents.',
     '',
     'Commands:',
-    '/agency install [target]',
-    '/agency update',
+    '/agency install [target] [--project]',
+    '/agency update [--project]',
     '/agency list',
-    '/agency remove <target|all>',
+    '/agency remove <target|all> [--project]',
     '/agency status',
     '/agency help',
     '',
     'Examples:',
     '/agency install marketing',
+    '/agency install marketing --project',
     '/agency install engineering/engineering-frontend-developer',
     '/agency update',
+    '/agency update --project',
     '/agency remove marketing',
     '/agency install all',
   ].join('\n')
 }
 
 export function formatAgencyStatus(): string {
-  const { manifest } = getAgencyStatusSummary()
-  if (!manifest) {
+  const { manifests } = getAgencyStatusSummary()
+  if (manifests.length === 0) {
     return [
       'Agency is not installed.',
       '',
       'Run /agency install marketing or /agency install all.',
+      'Use --project to install into this project instead of the user agent directory.',
     ].join('\n')
   }
 
-  return [
-    'Agency is installed.',
-    `Repo: ${manifest.repoUrl}`,
-    `Ref: ${manifest.ref}`,
-    `Commit: ${manifest.installedCommit}`,
-    `Managed agents: ${manifest.entries.length}`,
-    `Manifest: ${getAgencyManifestPath()}`,
-  ].join('\n')
+  const lines: string[] = []
+  for (const manifest of manifests) {
+    if (lines.length > 0) {
+      lines.push('')
+    }
+    lines.push(`Agency is installed for ${manifest.scope}.`)
+    lines.push(`Repo: ${manifest.repoUrl}`)
+    lines.push(`Ref: ${manifest.ref}`)
+    lines.push(`Commit: ${manifest.installedCommit}`)
+    lines.push(`Managed agents: ${manifest.entries.length}`)
+    if (manifest.projectRoot) {
+      lines.push(`Project root: ${manifest.projectRoot}`)
+    }
+    lines.push(`Manifest: ${getAgencyManifestPath(manifest.scope)}`)
+  }
+
+  return lines.join('\n')
 }
 
 export function formatAgencyList(): string {
-  const manifest = readAgencyManifest()
-  if (!manifest || manifest.entries.length === 0) {
+  const manifests = readAllAgencyManifests()
+  if (manifests.length === 0) {
     return 'Agency has no installed agents.'
   }
 
-  const lines = [
-    `Agency agents (${manifest.entries.length})`,
-    `Commit: ${manifest.installedCommit}`,
-    '',
-  ]
-
-  for (const entry of manifest.entries) {
-    lines.push(`${entry.id}  ${entry.title} [${entry.division}]`)
+  const lines: string[] = []
+  for (const manifest of manifests) {
+    if (lines.length > 0) {
+      lines.push('')
+    }
+    lines.push(`Agency agents (${manifest.scope}, ${manifest.entries.length})`)
+    lines.push(`Commit: ${manifest.installedCommit}`)
+    if (manifest.projectRoot) {
+      lines.push(`Project root: ${manifest.projectRoot}`)
+    }
+    lines.push('')
+    for (const entry of manifest.entries) {
+      lines.push(`${entry.id}  ${entry.title} [${entry.division}]`)
+    }
   }
 
   return lines.join('\n')

@@ -1,10 +1,19 @@
+import type { AgencyInstallScope } from '../../services/agency/index.js'
+
 export type ParsedAgencyCommand =
   | { type: 'help' }
   | { type: 'status' }
   | { type: 'list' }
-  | { type: 'update' }
-  | { type: 'remove'; target?: string }
-  | { type: 'install'; target?: string; ref?: string }
+  | { type: 'update'; scope: AgencyInstallScope }
+  | { type: 'remove'; target?: string; scope: AgencyInstallScope }
+  | { type: 'install'; target?: string; ref?: string; scope: AgencyInstallScope }
+
+function parseScopeFlag(parts: string[]): AgencyInstallScope {
+  if (parts.includes('--project')) {
+    return 'project'
+  }
+  return 'user'
+}
 
 export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
   const trimmed = args?.trim()
@@ -28,20 +37,32 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
   }
 
   if (command === 'update' || command === 'upgrade') {
-    return { type: 'update' }
+    return { type: 'update', scope: parseScopeFlag(parts) }
   }
 
   if (command === 'remove' || command === 'rm' || command === 'uninstall') {
-    return { type: 'remove', target: parts[1] }
+    const scope = parseScopeFlag(parts)
+    const target = parts.find(
+      (part, index) =>
+        index > 0 &&
+        part !== '--project' &&
+        part !== '--user' &&
+        part !== '--ref',
+    )
+    return { type: 'remove', target, scope }
   }
 
   if (command === 'install' || command === 'i') {
     let target: string | undefined
     let ref: string | undefined
+    const scope = parseScopeFlag(parts)
 
     for (let index = 1; index < parts.length; index++) {
       const part = parts[index]
       if (!part) {
+        continue
+      }
+      if (part === '--project' || part === '--user') {
         continue
       }
       if (part === '--ref') {
@@ -54,7 +75,7 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
       }
     }
 
-    return { type: 'install', target, ref }
+    return { type: 'install', target, ref, scope }
   }
 
   return { type: 'help' }

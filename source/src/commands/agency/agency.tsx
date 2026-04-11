@@ -28,11 +28,11 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
         return null
 
       case 'update': {
-        const result = await updateAgencyInstall()
+        const result = await updateAgencyInstall(parsed.scope)
         clearAgentDefinitionsCache()
 
         const lines = [
-          `Agency update complete at ${result.manifest.installedCommit}.`,
+          `Agency ${parsed.scope} update complete at ${result.manifest.installedCommit}.`,
           `Updated: ${result.updated.length}`,
           `Unchanged: ${result.unchanged.length}`,
           `Skipped: ${result.skipped.length}`,
@@ -58,11 +58,15 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       }
 
       case 'install': {
-        const result = await installAgencySelection(parsed.target, parsed.ref)
+        const result = await installAgencySelection(
+          parsed.target,
+          parsed.scope,
+          parsed.ref,
+        )
         clearAgentDefinitionsCache()
 
         const lines = [
-          `Agency install complete at ${result.manifest.installedCommit}.`,
+          `Agency ${parsed.scope} install complete at ${result.manifest.installedCommit}.`,
           `Installed: ${result.installed.length}`,
           `Skipped: ${result.skipped.length}`,
         ]
@@ -86,11 +90,11 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       }
 
       case 'remove': {
-        const result = removeAgencyInstall(parsed.target)
+        const result = removeAgencyInstall(parsed.target, parsed.scope)
         clearAgentDefinitionsCache()
 
         const lines = [
-          `Agency remove complete.`,
+          `Agency ${parsed.scope} remove complete.`,
           `Removed: ${result.removed.length}`,
           `Skipped: ${result.skipped.length}`,
           `Remaining: ${result.remaining.length}`,

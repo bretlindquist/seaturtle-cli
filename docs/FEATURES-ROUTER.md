@@ -366,6 +366,7 @@ Keywords:
 Next steps:
 
 - Use `/agency install marketing` to install optional Agency specialist agents into your user agent directory
+- Use `/agency install marketing --project` to install them into this project’s `.claude/agents`
 - Use `/agency status` to inspect the installed Agency pack and tracked upstream commit
 - Use `/agents` to inspect or use installed custom agents
 - Use `/skills` for project and user skills
@@ -377,6 +378,7 @@ Important truth:
 
 - a fresh install may legitimately show no skills yet
 - `/agency` manages an optional third-party markdown agent pack and installs it as native SeaTurtle agents
+- project-scoped Agency state stays private in the user config home while the installed agent markdown lives in the project
 - installed Agency agents run through the normal agent/subagent runtime after installation
 - `/hooks` is primarily a configuration viewer
 - `/mcp` should be the first place to inspect MCP readiness from the app
