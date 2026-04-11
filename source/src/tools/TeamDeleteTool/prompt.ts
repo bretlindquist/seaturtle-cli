@@ -1,12 +1,18 @@
+import { getTeamsDirDisplayPath } from '../../utils/envUtils.js'
+import { getTasksDirDisplayPath } from '../../utils/tasks.js'
+
 export function getPrompt(): string {
+  const teamDirPath = `${getTeamsDirDisplayPath()}/{team-name}/`
+  const taskDirPath = `${getTasksDirDisplayPath('{team-name}')}/`
+
   return `
 # TeamDelete
 
 Remove team and task directories when the swarm work is complete.
 
 This operation:
-- Removes the team directory (\`~/.claude/teams/{team-name}/\`)
-- Removes the task directory (\`~/.claude/tasks/{team-name}/\`)
+- Removes the team directory (\`${teamDirPath}\`)
+- Removes the task directory (\`${taskDirPath}\`)
 - Clears team context from the current session
 
 **IMPORTANT**: TeamDelete will fail if the team still has active members. Gracefully terminate teammates first, then call TeamDelete after all teammates have shut down.

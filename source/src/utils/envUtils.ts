@@ -58,6 +58,10 @@ export function getTeamsDir(): string {
   return join(getSeaTurtleConfigHomeDir(), 'teams')
 }
 
+export function getTeamsDirDisplayPath(): string {
+  return getSeaTurtleConfigPathDisplay('teams')
+}
+
 /**
  * Check if NODE_OPTIONS contains a specific flag.
  * Splits on whitespace and checks for exact match to avoid false positives.
