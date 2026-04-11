@@ -52,6 +52,7 @@ bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
 bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/config_help_selftest.ts >/dev/null
+bun scripts/status_help_selftest.ts >/dev/null
 bun scripts/config_home_resolution_selftest.ts >/dev/null
 bun scripts/local_installer_path_selftest.ts >/dev/null
 bun scripts/completion_cache_paths_selftest.ts >/dev/null

@@ -38,6 +38,7 @@ import { ProgressBar } from '../components/design-system/ProgressBar.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
+  description?: React.ReactNode;
 };
 export type Diagnostic = React.ReactNode;
 export function buildSandboxProperties(): Property[] {

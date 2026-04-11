@@ -29,6 +29,10 @@ import {
 } from '../../utils/status.js'
 import type { ThemeName } from '../../utils/theme.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
+import {
+  getStatusPermissionHelpText,
+  getStatusPropertyHelpText,
+} from './statusHelpText.js'
 
 type Props = {
   context: LocalJSXCommandContext
@@ -178,28 +182,124 @@ function PropertySection({
   }
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" marginBottom={1}>
       <Text bold color="permission">
         {title}
       </Text>
       {properties.map(({ label, value }, j) => (
-        <Box key={j} flexDirection="row" gap={1} flexShrink={0}>
-          {label !== undefined ? (
-            <Box width={20} flexShrink={0}>
-              <Text bold dimColor>
-                {label}:
+        <Box key={j} flexDirection="column" flexShrink={0} marginTop={1}>
+          <Box flexDirection="row" gap={1} flexShrink={0}>
+            {label !== undefined ? (
+              <Box width={20} flexShrink={0}>
+                <Text bold dimColor>
+                  {label}:
+                </Text>
+              </Box>
+            ) : (
+              <Box width={20} flexShrink={0} />
+            )}
+            <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+              <PropertyValue value={value} />
+            </Box>
+          </Box>
+          {properties[j]?.description ? (
+            <Box paddingLeft={21} flexDirection="column">
+              <Text dimColor color="inactive" wrap="wrap">
+                {properties[j]?.description}
               </Text>
             </Box>
-          ) : (
-            <Box width={20} flexShrink={0} />
-          )}
-          <Box flexDirection="column" flexGrow={1} flexShrink={1}>
-            <PropertyValue value={value} />
-          </Box>
+          ) : null}
         </Box>
       ))}
     </Box>
   )
+}
+
+function withDescription(
+  property: Property,
+  description: React.ReactNode | undefined,
+): Property {
+  if (!description) {
+    return property
+  }
+
+  return {
+    ...property,
+    description,
+  }
+}
+
+function describeProperties(
+  properties: Property[],
+  extras: Partial<Record<string, React.ReactNode>> = {},
+): Property[] {
+  return properties.map(property => {
+    if (!property.label) {
+      return property
+    }
+
+    const description =
+      extras[property.label] ?? getStatusPropertyHelpText(property.label)
+    return withDescription(property, description)
+  })
+}
+
+function buildDescribedPrimarySection({
+  mainLoopModel,
+  effortValue,
+  permissionMode,
+  messages,
+}: {
+  mainLoopModel: string
+  effortValue: AppState['effortValue']
+  permissionMode: AppState['toolPermissionContext']['mode']
+  messages: AppState['messages']
+}): StatusSectionData[] {
+  const sections = buildPrimarySection({
+    mainLoopModel,
+    effortValue,
+    permissionMode,
+    messages,
+  })
+
+  return sections.map(section => {
+    if (section.title === 'Session') {
+      return {
+        ...section,
+        properties: describeProperties(section.properties, {
+          Permissions: getStatusPermissionHelpText(permissionMode),
+        }),
+      }
+    }
+
+    if (section.title === 'Runtime') {
+      return {
+        ...section,
+        properties: describeProperties(section.properties),
+      }
+    }
+
+    return section
+  })
+}
+
+function buildDescribedSecondarySection({
+  mcp,
+  theme,
+  context,
+}: {
+  mcp: AppState['mcp']
+  theme: ThemeName
+  context: LocalJSXCommandContext
+}): StatusSectionData[] {
+  return buildSecondarySection({
+    mcp,
+    theme,
+    context,
+  }).map(section => ({
+    ...section,
+    properties: describeProperties(section.properties),
+  }))
 }
 
 function AsyncPropertySection({
@@ -230,13 +330,13 @@ export function Status({
 
   const sections = React.useMemo(
     () => [
-      ...buildPrimarySection({
+      ...buildDescribedPrimarySection({
         mainLoopModel,
         effortValue,
         permissionMode,
         messages,
       }),
-      ...buildSecondarySection({
+      ...buildDescribedSecondarySection({
         mcp,
         theme,
         context,
