@@ -109,6 +109,14 @@ function run(): void {
     join(repoRoot, 'source/src/screens/repl/useStaticTranscriptJump.ts'),
     'utf8',
   ))
+  const jumpHandleCoreSource = stripSourceMap(readFileSync(
+    join(repoRoot, 'source/src/screens/repl/transcriptJumpHandleCore.ts'),
+    'utf8',
+  ))
+  const replSource = stripSourceMap(readFileSync(
+    join(repoRoot, 'source/src/screens/REPL.tsx'),
+    'utf8',
+  ))
   const virtualMessageListSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/components/VirtualMessageList.tsx'),
     'utf8',
@@ -159,8 +167,8 @@ function run(): void {
   )
   assert.match(
     staticJumpSource,
-    /reportTranscriptSearchEngineBadge\(searchProgress, engine\)/,
-    'static transcript adapter should report empty and populated badge state through the shared engine helper',
+    /buildStaticTranscriptJumpHandle\(\{/,
+    'static transcript adapter should delegate its search-handle behavior to the shared static jump core',
   )
   assert.doesNotMatch(
     staticJumpSource,
@@ -186,6 +194,16 @@ function run(): void {
     virtualTranscriptSearchSource,
     /const CHUNK = 500/,
     'virtual transcript search controller should keep the chunked lazy warm-index path for large transcripts',
+  )
+  assert.match(
+    jumpHandleCoreSource,
+    /reportTranscriptSearchEngineBadge\(params\.searchProgress, engine\)/,
+    'static transcript jump core should report badge state through the shared engine helper',
+  )
+  assert.doesNotMatch(
+    replSource,
+    /searchCount,\s*\n\s*searchCurrent,|searchCount,\s*searchCurrent,/,
+    'REPL transcript mode wiring should no longer thread stale count/current props once the badge is the source of truth',
   )
 }
 

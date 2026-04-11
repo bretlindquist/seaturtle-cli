@@ -65,8 +65,6 @@ export function useTranscriptSearchTracker() {
     closeSearch,
     searchQuery,
     commitSearchQuery,
-    searchCount: searchProgressState.count,
-    searchCurrent: searchProgressState.current,
     hasNavigableMatches: searchProgressState.count > 0,
     searchProgress,
     clearSearchState,
