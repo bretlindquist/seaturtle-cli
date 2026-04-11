@@ -5,12 +5,13 @@ source-build lineage.
 
 It does not replace every Anthropic- or claude.ai-specific feature. The goal is
 to preserve the local runtime feature surface where possible while making the
-main conversation loop work on OpenAI/Codex OAuth.
+main conversation loop work on OpenAI/Codex auth.
 
 ## What SeaTurtle Adds
 
 - provider-aware main-loop runtime selection
 - OpenAI/Codex-backed main-loop execution
+- explicit OpenAI API-key execution through the standard OpenAI Responses API
 - OpenAI/Codex tool use through the existing local tool loop
 - replay/resume support on the OpenAI/Codex path
 - stream-json support with OpenAI/Codex event translation
@@ -26,6 +27,7 @@ main conversation loop work on OpenAI/Codex OAuth.
 - strict `TodoWrite` turns
 - replay/resume against prior OpenAI/Codex sessions
 - `auth status --json` reporting of the active provider path
+- `OPENAI_API_KEY` as a first-class OpenAI/Codex auth source
 - `/status` rendering of CT-owned context window, collaboration mode, and 5h/weekly usage telemetry
 - streamed text and tool-use events without synthetic `unknown_tool` leakage
 - `claude auto-mode critique` on the OpenAI/Codex path
@@ -38,8 +40,8 @@ These surfaces are intentionally not pretending to work on OpenAI/Codex yet:
 - permission explainer
 - Claude in Chrome lightning inference path
 - Anthropic-only `sideQuery` helper flows outside the explicitly supported gates
-- OpenAI/Codex GitHub Actions setup remains gated for OAuth-only installs;
-  the defensible CI path is API-key-based via `openai/codex-action`
+- OpenAI/Codex GitHub Actions setup remains gated for OAuth-only installs; the
+  defensible CI path is API-key-based via an explicit OpenAI API key
 
 When the active main-loop runtime is OpenAI/Codex:
 
@@ -68,6 +70,20 @@ Run on OpenAI/Codex:
 ct
 ```
 
+For API-key operation, set:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+```
+
+Optional standard OpenAI environment variables:
+
+```bash
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+export OPENAI_ORGANIZATION="org_..."
+export OPENAI_PROJECT="proj_..."
+```
+
 Quick smoke check:
 
 ```bash
@@ -79,6 +95,7 @@ Useful OpenAI/Codex-specific fields in `auth status --json` now include:
 
 - `openAiCodexAuthSource`
 - `openAiCodexNativeAuthReady`
+- `openAiCodexApiKeyReady`
 - `openAiCodexCliFallbackReady`
 - `openAiCodexCollaborationMode`
 - `openAiCodexUsageTelemetry`
@@ -101,6 +118,9 @@ SeaTurtle is designed so auth does not live in the repo.
 
 - OpenAI/Codex auth now prefers native SeaTurtle provider-owned OAuth profiles
   in secure storage
+- `OPENAI_API_KEY` is supported as an explicit OpenAI Responses API auth path
+- optional `OPENAI_ORGANIZATION`, `OPENAI_PROJECT`, and `OPENAI_BASE_URL`
+  values are used when present
 - legacy local Codex CLI auth state remains supported as a fallback
 - if SeaTurtle only sees Codex CLI fallback state, it can now adopt that into
   native provider-auth storage instead of permanently staying on fallback

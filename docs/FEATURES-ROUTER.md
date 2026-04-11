@@ -7,7 +7,7 @@ Use it when the user asks natural-language questions like:
 
 - how do I set up Telegram?
 - how should CT approach design or frontend work?
-- how do I use OpenAI OAuth here?
+- how do I use OpenAI OAuth or an OpenAI API key here?
 - how does CT identity work in this project?
 - how do I make CT remind me about something after replies?
 - how do I switch models?
@@ -24,7 +24,7 @@ Architecture reference:
 
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md)
 
-## OpenAI / Codex / OAuth
+## OpenAI / Codex / Auth
 
 Keywords:
 
@@ -33,6 +33,8 @@ Keywords:
 - ct
 - seaturtle
 - oauth
+- api key
+- OPENAI_API_KEY
 - chatgpt login
 - login
 - logout
@@ -44,6 +46,7 @@ Keywords:
 Next steps:
 
 - Use `/login` to choose Anthropic or OpenAI Codex OAuth
+- Set `OPENAI_API_KEY` when you need the explicit OpenAI Responses API path
 - Use `/logout` to clear Anthropic and/or OpenAI Codex auth
 - Use `/model` to switch supported OpenAI/Codex models
 - Use `/effort` to adjust reasoning level
@@ -58,6 +61,7 @@ Important truth:
 
 - OpenAI/Codex local runtime works in SeaTurtle
 - native SeaTurtle-owned OpenAI/Codex OAuth is now the preferred auth path
+- `OPENAI_API_KEY` is supported as an explicit operator/automation auth path
 - legacy `codex-cli` auth is still supported as a compatibility fallback
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs

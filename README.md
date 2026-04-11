@@ -75,7 +75,8 @@ present in the product but not always directly exposed as top-level commands.
   - `ct`
   - `seaturtle`
   - `ct-dev`
-- OpenAI/Codex-backed main loop
+- OpenAI/Codex-backed main loop through native OAuth, imported Codex CLI auth,
+  or an explicit OpenAI API key
 - local tool use on the OpenAI/Codex path
 - replay/resume on the OpenAI/Codex path
 - streamed text and tool-use event translation
@@ -138,6 +139,13 @@ At startup, CT can guide you through:
 For OpenAI mode, CT now prefers native SeaTurtle-owned OpenAI/Codex OAuth
 profiles stored in secure storage.
 
+For API-key operation, set `OPENAI_API_KEY` before launching CT. Optional
+standard OpenAI environment variables are also honored:
+
+- `OPENAI_BASE_URL`
+- `OPENAI_ORGANIZATION`
+- `OPENAI_PROJECT`
+
 Legacy `codex-cli` auth in `~/.codex/auth.json` is still supported as a fallback
 compatibility source.
 
@@ -146,6 +154,7 @@ CT-owned runtime truth for:
 
 - account email and detected plan
 - auth source
+- API-key readiness
 - current model and reasoning level
 - context window usage
 - collaboration mode
@@ -249,16 +258,22 @@ Current note:
 
 The installer now checks those before it tries to build.
 
-### Required For OpenAI/Codex OAuth
+### Required For OpenAI/Codex
 
 - nothing extra for the primary native CT OAuth path
+
+Optional API-key path:
+
+- `OPENAI_API_KEY`
 
 Optional compatibility fallback:
 
 - `codex` CLI on your `PATH`
 
-CT can still reuse legacy Codex CLI auth when it exists, but the preferred path
-is now native CT-owned OpenAI/Codex OAuth.
+CT can still reuse legacy Codex CLI auth when it exists, but the preferred
+interactive path is now native CT-owned OpenAI/Codex OAuth. The explicit
+API-key path is available for operators and automation that should not depend
+on browser OAuth state.
 
 ### Install Commands
 
@@ -312,6 +327,7 @@ runtime.
 - replay/resume
 - `TodoWrite` strict-schema turns
 - provider-aware auth and status reporting
+- explicit `OPENAI_API_KEY` auth for the OpenAI Responses API path
 - CT-owned `/status` telemetry for context window, collaboration mode, and 5h/weekly usage windows
 - provider-aware model and effort selection
 - provider-neutral auto-mode critique
@@ -328,6 +344,7 @@ Useful OpenAI/Codex-specific fields in that JSON now include:
 
 - `openAiCodexAuthSource`
 - `openAiCodexNativeAuthReady`
+- `openAiCodexApiKeyReady`
 - `openAiCodexCliFallbackReady`
 - `openAiCodexCollaborationMode`
 - `openAiCodexUsageTelemetry`
