@@ -21,6 +21,7 @@ import {
   getClaudeConfigHomeDir,
   getSeaTurtleConfigPathDisplay,
 } from '../envUtils.js'
+import { getGlobalClaudeFile } from '../env.js'
 import {
   getFsImplementation,
   getPathsForPermissionCheck,
@@ -227,6 +228,13 @@ export function isClaudeSettingsPath(filePath: string): boolean {
 // Always ask when Claude Code tries to edit its own config files
 function isClaudeConfigFilePath(filePath: string): boolean {
   if (isClaudeSettingsPath(filePath)) {
+    return true
+  }
+
+  if (
+    normalizeCaseForComparison(expandPath(filePath)) ===
+    normalizeCaseForComparison(getGlobalClaudeFile())
+  ) {
     return true
   }
 

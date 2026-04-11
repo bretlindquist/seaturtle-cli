@@ -3,6 +3,7 @@ import {
   buildConfigHomePermissionPattern,
   formatConfigHomeDisplayPath,
   resolveSeaTurtleConfigHomeDir,
+  resolveSeaTurtleGlobalConfigFilePath,
 } from '../source/src/utils/configHome.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -90,6 +91,71 @@ assert(
   buildConfigHomePermissionPattern('~/.seaturtle', 'skills') ===
     '~/.seaturtle/skills/**',
   'expected config-home permission pattern to track the displayed config home',
+)
+
+assert(
+  resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir: '/Users/tester/.seaturtle',
+    homeDir: HOME_DIR,
+    oauthFileSuffix: '',
+    preferredConfigHomeFileExists: true,
+    legacyConfigHomeHiddenFileExists: true,
+    legacyConfigHomeClaudeFileExists: true,
+    legacyHomeClaudeFileExists: true,
+  }) === '/Users/tester/.seaturtle/config.json',
+  'expected config-home config.json to be the preferred global config file when present',
+)
+
+assert(
+  resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir: '/Users/tester/.seaturtle',
+    homeDir: HOME_DIR,
+    oauthFileSuffix: '',
+    preferredConfigHomeFileExists: false,
+    legacyConfigHomeHiddenFileExists: true,
+    legacyConfigHomeClaudeFileExists: true,
+    legacyHomeClaudeFileExists: true,
+  }) === '/Users/tester/.seaturtle/.config.json',
+  'expected legacy .config.json under the config home to remain readable',
+)
+
+assert(
+  resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir: '/Users/tester/custom-config',
+    homeDir: HOME_DIR,
+    oauthFileSuffix: '-local-oauth',
+    preferredConfigHomeFileExists: false,
+    legacyConfigHomeHiddenFileExists: false,
+    legacyConfigHomeClaudeFileExists: true,
+    legacyHomeClaudeFileExists: true,
+  }) === '/Users/tester/custom-config/.claude-local-oauth.json',
+  'expected legacy config-home scoped .claude*.json files to remain readable',
+)
+
+assert(
+  resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir: '/Users/tester/.seaturtle',
+    homeDir: HOME_DIR,
+    oauthFileSuffix: '',
+    preferredConfigHomeFileExists: false,
+    legacyConfigHomeHiddenFileExists: false,
+    legacyConfigHomeClaudeFileExists: false,
+    legacyHomeClaudeFileExists: true,
+  }) === '/Users/tester/.claude.json',
+  'expected legacy home-root ~/.claude.json installs to remain readable',
+)
+
+assert(
+  resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir: '/Users/tester/.seaturtle',
+    homeDir: HOME_DIR,
+    oauthFileSuffix: '',
+    preferredConfigHomeFileExists: false,
+    legacyConfigHomeHiddenFileExists: false,
+    legacyConfigHomeClaudeFileExists: false,
+    legacyHomeClaudeFileExists: false,
+  }) === '/Users/tester/.seaturtle/config.json',
+  'expected fresh installs to place global config inside the SeaTurtle config home',
 )
 
 console.log('config-home-resolution selftest passed')

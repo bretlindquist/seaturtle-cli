@@ -58,3 +58,48 @@ export function buildConfigHomePermissionPattern(
 ): string {
   return `${buildConfigHomePathDisplay(configHomeDisplayPath, ...segments)}/**`
 }
+
+export type GlobalConfigFileResolutionInput = {
+  configHomeDir: string
+  homeDir: string
+  oauthFileSuffix: string
+  preferredConfigHomeFileExists: boolean
+  legacyConfigHomeHiddenFileExists: boolean
+  legacyConfigHomeClaudeFileExists: boolean
+  legacyHomeClaudeFileExists: boolean
+}
+
+export function resolveSeaTurtleGlobalConfigFilePath(
+  input: GlobalConfigFileResolutionInput,
+): string {
+  const preferredConfigHomeFile = join(
+    input.configHomeDir,
+    `config${input.oauthFileSuffix}.json`,
+  )
+  if (input.preferredConfigHomeFileExists) {
+    return preferredConfigHomeFile
+  }
+
+  const legacyConfigHomeHiddenFile = join(input.configHomeDir, '.config.json')
+  if (input.legacyConfigHomeHiddenFileExists) {
+    return legacyConfigHomeHiddenFile
+  }
+
+  const legacyConfigHomeClaudeFile = join(
+    input.configHomeDir,
+    `.claude${input.oauthFileSuffix}.json`,
+  )
+  if (input.legacyConfigHomeClaudeFileExists) {
+    return legacyConfigHomeClaudeFile
+  }
+
+  const legacyHomeClaudeFile = join(
+    input.homeDir,
+    `.claude${input.oauthFileSuffix}.json`,
+  )
+  if (input.legacyHomeClaudeFileExists) {
+    return legacyHomeClaudeFile
+  }
+
+  return preferredConfigHomeFile
+}
