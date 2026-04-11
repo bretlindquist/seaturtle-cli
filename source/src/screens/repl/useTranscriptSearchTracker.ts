@@ -12,18 +12,24 @@ export type TranscriptSearchBadge = {
 export function useTranscriptSearchTracker() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchCount, setSearchCount] = useState(0);
-  const [searchCurrent, setSearchCurrent] = useState(0);
+  const [searchProgressState, setSearchProgressState] = useState({
+    count: 0,
+    current: 0,
+  });
 
   const onSearchMatchesChange = useCallback((count: number, current: number) => {
-    setSearchCount(count);
-    setSearchCurrent(current);
+    setSearchProgressState({
+      count,
+      current,
+    });
   }, []);
 
   const clearSearchState = useCallback(() => {
     setSearchQuery('');
-    setSearchCount(0);
-    setSearchCurrent(0);
+    setSearchProgressState({
+      count: 0,
+      current: 0,
+    });
   }, []);
 
   const commitSearchQuery = useCallback((query: string) => {
@@ -42,10 +48,16 @@ export function useTranscriptSearchTracker() {
     reportMatches: onSearchMatchesChange
   }), [onSearchMatchesChange]);
 
-  const searchBadge = useMemo<TranscriptSearchBadge | undefined>(() => searchQuery && searchCount > 0 ? {
-    current: searchCurrent,
-    count: searchCount
-  } : undefined, [searchCount, searchCurrent, searchQuery]);
+  const searchBadge = useMemo<TranscriptSearchBadge | undefined>(
+    () =>
+      searchQuery && searchProgressState.count > 0
+        ? {
+            current: searchProgressState.current,
+            count: searchProgressState.count,
+          }
+        : undefined,
+    [searchProgressState, searchQuery],
+  );
 
   return {
     searchOpen,
@@ -53,9 +65,9 @@ export function useTranscriptSearchTracker() {
     closeSearch,
     searchQuery,
     commitSearchQuery,
-    searchCount,
-    searchCurrent,
-    hasNavigableMatches: searchCount > 0,
+    searchCount: searchProgressState.count,
+    searchCurrent: searchProgressState.current,
+    hasNavigableMatches: searchProgressState.count > 0,
     searchProgress,
     clearSearchState,
     searchBadge

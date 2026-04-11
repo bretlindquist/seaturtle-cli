@@ -19,16 +19,20 @@ import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
-import { wrapTranscriptSearchPtr } from '../screens/repl/transcriptSearchModel.js';
 import {
-  buildSearchNavigationStateForQuery,
-  createEmptySearchNavigationState,
-  getSearchNavigationCurrent,
-  getSearchNavigationCurrentMessageOccurrenceCount,
-  getSearchNavigationPlaceholderCurrent,
-  getSearchNavigationTotal,
-  type SearchNavigationState,
-} from '../screens/repl/transcriptSearchRendererModel.js';
+  buildTranscriptSearchEngineState,
+  createEmptyTranscriptSearchEngineState,
+  getTranscriptSearchEngineCurrent,
+  getTranscriptSearchEngineCurrentMessageOccurrenceCount,
+  getTranscriptSearchEngineTotal,
+  setTranscriptSearchEngineCursorToOccurrence,
+  type TranscriptSearchEngineState,
+} from '../screens/repl/transcriptSearchEngine.js';
+import {
+  getTranscriptSearchNextCursor,
+  getTranscriptSearchPreviousCursor,
+  wrapTranscriptSearchPtr,
+} from '../screens/repl/transcriptSearchModel.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -442,7 +446,7 @@ export function VirtualMessageList({
   // closure-capture or deps churn.
   const stepRef = useRef<(d: 1 | -1) => void>(() => {});
   const highlightRef = useRef<(ord: number) => void>(() => {});
-  const searchState = useRef<SearchNavigationState>(createEmptySearchNavigationState());
+  const searchState = useRef<TranscriptSearchEngineState>(createEmptyTranscriptSearchEngineState());
   // scrollTop at the moment / was pressed. Incsearch preview-jumps snap
   // back here when matches drop to 0. -1 = no anchor (before first /).
   const searchAnchor = useRef(-1);
@@ -468,7 +472,7 @@ export function VirtualMessageList({
   const reportSearchProgress = useCallback((total: number, current: number) => {
     searchProgress?.reportMatches(total, current);
   }, [searchProgress]);
-  const setSearchNavigationState = useCallback((next: SearchNavigationState) => {
+  const setSearchEngineState = useCallback((next: TranscriptSearchEngineState) => {
     searchState.current = next;
     setMatchedMessageIdxs(new Set(next.snapshot.matches));
   }, []);
@@ -532,10 +536,17 @@ export function VirtualMessageList({
       return true;
     }
     phantomBurstRef.current = 0;
-    const expectedOccurrences = Math.max(1, getSearchNavigationCurrentMessageOccurrenceCount(searchState.current));
+    const expectedOccurrences = Math.max(
+      1,
+      getTranscriptSearchEngineCurrentMessageOccurrenceCount(searchState.current),
+    );
     const usablePositions = Math.min(positions.length, expectedOccurrences);
     const ord = wantLast ? Math.max(0, usablePositions - 1) : 0;
-    searchState.current.screenOrd = ord;
+    searchState.current = setTranscriptSearchEngineCursorToOccurrence(
+      searchState.current,
+      searchState.current.cursor.ptr,
+      ord,
+    );
     startPtrRef.current = -1;
     highlightRef.current(ord);
     const pending = pendingStepRef.current;
@@ -571,7 +582,10 @@ export function VirtualMessageList({
       return;
     }
     const st = searchState.current;
-    const expectedOccurrences = Math.max(0, getSearchNavigationCurrentMessageOccurrenceCount(st));
+    const expectedOccurrences = Math.max(
+      0,
+      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st),
+    );
     if (expectedOccurrences === 0) {
       clearActiveResult();
       return;
@@ -605,8 +619,14 @@ export function VirtualMessageList({
       rowOffset = el ? (nodeCache.get(el)?.y ?? vpTop + lo) : vpTop + lo;
       screenRow = rowOffset + p.row;
     }
-    const total = getSearchNavigationTotal(st);
-    const current = getSearchNavigationCurrent(st, idx);
+    const currentState = setTranscriptSearchEngineCursorToOccurrence(
+      st,
+      st.cursor.ptr,
+      idx,
+    );
+    searchState.current = currentState;
+    const total = getTranscriptSearchEngineTotal(currentState);
+    const current = getTranscriptSearchEngineCurrent(currentState);
     reportSearchProgress(total, current);
     logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
   }
@@ -689,7 +709,7 @@ export function VirtualMessageList({
         matches
       }
     } = st;
-    const total = getSearchNavigationTotal(st);
+    const total = getTranscriptSearchEngineTotal(st);
     if (matches.length === 0) return;
 
     // Seek in-flight — queue this press (one-deep, latest overwrites).
@@ -702,30 +722,42 @@ export function VirtualMessageList({
     const {
       positions
     } = elementPositions.current;
-    const targetMsgIdx = st.snapshot.matches[st.ptr] ?? -1;
-    const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
+    const targetMsgIdx = st.snapshot.matches[st.cursor.ptr] ?? -1;
+    const currentMessageOccurrenceCount =
+      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st);
     const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
     if (usablePositions <= 0 && targetMsgIdx >= 0 && elementPositions.current.msgIdx !== targetMsgIdx) {
       pendingStepRef.current = delta;
-      logForDebugging(`step: pending delta=${delta} while target ptr=${st.ptr} msgIdx=${targetMsgIdx} is unresolved`);
+      logForDebugging(`step: pending delta=${delta} while target ptr=${st.cursor.ptr} msgIdx=${targetMsgIdx} is unresolved`);
       jump(targetMsgIdx, delta < 0);
       return;
     }
-    const newOrd = st.screenOrd + delta;
-    if (newOrd >= 0 && newOrd < usablePositions) {
-      st.screenOrd = newOrd;
+    const newCursor =
+      delta > 0
+        ? getTranscriptSearchNextCursor(st.snapshot, st.cursor)
+        : getTranscriptSearchPreviousCursor(st.snapshot, st.cursor);
+    const stayingOnCurrentMessage = newCursor.ptr === st.cursor.ptr;
+    const newOrd = newCursor.occurrenceOrdinal;
+    if (stayingOnCurrentMessage && newOrd >= 0 && newOrd < usablePositions) {
+      searchState.current = {
+        snapshot: st.snapshot,
+        cursor: newCursor,
+      };
       highlight(newOrd); // updates badge internally
       startPtrRef.current = -1;
       return;
     }
 
     // Exhausted visible. Advance ptr → jump → re-scan.
-    const ptr = wrapTranscriptSearchPtr(st.ptr, delta, matches.length);
+    const ptr = wrapTranscriptSearchPtr(st.cursor.ptr, delta, matches.length);
     if (ptr === startPtrRef.current) {
       if (usablePositions > 0) {
         const wrapOrd = delta < 0 ? usablePositions - 1 : 0;
-        st.ptr = ptr;
-        st.screenOrd = wrapOrd;
+        searchState.current = setTranscriptSearchEngineCursorToOccurrence(
+          st,
+          ptr,
+          wrapOrd,
+        );
         highlight(wrapOrd);
         startPtrRef.current = -1;
         logForDebugging(`step: wrapped within ptr=${ptr} to ord=${wrapOrd}`);
@@ -736,14 +768,15 @@ export function VirtualMessageList({
       logForDebugging(`step: wraparound at ptr=${ptr}, all ${matches.length} msgs phantoms`);
       return;
     }
-    st.ptr = ptr;
-    st.screenOrd = 0; // resolved after scan (wantLast → length-1)
-    jump(matches[ptr]!, delta < 0);
-    // screenOrd will resolve after scan. Placeholder tracks the destination
-    // occurrence within the target message so the footer remains
-    // occurrence-accurate during viewport jumps.
-    const placeholder = getSearchNavigationPlaceholderCurrent(st, ptr, delta);
-    reportSearchProgress(total, placeholder);
+    searchState.current = {
+      snapshot: st.snapshot,
+      cursor: newCursor,
+    };
+    jump(matches[newCursor.ptr]!, delta < 0);
+    reportSearchProgress(
+      total,
+      getTranscriptSearchEngineCurrent(searchState.current),
+    );
   }
   stepRef.current = step;
   const jumpToIndex = useCallback((i: number) => {
@@ -755,42 +788,49 @@ export function VirtualMessageList({
     startPtrRef.current = -1;
     resetSearchViewportState();
     const s = scrollRef.current;
-    const {
-      offsets,
-      start,
-      getItemTop
-    } = jumpState.current;
-    const nextState = buildSearchNavigationStateForQuery({
-      query: q,
-      messages: jumpState.current.messages,
+    const nextState = buildTranscriptSearchEngineState(
+      q,
+      jumpState.current.messages,
       extractSearchText,
-      previous: {
-        query: searchState.current.snapshot.query,
-        ptr: searchState.current.ptr,
-        screenOrd: searchState.current.screenOrd,
-      },
-      currentTop: searchAnchor.current >= 0 ? searchAnchor.current : s?.getScrollTop() ?? 0,
-      offsets,
-      start,
-      getItemTop,
-    });
-    const total = getSearchNavigationTotal(nextState);
+      searchState.current.snapshot.query
+        ? {
+            query: searchState.current.snapshot.query,
+            cursor: searchState.current.cursor,
+          }
+        : undefined,
+    );
+    const total = getTranscriptSearchEngineTotal(nextState);
     if (nextState.snapshot.matches.length > 0 && s) {
-      const firstTop = getItemTop(start);
-      const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-      const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-      logForDebugging(`setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${nextState.ptr} ` + `msgIdx=${nextState.snapshot.matches[nextState.ptr]} curTop=${curTop} origin=${origin}`);
+      const curTop =
+        searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
+      logForDebugging(
+        `setSearchQuery('${q}'): ${nextState.snapshot.matches.length} msgs · ptr=${nextState.cursor.ptr} ` +
+          `msgIdx=${nextState.snapshot.matches[nextState.cursor.ptr]} curTop=${curTop}`,
+      );
     }
-    setSearchNavigationState(nextState);
+    setSearchEngineState(nextState);
     if (nextState.snapshot.matches.length > 0) {
-      jump(nextState.snapshot.matches[nextState.ptr]!, true);
+      jump(
+        nextState.snapshot.matches[nextState.cursor.ptr]!,
+        nextState.cursor.occurrenceOrdinal > 0,
+      );
     } else if (searchAnchor.current >= 0 && s) {
       s.scrollTo(searchAnchor.current);
     }
-    reportSearchProgress(total, nextState.snapshot.matches.length > 0 ? getSearchNavigationPlaceholderCurrent({
-      ...nextState,
-    }, nextState.ptr, -1) : 0);
-  }, [extractSearchText, jump, reportSearchProgress, resetSearchViewportState, scrollRef, setSearchNavigationState]);
+    reportSearchProgress(
+      total,
+      nextState.snapshot.matches.length > 0
+        ? getTranscriptSearchEngineCurrent(nextState)
+        : 0,
+    );
+  }, [
+    extractSearchText,
+    jump,
+    reportSearchProgress,
+    resetSearchViewportState,
+    scrollRef,
+    setSearchEngineState,
+  ]);
   const refreshCurrentMatch = useCallback(() => {
     const st = searchState.current;
     if (st.snapshot.matches.length === 0) {
@@ -801,13 +841,17 @@ export function VirtualMessageList({
       msgIdx,
       positions
     } = elementPositions.current;
-    const currentMessageOccurrenceCount = getSearchNavigationCurrentMessageOccurrenceCount(st);
+    const currentMessageOccurrenceCount =
+      getTranscriptSearchEngineCurrentMessageOccurrenceCount(st);
     const usablePositions = Math.min(positions.length, currentMessageOccurrenceCount);
-    if (msgIdx === st.snapshot.matches[st.ptr] && usablePositions > 0) {
-      highlightRef.current(st.screenOrd);
+    if (msgIdx === st.snapshot.matches[st.cursor.ptr] && usablePositions > 0) {
+      highlightRef.current(st.cursor.occurrenceOrdinal);
       return;
     }
-    jump(st.snapshot.matches[st.ptr]!, st.screenOrd > 0);
+    jump(
+      st.snapshot.matches[st.cursor.ptr]!,
+      st.cursor.occurrenceOrdinal > 0,
+    );
   }, [clearActiveResult, jump]);
   const setSearchAnchor = useCallback(() => {
     const s = scrollRef.current;
