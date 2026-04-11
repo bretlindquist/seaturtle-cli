@@ -207,6 +207,7 @@ Next steps:
 
 - On a new project, follow the short startup picker if CT offers to tune the private SeaTurtle defaults
 - Run `/ct` if you want the simplest way to retune CT, edit `.ct` files, or manage defaults
+- Open `docs/SEATURTLE-VOICE.md` if you want the quickest repo path to the hidden SeaTurtle voice guidance
 - Edit `.ct/soul.md` to tune the deeper SeaTurtle worldview, warmth, and values layer
 - Edit `.ct/identity.md` to tune CT's native character and interaction style for this project
 - Edit `.ct/role.md` to tune how exploratory, operational, or exacting CT should be here
