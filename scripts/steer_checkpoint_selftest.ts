@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  buildSteerBoundaryPlan,
   buildSteerCheckpoint,
   buildSteerCheckpointTranscriptLine,
   classifyBoundaryQueuedCommand,
@@ -84,6 +85,39 @@ function run(): void {
     ignoredSideQuestion,
   ])
 
+  const plan = buildSteerBoundaryPlan({
+    stepNumber: 4,
+    lastAssistantText:
+      'I traced the queue mutation boundary and updated the owner comment.',
+    queuedCommands: [
+      relevantNow,
+      appendToTask,
+      deferredAdjacent,
+      ignoredSideQuestion,
+      taskNotification,
+    ],
+    toolNames: ['Bash', 'Read'],
+  })
+  assert.deepEqual(plan.attachNow, [
+    relevantNow,
+    appendToTask,
+    taskNotification,
+  ])
+  assert.deepEqual(plan.leaveQueued, [
+    deferredAdjacent,
+    ignoredSideQuestion,
+  ])
+  assert.deepEqual(plan.consumedCommands, [
+    relevantNow,
+    appendToTask,
+    taskNotification,
+  ])
+  assert.equal(
+    plan.checkpoint?.toolJustCompleted,
+    'Bash, Read',
+    'boundary plan should reuse the shared checkpoint payload',
+  )
+
   const checkpoint = buildSteerCheckpoint({
     stepNumber: 4,
     lastAssistantText: 'I traced the queue mutation boundary and updated the owner comment.',
@@ -146,8 +180,13 @@ function run(): void {
 
   assert.match(
     querySource,
-    /const steerCheckpoint = buildSteerCheckpoint\(/,
-    'query loop should build steer checkpoints from the shared helper',
+    /const steerBoundaryPlan = buildSteerBoundaryPlan\(/,
+    'query loop should build one shared steer boundary plan at the query boundary',
+  )
+  assert.match(
+    querySource,
+    /const steerCheckpoint = steerBoundaryPlan\.checkpoint/,
+    'query loop should derive the checkpoint from the shared boundary plan',
   )
   assert.match(
     querySource,
@@ -156,8 +195,13 @@ function run(): void {
   )
   assert.match(
     querySource,
-    /partitionQueuedCommandsForBoundary\(queuedCommandsSnapshot\)/,
-    'query loop should partition queued commands through the shared boundary helper',
+    /const boundaryCommandsToAttach = steerBoundaryPlan\.attachNow/,
+    'query loop should attach boundary commands from the shared boundary plan',
+  )
+  assert.match(
+    querySource,
+    /const consumedCommands = steerBoundaryPlan\.consumedCommands/,
+    'query loop should consume queue entries from the shared boundary plan',
   )
 }
 

@@ -249,3 +249,29 @@ export function partitionQueuedCommandsForBoundary(
 
   return { attachNow, leaveQueued }
 }
+
+export function buildSteerBoundaryPlan(input: {
+  stepNumber: number
+  lastAssistantText?: string
+  queuedCommands: QueuedCommand[]
+  toolNames: string[]
+}): {
+  checkpoint:
+    | ReturnType<typeof buildSteerCheckpoint>
+    | null
+  attachNow: QueuedCommand[]
+  leaveQueued: QueuedCommand[]
+  consumedCommands: QueuedCommand[]
+} {
+  const partition = partitionQueuedCommandsForBoundary(input.queuedCommands)
+  const consumedCommands = partition.attachNow.filter(
+    cmd => isPromptLikeInputMode(cmd.mode) || cmd.mode === 'task-notification',
+  )
+
+  return {
+    checkpoint: buildSteerCheckpoint(input),
+    attachNow: partition.attachNow,
+    leaveQueued: partition.leaveQueued,
+    consumedCommands,
+  }
+}

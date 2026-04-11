@@ -66,9 +66,6 @@ import {
 const skillPrefetch = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('./services/skillSearch/prefetch.js') as typeof import('./services/skillSearch/prefetch.js'))
   : null
-const jobClassifier = feature('TEMPLATES')
-  ? (require('./jobs/classifier.js') as typeof import('./jobs/classifier.js'))
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 import {
   remove as removeFromQueue,
@@ -111,11 +108,9 @@ import {
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
 import {
-  buildSteerCheckpoint,
+  buildSteerBoundaryPlan,
   buildSteerCheckpointTranscriptLine,
-  partitionQueuedCommandsForBoundary,
 } from './utils/steerCheckpoint.js'
-import { isPromptLikeInputMode } from './components/PromptInput/inputModes.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1592,12 +1587,13 @@ async function* queryLoop(
       return cmd.mode === 'task-notification' && cmd.agentId === currentAgentId
     })
 
-    const steerCheckpoint = buildSteerCheckpoint({
+    const steerBoundaryPlan = buildSteerBoundaryPlan({
       stepNumber: turnCount,
       lastAssistantText,
       queuedCommands: queuedCommandsSnapshot,
       toolNames: toolUseBlocks.map(block => block.name),
     })
+    const steerCheckpoint = steerBoundaryPlan.checkpoint
 
     if (steerCheckpoint) {
       const checkpointMessage = createAttachmentMessage(steerCheckpoint)
@@ -1617,8 +1613,7 @@ async function* queryLoop(
       toolResults.push(transcriptCheckpointMessage)
     }
 
-    const { attachNow: boundaryCommandsToAttach } =
-      partitionQueuedCommandsForBoundary(queuedCommandsSnapshot)
+    const boundaryCommandsToAttach = steerBoundaryPlan.attachNow
 
     for await (const attachment of getAttachmentMessages(
       null,
@@ -1672,10 +1667,7 @@ async function* queryLoop(
 
     // Remove only commands that were actually consumed as attachments.
     // Prompt and task-notification commands are converted to attachments above.
-    const consumedCommands = boundaryCommandsToAttach.filter(
-      cmd =>
-        isPromptLikeInputMode(cmd.mode) || cmd.mode === 'task-notification',
-    )
+    const consumedCommands = steerBoundaryPlan.consumedCommands
     if (consumedCommands.length > 0) {
       for (const cmd of consumedCommands) {
         if (cmd.uuid) {
