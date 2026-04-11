@@ -145,7 +145,7 @@ import { fetchClaudeAIMcpConfigsIfEligible } from 'src/services/mcp/claudeai.js'
 import { clearServerCache } from 'src/services/mcp/client.js';
 import { areMcpConfigsAllowedWithEnterpriseMcpConfig, dedupClaudeAiMcpServers, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, getMcpServerSignature, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
 import { buildSessionEntryPolicyInput, hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
-import { getNoContinuableSessionText } from 'src/services/sessionResume/sessionResumeCopy.js';
+import { getFailedResumeSessionText, getNoContinuableSessionText, getNoSessionWithIdText } from 'src/services/sessionResume/sessionResumeCopy.js';
 import { excludeCommandsByServer, excludeResourcesByServer } from 'src/services/mcp/utils.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
@@ -3688,7 +3688,7 @@ async function run(): Promise<CommanderCommand> {
               entrypoint: 'cli_flag' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               success: false
             });
-            return await exitWithError(root, `No conversation found with session ID: ${sessionId}`);
+            return await exitWithError(root, getNoSessionWithIdText(sessionId));
           }
           const fullPath = matchedLog?.fullPath ?? result.fullPath;
           processedResume = await processResumedConversation(result, {
@@ -3710,7 +3710,7 @@ async function run(): Promise<CommanderCommand> {
             success: false
           });
           logError(error);
-          await exitWithError(root, `Failed to resume session ${sessionId}`);
+          await exitWithError(root, getFailedResumeSessionText(sessionId));
         }
       }
 

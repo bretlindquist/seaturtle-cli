@@ -17,3 +17,13 @@ export function getNoResumableSessionsText(): string {
 export function getNoContinuableSessionText(): string {
   return 'No conversation found to continue. CT starts fresh by default, so use ct --continue when you want the last thread in this directory or ct --resume to browse earlier ones.'
 }
+
+export function getNoSessionWithIdText(sessionId: string): string {
+  return `No conversation found with session ID: ${sessionId}`
+}
+
+export function getFailedResumeSessionText(sessionId?: string): string {
+  return sessionId
+    ? `Failed to resume session ${sessionId}`
+    : 'Failed to resume session with --print mode'
+}

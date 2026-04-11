@@ -3,9 +3,11 @@ import { join } from 'node:path'
 
 import {
   getNoContinuableSessionText,
+  getFailedResumeSessionText,
   getSessionResumeAffordanceText,
   getSessionResumeFeedFooterText,
   getNoResumableSessionsText,
+  getNoSessionWithIdText,
   getSessionResumeTipText,
 } from '../source/src/services/sessionResume/sessionResumeCopy.ts'
 import {
@@ -74,6 +76,20 @@ assert(
 )
 
 assert(
+  getNoSessionWithIdText('session-id') ===
+    'No conversation found with session ID: session-id',
+  'session-id miss copy should be shared across CLI and print resume paths',
+)
+assert(
+  getFailedResumeSessionText('session-id') === 'Failed to resume session session-id',
+  'interactive resume failure copy should include the target session id',
+)
+assert(
+  getFailedResumeSessionText() === 'Failed to resume session with --print mode',
+  'print resume failure copy should preserve the generic fallback',
+)
+
+assert(
   shouldStartFreshSession({
     continueFlag: false,
     resumeValue: undefined,
@@ -137,6 +153,24 @@ assert(
 assert(
   !mainSource.includes("exitWithError(root, 'No conversation found to continue')"),
   '--continue should not keep a stale hardcoded empty-state string',
+)
+assert(
+  mainSource.includes('exitWithError(root, getNoSessionWithIdText(sessionId))'),
+  '--resume <id> should use shared missing-session copy',
+)
+assert(
+  mainSource.includes('exitWithError(root, getFailedResumeSessionText(sessionId))'),
+  '--resume <id> should use shared failed-session copy',
+)
+
+const printSource = readFileSync(join(repoRoot, 'source/src/cli/print.ts'), 'utf8')
+assert(
+  printSource.includes('getNoSessionWithIdText(parsedSessionId.sessionId)'),
+  'print-mode resume should use shared missing-session copy',
+)
+assert(
+  printSource.includes('getFailedResumeSessionText()'),
+  'print-mode resume should use shared generic failed-session copy',
 )
 
 console.log('session-resume-copy selftest passed')

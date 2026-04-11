@@ -71,6 +71,10 @@ import {
   loadConversationForResume,
   type TurnInterruptionState,
 } from 'src/utils/conversationRecovery.js'
+import {
+  getFailedResumeSessionText,
+  getNoSessionWithIdText,
+} from 'src/services/sessionResume/sessionResumeCopy.js'
 import type {
   MCPServerConnection,
   McpSdkServerConfig,
@@ -5102,7 +5106,7 @@ async function loadInitialMessages(
           }
         } else {
           emitLoadError(
-            `No conversation found with session ID: ${parsedSessionId.sessionId}`,
+            getNoSessionWithIdText(parsedSessionId.sessionId),
             options.outputFormat,
           )
           gracefulShutdownSync(1)
@@ -5188,7 +5192,7 @@ async function loadInitialMessages(
       const errorMessage =
         error instanceof Error
           ? `Failed to resume session: ${error.message}`
-          : 'Failed to resume session with --print mode'
+          : getFailedResumeSessionText()
       emitLoadError(errorMessage, options.outputFormat)
       gracefulShutdownSync(1)
       return { messages: [] }
