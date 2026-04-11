@@ -144,6 +144,7 @@ import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
 import { fetchClaudeAIMcpConfigsIfEligible } from 'src/services/mcp/claudeai.js';
 import { clearServerCache } from 'src/services/mcp/client.js';
 import { areMcpConfigsAllowedWithEnterpriseMcpConfig, dedupClaudeAiMcpServers, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, getMcpServerSignature, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
+import { hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
 import { excludeCommandsByServer, excludeResourcesByServer } from 'src/services/mcp/utils.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
@@ -2434,7 +2435,13 @@ async function run(): Promise<CommanderCommand> {
     // (handled via setupTrigger), and resume/continue (conversationRecovery.ts
     // fires 'resume' instead — without this guard, hooks fire TWICE on /resume
     // and the second systemMessage clobbers the first. gh-30825)
-    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || options.continue || options.resume ? null : processSessionStartHooks('startup', {
+    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || !shouldStartFreshSession({
+      continueFlag: options.continue,
+      resumeValue: options.resume,
+      fromPrValue: options.fromPr,
+      teleportValue: teleport,
+      remoteValue: remote
+    }) ? null : processSessionStartHooks('startup', {
       agentType: mainThreadAgentDefinition?.agentType,
       model: resolvedInitialModel
     });
@@ -2604,7 +2611,13 @@ async function run(): Promise<CommanderCommand> {
       // undefined and the ?? fallback runs). Also skip when setupTrigger is
       // set — those paths run setup hooks first (print.ts:544), and session
       // start hooks must wait until setup completes.
-      const sessionStartHooksPromise = options.continue || options.resume || teleport || setupTrigger ? undefined : processSessionStartHooks('startup');
+      const sessionStartHooksPromise = !shouldStartFreshSession({
+        continueFlag: options.continue,
+        resumeValue: options.resume,
+        fromPrValue: options.fromPr,
+        teleportValue: teleport,
+        remoteValue: remote
+      }) || setupTrigger ? undefined : processSessionStartHooks('startup');
       // Suppress transient unhandledRejection if this rejects before
       // loadInitialMessages awaits it. Downstream await still observes the
       // rejection — this just prevents the spurious global handler fire.
@@ -3352,7 +3365,12 @@ async function run(): Promise<CommanderCommand> {
         thinkingConfig
       }, renderAndRun);
       return;
-    } else if (options.resume || options.fromPr || teleport || remote !== null) {
+    } else if (hasExplicitSessionResumeRequest({
+      resumeValue: options.resume,
+      fromPrValue: options.fromPr,
+      teleportValue: teleport,
+      remoteValue: remote
+    })) {
       // Handle resume flow - from file (ant-only), session ID, or interactive selector
 
       // Clear stale caches before resuming to ensure fresh file/skill discovery

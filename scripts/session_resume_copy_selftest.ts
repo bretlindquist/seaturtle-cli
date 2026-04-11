@@ -4,6 +4,10 @@ import {
   getNoResumableSessionsText,
   getSessionResumeTipText,
 } from '../source/src/services/sessionResume/sessionResumeCopy.ts'
+import {
+  hasExplicitSessionResumeRequest,
+  shouldStartFreshSession,
+} from '../source/src/services/sessionResume/sessionEntryPolicy.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -53,6 +57,37 @@ assert(
 assert(
   noResumable.includes('/continue resumes the most recent session'),
   'no-resume message should explain the direct continue path',
+)
+
+assert(
+  shouldStartFreshSession({
+    continueFlag: false,
+    resumeValue: undefined,
+    fromPrValue: undefined,
+    teleportValue: null,
+    remoteValue: null,
+  }),
+  'plain startup policy should remain fresh by default',
+)
+assert(
+  hasExplicitSessionResumeRequest({
+    continueFlag: true,
+    remoteValue: null,
+  }),
+  'continue flag should route into explicit resume handling',
+)
+assert(
+  hasExplicitSessionResumeRequest({
+    resumeValue: 'session-id',
+    remoteValue: null,
+  }),
+  'resume by id should route into explicit resume handling',
+)
+assert(
+  hasExplicitSessionResumeRequest({
+    remoteValue: [],
+  }),
+  'remote sessions should count as explicit non-fresh entrypoints',
 )
 
 console.log('session-resume-copy selftest passed')

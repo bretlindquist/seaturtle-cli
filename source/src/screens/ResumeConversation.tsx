@@ -28,6 +28,7 @@ import { checkCrossProjectResume } from '../utils/crossProjectResume.js';
 import type { FileHistorySnapshot } from '../utils/fileHistory.js';
 import { logError } from '../utils/log.js';
 import { createSystemMessage } from '../utils/messages.js';
+import { getNoResumableSessionsText } from '../services/sessionResume/sessionResumeCopy.js';
 import { computeStandaloneAgentContext, restoreAgentFromSession, restoreWorktreeForResume } from '../utils/sessionRestore.js';
 import { adoptResumedSessionFile, enrichLogs, isCustomTitleEnabled, loadAllProjectsMessageLogsProgressive, loadSameRepoMessageLogsProgressive, recordContentReplacement, resetSessionFilePointer, restoreSessionMetadata, type SessionLogResult } from '../utils/sessionStorage.js';
 import type { ThinkingConfig } from '../utils/thinking.js';
@@ -327,7 +328,7 @@ function NoConversationsMessage() {
   useKeybinding("app:interrupt", _temp, t0);
   let t1;
   if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = <Box flexDirection="column"><Text>No conversations found to resume.</Text><Text dimColor={true}>Press Ctrl+C to exit and start a new conversation.</Text></Box>;
+    t1 = <Box flexDirection="column"><Text>{getNoResumableSessionsText()}</Text><Text dimColor={true}>Press Ctrl+C to exit and keep this startup fresh.</Text></Box>;
     $[1] = t1;
   } else {
     t1 = $[1];
