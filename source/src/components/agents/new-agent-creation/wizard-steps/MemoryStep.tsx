@@ -4,6 +4,7 @@ import { Box } from '../../../../ink.js';
 import { useKeybinding } from '../../../../keybindings/useKeybinding.js';
 import { isAutoMemoryEnabled } from '../../../../memdir/paths.js';
 import { type AgentMemoryScope, loadAgentMemoryPrompt } from '../../../../tools/AgentTool/agentMemory.js';
+import { getSeaTurtleConfigPathDisplay } from '../../../../utils/envUtils.js';
 import { ConfigurableShortcutHint } from '../../../ConfigurableShortcutHint.js';
 import { Select } from '../../../CustomSelect/select.js';
 import { Byline } from '../../../design-system/Byline.js';
@@ -34,10 +35,11 @@ export function MemoryStep() {
   }
   useKeybinding("confirm:no", goBack, t0);
   const isUserScope = wizardData.location === "userSettings";
+  const userAgentMemoryPath = `${getSeaTurtleConfigPathDisplay('agent-memory')}/`;
   let t1;
   if ($[1] !== isUserScope) {
     t1 = isUserScope ? [{
-      label: "User scope (~/.claude/agent-memory/) (Recommended)",
+      label: `User scope (${userAgentMemoryPath}) (Recommended)`,
       value: "user"
     }, {
       label: "None (no persistent memory)",
@@ -55,7 +57,7 @@ export function MemoryStep() {
       label: "None (no persistent memory)",
       value: "none"
     }, {
-      label: "User scope (~/.claude/agent-memory/)",
+      label: `User scope (${userAgentMemoryPath})`,
       value: "user"
     }, {
       label: "Local scope (.claude/agent-memory-local/)",
