@@ -77,8 +77,10 @@ export function TranscriptModeFooter({
 
 type TranscriptSearchBarProps = {
   jumpRef: RefObject<JumpHandle | null>
-  count: number
-  current: number
+  searchBadge?: {
+    current: number
+    count: number
+  }
   onClose: (lastQuery: string) => void
   onCancel: () => void
   initialQuery: string
@@ -86,8 +88,7 @@ type TranscriptSearchBarProps = {
 
 export function TranscriptSearchBar({
   jumpRef,
-  count,
-  current,
+  searchBadge,
   onClose,
   onCancel,
   initialQuery,
@@ -160,11 +161,11 @@ export function TranscriptSearchBar({
         <Text dimColor>indexing… </Text>
       ) : indexStatus ? (
         <Text dimColor>indexed in {indexStatus.ms}ms </Text>
-      ) : count === 0 && query ? (
+      ) : !searchBadge && query ? (
         <Text color="error">no matches </Text>
-      ) : count > 0 ? (
+      ) : searchBadge ? (
         <Text dimColor>
-          {current}/{count}
+          {searchBadge.current}/{searchBadge.count}
           {'  '}
         </Text>
       ) : null}

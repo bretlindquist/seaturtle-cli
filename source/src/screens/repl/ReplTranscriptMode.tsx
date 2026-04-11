@@ -46,8 +46,6 @@ type ReplTranscriptModeProps = {
   toolJsxNode?: ReactNode
   searchOpen: boolean
   searchQuery: string
-  searchCount: number
-  searchCurrent: number
   onCloseSearchBar: (query: string) => void
   onCancelSearchBar: () => void
   editorStatus?: string
@@ -84,8 +82,6 @@ export function ReplTranscriptMode({
   toolJsxNode,
   searchOpen,
   searchQuery,
-  searchCount,
-  searchCurrent,
   onCloseSearchBar,
   onCancelSearchBar,
   editorStatus,
@@ -97,8 +93,7 @@ export function ReplTranscriptMode({
     </Box>;
   const transcriptSearchElement = <TranscriptSearchBar jumpRef={jumpRef}
     initialQuery={searchQuery}
-    count={searchCount}
-    current={searchCurrent}
+    searchBadge={searchBadge}
     onClose={onCloseSearchBar}
     onCancel={onCancelSearchBar} />;
 

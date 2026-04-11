@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import {
   buildTranscriptSearchEngineState,
@@ -77,6 +79,32 @@ function run(): void {
     getTranscriptSearchEngineCurrent(preserved),
     3,
     'rebuilding the same query should preserve the existing occurrence cursor',
+  )
+
+  const repoRoot = join(import.meta.dir, '..')
+  const transcriptModeSource = readFileSync(
+    join(repoRoot, 'source/src/screens/repl/ReplTranscriptMode.tsx'),
+    'utf8',
+  )
+  const transcriptHelpersSource = readFileSync(
+    join(repoRoot, 'source/src/screens/repl/ReplShellHelpers.tsx'),
+    'utf8',
+  )
+
+  assert.match(
+    transcriptModeSource,
+    /searchBadge=\{searchBadge\}/,
+    'transcript mode should pass the shared search badge into the search bar/footer surface',
+  )
+  assert.doesNotMatch(
+    transcriptModeSource,
+    /count=\{searchCount\}|current=\{searchCurrent\}/,
+    'transcript mode should not pass duplicate count/current props alongside the badge',
+  )
+  assert.match(
+    transcriptHelpersSource,
+    /searchBadge\.current\}\/\{searchBadge\.count/,
+    'search bar should render transcript navigation state from the shared search badge',
   )
 }
 
