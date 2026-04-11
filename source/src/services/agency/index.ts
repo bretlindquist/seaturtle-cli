@@ -155,6 +155,14 @@ function normalizeAgencyLookup(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase().replace(/\.md$/, '')
 }
 
+function compactDescription(description: string, maxLength: number = 88): string {
+  const trimmed = description.trim().replace(/\s+/g, ' ')
+  if (trimmed.length <= maxLength) {
+    return trimmed
+  }
+  return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`
+}
+
 function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
@@ -542,6 +550,47 @@ function findEntriesForTarget(
   throw new Error(`Agency target "${rawTarget}" was not found upstream`)
 }
 
+function findCatalogEntriesForLookup(
+  catalog: AgencyCatalog,
+  rawTarget: string | undefined,
+): AgencyCatalogEntry[] {
+  const target = normalizeAgencyLookup(rawTarget)
+  if (!target || target === 'all') {
+    return catalog.entries
+  }
+
+  return catalog.entries.filter(entry => {
+    const upstreamNoExt = entry.upstreamPath.replace(/\.md$/, '').toLowerCase()
+    const baseNoExt = posix.basename(entry.upstreamPath, '.md').toLowerCase()
+    const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
+    const titleSlug = slugify(entry.title)
+    return (
+      entry.id.toLowerCase() === target ||
+      upstreamNoExt === target ||
+      baseNoExt === target ||
+      suffix === target ||
+      titleSlug === target ||
+      entry.id.toLowerCase().includes(target) ||
+      upstreamNoExt.includes(target) ||
+      entry.title.toLowerCase().includes(target.replace(/-/g, ' ')) ||
+      entry.division.toLowerCase().includes(target)
+    )
+  })
+}
+
+function formatAgencyCandidateList<
+  T extends { id: string; title: string; division?: string },
+>(entries: T[], maxItems: number = 8): string {
+  return entries
+    .slice(0, maxItems)
+    .map(entry =>
+      entry.division
+        ? `- ${entry.id}  ${entry.title} [${entry.division}]`
+        : `- ${entry.id}  ${entry.title}`,
+    )
+    .join('\n')
+}
+
 export async function installAgencySelection(
   rawTarget: string | undefined,
   scope: AgencyInstallScope = 'user',
@@ -751,6 +800,29 @@ function resolveInstalledEntriesForTarget(
   })
 
   if (directMatches.length === 0) {
+    const fallbackMatches = manifest.entries.filter(entry => {
+      const titleSlug = slugify(entry.title)
+      const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
+      return (
+        entry.id.toLowerCase().includes(target) ||
+        suffix.includes(target) ||
+        entry.title.toLowerCase().includes(target.replace(/-/g, ' ')) ||
+        titleSlug.includes(target) ||
+        entry.division.toLowerCase().includes(target)
+      )
+    })
+
+    if (fallbackMatches.length > 0) {
+      throw new Error(
+        [
+          `Agency target "${rawTarget}" is not currently installed.`,
+          '',
+          'Closest installed matches:',
+          formatAgencyCandidateList(fallbackMatches),
+        ].join('\n'),
+      )
+    }
+
     throw new Error(`Agency target "${rawTarget}" is not currently installed`)
   }
 
@@ -794,7 +866,13 @@ export function resolveAgencyRunTarget(
   )
 
   if (matches.length === 0) {
-    throw new Error(`Agency target "${rawTarget}" is not currently installed`)
+    throw new Error(
+      [
+        `Agency target "${rawTarget}" is not currently installed.`,
+        '',
+        'Use /agency list to inspect installed agents or /agency browse to inspect upstream agents.',
+      ].join('\n'),
+    )
   }
 
   if (matches.length > 1) {
@@ -915,6 +993,7 @@ export function getAgencyHelpText(): string {
     '/agency browse strategist',
     '/agency install marketing',
     '/agency install marketing --project',
+    '/agency run social-media-strategist Draft a launch-channel plan for our next release.',
     '/agency run agency-marketing-social-media-strategist Draft a launch-channel plan for our next release.',
     '/agency install engineering/engineering-frontend-developer',
     '/agency update',
@@ -993,22 +1072,7 @@ export async function formatAgencyBrowse(
 ): Promise<string> {
   const catalog = await fetchAgencyCatalog(ref)
   const query = normalizeAgencyLookup(rawQuery)
-  const matches =
-    !query || query === 'all'
-      ? catalog.entries
-      : catalog.entries.filter(entry => {
-          const title = entry.title.toLowerCase()
-          const division = entry.division.toLowerCase()
-          const upstream = entry.upstreamPath.replace(/\.md$/, '').toLowerCase()
-          const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
-          return (
-            title.includes(query.replace(/-/g, ' ')) ||
-            division.includes(query) ||
-            upstream.includes(query) ||
-            suffix.includes(query) ||
-            entry.id.toLowerCase().includes(query)
-          )
-        })
+  const matches = findCatalogEntriesForLookup(catalog, rawQuery)
 
   if (matches.length === 0) {
     return `No upstream Agency agents matched "${rawQuery}".`
@@ -1024,11 +1088,15 @@ export async function formatAgencyBrowse(
     lines.push(`[${division}]`)
     for (const entry of entries) {
       lines.push(`${entry.id}  ${entry.title}`)
+      lines.push(`  ${compactDescription(entry.description)}`)
     }
     lines.push('')
   }
 
   lines.push('Next:')
   lines.push('Use /agency install <division|agent> to install one of these.')
+  if (query && query !== 'all' && matches.length > 8) {
+    lines.push('Use a narrower /agency browse query for a shorter result set.')
+  }
   return lines.join('\n').trimEnd()
 }
