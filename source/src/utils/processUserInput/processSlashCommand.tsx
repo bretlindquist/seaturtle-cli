@@ -557,6 +557,8 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
               shouldQuery?: boolean;
               metaMessages?: string[];
               nextInput?: string;
+              nextInputMode?: import('../../types/textInputTypes.js').EditablePromptInputMode;
+              nextPastedContents?: Record<number, import('../config.js').PastedContent>;
               submitNextInput?: boolean;
             }) => {
               doneWasCalled = true;
@@ -567,6 +569,8 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
                   shouldQuery: false,
                   command,
                   nextInput: options?.nextInput,
+                  nextInputMode: options?.nextInputMode,
+                  nextPastedContents: options?.nextPastedContents,
                   submitNextInput: options?.submitNextInput
                 });
                 return;
@@ -603,6 +607,8 @@ async function getMessagesForSlashCommand(commandName: string, args: string, set
                 shouldQuery: options?.shouldQuery ?? false,
                 command,
                 nextInput: options?.nextInput,
+                nextInputMode: options?.nextInputMode,
+                nextPastedContents: options?.nextPastedContents,
                 submitNextInput: options?.submitNextInput
               });
             };

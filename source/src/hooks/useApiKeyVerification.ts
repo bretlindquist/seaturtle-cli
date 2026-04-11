@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { verifyApiKey } from '../services/api/claude.js'
+import { getMainLoopProviderRuntime } from '../services/api/providerRuntime.js'
 import {
   getAnthropicApiKeyWithSource,
   getApiKeyFromApiKeyHelper,
@@ -23,6 +24,9 @@ export type ApiKeyVerificationResult = {
 
 export function useApiKeyVerification(): ApiKeyVerificationResult {
   const [status, setStatus] = useState<VerificationStatus>(() => {
+    if (getMainLoopProviderRuntime().family === 'openai') {
+      return 'valid'
+    }
     if (!isAnthropicAuthEnabled() || isClaudeAISubscriber()) {
       return 'valid'
     }
@@ -41,6 +45,11 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
   const [error, setError] = useState<Error | null>(null)
 
   const verify = useCallback(async (): Promise<void> => {
+    if (getMainLoopProviderRuntime().family === 'openai') {
+      setStatus('valid')
+      setError(null)
+      return
+    }
     if (!isAnthropicAuthEnabled() || isClaudeAISubscriber()) {
       setStatus('valid')
       return

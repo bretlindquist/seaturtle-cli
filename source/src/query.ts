@@ -66,9 +66,6 @@ import {
 const skillPrefetch = feature('EXPERIMENTAL_SKILL_SEARCH')
   ? (require('./services/skillSearch/prefetch.js') as typeof import('./services/skillSearch/prefetch.js'))
   : null
-const jobClassifier = feature('TEMPLATES')
-  ? (require('./jobs/classifier.js') as typeof import('./jobs/classifier.js'))
-  : null
 /* eslint-enable @typescript-eslint/no-require-imports */
 import {
   remove as removeFromQueue,
@@ -110,6 +107,10 @@ import {
 } from './bootstrap/state.js'
 import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
+import {
+  buildSteerBoundaryPlan,
+  buildSteerCheckpointTranscriptLine,
+} from './utils/steerCheckpoint.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const snipModule = feature('HISTORY_SNIP')
@@ -1412,6 +1413,7 @@ async function* queryLoop(
     let nextPendingToolUseSummary:
       | Promise<ToolUseSummaryMessage | null>
       | undefined
+    let lastAssistantText: string | undefined
     if (
       config.gates.emitToolUseSummaries &&
       toolUseBlocks.length > 0 &&
@@ -1420,7 +1422,6 @@ async function* queryLoop(
     ) {
       // Extract the last assistant text block for context
       const lastAssistantMessage = assistantMessages.at(-1)
-      let lastAssistantText: string | undefined
       if (lastAssistantMessage) {
         const textBlocks = lastAssistantMessage.message.content.filter(
           block => block.type === 'text',
@@ -1544,8 +1545,17 @@ async function* queryLoop(
       queryDepth: queryTracking.depth,
     })
 
-    // Get queued commands snapshot before processing attachments.
-    // These will be sent as attachments so Claude can respond to them in the current turn.
+    // Get the queued commands snapshot before processing attachments.
+    //
+    // Queue/steering ownership:
+    // 1. snapshot the post-tool boundary queue state
+    // 2. emit one deterministic steer checkpoint for transcript/debug history
+    // 3. partition commands into attach-now vs leave-queued
+    // 4. remove only the commands actually consumed into this turn
+    //
+    // This keeps the current transport timing while making semantic steering
+    // explicit at the boundary instead of asking the model to infer it from
+    // raw queued-command attachments alone.
     //
     // Drain pending notifications. LocalShellTask completions are 'next'
     // (when MONITOR_TOOL is on) and drain without Sleep. Other task types
@@ -1577,11 +1587,39 @@ async function* queryLoop(
       return cmd.mode === 'task-notification' && cmd.agentId === currentAgentId
     })
 
+    const steerBoundaryPlan = buildSteerBoundaryPlan({
+      stepNumber: turnCount,
+      lastAssistantText,
+      queuedCommands: queuedCommandsSnapshot,
+      toolNames: toolUseBlocks.map(block => block.name),
+    })
+    const steerCheckpoint = steerBoundaryPlan.checkpoint
+
+    if (steerCheckpoint) {
+      const checkpointMessage = createAttachmentMessage(steerCheckpoint)
+      yield checkpointMessage
+      toolResults.push(checkpointMessage)
+
+      const transcriptCheckpointMessage = createUserMessage({
+        content: buildSteerCheckpointTranscriptLine({
+          stepNumber: steerCheckpoint.stepNumber,
+          toolJustCompleted: steerCheckpoint.toolJustCompleted,
+          steerClassifications: steerCheckpoint.steerClassifications,
+        }),
+        isVisibleInTranscriptOnly: true,
+        isVirtual: true,
+      })
+      yield transcriptCheckpointMessage
+      toolResults.push(transcriptCheckpointMessage)
+    }
+
+    const boundaryCommandsToAttach = steerBoundaryPlan.attachNow
+
     for await (const attachment of getAttachmentMessages(
       null,
       updatedToolUseContext,
       null,
-      queuedCommandsSnapshot,
+      boundaryCommandsToAttach,
       [...messagesForQuery, ...assistantMessages, ...toolResults],
       querySource,
     )) {
@@ -1629,9 +1667,7 @@ async function* queryLoop(
 
     // Remove only commands that were actually consumed as attachments.
     // Prompt and task-notification commands are converted to attachments above.
-    const consumedCommands = queuedCommandsSnapshot.filter(
-      cmd => cmd.mode === 'prompt' || cmd.mode === 'task-notification',
-    )
+    const consumedCommands = steerBoundaryPlan.consumedCommands
     if (consumedCommands.length > 0) {
       for (const cmd of consumedCommands) {
         if (cmd.uuid) {

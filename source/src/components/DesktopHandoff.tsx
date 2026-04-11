@@ -9,7 +9,6 @@ import { errorMessage } from '../utils/errors.js';
 import { gracefulShutdown } from '../utils/gracefulShutdown.js';
 import { flushSessionStorage } from '../utils/sessionStorage.js';
 import { LoadingState } from './design-system/LoadingState.js';
-const DESKTOP_DOCS_URL = 'https://clau.de/desktop';
 export function getDownloadUrl(): string {
   switch (process.platform) {
     case 'win32':
@@ -18,7 +17,9 @@ export function getDownloadUrl(): string {
       return 'https://claude.ai/api/desktop/darwin/universal/dmg/latest/redirect';
   }
 }
+// eslint-disable-next-line no-unused-vars -- React compiler output keeps the source type for editor clarity
 type DesktopHandoffState = 'checking' | 'prompt-download' | 'flushing' | 'opening' | 'success' | 'error';
+// eslint-disable-next-line no-unused-vars -- React compiler output keeps the source type for editor clarity
 type Props = {
   onDone: (result?: string, options?: {
     display?: CommandResultDisplay;
@@ -44,12 +45,12 @@ export function DesktopHandoff(t0) {
       if (state === "prompt-download") {
         if (input === "y" || input === "Y") {
           openBrowser(getDownloadUrl()).catch(_temp);
-          onDone(`Starting download. Re-run /desktop once you\u2019ve installed the app.\nLearn more at ${DESKTOP_DOCS_URL}`, {
+          onDone(`Starting download. Re-run /desktop once you\u2019ve installed the app.`, {
             display: "system"
           });
         } else {
           if (input === "n" || input === "N") {
-            onDone(`The desktop app is required for /desktop. Learn more at ${DESKTOP_DOCS_URL}`, {
+            onDone(`CT Desktop is required for /desktop.`, {
               display: "system"
             });
           }
@@ -72,12 +73,12 @@ export function DesktopHandoff(t0) {
         setState("checking");
         const installStatus = await getDesktopInstallStatus();
         if (installStatus.status === "not-installed") {
-          setDownloadMessage("Claude Desktop is not installed.");
+          setDownloadMessage("CT Desktop is not installed.");
           setState("prompt-download");
           return;
         }
         if (installStatus.status === "version-too-old") {
-          setDownloadMessage(`Claude Desktop needs to be updated (found v${installStatus.version}, need v1.1.2396+).`);
+          setDownloadMessage(`CT Desktop needs to be updated (found v${installStatus.version}, need v1.1.2396+).`);
           setState("prompt-download");
           return;
         }
@@ -86,7 +87,7 @@ export function DesktopHandoff(t0) {
         setState("opening");
         const result = await openCurrentSessionInDesktop();
         if (!result.success) {
-          setError(result.error ?? "Failed to open Claude Desktop");
+          setError(result.error ?? "Failed to open CT Desktop");
           setState("error");
           return;
         }
@@ -162,10 +163,10 @@ export function DesktopHandoff(t0) {
   let t4;
   if ($[17] === Symbol.for("react.memo_cache_sentinel")) {
     t4 = {
-      checking: "Checking for Claude Desktop\u2026",
+      checking: "Checking for CT Desktop\u2026",
       flushing: "Saving session\u2026",
-      opening: "Opening Claude Desktop\u2026",
-      success: "Opening in Claude Desktop\u2026"
+      opening: "Opening CT Desktop\u2026",
+      success: "Opening in CT Desktop\u2026"
     };
     $[17] = t4;
   } else {
@@ -184,7 +185,7 @@ export function DesktopHandoff(t0) {
   return t6;
 }
 async function _temp2(onDone_0) {
-  onDone_0("Session transferred to Claude Desktop", {
+  onDone_0("Session transferred to CT Desktop", {
     display: "system"
   });
   await gracefulShutdown(0, "other");

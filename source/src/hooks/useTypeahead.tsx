@@ -17,6 +17,7 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js';
 import { useAppState, useAppStateStore } from '../state/AppState.js';
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js';
 import type { InlineGhostText, PromptInputMode } from '../types/textInputTypes.js';
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js';
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js';
 import { generateProgressiveArgumentHint, parseArguments } from '../utils/argumentSubstitution.js';
 import { getShellCompletions, type ShellCompletionType } from '../utils/bash/shellCompletion.js';
@@ -401,7 +402,7 @@ export function useTypeahead({
   // Computed during render via useMemo to eliminate the one-frame flicker
   // that occurs when using useState + useEffect (effect runs after render).
   const syncPromptGhostText = useMemo((): InlineGhostText | undefined => {
-    if (mode !== 'prompt' || suppressSuggestions) return undefined;
+    if (!isPromptLikeInputMode(mode) || suppressSuggestions) return undefined;
     const midInputCommand = findMidInputSlashCommand(input, cursorOffset);
     if (!midInputCommand) return undefined;
     const match = getBestCommandMatch(midInputCommand.partialCommand, commands);
@@ -414,7 +415,7 @@ export function useTypeahead({
   }, [input, cursorOffset, mode, commands, suppressSuggestions]);
 
   // Merged ghost text: prompt mode uses synchronous useMemo, bash mode uses async useState
-  const effectiveGhostText = suppressSuggestions ? undefined : mode === 'prompt' ? syncPromptGhostText : inlineGhostText;
+  const effectiveGhostText = suppressSuggestions ? undefined : isPromptLikeInputMode(mode) ? syncPromptGhostText : inlineGhostText;
 
   // Use a ref for cursorOffset to avoid re-triggering suggestions on cursor movement alone
   // We only want to re-fetch suggestions when the actual search token changes
@@ -543,7 +544,7 @@ export function useTypeahead({
     // Only in prompt mode, not when input starts with "/" (handled separately)
     // Note: ghost text for prompt mode is computed synchronously via syncPromptGhostText useMemo.
     // We only need to clear dropdown suggestions here when ghost text is active.
-    if (mode === 'prompt') {
+    if (isPromptLikeInputMode(mode)) {
       const midInputCommand = findMidInputSlashCommand(value, effectiveCursorOffset);
       if (midInputCommand) {
         const match = getBestCommandMatch(midInputCommand.partialCommand, commands);
@@ -637,7 +638,7 @@ export function useTypeahead({
     }
 
     // Check for # to trigger Slack channel suggestions (requires Slack MCP server)
-    if (mode === 'prompt') {
+    if (isPromptLikeInputMode(mode)) {
       const hashMatch = value.substring(0, effectiveCursorOffset).match(HASH_CHANNEL_RE);
       if (hashMatch && hasSlackMcpServer(store.getState().mcp.clients)) {
         debouncedFetchSlackChannels(hashMatch[2]!);
@@ -659,7 +660,7 @@ export function useTypeahead({
     const isAtEndWithWhitespace = effectiveCursorOffset === value.length && effectiveCursorOffset > 0 && value.length > 0 && value[effectiveCursorOffset - 1] === ' ';
 
     // Handle directory completion for commands
-    if (mode === 'prompt' && isCommandInput(value) && effectiveCursorOffset > 0) {
+    if (isPromptLikeInputMode(mode) && isCommandInput(value) && effectiveCursorOffset > 0) {
       const parsedCommand = extractCommandNameAndArgs(value);
       if (parsedCommand && parsedCommand.commandName === 'add-dir' && parsedCommand.args) {
         const {
@@ -727,7 +728,7 @@ export function useTypeahead({
     }
 
     // Determine whether to display the argument hint and command suggestions.
-    if (mode === 'prompt' && isCommandInput(value) && effectiveCursorOffset > 0 && !hasCommandWithArguments(isAtEndWithWhitespace, value)) {
+    if (isPromptLikeInputMode(mode) && isCommandInput(value) && effectiveCursorOffset > 0 && !hasCommandWithArguments(isAtEndWithWhitespace, value)) {
       let commandArgumentHint: string | undefined = undefined;
       if (value.length > 1) {
         // We have a partial or complete command without arguments
@@ -859,6 +860,18 @@ export function useTypeahead({
       const completionToken = extractCompletionToken(value, effectiveCursorOffset, true);
       if (completionToken) {
         const searchToken = extractSearchToken(completionToken);
+        const hasAtPrefix = completionToken.token.startsWith('@');
+        const hasPathLikeToken = isPathLikeToken(searchToken);
+
+        // File suggestions should only persist while the user is still in an
+        // actual file-completion context. If we leak file mode into ordinary
+        // text input, Enter gets swallowed by stale suggestions.
+        if (!hasAtPrefix && !hasPathLikeToken) {
+          debouncedFetchFileSuggestions.cancel();
+          clearSuggestions();
+          return;
+        }
+
         // Skip if we already fetched for this exact token
         if (latestSearchTokenRef.current === searchToken) {
           return;

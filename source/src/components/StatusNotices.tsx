@@ -43,7 +43,7 @@ export function StatusNotices(t0) {
   const t5 = activeNotices.map(notice => <React.Fragment key={notice.id}>{notice.render(context)}</React.Fragment>);
   let t6;
   if ($[1] !== T0 || $[2] !== t5) {
-    t6 = <T0 flexDirection={t3} paddingLeft={t4}>{t5}</T0>;
+    t6 = <T0 flexDirection={t3} paddingLeft={3} paddingRight={3} marginTop={1}>{t5}</T0>;
     $[1] = T0;
     $[2] = t5;
     $[3] = t6;

@@ -15,7 +15,7 @@
 import { z } from 'zod/v4'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { logEvent } from '../services/analytics/index.js'
-import { queryHaiku } from '../services/api/claude.js'
+import { querySmallFastViaProviderRuntime } from '../services/api/providerHelpers.js'
 import type { Message } from '../types/message.js'
 import { logForDebugging } from './debug.js'
 import { safeParseJSON } from './json.js'
@@ -84,7 +84,7 @@ export async function generateSessionTitle(
   if (!trimmed) return null
 
   try {
-    const result = await queryHaiku({
+    const result = await querySmallFastViaProviderRuntime({
       systemPrompt: asSystemPrompt([SESSION_TITLE_PROMPT]),
       userPrompt: trimmed,
       outputFormat: {

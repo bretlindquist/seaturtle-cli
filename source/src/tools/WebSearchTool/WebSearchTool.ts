@@ -7,6 +7,7 @@ import type { PermissionResult } from 'src/utils/permissions/PermissionResult.js
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
@@ -166,6 +167,11 @@ export const WebSearchTool = buildTool({
     return summary ? `Searching for ${summary}` : 'Searching the web'
   },
   isEnabled() {
+    const runtime = getMainLoopProviderRuntime()
+    if (runtime.family === 'openai') {
+      return false
+    }
+
     const provider = getAPIProvider()
     const model = getMainLoopModel()
 

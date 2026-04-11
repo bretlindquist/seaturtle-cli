@@ -36,6 +36,7 @@ import type { PermissionMode } from '../utils/permissions/PermissionMode.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import type { SettingsJson } from '../utils/settings/types.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
+import type { QueuedCommand } from '../types/textInputTypes.js'
 import type { Store } from './store.js'
 
 export type CompletionBoundary =
@@ -223,6 +224,10 @@ export type AppState = DeepImmutable<{
     current: Notification | null
     queue: Notification[]
   }
+  // Session-scoped unrelated ideas that were parked while another task was active.
+  // These are intentionally kept out of the live command queue until the active
+  // turn chain has settled, so they do not quietly hijack the current work.
+  parkedPrompts: QueuedCommand[]
   elicitation: {
     queue: ElicitationRequestEvent[]
   }
@@ -533,6 +538,7 @@ export function getDefaultAppState(): AppState {
       current: null,
       queue: [],
     },
+    parkedPrompts: [],
     elicitation: {
       queue: [],
     },

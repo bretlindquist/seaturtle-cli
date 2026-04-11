@@ -382,12 +382,10 @@ export function generateCommandSuggestions(
   // The Fuse index filters isHidden at build time and is keyed on the
   // (memoized) commands array identity, so a command that is hidden when Fuse
   // first builds stays invisible to Fuse for the whole session. If the user
-  // types the exact name of a currently-hidden command, prepend it to the
-  // Fuse results so exact-name always wins over weak description fuzzy
-  // matches — but only when no visible command shares the name (that would
-  // be the user's explicit override and should win). Prepend rather than
-  // early-return so visible prefix siblings (e.g. /voice-memo) still appear
-  // below, and getBestCommandMatch can still find a non-empty suffix.
+  // types the exact name of a currently-hidden command, short-circuit to that
+  // command so Enter cannot drift to a visible fuzzy sibling like /rename.
+  // Visible commands with the same exact name still win as the explicit
+  // override.
   let hiddenExact = commands.find(
     cmd => cmd.isHidden && getCommandName(cmd).toLowerCase() === query,
   )
@@ -398,6 +396,9 @@ export function generateCommandSuggestions(
     )
   ) {
     hiddenExact = undefined
+  }
+  if (hiddenExact) {
+    return [createCommandSuggestionItem(hiddenExact)]
   }
 
   const fuse = getCommandFuse(commands)
@@ -482,18 +483,6 @@ export function generateCommandSuggestions(
     const matchedAlias = findMatchedAlias(query, cmd.aliases)
     return createCommandSuggestionItem(cmd, matchedAlias)
   })
-  // Skip the prepend if hiddenExact is already in fuseSuggestions — this
-  // happens when isHidden flips false→true mid-session (OAuth expiry,
-  // GrowthBook kill-switch) and the stale Fuse index still holds the
-  // command. Fuse already sorts exact-name matches first, so no reorder
-  // is needed; we just don't want a duplicate id (duplicate React keys,
-  // both rows rendering as selected).
-  if (hiddenExact) {
-    const hiddenId = getCommandId(hiddenExact)
-    if (!fuseSuggestions.some(s => s.id === hiddenId)) {
-      return [createCommandSuggestionItem(hiddenExact), ...fuseSuggestions]
-    }
-  }
   return fuseSuggestions
 }
 

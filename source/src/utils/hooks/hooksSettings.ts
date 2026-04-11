@@ -2,6 +2,7 @@ import { resolve } from 'path'
 import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
+import { getSeaTurtleConfigPathDisplay } from '../envUtils.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { SOURCES } from '../settings/constants.js'
 import {
@@ -170,7 +171,7 @@ export function getHooksForEvent(
 export function hookSourceDescriptionDisplayString(source: HookSource): string {
   switch (source) {
     case 'userSettings':
-      return 'User settings (~/.claude/settings.json)'
+      return `User settings (${getSeaTurtleConfigPathDisplay('settings.json')})`
     case 'projectSettings':
       return 'Project settings (.claude/settings.json)'
     case 'localSettings':
@@ -178,8 +179,8 @@ export function hookSourceDescriptionDisplayString(source: HookSource): string {
     case 'pluginHook':
       // TODO: Get the actual plugin hook file paths instead of using glob pattern
       // We should capture the specific plugin paths during hook registration and display them here
-      // e.g., "Plugin hooks (~/.claude/plugins/repos/source/example-plugin/example-plugin/hooks/hooks.json)"
-      return 'Plugin hooks (~/.claude/plugins/*/hooks/hooks.json)'
+      // e.g., "Plugin hooks (~/.seaturtle/plugins/repos/source/example-plugin/example-plugin/hooks/hooks.json)"
+      return `Plugin hooks (${getSeaTurtleConfigPathDisplay('plugins', '*/hooks/hooks.json')})`
     case 'sessionHook':
       return 'Session hooks (in-memory, temporary)'
     case 'builtinHook':

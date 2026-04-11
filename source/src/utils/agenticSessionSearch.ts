@@ -1,11 +1,12 @@
 import type { LogOption, SerializedMessage } from '../types/logs.js'
+import { querySmallFastViaProviderRuntime } from '../services/api/providerHelpers.js'
 import { count } from './array.js'
 import { logForDebugging } from './debug.js'
 import { getLogDisplayTitle, logError } from './log.js'
-import { getSmallFastModel } from './model/model.js'
+import { extractTextContent } from './messages.js'
 import { isLiteLog, loadFullLog } from './sessionStorage.js'
-import { sideQuery } from './sideQuery.js'
 import { jsonParse } from './slowOperations.js'
+import { asSystemPrompt } from './systemPromptType.js'
 
 // Limits for transcript extraction
 const MAX_TRANSCRIPT_CHARS = 2000 // Max chars of transcript per session
@@ -258,29 +259,33 @@ Find the sessions that are most relevant to this query.`
   )
 
   try {
-    const model = getSmallFastModel()
-    logForDebugging(`Agentic search using model: ${model}`)
+    logForDebugging(`Agentic search using active provider small/fast helper`)
 
-    const response = await sideQuery({
-      model,
-      system: SESSION_SEARCH_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userMessage }],
+    const response = await querySmallFastViaProviderRuntime({
+      systemPrompt: asSystemPrompt([SESSION_SEARCH_SYSTEM_PROMPT]),
+      userPrompt: `${userMessage}\n\nRespond with ONLY a JSON object like {"relevant_indices":[0,2]}.`,
       signal,
-      querySource: 'session_search',
+      options: {
+        querySource: 'session_search',
+        agents: [],
+        isNonInteractiveSession: false,
+        hasAppendSystemPrompt: false,
+        mcpTools: [],
+        enablePromptCaching: false,
+      },
     })
 
-    // Extract the text content from the response
-    const textContent = response.content.find(block => block.type === 'text')
-    if (!textContent || textContent.type !== 'text') {
+    const text = extractTextContent(response.message.content)
+    if (!text) {
       logForDebugging('No text content in agentic search response')
       return []
     }
 
     // Debug: log the response
-    logForDebugging(`Agentic search response: ${textContent.text}`)
+    logForDebugging(`Agentic search response: ${text}`)
 
     // Parse the JSON response
-    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/)
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
     if (!jsonMatch) {
       logForDebugging('Could not find JSON in agentic search response')
       return []

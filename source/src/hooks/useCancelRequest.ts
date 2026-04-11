@@ -27,6 +27,7 @@ import {
   markAgentsNotified,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { PromptInputMode, VimMode } from '../types/textInputTypes.js'
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js'
 import {
   clearCommandQueue,
   enqueuePendingNotification,
@@ -132,7 +133,9 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
   // rather than cancel the request. Let PromptInput handle mode exit.
   // This only applies to Escape, not Ctrl+C which should always cancel.
   const isInSpecialModeWithEmptyInput =
-    inputMode !== undefined && inputMode !== 'prompt' && !inputValue
+    inputMode !== undefined &&
+    !isPromptLikeInputMode(inputMode) &&
+    !inputValue
   // When viewing a teammate's transcript, let useBackgroundTaskNavigation handle Escape
   const isViewingTeammate = viewSelectionMode === 'viewing-agent'
   // Context guards: other screens/overlays handle their own cancel

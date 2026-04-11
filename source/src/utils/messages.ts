@@ -235,7 +235,7 @@ export function AUTO_REJECT_MESSAGE(toolName: string): string {
   return `Permission to use ${toolName} has been denied. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export function DONT_ASK_REJECT_MESSAGE(toolName: string): string {
-  return `Permission to use ${toolName} has been denied because Claude Code is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
+  return `Permission to use ${toolName} has been denied because CT is running in don't ask mode. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
@@ -3793,6 +3793,12 @@ Read the team config to discover your teammates' names. Check the task list peri
           uuid: attachment.source_uuid,
         }),
       ])
+    }
+    case 'steer_checkpoint': {
+      // Deterministic steering checkpoints are a transcript/debugging surface.
+      // They intentionally contribute no prompt bytes yet; a later wave will
+      // decide how much of the structured checkpoint to expose to the model.
+      return []
     }
     case 'output_style': {
       const outputStyle =

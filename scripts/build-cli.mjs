@@ -41,6 +41,7 @@ const baseOverlayDependencyPackages = [
   '@aws-sdk/client-sts',
   '@aws-sdk/credential-provider-node',
   '@azure/identity',
+  '@azure/msal-node',
   '@azure/msal-common',
   '@commander-js/extra-typings',
   '@growthbook/growthbook',
@@ -124,6 +125,20 @@ const baseOverlayDependencyPackages = [
 ];
 
 const overlayManagedPackages = new Set(baseOverlayDependencyPackages);
+const overlayVersionOverrides = new Map([
+  // Newer Azure auth packages drifted into an internally inconsistent set in
+  // the generated workspace (`msal-node` importing symbols no longer exported
+  // by the newest `msal-common`). Pin the Azure auth chain to a known-compatible
+  // band so overlay reinstalls are reproducible.
+  ['@azure/identity', '4.4.1'],
+  ['@azure/msal-node', '3.8.1'],
+  ['@azure/msal-common', '15.13.1'],
+  // lru-cache 11's ESM entry uses top-level await, which poisons a number of
+  // dynamic require paths in the generated workspace build. Pin to the older
+  // compatible band the workspace bundler tolerates.
+  ['lru-cache', '10.4.3'],
+  ['supports-hyperlinks', '3.2.0'],
+]);
 const unavailableOverlayPackages = new Set([
   '@ant/claude-for-chrome-mcp',
   '@ant/computer-use-input',
@@ -197,8 +212,8 @@ function main() {
 
     const changed = reconcileBuildErrors(buildResult.stderr);
     if (!changed) {
-      process.stdout.write(buildResult.stdout);
-      process.stderr.write(buildResult.stderr);
+      if (buildResult.stdout) process.stdout.write(buildResult.stdout);
+      if (buildResult.stderr) process.stderr.write(buildResult.stderr);
       process.exit(buildResult.status ?? 1);
     }
   }
@@ -209,6 +224,11 @@ function main() {
 
 function getOverlayPackages() {
   return [...new Set([...baseOverlayDependencyPackages, ...extraOverlayPackages])].sort();
+}
+
+function getOverlayPackageSpec(packageName) {
+  const override = overlayVersionOverrides.get(packageName);
+  return override ? `${packageName}@${override}` : packageName;
 }
 
 function prepareWorkspace(overlayPackages) {
@@ -259,7 +279,7 @@ function prepareWorkspace(overlayPackages) {
   generatePackageSubpathShims(keepPaths);
   ensureSharpPackageJson(keepPaths);
 
-  pruneMissingFiles(workspaceRoot, keepPaths, overlaySet);
+  pruneMissingFiles(workspaceRoot, keepPaths);
 
   fs.writeFileSync(
     markerPath,
@@ -280,20 +300,21 @@ function prepareWorkspace(overlayPackages) {
 function ensureOverlayDependencies(packageNames) {
   const stamp = readJsonIfExists(overlayStampPath);
   const desiredKey = JSON.stringify(packageNames);
+  const installedPackages = parseOverlayPackagesKey(stamp?.packagesKey);
   const allPresent = packageNames.every(packageName =>
     isDirectory(packageRootPath(path.join(workspaceRoot, 'node_modules'), packageName)),
   );
+  const stampSatisfiesDesired =
+    installedPackages !== null &&
+    packageNames.every(packageName => installedPackages.has(packageName));
 
-  if (stamp?.packagesKey === desiredKey && allPresent) {
+  if ((stamp?.packagesKey === desiredKey || stampSatisfiesDesired) && allPresent) {
     return;
   }
 
   fs.mkdirSync(workspaceRoot, { recursive: true });
   writeWorkspacePackageJson(new Set([path.join(workspaceRoot, 'package.json')]));
-
-  for (const packageName of packageNames) {
-    removePath(packageRootPath(path.join(workspaceRoot, 'node_modules'), packageName));
-  }
+  removePath(path.join(workspaceRoot, 'node_modules'));
 
   const installArgs = [
     'install',
@@ -302,7 +323,7 @@ function ensureOverlayDependencies(packageNames) {
     '--no-audit',
     '--no-fund',
     '--legacy-peer-deps',
-    ...packageNames,
+    ...packageNames.map(getOverlayPackageSpec),
   ];
   const install = spawnSync('npm', installArgs, {
     cwd: workspaceRoot,
@@ -321,6 +342,23 @@ function ensureOverlayDependencies(packageNames) {
     JSON.stringify({ packagesKey: desiredKey }, null, 2) + '\n',
     'utf8',
   );
+}
+
+function parseOverlayPackagesKey(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed) || !parsed.every(item => typeof item === 'string')) {
+      return null;
+    }
+
+    return new Set(parsed);
+  } catch {
+    return null;
+  }
 }
 
 function generateWorkspaceAugmentations() {
@@ -629,7 +667,7 @@ function runBunBuild() {
     bunArgs.push('--minify');
   }
 
-  return spawnSync('bun', bunArgs, {
+  return spawnSync(resolveBunExecutable(), bunArgs, {
     cwd: workspaceRoot,
     encoding: 'utf8',
     env: {
@@ -639,6 +677,31 @@ function runBunBuild() {
     },
     maxBuffer: 256 * 1024 * 1024,
   });
+}
+
+function resolveBunExecutable() {
+  const candidates = [];
+  if (process.env.BUN_INSTALL) {
+    candidates.push(path.join(process.env.BUN_INSTALL, 'bin', 'bun'));
+  }
+  if (process.env.HOME) {
+    candidates.push(path.join(process.env.HOME, '.bun', 'bin', 'bun'));
+  }
+
+  for (const entry of (process.env.PATH ?? '').split(':').filter(Boolean)) {
+    candidates.push(path.join(entry, 'bun'));
+  }
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      continue;
+    }
+  }
+
+  return 'bun';
 }
 
 function finalizeBuild() {
@@ -690,9 +753,10 @@ function finalizeBuild() {
 
 
 function reconcileBuildErrors(stderrText) {
+  const stderr = typeof stderrText === 'string' ? stderrText : '';
   let changed = false;
 
-  for (const match of stderrText.matchAll(
+  for (const match of stderr.matchAll(
     /error: Could not resolve: "([^"]+)"[\s\S]*?\n\s+at ([^\n:]+):\d+:\d+/g,
   )) {
     const specifier = match[1];
@@ -725,7 +789,7 @@ function reconcileBuildErrors(stderrText) {
     }
   }
 
-  for (const match of stderrText.matchAll(
+  for (const match of stderr.matchAll(
     /error: No matching export in "([^"]+)" for import "([^"]+)"/g,
   )) {
     const targetPath = resolveBuildPath(match[1]);
@@ -956,7 +1020,7 @@ function renderStubExpression(exportName, basename) {
   if (exportName === 'BROWSER_TOOLS') {
     return '[]';
   }
-  if (/_NAME$/.test(exportName)) {
+  if (exportName.endsWith('_NAME')) {
     return JSON.stringify(basename);
   }
   if (/(Dialog|Message|Callout|Panel|View|Layout|Wrapper|Chooser|Wizard|Provider|Box|Text|App)$/.test(exportName)) {
@@ -1196,15 +1260,31 @@ function writeWorkspaceTsconfig(keepPaths) {
 function writeProxyModule(proxyPath, targetPath) {
   fs.mkdirSync(path.dirname(proxyPath), { recursive: true });
   const relativeTarget = ensureDotPath(toPosix(path.relative(path.dirname(proxyPath), targetPath)));
+  const shouldExportDefault = targetHasDefaultExport(targetPath);
   const proxySource = [
     `import * as module_0 from ${JSON.stringify(relativeTarget)};`,
     `export * from ${JSON.stringify(relativeTarget)};`,
-    'export default module_0.default;',
+    ...(shouldExportDefault ? ['export default module_0.default;'] : []),
     '',
   ].join('\n');
   if (!isFileContentEqual(proxyPath, proxySource)) {
     fs.writeFileSync(proxyPath, proxySource, 'utf8');
   }
+}
+
+function targetHasDefaultExport(targetPath) {
+  let contents;
+  try {
+    contents = fs.readFileSync(targetPath, 'utf8');
+  } catch {
+    return false;
+  }
+
+  return (
+    /\bexport\s+default\b/.test(contents) ||
+    /\bexport\s*\{[^}]*\bas\s+default\b[^}]*\}/.test(contents) ||
+    /\bexport\s*\{\s*default\s*\}/.test(contents)
+  );
 }
 
 function findPackageEntry(packageName, packageRoot) {
@@ -1256,10 +1336,18 @@ function collectBareSpecifiers(roots) {
       continue;
     }
     for (const filePath of walkFiles(root)) {
-      if (!sourceExtensions.includes(path.extname(filePath))) {
+      if (!sourceExtensions.includes(path.extname(filePath)) || filePath.endsWith('.d.ts')) {
         continue;
       }
-      const contents = fs.readFileSync(filePath, 'utf8');
+      let contents;
+      try {
+        contents = fs.readFileSync(filePath, 'utf8');
+      } catch (error) {
+        if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+          continue;
+        }
+        throw error;
+      }
       for (const match of contents.matchAll(
         /\bimport\s+['"]([^'"]+)['"]|\bfrom\s+['"]([^'"]+)['"]|\brequire\(\s*['"]([^'"]+)['"]\s*\)|\bimport\(\s*['"]([^'"]+)['"]\s*\)/g,
       )) {
@@ -1324,7 +1412,7 @@ function walkFiles(root) {
   return files;
 }
 
-function pruneMissingFiles(root, keepPaths, overlayPackages) {
+function pruneMissingFiles(root, keepPaths) {
   if (!isDirectory(root)) {
     return;
   }
@@ -1339,7 +1427,7 @@ function pruneMissingFiles(root, keepPaths, overlayPackages) {
     }
 
     if (entry.isDirectory()) {
-      pruneMissingFiles(fullPath, keepPaths, overlayPackages);
+      pruneMissingFiles(fullPath, keepPaths);
       if (fs.readdirSync(fullPath).length === 0) {
         fs.rmdirSync(fullPath);
       }

@@ -85,6 +85,7 @@ export const KEYBINDING_ACTIONS = [
   'chat:fastMode',
   'chat:thinkingToggle',
   'chat:submit',
+  'chat:queueMessage',
   'chat:newline',
   'chat:undo',
   'chat:externalEditor',
@@ -224,7 +225,7 @@ export const KeybindingsSchema = lazySchema(() =>
         .describe('Array of keybinding blocks by context'),
     })
     .describe(
-      'Claude Code keybindings configuration. Customize keyboard shortcuts by context.',
+      'CT keybindings configuration. Customize keyboard shortcuts by context.',
     ),
 )
 

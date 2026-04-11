@@ -263,7 +263,25 @@ export function AttachmentMessage({
     case 'command_permissions':
       // The skill success message is rendered by SkillTool's renderToolResultMessage,
       // so we don't render anything here to avoid duplicate messages.
-      return null;
+    case 'steer_checkpoint':
+      {
+        if (!isTranscriptMode && !verbose) {
+          return null;
+        }
+        const relevantNowCount = attachment.steerClassifications.filter(item => item.classification === 'relevant_now').length;
+        const appendCount = attachment.steerClassifications.filter(item => item.classification === 'append_to_task').length;
+        const deferCount = attachment.steerClassifications.filter(item => item.classification === 'defer_adjacent').length;
+        const ignoreCount = attachment.steerClassifications.filter(item => item.classification === 'ignore').length;
+        return <Line>
+          Steer checkpoint: <Text bold>step {attachment.stepNumber}</Text>{' '}
+          after <Text bold>{attachment.toolJustCompleted}</Text>
+          {relevantNowCount > 0 && <> · <Text bold>{relevantNowCount}</Text> now</>}
+          {appendCount > 0 && <> · <Text bold>{appendCount}</Text> append</>}
+          {deferCount > 0 && <> · <Text bold>{deferCount}</Text> deferred</>}
+          {ignoreCount > 0 && <> · <Text bold>{ignoreCount}</Text> ignored</>}
+          {!isTranscriptMode && <> <Text dimColor>({figures.arrowRight} transcript)</Text></>}
+        </Line>;
+      }
     case 'async_hook_response':
       {
         // SessionStart hook completions are only shown in verbose mode

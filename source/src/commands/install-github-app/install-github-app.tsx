@@ -2,7 +2,10 @@ import { execa } from 'execa';
 import React, { useCallback, useState } from 'react';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from 'src/services/analytics/index.js';
 import { WorkflowMultiselectDialog } from '../../components/WorkflowMultiselectDialog.js';
-import { GITHUB_ACTION_SETUP_DOCS_URL } from '../../constants/github-app.js';
+import {
+  ANTHROPIC_GITHUB_ACTION_SPEC,
+  GITHUB_ACTION_SETUP_DOCS_URL,
+} from '../../constants/github-app.js';
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js';
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js';
 import { Box } from '../../ink.js';
@@ -11,6 +14,7 @@ import { getAnthropicApiKey, isAnthropicAuthEnabled } from '../../utils/auth.js'
 import { openBrowser } from '../../utils/browser.js';
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js';
 import { getGithubRepo } from '../../utils/git.js';
+import { shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
 import { plural } from '../../utils/stringUtils.js';
 import { ApiKeyStep } from './ApiKeyStep.js';
 import { CheckExistingSecretStep } from './CheckExistingSecretStep.js';
@@ -36,16 +40,32 @@ const INITIAL_STATE: State = {
   currentWorkflowInstallStep: 0,
   warnings: [],
   secretExists: false,
-  secretName: 'ANTHROPIC_API_KEY',
+  secretName: ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName,
   useExistingSecret: true,
   workflowExists: false,
   selectedWorkflows: ['claude', 'claude-review'] as Workflow[],
   selectedApiKeyOption: 'new' as 'existing' | 'new' | 'oauth',
   authType: 'api_key'
 };
+
+const OPENAI_CODEX_GITHUB_ACTIONS_ERROR = {
+  error:
+    'OpenAI/Codex GitHub Actions setup is unavailable with OAuth-only auth.',
+  reason: 'OpenAI/Codex CI requires a non-interactive auth contract',
+  instructions: [
+    'Local OpenAI/Codex OAuth works in this fork.',
+    'GitHub Actions automation is not available for OpenAI/Codex when you only have local OAuth login.',
+    'The standard supported CI path uses an OpenAI API key on the runner.',
+    'You can keep using Anthropic for GitHub Actions, or set up repository workflows manually for now.',
+  ],
+  manualSetupLabel: 'See current OpenAI/Codex limits in:',
+  manualSetupTarget: 'docs/OPENAI-CODEX.md',
+} as const
+
 function InstallGitHubApp(props: {
   onDone: (message: string) => void;
 }): React.ReactNode {
+  const isOpenAiCodex = shouldUseOpenAiCodexProvider();
   const [existingApiKey] = useState(() => getAnthropicApiKey());
   const [state, setState] = useState({
     ...INITIAL_STATE,
@@ -56,6 +76,18 @@ function InstallGitHubApp(props: {
   React.useEffect(() => {
     logEvent('tengu_install_github_app_started', {});
   }, []);
+  React.useEffect(() => {
+    if (!isOpenAiCodex || state.step === 'error') {
+      return;
+    }
+    setState(prev => ({
+      ...prev,
+      step: 'error',
+      error: OPENAI_CODEX_GITHUB_ACTIONS_ERROR.error,
+      errorReason: OPENAI_CODEX_GITHUB_ACTIONS_ERROR.reason,
+      errorInstructions: [...OPENAI_CODEX_GITHUB_ACTIONS_ERROR.instructions]
+    }));
+  }, [isOpenAiCodex, state.step]);
   const checkGitHubCLI = useCallback(async () => {
     const warnings: Warning[] = [];
 
@@ -141,7 +173,7 @@ function InstallGitHubApp(props: {
           ...prev_4,
           currentWorkflowInstallStep: prev_4.currentWorkflowInstallStep + 1
         }));
-      }, state.workflowAction === 'skip', state.selectedWorkflows, state.authType, {
+      }, state.workflowAction === 'skip', state.selectedWorkflows, state.authType, ANTHROPIC_GITHUB_ACTION_SPEC, {
         useCurrentRepo: state.useCurrentRepo,
         workflowExists: state.workflowExists,
         secretExists: state.secretExists
@@ -220,7 +252,9 @@ function InstallGitHubApp(props: {
     if (checkSecretsResult.code === 0) {
       const lines = checkSecretsResult.stdout.split('\n');
       const hasAnthropicKey = lines.some((line: string) => {
-        return /^ANTHROPIC_API_KEY\s+/.test(line);
+        return new RegExp(
+          `^${ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName}\\s+`,
+        ).test(line);
       });
       if (hasAnthropicKey) {
         setState(prev_6 => ({
@@ -395,12 +429,14 @@ function InstallGitHubApp(props: {
         useExistingKey: state.selectedApiKeyOption === 'existing'
       }));
 
-      // Check if ANTHROPIC_API_KEY secret already exists
+      // Check if the provider default secret already exists
       const checkSecretsResult_0 = await execFileNoThrow('gh', ['secret', 'list', '--app', 'actions', '--repo', state.selectedRepoName]);
       if (checkSecretsResult_0.code === 0) {
         const lines_0 = checkSecretsResult_0.stdout.split('\n');
         const hasAnthropicKey_0 = lines_0.some((line_0: string) => {
-          return /^ANTHROPIC_API_KEY\s+/.test(line_0);
+          return new RegExp(
+            `^${ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName}\\s+`,
+          ).test(line_0);
         });
         if (hasAnthropicKey_0) {
           logEvent('tengu_install_github_app_step_completed', {
@@ -497,7 +533,9 @@ function InstallGitHubApp(props: {
     setState(prev_28 => ({
       ...prev_28,
       useExistingSecret,
-      secretName: useExistingSecret ? 'ANTHROPIC_API_KEY' : ''
+      secretName: useExistingSecret
+        ? ANTHROPIC_GITHUB_ACTION_SPEC.defaultSecretName
+        : ''
     }));
   };
   const handleWorkflowAction = async (action: 'update' | 'skip' | 'exit') => {
@@ -530,7 +568,10 @@ function InstallGitHubApp(props: {
     if (state.step === 'success') {
       logEvent('tengu_install_github_app_completed', {});
     }
-    props.onDone(state.step === 'success' ? 'GitHub Actions setup complete!' : state.error ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}` : `GitHub App installation failed\nFor manual setup instructions, see: ${GITHUB_ACTION_SETUP_DOCS_URL}`);
+    const manualSetupTarget = isOpenAiCodex
+      ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupTarget
+      : GITHUB_ACTION_SETUP_DOCS_URL;
+    props.onDone(state.step === 'success' ? 'GitHub Actions setup complete!' : state.error ? `Couldn't install GitHub App: ${state.error}\nFor manual setup instructions, see: ${manualSetupTarget}` : `GitHub App installation failed\nFor manual setup instructions, see: ${manualSetupTarget}`);
   }
   switch (state.step) {
     case 'check-gh':
@@ -555,7 +596,7 @@ function InstallGitHubApp(props: {
         </Box>;
     case 'error':
       return <Box tabIndex={0} autoFocus onKeyDown={handleDismissKeyDown}>
-          <ErrorStep error={state.error} errorReason={state.errorReason} errorInstructions={state.errorInstructions} />
+          <ErrorStep error={state.error} errorReason={state.errorReason} errorInstructions={state.errorInstructions} manualSetupLabel={isOpenAiCodex ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupLabel : undefined} manualSetupTarget={isOpenAiCodex ? OPENAI_CODEX_GITHUB_ACTIONS_ERROR.manualSetupTarget : undefined} />
         </Box>;
     case 'select-workflows':
       return <WorkflowMultiselectDialog defaultSelections={state.selectedWorkflows} onSubmit={selectedWorkflows => {

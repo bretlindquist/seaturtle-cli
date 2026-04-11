@@ -84,6 +84,7 @@ export function DiscoverPlugins({
   const {
     columns: terminalWidth
   } = useTerminalSize();
+  const pluginDescriptionWidth = Math.max(40, terminalWidth - 10);
 
   // Filter plugins based on search query
   const filteredPlugins = useMemo(() => {
@@ -627,7 +628,7 @@ export function DiscoverPlugins({
             </Box>
             {plugin_5.entry.description && <Box marginLeft={4}>
                 <Text dimColor>
-                  {truncateToWidth(plugin_5.entry.description, 60)}
+                  {truncateToWidth(plugin_5.entry.description, pluginDescriptionWidth)}
                 </Text>
               </Box>}
           </Box>;
@@ -713,7 +714,7 @@ function EmptyStateMessage(t0) {
       {
         let t1;
         if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-          t1 = <><Text dimColor={true}>Git is required to install marketplaces.</Text><Text dimColor={true}>Please install git and restart Claude Code.</Text></>;
+          t1 = <><Text dimColor={true}>Git is required to install marketplaces.</Text><Text dimColor={true}>Please install git and restart CT.</Text></>;
           $[0] = t1;
         } else {
           t1 = $[0];

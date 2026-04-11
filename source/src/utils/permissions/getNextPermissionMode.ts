@@ -28,6 +28,46 @@ function canCycleToAuto(ctx: ToolPermissionContext): boolean {
   return false
 }
 
+function getPermissionModeCycleOrder(
+  toolPermissionContext: ToolPermissionContext,
+): PermissionMode[] {
+  if (process.env.USER_TYPE === 'ant') {
+    const order: PermissionMode[] = ['default']
+    if (toolPermissionContext.isBypassPermissionsModeAvailable) {
+      order.push('bypassPermissions')
+    }
+    if (canCycleToAuto(toolPermissionContext)) {
+      order.push('auto')
+    }
+    return order
+  }
+
+  const order: PermissionMode[] = ['default', 'acceptEdits', 'plan']
+  if (toolPermissionContext.isBypassPermissionsModeAvailable) {
+    order.push('bypassPermissions')
+  }
+  if (canCycleToAuto(toolPermissionContext)) {
+    order.push('auto')
+  }
+  return order
+}
+
+export function getAdjacentPermissionMode(
+  toolPermissionContext: ToolPermissionContext,
+  delta: 1 | -1,
+): PermissionMode {
+  const cycleOrder = getPermissionModeCycleOrder(toolPermissionContext)
+  if (cycleOrder.length === 0) {
+    return 'default'
+  }
+
+  const currentIndex = cycleOrder.indexOf(toolPermissionContext.mode)
+  const safeIndex = currentIndex === -1 ? 0 : currentIndex
+  const nextIndex =
+    (safeIndex + delta + cycleOrder.length) % cycleOrder.length
+  return cycleOrder[nextIndex] ?? 'default'
+}
+
 /**
  * Determines the next permission mode when cycling through modes with Shift+Tab.
  */
@@ -35,47 +75,7 @@ export function getNextPermissionMode(
   toolPermissionContext: ToolPermissionContext,
   _teamContext?: { leadAgentId: string },
 ): PermissionMode {
-  switch (toolPermissionContext.mode) {
-    case 'default':
-      // Ants skip acceptEdits and plan — auto mode replaces them
-      if (process.env.USER_TYPE === 'ant') {
-        if (toolPermissionContext.isBypassPermissionsModeAvailable) {
-          return 'bypassPermissions'
-        }
-        if (canCycleToAuto(toolPermissionContext)) {
-          return 'auto'
-        }
-        return 'default'
-      }
-      return 'acceptEdits'
-
-    case 'acceptEdits':
-      return 'plan'
-
-    case 'plan':
-      if (toolPermissionContext.isBypassPermissionsModeAvailable) {
-        return 'bypassPermissions'
-      }
-      if (canCycleToAuto(toolPermissionContext)) {
-        return 'auto'
-      }
-      return 'default'
-
-    case 'bypassPermissions':
-      if (canCycleToAuto(toolPermissionContext)) {
-        return 'auto'
-      }
-      return 'default'
-
-    case 'dontAsk':
-      // Not exposed in UI cycle yet, but return default if somehow reached
-      return 'default'
-
-
-    default:
-      // Covers auto (when TRANSCRIPT_CLASSIFIER is enabled) and any future modes — always fall back to default
-      return 'default'
-  }
+  return getAdjacentPermissionMode(toolPermissionContext, 1)
 }
 
 /**

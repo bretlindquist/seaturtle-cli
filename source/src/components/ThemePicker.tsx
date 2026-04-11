@@ -114,6 +114,12 @@ export function ThemePicker(t0) {
       label: "Auto (match terminal)",
       value: "auto" as const
     }] : []), {
+      label: "Lolcat",
+      value: "lolcat"
+    }, {
+      label: "Neon BBS",
+      value: "neonbbs"
+    }, {
       label: "Dark mode",
       value: "dark"
     }, {
@@ -235,7 +241,7 @@ export function ThemePicker(t0) {
       newStart: 1,
       oldLines: 3,
       newLines: 3,
-      lines: [" function greet() {", "-  console.log(\"Hello, World!\");", "+  console.log(\"Hello, Claude!\");", " }"]
+      lines: [" function greet() {", "-  console.log(\"Hello, World!\");", "+  console.log(\"Hello, SeaTurtle!\");", " }"]
     };
     $[34] = t20;
   } else {

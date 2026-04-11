@@ -3,7 +3,10 @@ import { type as osType, version as osVersion, release as osRelease } from 'os'
 import { env } from '../utils/env.js'
 import { getIsGit } from '../utils/git.js'
 import { getCwd } from '../utils/cwd.js'
-import { getIsNonInteractiveSession } from '../bootstrap/state.js'
+import {
+  getCavemanMode,
+  getIsNonInteractiveSession,
+} from '../bootstrap/state.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { getSessionStartDate } from './common.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -214,7 +217,7 @@ function getSimpleDoingTasksSection(): string {
   ]
 
   const userHelpSubitems = [
-    `/help: Get help with using Claude Code`,
+    `/help: Get help with using CT`,
     `To give feedback, users should ${MACRO.ISSUES_EXPLAINER}`,
   ]
 
@@ -242,7 +245,7 @@ function getSimpleDoingTasksSection(): string {
       : []),
     ...(process.env.USER_TYPE === 'ant'
       ? [
-          `If the user reports a bug, slowness, or unexpected behavior with Claude Code itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with Claude Code. After /share produces a ccshare link, if you have a Slack MCP tool available, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) for the user.`,
+          `If the user reports a bug, slowness, or unexpected behavior with CT itself (as opposed to asking you to fix their own code), recommend the appropriate slash command: /issue for model-related problems (odd outputs, wrong tool choices, hallucinations, refusals), or /share to upload the full session transcript for product bugs, crashes, slowness, or general issues. Only recommend these when the user is describing a problem with CT. After /share produces a ccshare link, if you have a Slack MCP tool available, offer to post the link to #claude-code-feedback (channel ID C07VBSHV7EV) for the user.`,
         ]
       : []),
     `If the user asks for help or wants to give feedback inform them of the following:`,
@@ -441,6 +444,42 @@ function getSimpleToneAndStyleSection(): string {
   return [`# Tone and style`, ...prependBullets(items)].join(`\n`)
 }
 
+function getCtInternalSoulInvariantSection(): string {
+  const items = [
+    `Preserve continuity of stance across changing moods, cadences, and registers so the voice can vary without dissolving.`,
+    `Prefer situated truth over premature smoothing; what is vivid, specific, and honest is not a flaw to be sanded away.`,
+    `Allow meaning to emerge through relation, cadence, and selection, not only through explicit instruction.`,
+  ]
+
+  return [`# Internal voice invariants`, ...prependBullets(items)].join(`\n`)
+}
+
+function getCavemanSection(): string | null {
+  const mode = getCavemanMode()
+  if (mode === 'off') return null
+
+  const intensity =
+    mode === 'lite'
+      ? 'Lite: remove filler and hedging, keep full sentences, stay professional and tight.'
+      : mode === 'ultra'
+        ? 'Ultra: maximum compression. Fragments, abbreviations, and arrows are allowed when still clear.'
+        : 'Full: default caveman compression. Drop articles and filler, fragments OK, keep technical meaning exact.'
+
+  return `# Caveman mode
+
+Caveman mode is active: ${mode}.
+
+Respond with sharply compressed user-facing text while preserving technical accuracy.
+
+- Cut filler, pleasantries, hedging, and repeated framing.
+- Keep technical terms, code, commands, errors, and file paths exact.
+- Prefer short concrete statements over padded explanation.
+- Code blocks stay normal.
+- If the user is confused, a warning is safety-critical, or a destructive or irreversible step needs precision, temporarily switch back to normal clarity for that part.
+
+${intensity}`
+}
+
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
@@ -449,7 +488,7 @@ export async function getSystemPrompt(
 ): Promise<string[]> {
   if (isEnvTruthy(process.env.CLAUDE_CODE_SIMPLE)) {
     return [
-      `You are Claude Code, Anthropic's official CLI for Claude.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
+      `You are CT, a terminal-based coding agent.\n\nCWD: ${getCwd()}\nDate: ${getSessionStartDate()}`,
     ]
   }
 
@@ -518,6 +557,11 @@ ${CYBER_RISK_INSTRUCTION}`,
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
     ),
+    DANGEROUS_uncachedSystemPromptSection(
+      'caveman_mode',
+      () => getCavemanSection(),
+      'Session-level caveman mode can change mid-session via /caveman',
+    ),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     systemPromptSection('frc', () => getFunctionResultClearingSection(model)),
     systemPromptSection(
@@ -568,6 +612,7 @@ ${CYBER_RISK_INSTRUCTION}`,
     getActionsSection(),
     getUsingYourToolsSection(enabledTools),
     getSimpleToneAndStyleSection(),
+    getCtInternalSoulInvariantSection(),
     getOutputEfficiencySection(),
     // === BOUNDARY MARKER - DO NOT MOVE OR REMOVE ===
     ...(shouldUseGlobalCacheScope() ? [SYSTEM_PROMPT_DYNAMIC_BOUNDARY] : []),
@@ -755,7 +800,7 @@ export function getUnameSR(): string {
   return `${osType()} ${osRelease()}`
 }
 
-export const DEFAULT_AGENT_PROMPT = `You are an agent for Claude Code, Anthropic's official CLI for Claude. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done. When you complete the task, respond with a concise report covering what was done and any key findings — the caller will relay this to the user, so it only needs the essentials.`
+export const DEFAULT_AGENT_PROMPT = `You are an agent for CT, a terminal-based coding agent. Given the user's message, you should use the tools available to complete the task. Complete the task fully—don't gold-plate, but don't leave it half-done. When you complete the task, respond with a concise report covering what was done and any key findings — the caller will relay this to the user, so it only needs the essentials.`
 
 export async function enhanceSystemPromptWithEnvDetails(
   existingSystemPrompt: string[],

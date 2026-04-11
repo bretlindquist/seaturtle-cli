@@ -14,13 +14,14 @@ import { readdir, rm, stat } from 'fs/promises'
 import { delimiter, join } from 'path'
 import { getUseCoworkPlugins } from '../../bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
-import { getClaudeConfigHomeDir, isEnvTruthy } from '../envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getSeaTurtleConfigPathDisplay,
+} from '../envUtils.js'
 import { errorMessage, isFsInaccessible } from '../errors.js'
 import { formatFileSize } from '../format.js'
 import { expandTilde } from '../permissions/pathValidation.js'
-
-const PLUGINS_DIR = 'plugins'
-const COWORK_PLUGINS_DIR = 'cowork_plugins'
+import { resolvePluginsDirectoryName } from './pluginDirectoryMode.js'
 
 /**
  * Get the plugins directory name based on current mode.
@@ -31,16 +32,11 @@ const COWORK_PLUGINS_DIR = 'cowork_plugins'
  * 2. Environment variable CLAUDE_CODE_USE_COWORK_PLUGINS
  * 3. Default: 'plugins'
  */
-function getPluginsDirectoryName(): string {
-  // Session state takes precedence (set by CLI flag)
-  if (getUseCoworkPlugins()) {
-    return COWORK_PLUGINS_DIR
-  }
-  // Fall back to env var
-  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_COWORK_PLUGINS)) {
-    return COWORK_PLUGINS_DIR
-  }
-  return PLUGINS_DIR
+export function getPluginsDirectoryName(): string {
+  return resolvePluginsDirectoryName({
+    useCoworkSessionState: getUseCoworkPlugins(),
+    useCoworkEnv: process.env.CLAUDE_CODE_USE_COWORK_PLUGINS,
+  })
 }
 
 /**
@@ -60,6 +56,10 @@ export function getPluginsDirectory(): string {
     return expandTilde(envOverride)
   }
   return join(getClaudeConfigHomeDir(), getPluginsDirectoryName())
+}
+
+export function getPluginsDirectoryDisplayPath(): string {
+  return getSeaTurtleConfigPathDisplay(getPluginsDirectoryName())
 }
 
 /**
@@ -97,6 +97,10 @@ function sanitizePluginId(pluginId: string): string {
 /** Pure path — no mkdir. For display (e.g. uninstall dialog). */
 export function pluginDataDirPath(pluginId: string): string {
   return join(getPluginsDirectory(), 'data', sanitizePluginId(pluginId))
+}
+
+export function pluginDataDirDisplayPath(pluginId: string): string {
+  return `${getPluginsDirectoryDisplayPath()}/data/${sanitizePluginId(pluginId)}`
 }
 
 /**

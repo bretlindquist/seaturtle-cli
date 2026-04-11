@@ -8,6 +8,7 @@
  */
 
 import { z } from 'zod/v4'
+import { getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 
 // ============================================================================
@@ -1191,7 +1192,7 @@ export const SettingSourceSchema = lazySchema(() =>
     .enum(['user', 'project', 'local'])
     .describe(
       'Source for loading filesystem-based settings. ' +
-        "'user' - Global user settings (~/.claude/settings.json). " +
+        `'user' - Global user settings (${getSeaTurtleConfigPathDisplay('settings.json')}). ` +
         "'project' - Project settings (.claude/settings.json). " +
         "'local' - Local settings (.claude/settings.local.json).",
     ),

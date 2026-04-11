@@ -7,6 +7,8 @@ import { formatCreditAmount, getCachedReferrerReward } from '../../services/api/
 import type { LogOption } from '../../types/logs.js';
 import { getCwd } from '../../utils/cwd.js';
 import { formatRelativeTimeAgo } from '../../utils/format.js';
+import { getSessionResumeFeedFooterText } from '../../services/sessionResume/sessionResumeCopy.js';
+import type { StartupUpdateSignal } from '../../services/update/startupUpdateSignalCore.js';
 import type { FeedConfig, FeedLine } from './Feed.js';
 export function createRecentActivityFeed(activities: LogOption[]): FeedConfig {
   const lines: FeedLine[] = activities.map(log => {
@@ -20,31 +22,37 @@ export function createRecentActivityFeed(activities: LogOption[]): FeedConfig {
   return {
     title: 'Recent activity',
     lines,
-    footer: lines.length > 0 ? '/resume for more' : undefined,
+    footer: lines.length > 0 ? getSessionResumeFeedFooterText() : undefined,
     emptyMessage: 'No recent activity'
   };
 }
 export function createWhatsNewFeed(releaseNotes: string[]): FeedConfig {
   const lines: FeedLine[] = releaseNotes.map(note => {
-    if ("external" === 'ant') {
-      const match = note.match(/^(\d+\s+\w+\s+ago)\s+(.+)$/);
-      if (match) {
-        return {
-          timestamp: match[1],
-          text: match[2] || ''
-        };
-      }
-    }
     return {
       text: note
     };
   });
-  const emptyMessage = "external" === 'ant' ? 'Unable to fetch latest claude-cli-internal commits' : 'Check the Claude Code changelog for updates';
   return {
-    title: "external" === 'ant' ? "What's new [ANT-ONLY: Latest CC commits]" : "What's new",
+    title: "What's new",
     lines,
     footer: lines.length > 0 ? '/release-notes for more' : undefined,
-    emptyMessage
+    emptyMessage: 'Check the CT changelog for updates'
+  };
+}
+export function createStartupUpdateFeed(signal: StartupUpdateSignal): FeedConfig {
+  return {
+    title: 'Update available',
+    lines: [{
+      text: `SeaTurtle ${signal.latestVersion} is available`
+    }, {
+      text: `Current version: ${signal.currentVersion}`
+    }, {
+      text: signal.versionSource === 'seaturtle-upstream' ? 'Source: SeaTurtle upstream version' : 'Source: package release channel'
+    }, {
+      text: `${signal.action.label}: ${signal.action.command}`
+    }],
+    footer: `/status for runtime info · channel ${signal.channel}`,
+    emptyMessage: 'SeaTurtle is up to date'
   };
 }
 export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
@@ -73,7 +81,7 @@ export function createProjectOnboardingFeed(steps: Step[]): FeedConfig {
 }
 export function createGuestPassesFeed(): FeedConfig {
   const reward = getCachedReferrerReward();
-  const subtitle = reward ? `Share Claude Code and earn ${formatCreditAmount(reward)} of extra usage` : 'Share Claude Code with friends';
+  const subtitle = reward ? `Share CT and earn ${formatCreditAmount(reward)} of extra usage` : 'Share CT with friends';
   return {
     title: '3 guest passes',
     lines: [],

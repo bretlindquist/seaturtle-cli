@@ -12,6 +12,8 @@ import type { ThemeName } from '../utils/theme.js'
 import type { LogOption } from './logs.js'
 import type { Message } from './message.js'
 import type { PluginManifest } from './plugin.js'
+import type { EditablePromptInputMode } from './textInputTypes.js'
+import type { PastedContent } from '../utils/config.js'
 
 export type LocalCommandResult =
   | { type: 'text'; value: string }
@@ -121,6 +123,8 @@ export type LocalJSXCommandOnDone = (
     shouldQuery?: boolean
     metaMessages?: string[]
     nextInput?: string
+    nextInputMode?: EditablePromptInputMode
+    nextPastedContents?: Record<number, PastedContent>
     submitNextInput?: boolean
   },
 ) => void
@@ -171,6 +175,8 @@ export type CommandAvailability =
   | 'claude-ai'
   // Console API key user (direct api.anthropic.com, not via claude.ai OAuth)
   | 'console'
+  // OpenAI Codex OAuth user (ChatGPT-backed Codex provider)
+  | 'openai-codex'
 
 export type CommandBase = {
   availability?: CommandAvailability[]

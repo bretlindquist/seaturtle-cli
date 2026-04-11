@@ -28,7 +28,7 @@ import Output from './output.js';
 import type { ParsedKey } from './parse-keypress.js';
 import reconciler, { dispatcher, getLastCommitMs, getLastYogaMs, isDebugRepaintsEnabled, recordYogaMs, resetProfileCounters } from './reconciler.js';
 import renderNodeToOutput, { consumeFollowScroll, didLayoutShift } from './render-node-to-output.js';
-import { applyPositionedHighlight, type MatchPosition, scanPositions } from './render-to-screen.js';
+import { type MatchPosition, scanPositions } from './render-to-screen.js';
 import createRenderer, { type Renderer } from './renderer.js';
 import { CellWidth, CharPool, cellAt, createScreen, HyperlinkPool, isEmptyCellAt, migrateScreenPools, StylePool } from './screen.js';
 import { applySearchHighlight } from './searchHighlight.js';
@@ -121,9 +121,16 @@ export default class Ink {
   // pass in onRender can read it and App.tsx can update it from mouse
   // events. Public so instances.get() callers can access.
   readonly selection: SelectionState = createSelectionState();
-  // Search highlight query (alt-screen only). Setter below triggers
-  // scheduleRender; applySearchHighlight in onRender inverts matching cells.
+  // Search highlight query. Setter below triggers scheduleRender;
+  // applySearchHighlight in onRender inverts matching cells.
   private searchHighlightQuery = '';
+  // Optional row clamp for search highlighting. Used by plain transcript
+  // mode so visible matches stay inside the transcript content region
+  // instead of bleeding into footer/search chrome.
+  private searchHighlightRowRange: {
+    start: number;
+    end: number;
+  } | null = null;
   // Position-based highlight. VML scans positions ONCE (via
   // scanElementSubtree, when the target message is mounted), stores them
   // message-relative, sets this for every-frame apply. rowOffset =
@@ -538,18 +545,15 @@ export default class Ink {
       if (selActive) {
         applySelectionOverlay(frame.screen, this.selection, this.stylePool);
       }
-      // Scan-highlight: inverse on ALL visible matches (less/vim style).
-      // Position-highlight (below) overlays CURRENT (yellow) on top.
-      hlActive = applySearchHighlight(frame.screen, this.searchHighlightQuery, this.stylePool);
-      // Position-based CURRENT: write yellow at positions[currentIdx] +
-      // rowOffset. No scanning — positions came from a prior scan when
-      // the message first mounted. Message-relative + rowOffset = screen.
-      if (this.searchPositions) {
-        const sp = this.searchPositions;
-        const posApplied = applyPositionedHighlight(frame.screen, this.stylePool, sp.positions, sp.rowOffset, sp.currentIdx);
-        hlActive = hlActive || posApplied;
-      }
     }
+    // Scan-highlight: inverse on ALL visible matches (less/vim style).
+    // This is useful in both alt-screen transcript mode and the plain
+    // transcript path rendered into normal terminal scrollback.
+    hlActive = applySearchHighlight(frame.screen, this.searchHighlightQuery, this.stylePool, this.searchHighlightRowRange);
+    // Keep transcript search on the stable visible-match layer for now.
+    // The separate positioned current-match overlay has been too brittle
+    // across viewport jumps because it depends on cached per-message screen
+    // coordinates staying perfectly in sync with the rendered frame.
 
     // Full-damage backstop: applies on BOTH alt-screen and main-screen.
     // Layout shifts (spinner appears, status line resizes) can leave stale
@@ -1055,6 +1059,16 @@ export default class Ink {
   setSearchHighlight(query: string): void {
     if (this.searchHighlightQuery === query) return;
     this.searchHighlightQuery = query;
+    this.scheduleRender();
+  }
+
+  setSearchHighlightRowRange(range: {
+    start: number;
+    end: number;
+  } | null): void {
+    const current = this.searchHighlightRowRange;
+    if (current?.start === range?.start && current?.end === range?.end) return;
+    this.searchHighlightRowRange = range;
     this.scheduleRender();
   }
 

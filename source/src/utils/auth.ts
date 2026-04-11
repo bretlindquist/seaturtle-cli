@@ -20,6 +20,10 @@ import {
   shouldUseMockSubscription,
 } from '../services/mockRateLimits.js'
 import {
+  buildAnthropicClaudeAiAuthProfile,
+  upsertProviderAuthProfileInStore,
+} from '../services/authProfiles/store.js'
+import {
   isOAuthTokenExpired,
   refreshOAuthToken,
   shouldUseClaudeAIAuth,
@@ -48,6 +52,7 @@ import {
   saveGlobalConfig,
 } from './config.js'
 import { logAntError, logForDebugging } from './debug.js'
+import { getGlobalClaudeFileDisplayPath } from './env.js'
 import {
   getClaudeConfigHomeDir,
   isBareMode,
@@ -687,7 +692,7 @@ export function refreshAwsAuth(awsAuthRefresh: string): Promise<boolean> {
               'AWS auth refresh timed out after 3 minutes. Run your auth command manually in a separate terminal.',
             )
           : chalk.red(
-              'Error running awsAuthRefresh (in settings or ~/.claude.json):',
+              `Error running awsAuthRefresh (in settings or ${getGlobalClaudeFileDisplayPath()}):`,
             )
         // biome-ignore lint/suspicious/noConsole:: intentional console output
         console.error(message)
@@ -765,7 +770,7 @@ async function getAwsCredsFromCredentialExport(): Promise<{
       }
     } catch (e) {
       const message = chalk.red(
-        'Error getting AWS credentials from awsCredentialExport (in settings or ~/.claude.json):',
+        `Error getting AWS credentials from awsCredentialExport (in settings or ${getGlobalClaudeFileDisplayPath()}):`,
       )
       if (e instanceof Error) {
         // biome-ignore lint/suspicious/noConsole:: intentional console output
@@ -955,7 +960,7 @@ export function refreshGcpAuth(gcpAuthRefresh: string): Promise<boolean> {
               'GCP auth refresh timed out after 3 minutes. Run your auth command manually in a separate terminal.',
             )
           : chalk.red(
-              'Error running gcpAuthRefresh (in settings or ~/.claude.json):',
+              `Error running gcpAuthRefresh (in settings or ${getGlobalClaudeFileDisplayPath()}):`,
             )
         // biome-ignore lint/suspicious/noConsole:: intentional console output
         console.error(message)
@@ -1227,6 +1232,21 @@ export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
       rateLimitTier:
         tokens.rateLimitTier ?? existingOauth?.rateLimitTier ?? null,
     }
+
+    storageData.providerAuthProfiles = upsertProviderAuthProfileInStore({
+      store: storageData.providerAuthProfiles,
+      profile: buildAnthropicClaudeAiAuthProfile({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
+        scopes: tokens.scopes,
+        subscriptionType:
+          tokens.subscriptionType ?? existingOauth?.subscriptionType ?? null,
+        rateLimitTier: tokens.rateLimitTier ?? existingOauth?.rateLimitTier ?? null,
+        account: getOauthAccountInfo(),
+      }),
+      setAsDefault: true,
+    })
 
     const updateStatus = secureStorage.update(storageData)
 

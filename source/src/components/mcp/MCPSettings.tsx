@@ -147,7 +147,7 @@ export function MCPSettings(t0) {
         return;
       }
       if (servers.length === 0 && agentMcpServers.length === 0) {
-        onComplete("No MCP servers configured. Please run /doctor if this is unexpected. Otherwise, run `claude mcp --help` or visit https://code.claude.com/docs/en/mcp to learn more.");
+        onComplete("No MCP servers are currently loaded. If this is unexpected, run /doctor or `claude mcp list` to inspect configured servers and connection issues. If you have not configured any yet, run `claude mcp --help` or visit https://code.claude.com/docs/en/mcp to learn more.");
       }
     };
     t8 = [servers.length, filteredClients.length, agentMcpServers.length, onComplete];
@@ -207,7 +207,7 @@ export function MCPSettings(t0) {
           t9 = $[25];
         }
         const serverTools_0 = t9;
-        const defaultTab = viewState.server.transport === "claudeai-proxy" ? "claude.ai" : "Claude Code";
+        const defaultTab = viewState.server.transport === "claudeai-proxy" ? "claude.ai" : "CT";
         if (viewState.server.transport === "stdio") {
           let t10;
           if ($[26] !== viewState.server) {

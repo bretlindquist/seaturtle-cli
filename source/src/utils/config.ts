@@ -16,7 +16,7 @@ import { getCwd } from '../utils/cwd.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
-import { getGlobalClaudeFile } from './env.js'
+import { getGlobalClaudeFile, getGlobalClaudeFileDisplayPath } from './env.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { ConfigParseError, getErrnoCode } from './errors.js'
 import { writeFileSyncAndFlush_DEPRECATED } from './file.js'
@@ -31,6 +31,10 @@ import { normalizePathForConfigKey } from './path.js'
 import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import type { ThemeSetting } from './theme.js'
+import {
+  getLegacyMemoryFileName,
+  getPreferredMemoryFileName,
+} from './memoryFileNames.js'
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const teamMemPaths = feature('TEAMMEM')
@@ -63,15 +67,36 @@ export type PastedContent = {
 
 export interface SerializedStructuredHistoryEntry {
   display: string
+  mode?: string
   pastedContents?: Record<number, PastedContent>
   pastedText?: string
 }
 export interface HistoryEntry {
   display: string
+  mode?: string
   pastedContents: Record<number, PastedContent>
 }
 
 export type ReleaseChannel = 'stable' | 'latest'
+
+export type TelegramProjectBinding = {
+  profileId: string
+  allowedChatIds: string[]
+  pollTimeoutSeconds?: number
+  capabilityMode?: 'convo' | 'research'
+  defaultChatId?: string
+  lastInboundChatId?: string
+  pairedAt?: number
+  updatedAt?: number
+}
+
+export type TelegramBotProfileMeta = {
+  profileId: string
+  botUsername?: string
+  botDisplayName?: string
+  createdAt?: number
+  updatedAt: number
+}
 
 export type ProjectConfig = {
   allowedTools: string[]
@@ -106,6 +131,17 @@ export type ProjectConfig = {
   lastSessionMetrics?: Record<string, number>
   exampleFiles?: string[]
   exampleFilesGeneratedAt?: number
+  telegram?: TelegramProjectBinding
+  remindMe?: {
+    text?: string
+    updatedAt?: number
+  }
+  ctIdentityBootstrap?: {
+    hasCompletedSetup?: boolean
+    seenCount?: number
+    mode?: 'defaulted' | 'guided' | 'skipped' | 'customized'
+    lastPromptedAt?: number
+  }
 
   // Trust dialog settings
   hasTrustDialogAccepted?: boolean
@@ -143,6 +179,10 @@ const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   disabledMcpjsonServers: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
+  ctIdentityBootstrap: {
+    hasCompletedSetup: false,
+    seenCount: 0,
+  },
   hasClaudeMdExternalIncludesApproved: false,
   hasClaudeMdExternalIncludesWarningShown: false,
 }
@@ -195,6 +235,28 @@ export type GlobalConfig = {
   doctorShownAtSession?: number
   userID?: string
   theme: ThemeSetting
+  lolcat?: {
+    mode?: 'off' | 'static' | 'animated'
+    persistAnimation?: boolean
+    previousTheme?: ThemeSetting
+  }
+  haiku?: {
+    startupMode?: 'off' | 'rare'
+    lastShownAt?: number
+  }
+  preferredMainProvider?: 'anthropic' | 'openai-codex'
+  telegramProfiles?: Record<string, TelegramBotProfileMeta>
+  /**
+   * @deprecated Use projects[projectPath].telegram and telegramProfiles instead.
+   */
+  telegram?: {
+    allowedChatIds: string[]
+    pollTimeoutSeconds?: number
+    lastPairedChatId?: string
+    botUsername?: string
+    botDisplayName?: string
+    pairedAt?: number
+  }
   hasCompletedOnboarding?: boolean
   // Tracks the last version that reset onboarding, used with MIN_VERSION_REQUIRING_ONBOARDING_RESET
   lastOnboardingVersion?: string
@@ -459,7 +521,8 @@ export type GlobalConfig = {
   respectGitignore: boolean // Whether file picker should respect .gitignore files (default: true). Note: .ignore files are always respected
 
   // Copy command behavior
-  copyFullResponse: boolean // Whether /copy always copies the full response instead of showing the picker
+  copyFullResponse: boolean // @deprecated Use copyCommandBehavior instead.
+  copyCommandBehavior?: 'showMenu' | 'copyLatestResponse'
 
   // Fullscreen in-app text selection behavior
   copyOnSelect?: boolean // Auto-copy to clipboard on mouse-up (undefined → true; lets cmd+c "work" via no-op)
@@ -588,6 +651,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     installMethod: undefined,
     autoUpdates: undefined,
     theme: 'dark',
+    preferredMainProvider: 'anthropic',
     preferredNotifChannel: 'auto',
     verbose: false,
     editorMode: 'normal',
@@ -619,6 +683,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     cachedGrowthBookFeatures: {},
     respectGitignore: true,
     copyFullResponse: false,
+    copyCommandBehavior: 'showMenu',
   }
 }
 
@@ -658,6 +723,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'lspRecommendationNeverPlugins',
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
+  'copyCommandBehavior',
   'copyOnSelect',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
@@ -978,7 +1044,7 @@ function removeProjectHistory(
     const legacy = projectConfig as ProjectConfig & { history?: unknown }
     if (legacy.history !== undefined) {
       needsCleaning = true
-      const { history, ...cleanedConfig } = legacy
+      const { history: _history, ...cleanedConfig } = legacy
       cleanedProjects[path] = cleanedConfig
     } else {
       cleanedProjects[path] = projectConfig
@@ -1216,7 +1282,7 @@ function saveConfigWithLock<A extends object>(
     const currentConfig = getConfig(file, createDefault)
     if (file === getGlobalClaudeFile() && wouldLoseAuthState(currentConfig)) {
       logForDebugging(
-        'saveConfigWithLock: re-read config is missing auth that cache has; refusing to write to avoid wiping ~/.claude.json. See GH #3117.',
+        `saveConfigWithLock: re-read config is missing auth that cache has; refusing to write to avoid wiping ${getGlobalClaudeFileDisplayPath()}. See GH #3117.`,
         { level: 'error' },
       )
       logEvent('tengu_config_auth_loss_prevented', {})
@@ -1778,16 +1844,34 @@ export function recordFirstStartTime(): void {
 
 export function getMemoryPath(memoryType: MemoryType): string {
   const cwd = getOriginalCwd()
+  const fs = getFsImplementation()
+
+  const resolveMemoryPath = (
+    kind: 'managed' | 'user' | 'project' | 'local',
+    baseDir: string,
+  ): string => {
+    const preferredPath = join(baseDir, getPreferredMemoryFileName(kind))
+    if (fs.existsSync(preferredPath)) {
+      return preferredPath
+    }
+
+    const legacyPath = join(baseDir, getLegacyMemoryFileName(kind))
+    if (fs.existsSync(legacyPath)) {
+      return legacyPath
+    }
+
+    return preferredPath
+  }
 
   switch (memoryType) {
     case 'User':
-      return join(getClaudeConfigHomeDir(), 'CLAUDE.md')
+      return resolveMemoryPath('user', getClaudeConfigHomeDir())
     case 'Local':
-      return join(cwd, 'CLAUDE.local.md')
+      return resolveMemoryPath('local', cwd)
     case 'Project':
-      return join(cwd, 'CLAUDE.md')
+      return resolveMemoryPath('project', cwd)
     case 'Managed':
-      return join(getManagedFilePath(), 'CLAUDE.md')
+      return resolveMemoryPath('managed', getManagedFilePath())
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }

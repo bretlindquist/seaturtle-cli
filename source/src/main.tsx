@@ -123,7 +123,7 @@ import { cleanupOrphanedPluginVersionsInBackground } from './utils/plugins/cache
 import { initializeVersionedPlugins } from './utils/plugins/installedPluginsManager.js';
 import { getManagedPluginNames } from './utils/plugins/managedPlugins.js';
 import { getGlobExclusionsForPluginCache } from './utils/plugins/orphanedPluginFilter.js';
-import { getPluginSeedDirs } from './utils/plugins/pluginDirectories.js';
+import { getPluginSeedDirs, getPluginsDirectoryDisplayPath } from './utils/plugins/pluginDirectories.js';
 import { countFilesRoundedRg } from './utils/ripgrep.js';
 import { processSessionStartHooks, processSetupHooks } from './utils/sessionStart.js';
 import { cacheSessionTitle, getSessionIdFromLog, loadTranscriptFromFile, saveAgentSetting, saveMode, searchSessionsByCustomTitle, sessionIdExists } from './utils/sessionStorage.js';
@@ -144,6 +144,8 @@ import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
 import { fetchClaudeAIMcpConfigsIfEligible } from 'src/services/mcp/claudeai.js';
 import { clearServerCache } from 'src/services/mcp/client.js';
 import { areMcpConfigsAllowedWithEnterpriseMcpConfig, dedupClaudeAiMcpServers, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, getMcpServerSignature, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
+import { buildSessionEntryPolicyInput, hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
+import { getFailedResumeSessionText, getNoContinuableSessionText, getNoSessionWithIdText } from 'src/services/sessionResume/sessionResumeCopy.js';
 import { excludeCommandsByServer, excludeResourcesByServer } from 'src/services/mcp/utils.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
@@ -965,7 +967,7 @@ async function run(): Promise<CommanderCommand> {
     }
     profileCheckpoint('preAction_after_settings_sync');
   });
-  program.name('claude').description(`Claude Code - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
+  program.name('claude').description(`CT - starts an interactive session by default, use -p/--print for non-interactive output`).argument('[prompt]', 'Your prompt', String)
   // Subcommands inherit helpOption via commander's copyInheritedSettings —
   // setting it once here covers mcp, plugin, auth, and all other subcommands.
   .helpOption('-h, --help', 'Display help for command').option('-d, --debug [filter]', 'Enable debug mode with optional category filtering (e.g., "api,hooks" or "!1p,!file")', (_value: string | true) => {
@@ -1003,7 +1005,7 @@ async function run(): Promise<CommanderCommand> {
   // `mcp` and `add` as paths, then choked on --transport as an unknown
   // top-level option. Single-value + collect accumulator means each
   // --plugin-dir takes exactly one arg; repeat the flag for multiple dirs.
-  .option('--plugin-dir <path>', 'Load plugins from a directory for this session only (repeatable: --plugin-dir A --plugin-dir B)', (val: string, prev: string[]) => [...prev, val], [] as string[]).option('--disable-slash-commands', 'Disable all skills', () => true).option('--chrome', 'Enable Claude in Chrome integration').option('--no-chrome', 'Disable Claude in Chrome integration').option('--file <specs...>', 'File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)').action(async (prompt, options) => {
+  .option('--plugin-dir <path>', 'Load plugins from a directory for this session only (repeatable: --plugin-dir A --plugin-dir B)', (val: string, prev: string[]) => [...prev, val], [] as string[]).option('--disable-slash-commands', 'Disable all skills', () => true).option('--chrome', 'Enable CT in Chrome integration').option('--no-chrome', 'Disable CT in Chrome integration').option('--file <specs...>', 'File resources to download at startup. Format: file_id:relative_path (e.g., --file file_abc:doc.txt file_def:img.png)').action(async (prompt, options) => {
     profileCheckpoint('action_handler_start');
 
     // --bare = one-switch minimal mode. Sets SIMPLE so all the existing
@@ -1019,7 +1021,7 @@ async function run(): Promise<CommanderCommand> {
     if (prompt === 'code') {
       logEvent('tengu_code_prompt_ignored', {});
       // biome-ignore lint/suspicious/noConsole:: intentional console output
-      console.warn(chalk.yellow('Tip: You can launch Claude Code with just `claude`'));
+      console.warn(chalk.yellow('Tip: You can launch CT with `ct` or `seaturtle`'));
       prompt = undefined;
     }
 
@@ -2429,12 +2431,20 @@ async function run(): Promise<CommanderCommand> {
       commands: uniqBy([...local.commands, ...claudeai.commands], 'name')
     }));
 
+    const sessionEntryPolicy = buildSessionEntryPolicyInput({
+      continueFlag: options.continue,
+      resumeValue: options.resume,
+      fromPrValue: options.fromPr,
+      teleportValue: teleport,
+      remoteValue: remote
+    });
+
     // Start hooks early so they run in parallel with MCP connections.
     // Skip for initOnly/init/maintenance (handled separately), non-interactive
     // (handled via setupTrigger), and resume/continue (conversationRecovery.ts
     // fires 'resume' instead — without this guard, hooks fire TWICE on /resume
     // and the second systemMessage clobbers the first. gh-30825)
-    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || options.continue || options.resume ? null : processSessionStartHooks('startup', {
+    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || !shouldStartFreshSession(sessionEntryPolicy) ? null : processSessionStartHooks('startup', {
       agentType: mainThreadAgentDefinition?.agentType,
       model: resolvedInitialModel
     });
@@ -2604,7 +2614,7 @@ async function run(): Promise<CommanderCommand> {
       // undefined and the ?? fallback runs). Also skip when setupTrigger is
       // set — those paths run setup hooks first (print.ts:544), and session
       // start hooks must wait until setup completes.
-      const sessionStartHooksPromise = options.continue || options.resume || teleport || setupTrigger ? undefined : processSessionStartHooks('startup');
+      const sessionStartHooksPromise = !shouldStartFreshSession(sessionEntryPolicy) || setupTrigger ? undefined : processSessionStartHooks('startup');
       // Suppress transient unhandledRejection if this rejects before
       // loadInitialMessages awaits it. Downstream await still observes the
       // rejection — this just prevents the spurious global handler fire.
@@ -3114,7 +3124,7 @@ async function run(): Promise<CommanderCommand> {
           logEvent('tengu_continue', {
             success: false
           });
-          return await exitWithError(root, 'No conversation found to continue');
+          return await exitWithError(root, getNoContinuableSessionText());
         }
         const loaded = await processResumedConversation(result, {
           forkSession: !!options.forkSession,
@@ -3352,7 +3362,7 @@ async function run(): Promise<CommanderCommand> {
         thinkingConfig
       }, renderAndRun);
       return;
-    } else if (options.resume || options.fromPr || teleport || remote !== null) {
+    } else if (hasExplicitSessionResumeRequest(sessionEntryPolicy)) {
       // Handle resume flow - from file (ant-only), session ID, or interactive selector
 
       // Clear stale caches before resuming to ensure fresh file/skill discovery
@@ -3413,7 +3423,7 @@ async function run(): Promise<CommanderCommand> {
         // Check if TUI mode is enabled - description is only optional in TUI mode
         const isRemoteTuiEnabled = getFeatureValue_CACHED_MAY_BE_STALE('tengu_remote_backend', false);
         if (!isRemoteTuiEnabled && !hasInitialPrompt) {
-          return await exitWithError(root, 'Error: --remote requires a description.\nUsage: claude --remote "your task description"', () => gracefulShutdown(1));
+          return await exitWithError(root, 'Error: --remote requires a description.\nUsage: ct --remote "your task description"', () => gracefulShutdown(1));
         }
         logEvent('tengu_remote_create_session', {
           has_initial_prompt: String(hasInitialPrompt) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
@@ -3437,7 +3447,7 @@ async function run(): Promise<CommanderCommand> {
           // Original behavior: print session info and exit
           process.stdout.write(`Created remote session: ${createdSession.title}\n`);
           process.stdout.write(`View: ${getRemoteSessionUrl(createdSession.id)}?m=0\n`);
-          process.stdout.write(`Resume with: claude --teleport ${createdSession.id}\n`);
+          process.stdout.write(`Resume with: ct --teleport ${createdSession.id}\n`);
           await gracefulShutdown(0);
           process.exit(0);
         }
@@ -3549,7 +3559,7 @@ async function run(): Promise<CommanderCommand> {
                   }
                 } else {
                   // No known paths - show original error
-                  throw new TeleportOperationError(`You must run claude --teleport ${teleport} from a checkout of ${sessionRepo}.`, chalk.red(`You must run claude --teleport ${teleport} from a checkout of ${chalk.bold(sessionRepo)}.\n`));
+                  throw new TeleportOperationError(`You must run ct --teleport ${teleport} from a checkout of ${sessionRepo}.`, chalk.red(`You must run ct --teleport ${teleport} from a checkout of ${chalk.bold(sessionRepo)}.\n`));
                 }
               }
             } else if (repoValidation.status === 'error') {
@@ -3678,7 +3688,7 @@ async function run(): Promise<CommanderCommand> {
               entrypoint: 'cli_flag' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
               success: false
             });
-            return await exitWithError(root, `No conversation found with session ID: ${sessionId}`);
+            return await exitWithError(root, getNoSessionWithIdText(sessionId));
           }
           const fullPath = matchedLog?.fullPath ?? result.fullPath;
           processedResume = await processResumedConversation(result, {
@@ -3700,7 +3710,7 @@ async function run(): Promise<CommanderCommand> {
             success: false
           });
           logError(error);
-          await exitWithError(root, `Failed to resume session ${sessionId}`);
+          await exitWithError(root, getFailedResumeSessionText(sessionId));
         }
       }
 
@@ -3805,7 +3815,7 @@ async function run(): Promise<CommanderCommand> {
         pendingHookMessages
       }, renderAndRun);
     }
-  }).version(`${MACRO.VERSION} (Claude Code)`, '-v, --version', 'Output the version number');
+  }).version(`${MACRO.VERSION} (CT)`, '-v, --version', 'Output the version number');
 
   // Worktree flags
   program.option('-w, --worktree [name]', 'Create a new git worktree for this session (optionally specify a name)');
@@ -3892,7 +3902,7 @@ async function run(): Promise<CommanderCommand> {
   // claude mcp
 
   const mcp = program.command('mcp').description('Configure and manage MCP servers').configureHelp(createSortedHelpConfig()).enablePositionalOptions();
-  mcp.command('serve').description(`Start the Claude Code MCP server`).option('-d, --debug', 'Enable debug mode', () => true).option('--verbose', 'Override verbose mode setting from config', () => true).action(async ({
+  mcp.command('serve').description(`Start the CT MCP server`).option('-d, --debug', 'Enable debug mode', () => true).option('--verbose', 'Override verbose mode setting from config', () => true).action(async ({
     debug,
     verbose
   }: {
@@ -3959,7 +3969,7 @@ async function run(): Promise<CommanderCommand> {
 
   // claude server
   if (feature('DIRECT_CONNECT')) {
-    program.command('server').description('Start a Claude Code session server').option('--port <number>', 'HTTP port', '0').option('--host <string>', 'Bind address', '0.0.0.0').option('--auth-token <token>', 'Bearer token for auth').option('--unix <path>', 'Listen on a unix domain socket').option('--workspace <dir>', 'Default working directory for sessions that do not specify cwd').option('--idle-timeout <ms>', 'Idle timeout for detached sessions in ms (0 = never expire)', '600000').option('--max-sessions <n>', 'Maximum concurrent sessions (0 = unlimited)', '32').action(async (opts: {
+    program.command('server').description('Start a CT session server').option('--port <number>', 'HTTP port', '0').option('--host <string>', 'Bind address', '0.0.0.0').option('--auth-token <token>', 'Bearer token for auth').option('--unix <path>', 'Listen on a unix domain socket').option('--workspace <dir>', 'Default working directory for sessions that do not specify cwd').option('--idle-timeout <ms>', 'Idle timeout for detached sessions in ms (0 = never expire)', '600000').option('--max-sessions <n>', 'Maximum concurrent sessions (0 = unlimited)', '32').action(async (opts: {
       port: string;
       host: string;
       authToken?: string;
@@ -3993,7 +4003,7 @@ async function run(): Promise<CommanderCommand> {
       } = await import('./server/lockfile.js');
       const existing = await probeRunningServer();
       if (existing) {
-        process.stderr.write(`A claude server is already running (pid ${existing.pid}) at ${existing.httpUrl}\n`);
+        process.stderr.write(`A CT server is already running (pid ${existing.pid}) at ${existing.httpUrl}\n`);
         process.exit(1);
       }
       const authToken = opts.authToken ?? `sk-ant-cc-${randomBytes(16).toString('base64url')}`;
@@ -4043,11 +4053,11 @@ async function run(): Promise<CommanderCommand> {
   // this action it means the argv rewrite didn't fire (e.g. user ran
   // `claude ssh` with no host) — just print usage.
   if (feature('SSH_REMOTE')) {
-    program.command('ssh <host> [dir]').description('Run Claude Code on a remote host over SSH. Deploys the binary and ' + 'tunnels API auth back through your local machine — no remote setup needed.').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote (dangerous)').option('--local', 'e2e test mode — spawn the child CLI locally (skip ssh/deploy). ' + 'Exercises the auth proxy and unix-socket plumbing without a remote host.').action(async () => {
+    program.command('ssh <host> [dir]').description('Run CT on a remote host over SSH. Deploys the binary and ' + 'tunnels API auth back through your local machine — no remote setup needed.').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote (dangerous)').option('--local', 'e2e test mode — spawn the child CLI locally (skip ssh/deploy). ' + 'Exercises the auth proxy and unix-socket plumbing without a remote host.').action(async () => {
       // Argv rewriting in main() should have consumed `ssh <host>` before
       // commander runs. Reaching here means host was missing or the
       // rewrite predicate didn't match.
-      process.stderr.write('Usage: claude ssh <user@host | ssh-config-alias> [dir]\n\n' + "Runs Claude Code on a remote Linux host. You don't need to install\n" + 'anything on the remote or run `claude auth login` there — the binary is\n' + 'deployed over SSH and API auth tunnels back through your local machine.\n');
+      process.stderr.write('Usage: ct ssh <user@host | ssh-config-alias> [dir]\n\n' + "Runs CT on a remote Linux host. You don't need to install\n" + 'anything on the remote or run `ct auth login` there — the binary is\n' + 'deployed over SSH and API auth tunnels back through your local machine.\n');
       process.exit(1);
     });
   }
@@ -4056,7 +4066,7 @@ async function run(): Promise<CommanderCommand> {
   // Interactive mode (without -p) is handled by early argv rewriting in main()
   // which redirects to the main command with full TUI support.
   if (feature('DIRECT_CONNECT')) {
-    program.command('open <cc-url>').description('Connect to a Claude Code server (internal — use cc:// URLs)').option('-p, --print [prompt]', 'Print mode (headless)').option('--output-format <format>', 'Output format: text, json, stream-json', 'text').action(async (ccUrl: string, opts: {
+    program.command('open <cc-url>').description('Connect to a CT server (internal — use cc:// URLs)').option('-p, --print [prompt]', 'Print mode (headless)').option('--output-format <format>', 'Output format: text, json, stream-json', 'text').action(async (ccUrl: string, opts: {
       print?: string | boolean;
       outputFormat: string;
     }) => {
@@ -4145,7 +4155,7 @@ async function run(): Promise<CommanderCommand> {
   const coworkOption = () => new Option('--cowork', 'Use cowork_plugins directory').hideHelp();
 
   // Plugin validate command
-  const pluginCmd = program.command('plugin').alias('plugins').description('Manage Claude Code plugins').configureHelp(createSortedHelpConfig());
+  const pluginCmd = program.command('plugin').alias('plugins').description('Manage CT plugins').configureHelp(createSortedHelpConfig());
   pluginCmd.command('validate <path>').description('Validate a plugin or marketplace manifest').addOption(coworkOption()).action(async (manifestPath: string, options: {
     cowork?: boolean;
   }) => {
@@ -4168,7 +4178,7 @@ async function run(): Promise<CommanderCommand> {
   });
 
   // Marketplace subcommands
-  const marketplaceCmd = pluginCmd.command('marketplace').description('Manage Claude Code marketplaces').configureHelp(createSortedHelpConfig());
+  const marketplaceCmd = pluginCmd.command('marketplace').description('Manage CT marketplaces').configureHelp(createSortedHelpConfig());
   marketplaceCmd.command('add <source>').description('Add a marketplace from a URL, path, or GitHub repo').addOption(coworkOption()).option('--sparse <paths...>', 'Limit checkout to specific directories via git sparse-checkout (for monorepos). Example: --sparse .claude-plugin plugins').option('--scope <scope>', 'Where to declare the marketplace: user (default), project, or local').action(async (source: string, options: {
     cowork?: boolean;
     sparse?: string[];
@@ -4217,7 +4227,7 @@ async function run(): Promise<CommanderCommand> {
   });
 
   // Plugin uninstall command
-  pluginCmd.command('uninstall <plugin>').alias('remove').alias('rm').description('Uninstall an installed plugin').option('-s, --scope <scope>', 'Uninstall from scope: user, project, or local', 'user').option('--keep-data', "Preserve the plugin's persistent data directory (~/.claude/plugins/data/{id}/)").addOption(coworkOption()).action(async (plugin: string, options: {
+  pluginCmd.command('uninstall <plugin>').alias('remove').alias('rm').description('Uninstall an installed plugin').option('-s, --scope <scope>', 'Uninstall from scope: user, project, or local', 'user').option('--keep-data', `Preserve the plugin's persistent data directory (${getPluginsDirectoryDisplayPath()}/data/{id}/)`).addOption(coworkOption()).action(async (plugin: string, options: {
     scope?: string;
     cowork?: boolean;
     keepData?: boolean;
@@ -4311,7 +4321,7 @@ async function run(): Promise<CommanderCommand> {
     }
   }
 
-  // Remote Control command — connect local environment to claude.ai/code.
+  // Remote Control command — connect local environment to the hosted web client.
   // The actual command is intercepted by the fast-path in cli.tsx before
   // Commander.js runs, so this registration exists only for help output.
   // Always hidden: isBridgeEnabled() at this point (before enableConfigs)
@@ -4322,7 +4332,7 @@ async function run(): Promise<CommanderCommand> {
   if (feature('BRIDGE_MODE')) {
     program.command('remote-control', {
       hidden: true
-    }).alias('rc').description('Connect your local environment for remote-control sessions via claude.ai/code').action(async () => {
+    }).alias('rc').description('Connect your local environment for remote-control sessions via the hosted web client').action(async () => {
       // Unreachable — cli.tsx fast-path handles this command before main.tsx loads.
       // If somehow reached, delegate to bridgeMain.
       const {
@@ -4343,7 +4353,7 @@ async function run(): Promise<CommanderCommand> {
   }
 
   // Doctor command - check installation health
-  program.command('doctor').description('Check the health of your Claude Code auto-updater. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.').action(async () => {
+    program.command('doctor').description('Check the health of your CT auto-updater. Note: The workspace trust dialog is skipped and stdio servers from .mcp.json are spawned for health checks. Only use this command in directories you trust.').action(async () => {
     const [{
       doctorHandler
     }, {
@@ -4368,7 +4378,7 @@ async function run(): Promise<CommanderCommand> {
 
   // claude up — run the project's CLAUDE.md "# claude up" setup instructions.
   if ("external" === 'ant') {
-    program.command('up').description('[ANT-ONLY] Initialize or upgrade the local dev environment using the "# claude up" section of the nearest CLAUDE.md').action(async () => {
+    program.command('up').description('[ANT-ONLY] Initialize or upgrade the local dev environment using the "# claude up" section of the nearest SEATURTLE.md or compatible instruction file').action(async () => {
       const {
         up
       } = await import('src/cli/up.js');
@@ -4392,7 +4402,7 @@ async function run(): Promise<CommanderCommand> {
   }
 
   // claude install
-  program.command('install [target]').description('Install Claude Code native build. Use [target] to specify version (stable, latest, or specific version)').option('--force', 'Force installation even if already installed').action(async (target: string | undefined, options: {
+  program.command('install [target]').description('Install CT native build. Use [target] to specify version (stable, latest, or specific version)').option('--force', 'Force installation even if already installed').action(async (target: string | undefined, options: {
     force?: boolean;
   }) => {
     const {

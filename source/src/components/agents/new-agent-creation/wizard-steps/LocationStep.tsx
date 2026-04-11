@@ -1,6 +1,7 @@
 import { c as _c } from "react/compiler-runtime";
 import React, { type ReactNode } from 'react';
 import { Box } from '../../../../ink.js';
+import { getSeaTurtleConfigPathDisplay } from '../../../../utils/envUtils.js';
 import type { SettingSource } from '../../../../utils/settings/constants.js';
 import { ConfigurableShortcutHint } from '../../../ConfigurableShortcutHint.js';
 import { Select } from '../../../CustomSelect/select.js';
@@ -29,7 +30,7 @@ export function LocationStep() {
   let t1;
   if ($[1] === Symbol.for("react.memo_cache_sentinel")) {
     t1 = [t0, {
-      label: "Personal (~/.claude/agents/)",
+      label: `Personal (${getSeaTurtleConfigPathDisplay('agents')}/)`,
       value: "userSettings" as SettingSource
     }];
     $[1] = t1;

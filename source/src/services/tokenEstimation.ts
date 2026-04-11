@@ -25,6 +25,7 @@ import { jsonStringify } from '../utils/slowOperations.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAPIMetadata, getExtraBodyParams } from './api/claude.js'
 import { getAnthropicClient } from './api/client.js'
+import { getMainLoopProviderRuntime } from './api/providerRuntime.js'
 import { withTokenCountVCR } from './vcr.js'
 
 // Minimal values for token counting with thinking enabled
@@ -141,6 +142,10 @@ export async function countMessagesTokensWithAPI(
   messages: Anthropic.Beta.Messages.BetaMessageParam[],
   tools: Anthropic.Beta.Messages.BetaToolUnion[],
 ): Promise<number | null> {
+  if (getMainLoopProviderRuntime().family === 'openai') {
+    return null
+  }
+
   return withTokenCountVCR(messages, tools, async () => {
     try {
       const model = getMainLoopModel()
@@ -252,6 +257,10 @@ export async function countTokensViaHaikuFallback(
   messages: Anthropic.Beta.Messages.BetaMessageParam[],
   tools: Anthropic.Beta.Messages.BetaToolUnion[],
 ): Promise<number | null> {
+  if (getMainLoopProviderRuntime().family === 'openai') {
+    return null
+  }
+
   // Check if messages contain thinking blocks
   const containsThinking = hasThinkingBlocks(messages)
 

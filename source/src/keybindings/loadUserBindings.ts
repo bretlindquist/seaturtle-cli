@@ -1,7 +1,7 @@
 /**
  * User keybinding configuration loader with hot-reload support.
  *
- * Loads keybindings from ~/.claude/keybindings.json and watches
+ * Loads keybindings from the resolved user keybindings path and watches
  * for changes to reload them automatically.
  *
  * NOTE: User keybinding customization is currently only available for

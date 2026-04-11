@@ -1,10 +1,20 @@
 import { c as _c } from "react/compiler-runtime";
 import { feature } from 'bun:bundle';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import {
+  getLolcatState,
+  subscribeLolcatState,
+  type LolcatState,
+} from '../../services/lolcat.js';
 import useStdin from '../../ink/hooks/use-stdin.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { getSystemThemeName, type SystemTheme } from '../../utils/systemTheme.js';
-import type { ThemeName, ThemeSetting } from '../../utils/theme.js';
+import {
+  setLolcatAnimationFrame,
+  setLolcatThemeMode,
+  type ThemeName,
+  type ThemeSetting,
+} from '../../utils/theme.js';
 type ThemeContextValue = {
   /** The saved user preference. May be 'auto'. */
   themeSetting: ThemeSetting;
@@ -14,6 +24,8 @@ type ThemeContextValue = {
   cancelPreview: () => void;
   /** The resolved theme to render with. Never 'auto'. */
   currentTheme: ThemeName;
+  /** Internal render epoch for animated runtime effects like lolcat. */
+  renderEpoch: number;
 };
 
 // Non-'auto' default so useTheme() works without a provider (tests, tooling).
@@ -24,7 +36,8 @@ const ThemeContext = createContext<ThemeContextValue>({
   setPreviewTheme: () => {},
   savePreview: () => {},
   cancelPreview: () => {},
-  currentTheme: DEFAULT_THEME
+  currentTheme: DEFAULT_THEME,
+  renderEpoch: 0,
 });
 type Props = {
   children: React.ReactNode;
@@ -47,6 +60,8 @@ export function ThemeProvider({
 }: Props) {
   const [themeSetting, setThemeSetting] = useState(initialState ?? defaultInitialTheme);
   const [previewTheme, setPreviewTheme] = useState<ThemeSetting | null>(null);
+  const [lolcatState, setLolcatState] = useState<LolcatState>(() => getLolcatState());
+  const [renderEpoch, setRenderEpoch] = useState(0);
 
   // Track terminal theme for 'auto' resolution. Seeds from $COLORFGBG (or
   // 'dark' if unset); the OSC 11 watcher corrects it on first poll.
@@ -57,6 +72,25 @@ export function ThemeProvider({
   const {
     internal_querier
   } = useStdin();
+
+  useEffect(() => subscribeLolcatState(setLolcatState), []);
+
+  useEffect(() => {
+    setLolcatThemeMode(activeSetting === 'lolcat' ? lolcatState.mode : 'off');
+    if (activeSetting !== 'lolcat' || lolcatState.mode !== 'animated') {
+      setLolcatAnimationFrame(0);
+      setRenderEpoch(current => current + 1);
+      return;
+    }
+    let frame = 0;
+    setLolcatAnimationFrame(0);
+    const interval = setInterval(() => {
+      frame += 1;
+      setLolcatAnimationFrame(frame);
+      setRenderEpoch(current => current + 1);
+    }, 120);
+    return () => clearInterval(interval);
+  }, [activeSetting, lolcatState.mode]);
 
   // Watch for live terminal theme changes while 'auto' is active.
   // Positive feature() pattern so the watcher import is dead-code-eliminated
@@ -110,8 +144,9 @@ export function ThemeProvider({
         setPreviewTheme(null);
       }
     },
-    currentTheme
-  }), [themeSetting, previewTheme, currentTheme, onThemeSave]);
+    currentTheme,
+    renderEpoch,
+  }), [themeSetting, previewTheme, currentTheme, onThemeSave, renderEpoch]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

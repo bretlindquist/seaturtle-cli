@@ -91,6 +91,8 @@ export type Theme = {
 export const THEME_NAMES = [
   'dark',
   'light',
+  'lolcat',
+  'neonbbs',
   'light-daltonized',
   'dark-daltonized',
   'light-ansi',
@@ -107,6 +109,11 @@ export const THEME_SETTINGS = ['auto', ...THEME_NAMES] as const
  * dark/light mode and is resolved to a ThemeName at runtime.
  */
 export type ThemeSetting = (typeof THEME_SETTINGS)[number]
+
+export type LolcatThemeMode = 'off' | 'static' | 'animated'
+
+let lolcatThemeMode: LolcatThemeMode = 'off'
+let lolcatAnimationFrame = 0
 
 /**
  * Light theme using explicit RGB values to avoid inconsistencies
@@ -350,6 +357,203 @@ const darkAnsiTheme: Theme = {
   rainbow_blue_shimmer: 'ansi:cyanBright',
   rainbow_indigo_shimmer: 'ansi:blueBright',
   rainbow_violet_shimmer: 'ansi:magentaBright',
+}
+
+const neonBbsTheme: Theme = {
+  ...darkAnsiTheme,
+  autoAccept: 'rgb(255,0,204)',
+  bashBorder: 'rgb(0,255,153)',
+  claude: 'rgb(0,255,255)',
+  claudeShimmer: 'rgb(120,255,255)',
+  claudeBlue_FOR_SYSTEM_SPINNER: 'rgb(0,255,255)',
+  claudeBlueShimmer_FOR_SYSTEM_SPINNER: 'rgb(120,255,255)',
+  permission: 'rgb(255,255,0)',
+  permissionShimmer: 'rgb(255,255,140)',
+  planMode: 'rgb(255,0,153)',
+  ide: 'rgb(0,204,255)',
+  promptBorder: 'rgb(0,255,153)',
+  promptBorderShimmer: 'rgb(120,255,200)',
+  text: 'rgb(204,255,204)',
+  inverseText: 'rgb(0,0,0)',
+  inactive: 'rgb(90,160,120)',
+  inactiveShimmer: 'rgb(130,220,170)',
+  subtle: 'rgb(60,120,95)',
+  suggestion: 'rgb(0,255,255)',
+  remember: 'rgb(255,0,204)',
+  background: 'rgb(0,255,153)',
+  success: 'rgb(0,255,153)',
+  error: 'rgb(255,90,150)',
+  warning: 'rgb(255,255,0)',
+  merged: 'rgb(255,0,204)',
+  warningShimmer: 'rgb(255,255,140)',
+  diffAdded: 'rgb(0,120,70)',
+  diffRemoved: 'rgb(120,20,70)',
+  diffAddedDimmed: 'rgb(0,80,48)',
+  diffRemovedDimmed: 'rgb(80,15,50)',
+  diffAddedWord: 'rgb(0,255,153)',
+  diffRemovedWord: 'rgb(255,90,150)',
+  red_FOR_SUBAGENTS_ONLY: 'rgb(255,90,150)',
+  blue_FOR_SUBAGENTS_ONLY: 'rgb(0,180,255)',
+  green_FOR_SUBAGENTS_ONLY: 'rgb(0,255,153)',
+  yellow_FOR_SUBAGENTS_ONLY: 'rgb(255,255,0)',
+  purple_FOR_SUBAGENTS_ONLY: 'rgb(200,120,255)',
+  orange_FOR_SUBAGENTS_ONLY: 'rgb(255,170,0)',
+  pink_FOR_SUBAGENTS_ONLY: 'rgb(255,0,204)',
+  cyan_FOR_SUBAGENTS_ONLY: 'rgb(0,255,255)',
+  professionalBlue: 'rgb(0,180,255)',
+  chromeYellow: 'rgb(255,255,0)',
+  clawd_body: 'rgb(0,255,255)',
+  clawd_background: 'rgb(0,0,0)',
+  userMessageBackground: 'rgb(8, 20, 12)',
+  userMessageBackgroundHover: 'rgb(14, 30, 18)',
+  messageActionsBackground: 'rgb(20, 28, 36)',
+  selectionBg: 'rgb(0, 92, 68)',
+  bashMessageBackgroundColor: 'rgb(12, 24, 16)',
+  memoryBackgroundColor: 'rgb(10, 22, 24)',
+  rate_limit_fill: 'rgb(0,255,255)',
+  rate_limit_empty: 'rgb(0,70,70)',
+  fastMode: 'rgb(255,170,0)',
+  fastModeShimmer: 'rgb(255,210,90)',
+  briefLabelYou: 'rgb(255,255,0)',
+  briefLabelClaude: 'rgb(0,255,255)',
+  rainbow_red: 'rgb(255,90,150)',
+  rainbow_orange: 'rgb(255,170,0)',
+  rainbow_yellow: 'rgb(255,255,0)',
+  rainbow_green: 'rgb(0,255,153)',
+  rainbow_blue: 'rgb(0,180,255)',
+  rainbow_indigo: 'rgb(140,120,255)',
+  rainbow_violet: 'rgb(255,0,204)',
+  rainbow_red_shimmer: 'rgb(255,150,190)',
+  rainbow_orange_shimmer: 'rgb(255,210,100)',
+  rainbow_yellow_shimmer: 'rgb(255,255,150)',
+  rainbow_green_shimmer: 'rgb(120,255,210)',
+  rainbow_blue_shimmer: 'rgb(120,220,255)',
+  rainbow_indigo_shimmer: 'rgb(190,170,255)',
+  rainbow_violet_shimmer: 'rgb(255,120,224)',
+}
+
+function rgbString(r: number, g: number, b: number): string {
+  return `rgb(${r},${g},${b})`
+}
+
+function darken(color: Color, factor: number): string {
+  return rgbString(
+    Math.round(color[0] * factor),
+    Math.round(color[1] * factor),
+    Math.round(color[2] * factor),
+  )
+}
+
+const LOLCAT_RAINBOW: readonly Color[] = [
+  [255, 92, 133],
+  [255, 166, 76],
+  [255, 222, 89],
+  [126, 231, 135],
+  [77, 196, 255],
+  [141, 122, 255],
+  [255, 98, 219],
+] as const
+
+const LOLCAT_RAINBOW_SHIMMER: readonly Color[] = [
+  [255, 152, 183],
+  [255, 206, 126],
+  [255, 243, 136],
+  [176, 246, 176],
+  [142, 225, 255],
+  [181, 166, 255],
+  [255, 158, 235],
+] as const
+
+function rainbowAt(index: number, frameOffset = 0): Color {
+  return LOLCAT_RAINBOW[(index + frameOffset) % LOLCAT_RAINBOW.length]!
+}
+
+function rainbowShimmerAt(index: number, frameOffset = 0): Color {
+  return LOLCAT_RAINBOW_SHIMMER[
+    (index + frameOffset) % LOLCAT_RAINBOW_SHIMMER.length
+  ]!
+}
+
+function buildLolcatTheme(frameOffset = 0): Theme {
+  const surface = darken([13, 14, 24], 1)
+  const surfaceHover = darken([21, 24, 40], 1)
+  const bubble = darken(rainbowAt(3, frameOffset), 0.28)
+  const bubbleAlt = darken(rainbowAt(5, frameOffset), 0.26)
+
+  return {
+    ...darkTheme,
+    autoAccept: rgbString(...rainbowAt(0, frameOffset)),
+    bashBorder: rgbString(...rainbowAt(1, frameOffset)),
+    claude: rgbString(...rainbowAt(2, frameOffset)),
+    claudeShimmer: rgbString(...rainbowShimmerAt(2, frameOffset)),
+    claudeBlue_FOR_SYSTEM_SPINNER: rgbString(...rainbowAt(4, frameOffset)),
+    claudeBlueShimmer_FOR_SYSTEM_SPINNER: rgbString(
+      ...rainbowShimmerAt(4, frameOffset),
+    ),
+    permission: rgbString(...rainbowAt(5, frameOffset)),
+    permissionShimmer: rgbString(...rainbowShimmerAt(5, frameOffset)),
+    planMode: rgbString(...rainbowAt(6, frameOffset)),
+    ide: rgbString(...rainbowAt(4, frameOffset)),
+    promptBorder: rgbString(...rainbowAt(3, frameOffset)),
+    promptBorderShimmer: rgbString(...rainbowShimmerAt(3, frameOffset)),
+    text: 'rgb(255,255,255)',
+    inverseText: 'rgb(12,12,18)',
+    inactive: 'rgb(172,172,188)',
+    inactiveShimmer: 'rgb(215,215,232)',
+    subtle: 'rgb(115,118,146)',
+    suggestion: rgbString(...rainbowAt(4, frameOffset)),
+    remember: rgbString(...rainbowAt(6, frameOffset)),
+    background: rgbString(...rainbowAt(3, frameOffset)),
+    success: rgbString(...rainbowAt(3, frameOffset)),
+    error: rgbString(...rainbowAt(0, frameOffset)),
+    warning: rgbString(...rainbowAt(1, frameOffset)),
+    merged: rgbString(...rainbowAt(6, frameOffset)),
+    warningShimmer: rgbString(...rainbowShimmerAt(1, frameOffset)),
+    diffAdded: darken(rainbowAt(3, frameOffset), 0.42),
+    diffRemoved: darken(rainbowAt(0, frameOffset), 0.42),
+    diffAddedDimmed: darken(rainbowAt(3, frameOffset), 0.26),
+    diffRemovedDimmed: darken(rainbowAt(0, frameOffset), 0.26),
+    diffAddedWord: rgbString(...rainbowAt(3, frameOffset)),
+    diffRemovedWord: rgbString(...rainbowAt(0, frameOffset)),
+    red_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(0, frameOffset)),
+    blue_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(4, frameOffset)),
+    green_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(3, frameOffset)),
+    yellow_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(2, frameOffset)),
+    purple_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(5, frameOffset)),
+    orange_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(1, frameOffset)),
+    pink_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(6, frameOffset)),
+    cyan_FOR_SUBAGENTS_ONLY: rgbString(...rainbowAt(4, frameOffset)),
+    professionalBlue: rgbString(...rainbowAt(4, frameOffset)),
+    chromeYellow: rgbString(...rainbowAt(2, frameOffset)),
+    clawd_body: rgbString(...rainbowAt(6, frameOffset)),
+    clawd_background: 'rgb(8,8,12)',
+    userMessageBackground: surface,
+    userMessageBackgroundHover: surfaceHover,
+    messageActionsBackground: bubbleAlt,
+    selectionBg: bubble,
+    bashMessageBackgroundColor: bubbleAlt,
+    memoryBackgroundColor: bubble,
+    rate_limit_fill: rgbString(...rainbowAt(2, frameOffset)),
+    rate_limit_empty: darken(rainbowAt(2, frameOffset), 0.25),
+    fastMode: rgbString(...rainbowAt(1, frameOffset)),
+    fastModeShimmer: rgbString(...rainbowShimmerAt(1, frameOffset)),
+    briefLabelYou: rgbString(...rainbowAt(4, frameOffset)),
+    briefLabelClaude: rgbString(...rainbowAt(6, frameOffset)),
+    rainbow_red: rgbString(...rainbowAt(0, frameOffset)),
+    rainbow_orange: rgbString(...rainbowAt(1, frameOffset)),
+    rainbow_yellow: rgbString(...rainbowAt(2, frameOffset)),
+    rainbow_green: rgbString(...rainbowAt(3, frameOffset)),
+    rainbow_blue: rgbString(...rainbowAt(4, frameOffset)),
+    rainbow_indigo: rgbString(...rainbowAt(5, frameOffset)),
+    rainbow_violet: rgbString(...rainbowAt(6, frameOffset)),
+    rainbow_red_shimmer: rgbString(...rainbowShimmerAt(0, frameOffset)),
+    rainbow_orange_shimmer: rgbString(...rainbowShimmerAt(1, frameOffset)),
+    rainbow_yellow_shimmer: rgbString(...rainbowShimmerAt(2, frameOffset)),
+    rainbow_green_shimmer: rgbString(...rainbowShimmerAt(3, frameOffset)),
+    rainbow_blue_shimmer: rgbString(...rainbowShimmerAt(4, frameOffset)),
+    rainbow_indigo_shimmer: rgbString(...rainbowShimmerAt(5, frameOffset)),
+    rainbow_violet_shimmer: rgbString(...rainbowShimmerAt(6, frameOffset)),
+  }
 }
 
 /**
@@ -599,6 +803,10 @@ export function getTheme(themeName: ThemeName): Theme {
   switch (themeName) {
     case 'light':
       return lightTheme
+    case 'lolcat':
+      return buildLolcatTheme(lolcatThemeMode === 'animated' ? lolcatAnimationFrame : 0)
+    case 'neonbbs':
+      return neonBbsTheme
     case 'light-ansi':
       return lightAnsiTheme
     case 'dark-ansi':
@@ -610,6 +818,14 @@ export function getTheme(themeName: ThemeName): Theme {
     default:
       return darkTheme
   }
+}
+
+export function setLolcatThemeMode(mode: LolcatThemeMode): void {
+  lolcatThemeMode = mode
+}
+
+export function setLolcatAnimationFrame(frame: number): void {
+  lolcatAnimationFrame = frame
 }
 
 // Create a chalk instance with 256-color level for Apple Terminal

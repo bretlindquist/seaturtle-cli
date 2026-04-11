@@ -1,0 +1,50 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+repo_root="${0:A:h:h}"
+target_branch=""
+default_bun_bin="${HOME}/.bun/bin"
+
+usage() {
+  cat <<'EOF'
+Usage: buildct [-dev]
+
+Options:
+  -dev, --dev   Check out the dev-type branch before rebuilding CT
+  -h, --help    Show this help
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -dev|--dev)
+      target_branch="dev-type"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+cd "$repo_root"
+
+if [[ -d "$default_bun_bin" && ":$PATH:" != *":$default_bun_bin:"* ]]; then
+  export PATH="$default_bun_bin:$PATH"
+fi
+
+if [[ -n "$target_branch" ]]; then
+  current_branch="$(git branch --show-current 2>/dev/null || true)"
+  if [[ "$current_branch" != "$target_branch" ]]; then
+    echo "Switching to $target_branch..." >&2
+    git checkout "$target_branch" >&2
+  fi
+fi
+
+exec ./scripts/install-local-cli.sh --build

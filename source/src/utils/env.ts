@@ -6,23 +6,38 @@ import { isRunningWithBun } from './bundledMode.js'
 import { getClaudeConfigHomeDir, isEnvTruthy } from './envUtils.js'
 import { findExecutable } from './findExecutable.js'
 import { getFsImplementation } from './fsOperations.js'
+import { resolveSeaTurtleGlobalConfigFilePath } from './configHome.js'
+import { getDisplayPath } from './file.js'
 import { which } from './which.js'
 
 type Platform = 'win32' | 'darwin' | 'linux'
 
 // Config and data paths
 export const getGlobalClaudeFile = memoize((): string => {
-  // Legacy fallback for backwards compatibility
-  if (
-    getFsImplementation().existsSync(
-      join(getClaudeConfigHomeDir(), '.config.json'),
-    )
-  ) {
-    return join(getClaudeConfigHomeDir(), '.config.json')
-  }
+  const configHomeDir = getClaudeConfigHomeDir()
+  const oauthFileSuffix = fileSuffixForOauthConfig()
+  const fs = getFsImplementation()
+  return resolveSeaTurtleGlobalConfigFilePath({
+    configHomeDir,
+    homeDir: homedir(),
+    oauthFileSuffix,
+    preferredConfigHomeFileExists: fs.existsSync(
+      join(configHomeDir, `config${oauthFileSuffix}.json`),
+    ),
+    legacyConfigHomeHiddenFileExists: fs.existsSync(
+      join(configHomeDir, '.config.json'),
+    ),
+    legacyConfigHomeClaudeFileExists: fs.existsSync(
+      join(configHomeDir, `.claude${oauthFileSuffix}.json`),
+    ),
+    legacyHomeClaudeFileExists: fs.existsSync(
+      join(homedir(), `.claude${oauthFileSuffix}.json`),
+    ),
+  })
+})
 
-  const filename = `.claude${fileSuffixForOauthConfig()}.json`
-  return join(process.env.CLAUDE_CONFIG_DIR || homedir(), filename)
+export const getGlobalClaudeFileDisplayPath = memoize((): string => {
+  return getDisplayPath(getGlobalClaudeFile())
 })
 
 const hasInternetAccess = memoize(async (): Promise<boolean> => {

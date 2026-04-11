@@ -1,11 +1,14 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import addDir from './commands/add-dir/index.js'
+import agency from './commands/agency/index.js'
 import autofixPr from './commands/autofix-pr/index.js'
 import backfillSessions from './commands/backfill-sessions/index.js'
 import btw from './commands/btw/index.js'
+import caveman from './commands/caveman/index.js'
 import goodClaude from './commands/good-claude/index.js'
 import issue from './commands/issue/index.js'
 import feedback from './commands/feedback/index.js'
+import game from './commands/game/index.js'
 import clear from './commands/clear/index.js'
 import color from './commands/color/index.js'
 import commit from './commands/commit.js'
@@ -16,16 +19,21 @@ import compact from './commands/compact/index.js'
 import config from './commands/config/index.js'
 import { context, contextNonInteractive } from './commands/context/index.js'
 import cost from './commands/cost/index.js'
+import ct from './commands/ct/index.js'
 import diff from './commands/diff/index.js'
 import ctx_viz from './commands/ctx_viz/index.js'
 import doctor from './commands/doctor/index.js'
+import autowork from './commands/autowork/index.js'
 import memory from './commands/memory/index.js'
+import mode from './commands/mode/index.js'
 import help from './commands/help/index.js'
+import haiku from './commands/haiku/index.js'
 import ide from './commands/ide/index.js'
 import init from './commands/init.js'
 import initVerifiers from './commands/init-verifiers.js'
 import keybindings from './commands/keybindings/index.js'
 import login from './commands/login/index.js'
+import lolcat from './commands/lolcat/index.js'
 import logout from './commands/logout/index.js'
 import installGitHubApp from './commands/install-github-app/index.js'
 import installSlackApp from './commands/install-slack-app/index.js'
@@ -35,6 +43,8 @@ import mobile from './commands/mobile/index.js'
 import onboarding from './commands/onboarding/index.js'
 import pr_comments from './commands/pr_comments/index.js'
 import releaseNotes from './commands/release-notes/index.js'
+import remindme from './commands/remindme/index.js'
+import remindmeclear from './commands/remindmeclear/index.js'
 import rename from './commands/rename/index.js'
 import resume from './commands/resume/index.js'
 import review, { ultrareview } from './commands/review.js'
@@ -42,6 +52,7 @@ import session from './commands/session/index.js'
 import share from './commands/share/index.js'
 import skills from './commands/skills/index.js'
 import status from './commands/status/index.js'
+import swim from './commands/swim/index.js'
 import tasks from './commands/tasks/index.js'
 import teleport from './commands/teleport/index.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -53,8 +64,10 @@ const agentsPlatform =
 import securityReview from './commands/security-review.js'
 import bughunter from './commands/bughunter/index.js'
 import terminalSetup from './commands/terminalSetup/index.js'
+import telegram from './commands/telegram/index.js'
 import usage from './commands/usage/index.js'
 import theme from './commands/theme/index.js'
+import mermaid from './commands/mermaid/index.js'
 import vim from './commands/vim/index.js'
 import { feature } from 'bun:bundle'
 // Dead code elimination: conditional imports
@@ -123,11 +136,13 @@ const buddy = feature('BUDDY')
 /* eslint-enable @typescript-eslint/no-require-imports */
 import thinkback from './commands/thinkback/index.js'
 import thinkbackPlay from './commands/thinkback-play/index.js'
+import todo from './commands/todo/index.js'
 import permissions from './commands/permissions/index.js'
 import plan from './commands/plan/index.js'
 import fast from './commands/fast/index.js'
 import passes from './commands/passes/index.js'
 import privacySettings from './commands/privacy-settings/index.js'
+import queue from './commands/queue/index.js'
 import hooks from './commands/hooks/index.js'
 import files from './commands/files/index.js'
 import branch from './commands/branch/index.js'
@@ -168,7 +183,10 @@ import {
 } from './utils/plugins/loadPluginCommands.js'
 import memoize from 'lodash-es/memoize.js'
 import { isUsing3PServices, isClaudeAISubscriber } from './utils/auth.js'
-import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
+import {
+  isFirstPartyAnthropicBaseUrl,
+  shouldUseOpenAiCodexProvider,
+} from './utils/model/providers.js'
 import env from './commands/env/index.js'
 import exit from './commands/exit/index.js'
 import exportCommand from './commands/export/index.js'
@@ -190,7 +208,7 @@ import stats from './commands/stats/index.js'
 const usageReport: Command = {
   type: 'prompt',
   name: 'insights',
-  description: 'Generate a report analyzing your Claude Code sessions',
+  description: 'Generate a report analyzing your CT sessions',
   contentLength: 0,
   progressMessage: 'analyzing your sessions',
   source: 'builtin',
@@ -257,8 +275,10 @@ export const INTERNAL_ONLY_COMMANDS = [
 // since underlying functions read from config, which can't be read at module initialization time
 const COMMANDS = memoize((): Command[] => [
   addDir,
+  agency,
   advisor,
   agents,
+  autowork,
   branch,
   btw,
   chrome,
@@ -267,6 +287,7 @@ const COMMANDS = memoize((): Command[] => [
   compact,
   config,
   copy,
+  ct,
   desktop,
   context,
   contextNonInteractive,
@@ -284,8 +305,10 @@ const COMMANDS = memoize((): Command[] => [
   keybindings,
   installGitHubApp,
   installSlackApp,
+  lolcat,
   mcp,
   memory,
+  mode,
   mobile,
   model,
   outputStyle,
@@ -293,6 +316,8 @@ const COMMANDS = memoize((): Command[] => [
   plugin,
   pr_comments,
   releaseNotes,
+  remindme,
+  remindmeclear,
   reloadPlugins,
   rename,
   resume,
@@ -302,14 +327,21 @@ const COMMANDS = memoize((): Command[] => [
   status,
   statusline,
   stickers,
+  swim,
   tag,
   theme,
+  mermaid,
   feedback,
+  game,
+  haiku,
+  caveman,
   review,
   ultrareview,
   rewind,
   securityReview,
   terminalSetup,
+  telegram,
+  todo,
   upgrade,
   extraUsage,
   extraUsageNonInteractive,
@@ -331,6 +363,7 @@ const COMMANDS = memoize((): Command[] => [
   permissions,
   plan,
   privacySettings,
+  queue,
   hooks,
   exportCommand,
   sandboxToggle,
@@ -431,6 +464,9 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
           isFirstPartyAnthropicBaseUrl()
         )
           return true
+        break
+      case 'openai-codex':
+        if (shouldUseOpenAiCodexProvider()) return true
         break
       default: {
         const _exhaustive: never = a
@@ -634,6 +670,7 @@ export const REMOTE_SAFE_COMMANDS: Set<Command> = new Set([
   statusline, // Status line toggle
   stickers, // Stickers
   mobile, // Mobile QR code
+  mode, // Input lane picker
 ])
 
 /**

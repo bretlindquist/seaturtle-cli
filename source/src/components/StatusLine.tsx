@@ -4,7 +4,7 @@ import { memo, useCallback, useEffect, useRef } from 'react';
 import { logEvent } from 'src/services/analytics/index.js';
 import { useAppState, useSetAppState } from 'src/state/AppState.js';
 import type { PermissionMode } from 'src/utils/permissions/PermissionMode.js';
-import { getIsRemoteMode, getKairosActive, getMainThreadAgentType, getOriginalCwd, getSdkBetas, getSessionId } from '../bootstrap/state.js';
+import { getCavemanMode, getIsRemoteMode, getKairosActive, getMainThreadAgentType, getOriginalCwd, getSdkBetas, getSessionId } from '../bootstrap/state.js';
 import { DEFAULT_OUTPUT_STYLE_NAME } from '../constants/outputStyles.js';
 import { useNotifications } from '../context/notifications.js';
 import { getTotalAPIDuration, getTotalCost, getTotalDuration, getTotalInputTokens, getTotalLinesAdded, getTotalLinesRemoved, getTotalOutputTokens } from '../cost-tracker.js';
@@ -305,12 +305,15 @@ function StatusLineInner({
 
   // Get padding from settings or default to 0
   const paddingX = settings?.statusLine?.padding ?? 0;
+  const cavemanMode = getCavemanMode();
+  const cavemanLabel = cavemanMode === 'off' ? null : cavemanMode === 'full' ? '[CAVEMAN]' : `[CAVEMAN:${cavemanMode.toUpperCase()}]`;
 
   // StatusLine must have stable height in fullscreen — the footer is
   // flexShrink:0 so a 0→1 row change when the command finishes steals
   // a row from ScrollBox and shifts content. Reserve the row while loading
   // (same trick as PromptInputFooterLeftSide).
   return <Box paddingX={paddingX} gap={2}>
+      {cavemanLabel ? <Text color="warning">{cavemanLabel}</Text> : null}
       {statusLineText ? <Text dimColor wrap="truncate">
           <Ansi>{statusLineText}</Ansi>
         </Text> : isFullscreenEnvEnabled() ? <Text> </Text> : null}

@@ -12,7 +12,7 @@ import { normalizeApiKeyForConfig } from '../../utils/authPortable.js';
 import { getGlobalConfig, getAutoUpdaterDisabledReason, formatAutoUpdaterDisabledReason, getRemoteControlAtStartup } from '../../utils/config.js';
 import chalk from 'chalk';
 import { permissionModeTitle, permissionModeFromString, toExternalPermissionMode, isExternalPermissionMode, EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type ExternalPermissionMode, type PermissionMode } from '../../utils/permissions/PermissionMode.js';
-import { getAutoModeEnabledState, hasAutoModeOptInAnySource, transitionPlanAutoMode } from '../../utils/permissions/permissionSetup.js';
+import { getAutoModeEnabledState, hasAutoModeOptInAnySource, isBypassPermissionsModeDisabled, transitionPlanAutoMode } from '../../utils/permissions/permissionSetup.js';
 import { logError } from '../../utils/log.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { isBridgeEnabled } from '../../bridge/bridgeEnabled.js';
@@ -48,6 +48,7 @@ import { useSearchInput } from '../../hooks/useSearchInput.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { clearFastModeCooldown, FAST_MODE_MODEL_DISPLAY, isFastModeAvailable, isFastModeEnabled, getFastModeModel, isFastModeSupportedByModel } from '../../utils/fastMode.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
+import { getConfigHelpText } from './configHelpText.js';
 type Props = {
   onClose: (result?: string, options?: {
     display?: CommandResultDisplay;
@@ -60,10 +61,12 @@ type Props = {
 type SettingBase = {
   id: string;
   label: string;
+  helpText?: string;
 } | {
   id: string;
   label: React.ReactNode;
   searchText: string;
+  helpText?: string;
 };
 type Setting = (SettingBase & {
   value: boolean;
@@ -82,6 +85,7 @@ type Setting = (SettingBase & {
   type: 'managedEnum';
 });
 type SubMenu = 'Theme' | 'Model' | 'TeammateModel' | 'ExternalIncludes' | 'OutputStyle' | 'ChannelDowngrade' | 'Language' | 'EnableAutoUpdates';
+
 export function Config({
   onClose,
   context,
@@ -175,6 +179,7 @@ export function Config({
   const isDirty = React.useRef(false);
   const [showThinkingWarning, setShowThinkingWarning] = useState(false);
   const [showSubmenu, setShowSubmenu] = useState<SubMenu | null>(null);
+  const isBypassModeAvailable = !isBypassPermissionsModeDisabled() && !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE);
   const {
     query: searchQuery,
     setQuery: setSearchQuery,
@@ -498,7 +503,10 @@ export function Config({
     options: (() => {
       const priorityOrder: PermissionMode[] = ['default', 'plan'];
       const allModes: readonly PermissionMode[] = feature('TRANSCRIPT_CLASSIFIER') ? PERMISSION_MODES : EXTERNAL_PERMISSION_MODES;
-      const excluded: PermissionMode[] = ['bypassPermissions'];
+      const excluded: PermissionMode[] = [];
+      if (!isBypassModeAvailable) {
+        excluded.push('bypassPermissions');
+      }
       if (feature('TRANSCRIPT_CLASSIFIER') && !showAutoInDefaultModePicker) {
         excluded.push('auto');
       }
@@ -591,22 +599,26 @@ export function Config({
       });
     }
   }, {
-    id: 'copyFullResponse',
-    label: 'Always copy full response (skip /copy picker)',
-    value: globalConfig.copyFullResponse,
-    type: 'boolean' as const,
-    onChange(copyFullResponse: boolean) {
+    id: 'copyCommandBehavior',
+    label: 'Copy menu default',
+    value: globalConfig.copyCommandBehavior ?? (globalConfig.copyFullResponse ? 'copyLatestResponse' : 'showMenu'),
+    options: ['showMenu', 'copyLatestResponse'],
+    type: 'enum' as const,
+    onChange(copyCommandBehavior: string) {
+      const nextBehavior = copyCommandBehavior === 'copyLatestResponse' ? 'copyLatestResponse' : 'showMenu';
       saveGlobalConfig(current_7 => ({
         ...current_7,
-        copyFullResponse
+        copyCommandBehavior: nextBehavior,
+        copyFullResponse: nextBehavior === 'copyLatestResponse'
       }));
       setGlobalConfig({
         ...getGlobalConfig(),
-        copyFullResponse
+        copyCommandBehavior: nextBehavior,
+        copyFullResponse: nextBehavior === 'copyLatestResponse'
       });
       logEvent('tengu_config_changed', {
-        setting: 'copyFullResponse' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
-        value: String(copyFullResponse) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+        setting: 'copyCommandBehavior' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: nextBehavior as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
     }
   },
@@ -975,7 +987,7 @@ export function Config({
     }
   }] : []), ...(shouldShowExternalIncludesToggle ? [{
     id: 'showExternalIncludesDialog',
-    label: 'External CLAUDE.md includes',
+    label: 'External SEATURTLE.md includes',
     value: (() => {
       const projectConfig = getCurrentProjectConfig();
       if (projectConfig.hasClaudeMdExternalIncludesApproved) {
@@ -1142,8 +1154,10 @@ export function Config({
     if (globalConfig.respectGitignore !== initialConfig.current.respectGitignore) {
       formattedChanges.push(`${globalConfig.respectGitignore ? 'Enabled' : 'Disabled'} respect .gitignore in file picker`);
     }
-    if (globalConfig.copyFullResponse !== initialConfig.current.copyFullResponse) {
-      formattedChanges.push(`${globalConfig.copyFullResponse ? 'Enabled' : 'Disabled'} always copy full response`);
+    const currentCopyBehavior = globalConfig.copyCommandBehavior ?? (globalConfig.copyFullResponse ? 'copyLatestResponse' : 'showMenu');
+    const initialCopyBehavior = initialConfig.current.copyCommandBehavior ?? (initialConfig.current.copyFullResponse ? 'copyLatestResponse' : 'showMenu');
+    if (currentCopyBehavior !== initialCopyBehavior) {
+      formattedChanges.push(`Copy menu default: ${currentCopyBehavior === 'copyLatestResponse' ? 'copy latest response' : 'show menu'}`);
     }
     if (globalConfig.copyOnSelect !== initialConfig.current.copyOnSelect) {
       formattedChanges.push(`${globalConfig.copyOnSelect ? 'Enabled' : 'Disabled'} copy on select`);
@@ -1671,7 +1685,7 @@ export function Config({
                               {setting_2.label}
                             </Text>
                           </Box>
-                          <Box key={isSelected ? 'selected' : 'unselected'}>
+                          <Box width={22} key={isSelected ? 'selected' : 'unselected'}>
                             {setting_2.type === 'boolean' ? <>
                                 <Text color={isSelected ? 'suggestion' : undefined}>
                                   {setting_2.value.toString()}
@@ -1688,6 +1702,8 @@ export function Config({
                                 <NotifChannelLabel value={setting_2.value.toString()} />
                               </Text> : setting_2.id === 'defaultPermissionMode' ? <Text color={isSelected ? 'suggestion' : undefined}>
                                 {permissionModeTitle(setting_2.value as PermissionMode)}
+                              </Text> : setting_2.id === 'copyCommandBehavior' ? <Text color={isSelected ? 'suggestion' : undefined}>
+                                {setting_2.value === 'copyLatestResponse' ? 'Always copy latest response' : 'Show menu'}
                               </Text> : setting_2.id === 'autoUpdatesChannel' && autoUpdaterDisabledReason ? <Box flexDirection="column">
                                 <Text color={isSelected ? 'suggestion' : undefined}>
                                   disabled
@@ -1700,6 +1716,11 @@ export function Config({
                               </Box> : <Text color={isSelected ? 'suggestion' : undefined}>
                                 {setting_2.value.toString()}
                               </Text>}
+                          </Box>
+                          <Box flexGrow={1} paddingLeft={2}>
+                            <Text color={isSelected ? 'warning' : undefined} dimColor wrap="wrap">
+                              {getConfigHelpText(setting_2)}
+                            </Text>
                           </Box>
                         </Box>
                       </React.Fragment>;
@@ -1744,6 +1765,7 @@ function teammateModelDisplayString(value: string | null | undefined): string {
 }
 const THEME_LABELS: Record<string, string> = {
   auto: 'Auto (match terminal)',
+  neonbbs: 'Neon BBS',
   dark: 'Dark mode',
   light: 'Light mode',
   'dark-daltonized': 'Dark mode (colorblind-friendly)',

@@ -1,0 +1,139 @@
+import {
+  SWORDS_OF_CHAOS_THREAD_PRESENTATION,
+  SWORDS_OF_CHAOS_WORLD_MAP,
+} from '../data/worldMap.js'
+import type { SwordsOfChaosRelevantMemory } from '../types/memory.js'
+import type { SwordsOfChaosEncounterLocus } from '../types/worldMap.js'
+
+export function getSwordsEncounterLocus(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): SwordsOfChaosEncounterLocus {
+  return relevantMemory?.encounterShift ?? 'alley'
+}
+
+export function getSwordsEncounterMemoryKey(
+  locus: SwordsOfChaosEncounterLocus,
+): string {
+  switch (locus) {
+    case 'post-apocalyptic-ruin':
+      return 'ashfall-post-apocalyptic-ruin'
+    case 'mars-outpost':
+      return 'red-dust-mars-outpost'
+    case 'old-tree':
+      return 'old-tree-bramble-latch'
+    case 'ocean-ship':
+      return 'black-deck-ocean-ship'
+    case 'space-station':
+      return 'failing-ring-space-station'
+    case 'fae-realm':
+      return 'foxfire-fae-grove'
+    case 'dark-dungeon':
+      return 'seductive-dark-dungeon'
+    default:
+      return 'trench-coat-turtle-alley'
+  }
+}
+
+export function getSwordsEncounterLocusFromMemoryKey(
+  key: string,
+): SwordsOfChaosEncounterLocus | null {
+  switch (key) {
+    case 'ashfall-post-apocalyptic-ruin':
+      return 'post-apocalyptic-ruin'
+    case 'red-dust-mars-outpost':
+      return 'mars-outpost'
+    case 'old-tree-bramble-latch':
+      return 'old-tree'
+    case 'black-deck-ocean-ship':
+      return 'ocean-ship'
+    case 'failing-ring-space-station':
+      return 'space-station'
+    case 'foxfire-fae-grove':
+      return 'fae-realm'
+    case 'seductive-dark-dungeon':
+      return 'dark-dungeon'
+    case 'trench-coat-turtle-alley':
+      return 'alley'
+    default:
+      return null
+  }
+}
+
+export function isSwordsEncounterMemoryKey(thread: string): boolean {
+  return (
+    thread === 'trench-coat-turtle-alley' ||
+    thread === 'ashfall-post-apocalyptic-ruin' ||
+    thread === 'red-dust-mars-outpost' ||
+    thread === 'old-tree-bramble-latch' ||
+    thread === 'black-deck-ocean-ship' ||
+    thread === 'failing-ring-space-station' ||
+    thread === 'foxfire-fae-grove' ||
+    thread === 'seductive-dark-dungeon'
+  )
+}
+
+export function getSwordsEncounterPlaceName(
+  locus: SwordsOfChaosEncounterLocus,
+): string {
+  switch (locus) {
+    case 'post-apocalyptic-ruin':
+      return 'the ruin'
+    case 'mars-outpost':
+      return 'the Mars outpost'
+    case 'old-tree':
+      return 'the old tree'
+    case 'ocean-ship':
+      return 'the ship'
+    case 'space-station':
+      return 'the station'
+    case 'fae-realm':
+      return 'the grove'
+    case 'dark-dungeon':
+      return 'the dungeon'
+    default:
+      return 'the alley'
+  }
+}
+
+export function getSwordsRecurringSymbol(
+  locus: SwordsOfChaosEncounterLocus,
+): string | undefined {
+  return SWORDS_OF_CHAOS_WORLD_MAP[locus].recurringSymbol
+}
+
+export function getSwordsWorldMapWeight(
+  locus: SwordsOfChaosEncounterLocus,
+): string {
+  return SWORDS_OF_CHAOS_WORLD_MAP[locus].connectiveWeight
+}
+
+export function getSwordsThreadEcho(input: {
+  locus: SwordsOfChaosEncounterLocus
+  thread: string | undefined
+}): string | undefined {
+  if (!input.thread) {
+    return undefined
+  }
+
+  return SWORDS_OF_CHAOS_WORLD_MAP[input.locus].threadEchoes[input.thread]
+}
+
+export function getSwordsThreadTitle(
+  thread: string | undefined,
+): string | undefined {
+  if (!thread) {
+    return undefined
+  }
+
+  return SWORDS_OF_CHAOS_THREAD_PRESENTATION[thread]?.title
+}
+
+export function getSwordsThreadPressureText(
+  thread: string | undefined,
+): string | undefined {
+  if (!thread) {
+    return undefined
+  }
+
+  return SWORDS_OF_CHAOS_THREAD_PRESENTATION[thread]?.pressure
+}

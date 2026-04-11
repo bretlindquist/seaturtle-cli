@@ -1,4 +1,5 @@
 import { toJSONSchema } from 'zod/v4'
+import { getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js'
 import { SettingsSchema } from '../../utils/settings/types.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { registerBundledSkill } from '../bundledSkills.js'
@@ -12,13 +13,16 @@ function generateSettingsSchema(): string {
   return jsonStringify(jsonSchema, null, 2)
 }
 
+const USER_SETTINGS_PATH = getSeaTurtleConfigPathDisplay('settings.json')
+const USER_BASH_LOG_PATH = getSeaTurtleConfigPathDisplay('bash-log.txt')
+
 const SETTINGS_EXAMPLES_DOCS = `## Settings File Locations
 
 Choose the appropriate file based on scope:
 
 | File | Scope | Git | Use For |
 |------|-------|-----|---------|
-| \`~/.claude/settings.json\` | Global | N/A | Personal preferences for all projects |
+| \`${USER_SETTINGS_PATH}\` | Global | N/A | Personal preferences for all projects |
 | \`.claude/settings.json\` | Project | Commit | Team-wide hooks, permissions, plugins |
 | \`.claude/settings.local.json\` | Project | Gitignore | Personal overrides for this project |
 
@@ -109,7 +113,7 @@ Plugin syntax: \`plugin-name@source\` where source is \`claude-code-marketplace\
 
 const HOOKS_DOCS = `## Hooks Configuration
 
-Hooks run commands at specific points in Claude Code's lifecycle.
+Hooks run commands at specific points in CT's lifecycle.
 
 ### Hook Structure
 \`\`\`json
@@ -235,7 +239,7 @@ Hooks can return JSON to control behavior:
       "matcher": "Bash",
       "hooks": [{
         "type": "command",
-        "command": "jq -r '.tool_input.command' >> ~/.claude/bash-log.txt"
+        "command": "jq -r '.tool_input.command' >> ${USER_BASH_LOG_PATH}"
       }]
     }]
   }
@@ -306,7 +310,7 @@ Given an event, matcher, target file, and desired behavior, follow this flow. Ea
 
 const UPDATE_CONFIG_PROMPT = `# Update Config Skill
 
-Modify Claude Code configuration by updating settings.json files.
+Modify CT configuration by updating settings.json files.
 
 ## When Hooks Are Required (Not Memory)
 
@@ -434,7 +438,7 @@ User: "Set DEBUG=true"
 ## Troubleshooting Hooks
 
 If a hook isn't running:
-1. **Check the settings file** - Read ~/.claude/settings.json or .claude/settings.json
+1. **Check the settings file** - Read ${USER_SETTINGS_PATH} or .claude/settings.json
 2. **Verify JSON syntax** - Invalid JSON silently fails
 3. **Check the matcher** - Does it match the tool name? (e.g., "Bash", "Write", "Edit")
 4. **Check hook type** - Is it "command", "prompt", or "agent"?
@@ -446,7 +450,7 @@ export function registerUpdateConfigSkill(): void {
   registerBundledSkill({
     name: 'update-config',
     description:
-      'Use this skill to configure the Claude Code harness via settings.json. Automated behaviors ("from now on when X", "each time X", "whenever X", "before/after X") require hooks configured in settings.json - the harness executes these, not Claude, so memory/preferences cannot fulfill them. Also use for: permissions ("allow X", "add permission", "move permission to"), env vars ("set X=Y"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: "allow npm commands", "add bq permission to global settings", "move permission to user settings", "set DEBUG=true", "when claude stops show X". For simple settings like theme/model, use Config tool.',
+      'Use this skill to configure the CT harness via settings.json. Automated behaviors ("from now on when X", "each time X", "whenever X", "before/after X") require hooks configured in settings.json - the harness executes these, not CT, so memory/preferences cannot fulfill them. Also use for: permissions ("allow X", "add permission", "move permission to"), env vars ("set X=Y"), hook troubleshooting, or any changes to settings.json/settings.local.json files. Examples: "allow npm commands", "add bq permission to global settings", "move permission to user settings", "set DEBUG=true", "when CT stops show X". For simple settings like theme/model, use Config tool.',
     allowedTools: ['Read'],
     userInvocable: true,
     async getPromptForCommand(args) {

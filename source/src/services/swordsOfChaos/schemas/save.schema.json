@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "seaturtle/swords-of-chaos/save.schema.json",
+  "title": "SwordsOfChaosSaveFile",
+  "type": "object",
+  "required": [
+    "version",
+    "player",
+    "character",
+    "characterDevelopment",
+    "sessionZero",
+    "inventory",
+    "conditions",
+    "progression",
+    "worldFlags",
+    "discoveredSeeds",
+    "callbackMarkers",
+    "unresolvedBranches",
+    "threadCandidates",
+    "threadMemory",
+    "encounterMemory",
+    "story",
+    "magic",
+    "seaturtle",
+    "runHistorySummary"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "player": {
+      "type": "object",
+      "required": ["level", "hp", "maxHp", "stats"],
+      "properties": {
+        "level": { "type": "number" },
+        "hp": { "type": "number" },
+        "maxHp": { "type": "number" },
+        "stats": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "character": {
+      "type": "object",
+      "required": ["name", "creationMode", "archetype", "className", "species", "origin", "strength", "flaw", "keepsake", "drive", "omen"],
+      "properties": {
+        "name": { "type": ["string", "null"] },
+        "creationMode": { "type": ["string", "null"] },
+        "archetype": { "type": ["string", "null"] },
+        "className": { "type": ["string", "null"] },
+        "species": { "type": ["string", "null"] },
+        "origin": { "type": ["string", "null"] },
+        "strength": { "type": ["string", "null"] },
+        "flaw": { "type": ["string", "null"] },
+        "keepsake": { "type": ["string", "null"] },
+        "drive": { "type": ["string", "null"] },
+        "omen": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "characterDevelopment": {
+      "type": "object",
+      "required": ["focus", "title", "lesson", "pressure", "stage", "lastUpdatedAt"],
+      "properties": {
+        "focus": { "type": ["string", "null"] },
+        "title": { "type": ["string", "null"] },
+        "lesson": { "type": ["string", "null"] },
+        "pressure": { "type": ["string", "null"] },
+        "stage": { "type": "number" },
+        "lastUpdatedAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "sessionZero": {
+      "type": "object",
+      "required": ["completed", "originPlace", "firstContact", "completedAt"],
+      "properties": {
+        "completed": { "type": "boolean" },
+        "originPlace": { "type": ["string", "null"] },
+        "firstContact": { "type": ["string", "null"] },
+        "completedAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "inventory": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "conditions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "progression": {
+      "type": "object",
+      "required": ["titles", "milestones", "xp"],
+      "properties": {
+        "titles": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "milestones": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "xp": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "worldFlags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "discoveredSeeds": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "callbackMarkers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "unresolvedBranches": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "threadCandidates": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "threadMemory": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["sightings", "canonized", "lastSeenAt"],
+        "properties": {
+          "sightings": { "type": "number" },
+          "canonized": { "type": "boolean" },
+          "lastSeenAt": {
+            "type": ["number", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "encounterMemory": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["visits", "seenOpeners", "seenRoutes", "lastRoute"],
+        "properties": {
+          "visits": { "type": "number" },
+          "seenOpeners": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "seenRoutes": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "lastRoute": {
+            "type": ["string", "null"]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "story": {
+      "type": "object",
+      "required": ["activeLocus", "activeThread", "chapter", "chapterTitle", "tension", "currentObjective", "carryForward", "continuation", "sceneState", "lastOutcomeKey", "lastAdvancedAt"],
+      "properties": {
+        "activeLocus": { "type": ["string", "null"] },
+        "activeThread": { "type": ["string", "null"] },
+        "chapter": { "type": "number" },
+        "chapterTitle": { "type": ["string", "null"] },
+        "tension": { "type": "string" },
+        "currentObjective": { "type": ["string", "null"] },
+        "carryForward": { "type": ["string", "null"] },
+        "continuation": {
+          "type": ["object", "null"],
+          "properties": {
+            "kind": { "type": "string" },
+            "summary": { "type": "string" },
+            "nextPressure": { "type": "string" },
+            "pacing": { "type": "string" }
+          },
+          "required": ["kind", "summary", "nextPressure", "pacing"],
+          "additionalProperties": false
+        },
+        "sceneState": {
+          "type": ["object", "null"],
+          "properties": {
+            "kind": { "type": "string" },
+            "status": { "type": "string" },
+            "commitment": { "type": "string" },
+            "hazard": { "type": "string" },
+            "pendingReveal": { "type": "string" },
+            "beatsElapsed": { "type": "number" },
+            "lastProgressedAt": { "type": ["number", "null"] }
+          },
+          "required": ["kind", "status", "commitment", "hazard", "pendingReveal", "beatsElapsed", "lastProgressedAt"],
+          "additionalProperties": false
+        },
+        "lastOutcomeKey": { "type": ["string", "null"] },
+        "lastAdvancedAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "magic": {
+      "type": "object",
+      "required": ["rarityBudget", "omensSeen", "crossingsOpened", "activeImpossible", "lastOmen", "lastManifestationAt"],
+      "properties": {
+        "rarityBudget": { "type": "number" },
+        "omensSeen": { "type": "number" },
+        "crossingsOpened": { "type": "number" },
+        "activeImpossible": { "type": "string" },
+        "lastOmen": { "type": ["string", "null"] },
+        "lastManifestationAt": { "type": ["number", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "seaturtle": {
+      "type": "object",
+      "required": ["bond", "favor", "appearances", "lastAppearanceAt"],
+      "properties": {
+        "bond": { "type": "number" },
+        "favor": { "type": "number" },
+        "appearances": { "type": "number" },
+        "lastAppearanceAt": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "runHistorySummary": {
+      "type": "object",
+      "required": ["runsStarted", "runsFinished", "lastPlayedAt"],
+      "properties": {
+        "runsStarted": { "type": "number" },
+        "runsFinished": { "type": "number" },
+        "lastPlayedAt": {
+          "type": ["number", "null"]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

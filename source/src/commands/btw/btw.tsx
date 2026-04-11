@@ -229,7 +229,7 @@ async function buildCacheSafeParams(context: ProcessUserInputContext): Promise<C
 export async function call(onDone: LocalJSXCommandOnDone, context: ProcessUserInputContext, args: string): Promise<React.ReactNode> {
   const question = args?.trim();
   if (!question) {
-    onDone('Usage: /btw <your question>', {
+    onDone('Usage: /btw <your question>\n\nUse /btw for a side question. Use ordinary mid-turn input to steer the current task, or let SeaTurtle quietly park unrelated ideas for later.', {
       display: 'system'
     });
     return null;

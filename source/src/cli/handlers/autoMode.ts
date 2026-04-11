@@ -8,13 +8,15 @@ import {
   getMainLoopModel,
   parseUserSpecifiedModel,
 } from '../../utils/model/model.js'
+import { queryTextViaProviderRuntime } from '../../services/api/providerHelpers.js'
 import {
   type AutoModeRules,
   buildDefaultExternalSystemPrompt,
   getDefaultExternalAutoModeRules,
 } from '../../utils/permissions/yoloClassifier.js'
 import { getAutoModeConfig } from '../../utils/settings/settings.js'
-import { sideQuery } from '../../utils/sideQuery.js'
+import { createUserMessage } from '../../utils/messages.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 
 function writeRules(rules: AutoModeRules): void {
@@ -112,15 +114,10 @@ export async function autoModeCritiqueHandler(options: {
 
   let response
   try {
-    response = await sideQuery({
-      querySource: 'auto_mode_critique',
-      model,
-      system: CRITIQUE_SYSTEM_PROMPT,
-      skipSystemPromptPrefix: true,
-      max_tokens: 4096,
-      messages: [
-        {
-          role: 'user',
+    response = await queryTextViaProviderRuntime({
+      systemPrompt: asSystemPrompt([CRITIQUE_SYSTEM_PROMPT]),
+      promptMessages: [
+        createUserMessage({
           content:
             'Here is the full classifier system prompt that the auto mode classifier receives:\n\n' +
             '<classifier_system_prompt>\n' +
@@ -129,8 +126,16 @@ export async function autoModeCritiqueHandler(options: {
             "Here are the user's custom rules that REPLACE the corresponding default sections:\n\n" +
             userRulesSummary +
             '\nPlease critique these custom rules.',
-        },
+        }),
       ],
+      signal: AbortSignal.timeout(60_000),
+      options: {
+        querySource: 'auto_mode_critique',
+        model,
+        isNonInteractiveSession: false,
+        hasAppendSystemPrompt: false,
+        maxOutputTokensOverride: 4096,
+      },
     })
   } catch (error) {
     process.stderr.write(
@@ -140,9 +145,8 @@ export async function autoModeCritiqueHandler(options: {
     return
   }
 
-  const textBlock = response.content.find(block => block.type === 'text')
-  if (textBlock?.type === 'text') {
-    process.stdout.write(textBlock.text + '\n')
+  if (response.text) {
+    process.stdout.write(response.text + '\n')
   } else {
     process.stdout.write('No critique was generated. Please try again.\n')
   }

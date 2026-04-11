@@ -553,6 +553,38 @@ export type Attachment =
       isMeta?: boolean
     }
   | {
+      /**
+       * Deterministic post-tool boundary record for queued steering.
+       *
+       * This is intentionally separate from low-level queue-operation logs:
+       * - queue-operation records transport (`enqueue`, `dequeue`, `remove`)
+       * - steer_checkpoint records boundary semantics
+       */
+      type: 'steer_checkpoint'
+      stepNumber: number
+      stepDescription: string
+      toolJustCompleted: string
+      queuedSteersReceived: {
+        prompt: string
+        sourceUuid?: UUID
+        midTurnIntent?: string
+      }[]
+      steerClassifications: {
+        prompt: string
+        classification:
+          | 'relevant_now'
+          | 'append_to_task'
+          | 'defer_adjacent'
+          | 'ignore'
+        reason?: string
+      }[]
+      appliedChangesToActiveTask: string[]
+      deferredItems: string[]
+      nextStep: string
+      activeTaskAnchor?: string
+      boundaryTimestamp?: string
+    }
+  | {
       type: 'output_style'
       style: string
     }

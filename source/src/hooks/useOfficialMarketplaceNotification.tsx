@@ -2,6 +2,7 @@ import * as React from 'react';
 import type { Notification } from '../context/notifications.js';
 import { Text } from '../ink.js';
 import { logForDebugging } from '../utils/debug.js';
+import { getGlobalClaudeFileDisplayPath } from '../utils/env.js';
 import { checkAndInstallOfficialMarketplace } from '../utils/plugins/officialMarketplaceStartupCheck.js';
 import { useStartupNotification } from './notifs/useStartupNotification.js';
 
@@ -14,12 +15,12 @@ export function useOfficialMarketplaceNotification() {
 }
 async function _temp() {
   const result = await checkAndInstallOfficialMarketplace();
-  const notifs = [];
+  const notifs: Notification[] = [];
   if (result.configSaveFailed) {
     logForDebugging("Showing marketplace config save failure notification");
     notifs.push({
       key: "marketplace-config-save-failed",
-      jsx: <Text color="error">Failed to save marketplace retry info · Check ~/.claude.json permissions</Text>,
+      jsx: <Text color="error">Failed to save marketplace retry info · Check {getGlobalClaudeFileDisplayPath()} permissions</Text>,
       priority: "immediate",
       timeoutMs: 10000
     });

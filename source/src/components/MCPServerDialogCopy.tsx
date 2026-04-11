@@ -1,11 +1,12 @@
 import { c as _c } from "react/compiler-runtime";
 import React from 'react';
 import { Link, Text } from '../ink.js';
+import { PRODUCT_DOCS_URL } from '../constants/product.js';
 export function MCPServerDialogCopy() {
   const $ = _c(1);
   let t0;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
-    t0 = <Text>MCP servers may execute code or access system resources. All tool calls require approval. Learn more in the{" "}<Link url="https://code.claude.com/docs/en/mcp">MCP documentation</Link>.</Text>;
+    t0 = <Text>MCP servers may execute code or access system resources. All tool calls require approval. Learn more in the{" "}<Link url={PRODUCT_DOCS_URL}>SeaTurtle docs</Link>.</Text>;
     $[0] = t0;
   } else {
     t0 = $[0];

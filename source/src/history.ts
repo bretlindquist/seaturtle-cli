@@ -15,6 +15,7 @@ import {
 } from './utils/pasteStore.js'
 import { sleep } from './utils/sleep.js'
 import { jsonParse, jsonStringify } from './utils/slowOperations.js'
+import type { EditablePromptInputMode } from './types/textInputTypes.js'
 
 const MAX_HISTORY_ITEMS = 100
 const MAX_PASTED_CONTENT_LENGTH = 1024
@@ -218,6 +219,7 @@ export async function* getHistory(): AsyncGenerator<HistoryEntry> {
 
 type LogEntry = {
   display: string
+  mode?: EditablePromptInputMode
   pastedContents: Record<number, StoredPastedContent>
   timestamp: number
   project: string
@@ -274,6 +276,7 @@ async function logEntryToHistoryEntry(entry: LogEntry): Promise<HistoryEntry> {
 
   return {
     display: entry.display,
+    mode: entry.mode,
     pastedContents,
   }
 }
@@ -396,6 +399,7 @@ async function addToPromptHistory(
 
   const logEntry: LogEntry = {
     ...entry,
+    mode: entry.mode as EditablePromptInputMode | undefined,
     pastedContents: storedPastedContents,
     timestamp: Date.now(),
     project: getProjectRoot(),

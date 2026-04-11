@@ -107,7 +107,7 @@ export function useArrowKeyHistory(onSetInput: (value: string, mode: HistoryMode
   }, [onSetInput, setCursorOffset]);
   const updateInput = useCallback((input: HistoryEntry | undefined, cursorToStart_0 = false): void => {
     if (!input || !input.display) return;
-    const mode_0 = getModeFromInput(input.display);
+    const mode_0 = (input.mode as HistoryMode | undefined) ?? getModeFromInput(input.display);
     const value_0 = mode_0 === 'bash' ? input.display.slice(1) : input.display;
     setInputWithCursor(value_0, mode_0, input.pastedContents ?? {}, cursorToStart_0);
   }, [setInputWithCursor]);

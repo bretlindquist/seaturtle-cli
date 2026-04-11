@@ -7,6 +7,7 @@ import {
 import { getCwd } from './utils/cwd.js'
 import { isDirEmpty } from './utils/file.js'
 import { getFsImplementation } from './utils/fsOperations.js'
+import { getCandidateMemoryFileNames } from './utils/memoryFileNames.js'
 
 export type Step = {
   key: string
@@ -17,23 +18,23 @@ export type Step = {
 }
 
 export function getSteps(): Step[] {
-  const hasClaudeMd = getFsImplementation().existsSync(
-    join(getCwd(), 'CLAUDE.md'),
+  const hasProjectMemoryFile = getCandidateMemoryFileNames('project').some(
+    fileName => getFsImplementation().existsSync(join(getCwd(), fileName)),
   )
   const isWorkspaceDirEmpty = isDirEmpty(getCwd())
 
   return [
     {
       key: 'workspace',
-      text: 'Ask Claude to create a new app or clone a repository',
+      text: 'Ask CT to create a new app or clone a repository',
       isComplete: false,
       isCompletable: true,
       isEnabled: isWorkspaceDirEmpty,
     },
     {
       key: 'claudemd',
-      text: 'Run /init to create a CLAUDE.md file with instructions for Claude',
-      isComplete: hasClaudeMd,
+      text: 'Run /init to create a SEATURTLE.md file with instructions for CT',
+      isComplete: hasProjectMemoryFile,
       isCompletable: true,
       isEnabled: !isWorkspaceDirEmpty,
     },

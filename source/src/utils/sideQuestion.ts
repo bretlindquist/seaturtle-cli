@@ -11,6 +11,7 @@ import type { NonNullableUsage } from '../services/api/logging.js'
 import type { Message, SystemAPIErrorMessage } from '../types/message.js'
 import { type CacheSafeParams, runForkedAgent } from './forkedAgent.js'
 import { createUserMessage, extractTextContent } from './messages.js'
+import { selectSideQuestionContext } from './sideQuestionContext.js'
 
 // Pattern to detect "/btw" at start of input (case-insensitive, word boundary)
 const BTW_PATTERN = /^\/btw\b/gi
@@ -57,6 +58,10 @@ export async function runSideQuestion({
   question: string
   cacheSafeParams: CacheSafeParams
 }): Promise<SideQuestionResult> {
+  const forkContextMessages = selectSideQuestionContext(
+    cacheSafeParams.forkContextMessages,
+  )
+
   // Wrap the question with instructions to answer without tools
   const wrappedQuestion = `<system-reminder>This is a side question from the user. You must answer this question directly in a single response.
 
@@ -79,10 +84,13 @@ ${question}`
 
   const agentResult = await runForkedAgent({
     promptMessages: [createUserMessage({ content: wrappedQuestion })],
+    cacheSafeParams: {
+      ...cacheSafeParams,
+      forkContextMessages,
+    },
     // Do NOT override thinkingConfig — thinking is part of the API cache key,
     // and diverging from the main thread's config busts the prompt cache.
     // Adaptive thinking on a quick Q&A has negligible overhead.
-    cacheSafeParams,
     canUseTool: async () => ({
       behavior: 'deny' as const,
       message: 'Side questions cannot use tools',
@@ -93,6 +101,8 @@ ${question}`
     maxTurns: 1, // Single turn only - no tool use loops
     // No future request shares this suffix; skip writing cache entries.
     skipCacheWrite: true,
+    // /btw should remain a sidecar, not a new transcript branch to be resumed later.
+    skipTranscript: true,
   })
 
   return {

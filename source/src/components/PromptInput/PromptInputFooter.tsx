@@ -23,6 +23,8 @@ import { Notifications } from './Notifications.js';
 import { PromptInputFooterLeftSide } from './PromptInputFooterLeftSide.js';
 import { PromptInputFooterSuggestions, type SuggestionItem } from './PromptInputFooterSuggestions.js';
 import { PromptInputHelpMenu } from './PromptInputHelpMenu.js';
+import type { FooterControlGroup } from './footerControlModel.js';
+import { isPromptLikeInputMode } from './inputModes.js';
 type Props = {
   apiKeyStatus: VerificationStatus;
   debug: boolean;
@@ -43,12 +45,14 @@ type Props = {
   toolPermissionContext: ToolPermissionContext;
   helpOpen: boolean;
   suppressHint: boolean;
+  canQueueMessage: boolean;
   isLoading: boolean;
   tasksSelected: boolean;
   teamsSelected: boolean;
   bridgeSelected: boolean;
   tmuxSelected: boolean;
   teammateFooterIndex?: number;
+  footerControlGroup?: FooterControlGroup | null;
   ideSelection: IDESelection | undefined;
   mcpClients?: MCPServerConnection[];
   isPasting?: boolean;
@@ -77,12 +81,14 @@ function PromptInputFooter({
   toolPermissionContext,
   helpOpen,
   suppressHint: suppressHintFromProps,
+  canQueueMessage,
   isLoading,
   tasksSelected,
   teamsSelected,
   bridgeSelected,
   tmuxSelected,
   teammateFooterIndex,
+  footerControlGroup,
   ideSelection,
   mcpClients,
   isPasting = false,
@@ -133,13 +139,13 @@ function PromptInputFooter({
       </Box>;
   }
   if (helpOpen) {
-    return <PromptInputHelpMenu dimColor={true} fixedWidth={true} paddingX={2} />;
+    return <PromptInputHelpMenu dimColor={true} fixedWidth={true} paddingX={2} canQueueMessage={canQueueMessage} />;
   }
   return <>
       <Box flexDirection={isNarrow ? 'column' : 'row'} justifyContent={isNarrow ? 'flex-start' : 'space-between'} paddingX={2} gap={isNarrow ? 0 : 1}>
         <Box flexDirection="column" flexShrink={isNarrow ? 0 : 1}>
-          {mode === 'prompt' && !isShort && !exitMessage.show && !isPasting && statusLineShouldDisplay(settings) && <StatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} vimMode={vimMode} />}
-          <PromptInputFooterLeftSide exitMessage={exitMessage} vimMode={vimMode} mode={mode} toolPermissionContext={toolPermissionContext} suppressHint={suppressHint} isLoading={isLoading} tasksSelected={pillSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} isPasting={isPasting} isSearching={isSearching} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={onOpenTasksDialog} />
+          {isPromptLikeInputMode(mode) && !isShort && !exitMessage.show && !isPasting && statusLineShouldDisplay(settings) && <StatusLine messagesRef={messagesRef} lastAssistantMessageId={lastAssistantMessageId} vimMode={vimMode} />}
+          <PromptInputFooterLeftSide exitMessage={exitMessage} vimMode={vimMode} mode={mode} toolPermissionContext={toolPermissionContext} suppressHint={suppressHint} canQueueMessage={canQueueMessage} isLoading={isLoading} tasksSelected={pillSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} isPasting={isPasting} isSearching={isSearching} historyQuery={historyQuery} setHistoryQuery={setHistoryQuery} historyFailedMatch={historyFailedMatch} onOpenTasksDialog={onOpenTasksDialog} footerControlGroup={footerControlGroup} />
         </Box>
         <Box flexShrink={1} gap={1}>
           {isFullscreen ? null : <Notifications apiKeyStatus={apiKeyStatus} autoUpdaterResult={autoUpdaterResult} debug={debug} isAutoUpdating={isAutoUpdating} verbose={verbose} messages={messages} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} ideSelection={ideSelection} mcpClients={mcpClients} isInputWrapped={isInputWrapped} isNarrow={isNarrow} />}

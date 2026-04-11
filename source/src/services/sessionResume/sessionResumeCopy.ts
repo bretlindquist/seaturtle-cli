@@ -1,0 +1,29 @@
+export function getSessionResumeAffordanceText(): string {
+  return 'Fresh session by default. Use ct --continue to resume the last thread, ct --resume to browse earlier ones, or /resume once you are inside CT.'
+}
+
+export function getSessionResumeTipText(): string {
+  return 'CT starts fresh by default. Run ct --continue to resume the last conversation or ct --resume to browse earlier ones.'
+}
+
+export function getSessionResumeFeedFooterText(): string {
+  return '/continue for last · /resume for picker'
+}
+
+export function getNoResumableSessionsText(): string {
+  return 'No conversations found to resume. /resume opens the picker when sessions exist, and /continue resumes the most recent session in this directory.'
+}
+
+export function getNoContinuableSessionText(): string {
+  return 'No conversation found to continue. CT starts fresh by default, so use ct --continue when you want the last thread in this directory or ct --resume to browse earlier ones.'
+}
+
+export function getNoSessionWithIdText(sessionId: string): string {
+  return `No conversation found with session ID: ${sessionId}`
+}
+
+export function getFailedResumeSessionText(sessionId?: string): string {
+  return sessionId
+    ? `Failed to resume session ${sessionId}`
+    : 'Failed to resume session with --print mode'
+}

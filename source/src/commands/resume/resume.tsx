@@ -20,6 +20,7 @@ import { getWorktreePaths } from '../../utils/getWorktreePaths.js';
 import { logError } from '../../utils/log.js';
 import { getLastSessionLog, getSessionIdFromLog, isCustomTitleEnabled, isLiteLog, loadAllProjectsMessageLogs, loadFullLog, loadSameRepoMessageLogs, searchSessionsByCustomTitle } from '../../utils/sessionStorage.js';
 import { validateUuid } from '../../utils/uuid.js';
+import { getNoResumableSessionsText } from '../../services/sessionResume/sessionResumeCopy.js';
 type ResumeResult = {
   resultType: 'sessionNotFound';
   arg: string;
@@ -33,7 +34,7 @@ function resumeHelpMessage(result: ResumeResult): string {
     case 'sessionNotFound':
       return `Session ${chalk.bold(result.arg)} was not found.`;
     case 'multipleMatches':
-      return `Found ${result.count} sessions matching ${chalk.bold(result.arg)}. Please use /resume to pick a specific session.`;
+      return `Found ${result.count} sessions matching ${chalk.bold(result.arg)}. Use /resume to pick one, or /continue for the most recent session in this directory.`;
   }
 }
 function ResumeError(t0) {
@@ -110,11 +111,11 @@ function ResumeCommand({
       const allLogs = allProjects ? await loadAllProjectsMessageLogs() : await loadSameRepoMessageLogs(paths);
       const resumable = filterResumableSessions(allLogs, getSessionId());
       if (resumable.length === 0) {
-        onDone('No conversations found to resume');
+        onDone(getNoResumableSessionsText());
         return;
       }
       setLogs(resumable);
-    } catch (_err) {
+    } catch {
       onDone('Failed to load conversations');
     } finally {
       setLoading(false);
@@ -214,7 +215,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   const worktreePaths = await getWorktreePaths(getOriginalCwd());
   const logs = await loadSameRepoMessageLogs(worktreePaths);
   if (logs.length === 0) {
-    const message = 'No conversations found to resume.';
+    const message = getNoResumableSessionsText();
     return <ResumeError message={message} args={arg} onDone={() => onDone(message)} />;
   }
 

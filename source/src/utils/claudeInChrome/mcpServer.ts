@@ -14,6 +14,7 @@ import {
   logEvent,
 } from '../../services/analytics/index.js'
 import { initializeAnalyticsSink } from '../../services/analytics/sink.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { getClaudeAIOAuthTokens } from '../auth.js'
 import { enableConfigs, getGlobalConfig, saveGlobalConfig } from '../config.js'
 import { logForDebugging } from '../debug.js'
@@ -86,6 +87,7 @@ export function createChromeContext(
   env?: Record<string, string>,
 ): ClaudeForChromeContext {
   const logger = new DebugLogger()
+  const mainLoopRuntime = getMainLoopProviderRuntime()
   const chromeBridgeUrl = getChromeBridgeUrl()
   logger.info(`Bridge URL: ${chromeBridgeUrl ?? 'none (using native socket)'}`)
   const rawPermissionMode =
@@ -167,7 +169,8 @@ export function createChromeContext(
     // version — 0.3.0 sees an unknown field (allowed in spread), 0.4.0 sees a
     // structurally-matching one. Once 0.4.0 is published, this can switch to
     // the package's exported types and the dep can be bumped.
-    ...(process.env.USER_TYPE === 'ant' && {
+    ...(process.env.USER_TYPE === 'ant' &&
+      mainLoopRuntime.family === 'anthropic' && {
       callAnthropicMessages: async (req: {
         model: string
         max_tokens: number

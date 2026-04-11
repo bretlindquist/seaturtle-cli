@@ -12,6 +12,8 @@ import { isSynchronizedOutputSupported } from './ink/terminal.js';
 import type { RenderOptions, Root, TextProps } from './ink.js';
 import { KeybindingSetup } from './keybindings/KeybindingProviderSetup.js';
 import { startDeferredPrefetches } from './main.js';
+import { shouldShowCtIdentityBootstrapDialog } from './services/projectIdentity/state.js';
+import { buildStartupOnboardingPlan } from './services/projectIdentity/startupOnboardingPlanCore.js';
 import { checkGate_CACHED_OR_BLOCKING, initializeGrowthBook, resetGrowthBook } from './services/analytics/growthbook.js';
 import { isQualifiedForGrove } from './services/api/grove.js';
 import { handleMcpjsonServerApprovals } from './services/mcpServerApproval.js';
@@ -107,8 +109,13 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     return false;
   }
   const config = getGlobalConfig();
+  const startupOnboardingPlan = buildStartupOnboardingPlan({
+    hasTheme: Boolean(config.theme),
+    hasCompletedGlobalOnboarding: Boolean(config.hasCompletedOnboarding),
+    shouldShowCtIdentityBootstrap: shouldShowCtIdentityBootstrapDialog()
+  });
   let onboardingShown = false;
-  if (!config.theme || !config.hasCompletedOnboarding // always show onboarding at least once
+  if (startupOnboardingPlan.showGlobalOnboarding // always show onboarding at least once
   ) {
     onboardingShown = true;
     const {
@@ -117,7 +124,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     await showSetupDialog(root, done => <Onboarding onDone={() => {
       completeOnboarding();
       void done();
-    }} />, {
+    }} shouldShowCtIdentityBootstrap={startupOnboardingPlan.includeCtIdentityInGlobalOnboarding} />, {
       onChangeAppState
     });
   }
@@ -293,6 +300,12 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
       ClaudeInChromeOnboarding
     } = await import('./components/ClaudeInChromeOnboarding.js');
     await showSetupDialog(root, done => <ClaudeInChromeOnboarding onDone={done} />);
+  }
+  if (startupOnboardingPlan.showStandaloneCtIdentityBootstrap) {
+    const {
+      CtIdentityBootstrapDialog
+    } = await import('./components/CtIdentityBootstrapDialog.js');
+    await showSetupDialog(root, done => <CtIdentityBootstrapDialog onDone={done} />);
   }
   return onboardingShown;
 }

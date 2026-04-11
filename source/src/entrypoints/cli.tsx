@@ -37,7 +37,7 @@ async function main(): Promise<void> {
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V')) {
     // MACRO.VERSION is inlined at build time
     // biome-ignore lint/suspicious/noConsole:: intentional console output
-    console.log(`${MACRO.VERSION} (Claude Code)`);
+    console.log(`${MACRO.VERSION} (CT)`);
     return;
   }
 
@@ -289,8 +289,8 @@ async function main(): Promise<void> {
     startCapturingEarlyInput
   } = await import('../utils/earlyInput.js');
   startCapturingEarlyInput();
-  // Flashy launch screen — only for interactive TTY sessions
-  if (process.stdout.isTTY && !process.env.NO_LAUNCH_SCREEN && !process.env.CLAUDE_CODE_SIMPLE) {
+  // Flashy launch screen — only for plain interactive startup with no args
+  if (args.length === 0 && process.stdout.isTTY && !process.env.NO_LAUNCH_SCREEN && !process.env.CLAUDE_CODE_SIMPLE) {
     const { playLaunchScreen } = await import('./launchScreen.js');
     await playLaunchScreen();
   }

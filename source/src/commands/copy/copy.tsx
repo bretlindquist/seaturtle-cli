@@ -23,6 +23,7 @@ import { countCharInString } from '../../utils/stringUtils.js';
 const COPY_DIR = join(tmpdir(), 'claude');
 const RESPONSE_FILENAME = 'response.md';
 const MAX_LOOKBACK = 20;
+type CopyCommandBehavior = 'showMenu' | 'copyLatestResponse';
 type CodeBlock = {
   code: string;
   lang: string | undefined;
@@ -117,6 +118,12 @@ type PickerProps = {
   }) => void;
 };
 type PickerSelection = number | 'full' | 'always';
+
+function getCopyCommandBehavior(): CopyCommandBehavior {
+  const config = getGlobalConfig();
+  return config.copyCommandBehavior ?? (config.copyFullResponse ? 'copyLatestResponse' : 'showMenu');
+}
+
 function CopyPicker(t0) {
   const $ = _c(33);
   const {
@@ -125,12 +132,12 @@ function CopyPicker(t0) {
     messageAge,
     onDone
   } = t0;
-  const focusedRef = useRef("full");
+  const focusedRef = useRef<PickerSelection>("full");
   const t1 = `${fullText.length} chars, ${countCharInString(fullText, "\n") + 1} lines`;
   let t2;
   if ($[0] !== t1) {
     t2 = {
-      label: "Full response",
+      label: "Latest response",
       value: "full" as const,
       description: t1
     };
@@ -152,7 +159,7 @@ function CopyPicker(t0) {
     } else {
       t4 = $[5];
     }
-    t3 = [t2, ...codeBlocks.map(_temp), t4];
+    t3 = codeBlocks.length > 0 ? [t2, ...codeBlocks.map(_temp), t4] : [t2, t4];
     $[2] = codeBlocks;
     $[3] = t2;
     $[4] = t3;
@@ -188,7 +195,7 @@ function CopyPicker(t0) {
     t5 = async function handleSelect(selected_0) {
       const content = getSelectionContent(selected_0);
       if (selected_0 === "always") {
-        if (!getGlobalConfig().copyFullResponse) {
+        if (getCopyCommandBehavior() !== 'copyLatestResponse') {
           saveGlobalConfig(_temp2);
         }
         logEvent("tengu_copy", {
@@ -197,7 +204,7 @@ function CopyPicker(t0) {
           message_age: messageAge
         });
         const result = await copyOrWriteToFile(content.text, content.filename);
-        onDone(`${result}\nPreference saved. Use /config to change copyFullResponse`);
+        onDone(`${result}\nPreference saved. Use /config to change Copy menu default`);
         return;
       }
       logEvent("tengu_copy", {
@@ -320,7 +327,8 @@ function CopyPicker(t0) {
 function _temp2(c) {
   return {
     ...c,
-    copyFullResponse: true
+    copyFullResponse: true,
+    copyCommandBehavior: 'copyLatestResponse'
   };
 }
 function _temp(block, index) {
@@ -355,10 +363,10 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
   }
   const text = texts[age]!;
   const codeBlocks = extractCodeBlocks(text);
-  const config = getGlobalConfig();
-  if (codeBlocks.length === 0 || config.copyFullResponse) {
+  const copyCommandBehavior = getCopyCommandBehavior();
+  if (copyCommandBehavior === 'copyLatestResponse') {
     logEvent('tengu_copy', {
-      always: config.copyFullResponse,
+      always: true,
       block_count: codeBlocks.length,
       message_age: age
     });

@@ -11,12 +11,13 @@ import type { RenderableMessage } from '../types/message.js';
 import { TextHoverColorContext } from './design-system/ThemedText.js';
 import { ScrollChromeContext } from './FullscreenLayout.js';
 
-// Rows of breathing room above the target when we scrollTo.
-const HEADROOM = 3;
-import { logForDebugging } from '../utils/debug.js';
-import { sleep } from '../utils/sleep.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
+import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
+import type { TranscriptJumpHandle } from '../screens/repl/transcriptJumpHandle.js';
+import {
+  useVirtualTranscriptSearch,
+} from './useVirtualTranscriptSearch.js';
 
 // Fallback extractor: lower + cache here for callers without the
 // Messages.tsx tool-lookup path (tests, static contexts). Messages.tsx
@@ -42,30 +43,6 @@ export type StickyPrompt = {
  *  2 rows via overflow:hidden — this just bounds the React prop size. */
 const STICKY_TEXT_CAP = 500;
 
-/** Imperative handle for transcript navigation. Methods compute matches
- *  HERE (renderableMessages indices are only valid inside this component —
- *  Messages.tsx filters and reorders, REPL can't compute externally). */
-export type JumpHandle = {
-  jumpToIndex: (i: number) => void;
-  setSearchQuery: (q: string) => void;
-  nextMatch: () => void;
-  prevMatch: () => void;
-  /** Capture current scrollTop as the incsearch anchor. Typing jumps
-   *  around as preview; 0-matches snaps back here. Enter/n/N never
-   *  restore (they don't call setSearchQuery with empty). Next / call
-   *  overwrites. */
-  setAnchor: () => void;
-  /** Warm the search-text cache by extracting every message's text.
-   *  Returns elapsed ms, or 0 if already warm (subsequent / in same
-   *  transcript session). Yields before work so the caller can paint
-   *  "indexing…" first. Caller shows "indexed in Xms" on resolve. */
-  warmSearchIndex: () => Promise<number>;
-  /** Manual scroll (j/k/PgUp/wheel) exited the search context. Clear
-   *  positions (yellow goes away, inverse highlights stay). Next n/N
-   *  re-establishes via step()→jump(). Wired from ScrollKeybindingHandler's
-   *  onScroll — only fires for keyboard/wheel, not programmatic scrollTo. */
-  disarmSearch: () => void;
-};
 type Props = {
   messages: RenderableMessage[];
   scrollRef: RefObject<ScrollBoxHandle | null>;
@@ -94,22 +71,13 @@ type Props = {
   /** Nav handle lives here because height measurement lives here. */
   cursorNavRef?: React.Ref<MessageActionsNav>;
   setCursor?: (c: MessageActionsState | null) => void;
-  jumpRef?: RefObject<JumpHandle | null>;
-  /** Fires when search matches change (query edit, n/N). current is
-   *  1-based for "3/47" display; 0 means no matches. */
-  onSearchMatchesChange?: (count: number, current: number) => void;
+  jumpRef?: RefObject<TranscriptJumpHandle | null>;
+  /** Receives match-count/current updates from transcript search. */
+  searchProgress?: TranscriptSearchProgressSink;
   /** Paint existing DOM subtree to fresh Screen, scan. Element from the
    *  main tree (all providers). Message-relative positions (row 0 = el
    *  top). Works for any height — closes the tall-message gap. */
   scanElement?: (el: DOMElement) => MatchPosition[];
-  /** Position-based CURRENT highlight. Positions known upfront (from
-   *  scanElement), navigation = index arithmetic + scrollTo. rowOffset
-   *  = message's current screen-top; positions stay stable. */
-  setPositions?: (state: {
-    positions: MatchPosition[];
-    rowOffset: number;
-    currentIdx: number;
-  } | null) => void;
 };
 
 /**
@@ -167,20 +135,6 @@ function computeStickyPromptText(msg: RenderableMessage): string | null {
  * The wrapping <Box ref> is the measurement anchor — MessageRow doesn't take
  * a ref. Single-child column Box passes Yoga height through unchanged.
  */
-type VirtualItemProps = {
-  itemKey: string;
-  msg: RenderableMessage;
-  idx: number;
-  measureRef: (key: string) => (el: DOMElement | null) => void;
-  expanded: boolean | undefined;
-  hovered: boolean;
-  clickable: boolean;
-  onClickK: (msg: RenderableMessage, cellIsBlank: boolean) => void;
-  onEnterK: (k: string) => void;
-  onLeaveK: (k: string) => void;
-  renderItem: (msg: RenderableMessage, idx: number) => React.ReactNode;
-};
-
 // Item wrapper with stable click handlers. The per-item closures were the
 // `operationNewArrowFunction` leafs → `FunctionExecutable::finalizeUnconditionally`
 // GC cleanup (16% of GC time during fast scroll). 3 closures × 60 mounted ×
@@ -195,13 +149,15 @@ type VirtualItemProps = {
 // STALE closure on bail (wrong selection highlight, stale verbose). Including
 // renderItem in the comparator defeats memo since it's fresh each render.
 function VirtualItem(t0) {
-  const $ = _c(30);
+  const $ = _c(31);
   const {
     itemKey: k,
     msg,
     idx,
     measureRef,
     expanded,
+    searchMatched,
+    searchActive,
     hovered,
     clickable,
     onClickK,
@@ -218,7 +174,7 @@ function VirtualItem(t0) {
   } else {
     t1 = $[2];
   }
-  const t2 = expanded ? "userMessageBackgroundHover" : undefined;
+  const t2 = searchActive ? "messageActionsBackground" : expanded || searchMatched ? "userMessageBackgroundHover" : undefined;
   const t3 = expanded ? 1 : undefined;
   let t4;
   if ($[3] !== clickable || $[4] !== msg || $[5] !== onClickK) {
@@ -301,9 +257,8 @@ export function VirtualMessageList({
   cursorNavRef,
   setCursor,
   jumpRef,
-  onSearchMatchesChange,
-  scanElement,
-  setPositions
+  searchProgress,
+  scanElement
 }: Props): React.ReactNode {
   // Incremental key array. Streaming appends one message at a time; rebuilding
   // the full string array on every commit allocates O(n) per message (~1MB
@@ -414,411 +369,15 @@ export function VirtualMessageList({
     }
   }, [selectedIndex, scrollRef]);
 
-  // Pending seek request. jump() sets this + bumps seekGen. The seek
-  // effect fires post-paint (passive effect — after resetAfterCommit),
-  // checks if target is mounted. Yes → scan+highlight. No → re-estimate
-  // with a fresher anchor (start moved toward idx) and scrollTo again.
-  const scanRequestRef = useRef<{
-    idx: number;
-    wantLast: boolean;
-    tries: number;
-  } | null>(null);
-  // Message-relative positions from scanElement. Row 0 = message top.
-  // Stable across scroll — highlight computes rowOffset fresh. msgIdx
-  // for computing rowOffset = getItemTop(msgIdx) - scrollTop.
-  const elementPositions = useRef<{
-    msgIdx: number;
-    positions: MatchPosition[];
-  }>({
-    msgIdx: -1,
-    positions: []
-  });
-  // Wraparound guard. Auto-advance stops if ptr wraps back to here.
-  const startPtrRef = useRef(-1);
-  // Phantom-burst cap. Resets on scan success.
-  const phantomBurstRef = useRef(0);
-  // One-deep queue: n/N arriving mid-seek gets stored (not dropped) and
-  // fires after the seek completes. Holding n stays smooth without
-  // queueing 30 jumps. Latest press overwrites — we want the direction
-  // the user is going NOW, not where they were 10 keypresses ago.
-  const pendingStepRef = useRef<1 | -1 | 0>(0);
-  // step + highlight via ref so the seek effect reads latest without
-  // closure-capture or deps churn.
-  const stepRef = useRef<(d: 1 | -1) => void>(() => {});
-  const highlightRef = useRef<(ord: number) => void>(() => {});
-  const searchState = useRef({
-    matches: [] as number[],
-    // deduplicated msg indices
-    ptr: 0,
-    screenOrd: 0,
-    // Cumulative engine-occurrence count before each matches[k]. Lets us
-    // compute a global current index: prefixSum[ptr] + screenOrd + 1.
-    // Engine-counted (indexOf on extractSearchText), not render-counted —
-    // close enough for the badge; exact counts would need scanElement on
-    // every matched message (~1-3ms × N). total = prefixSum[matches.length].
-    prefixSum: [] as number[]
-  });
-  // scrollTop at the moment / was pressed. Incsearch preview-jumps snap
-  // back here when matches drop to 0. -1 = no anchor (before first /).
-  const searchAnchor = useRef(-1);
-  const indexWarmed = useRef(false);
-
-  // Scroll target for message i: land at MESSAGE TOP. est = top - HEADROOM
-  // so lo = top - est = HEADROOM ≥ 0 (or lo = top if est clamped to 0).
-  // Post-clamp read-back in jump() handles the scrollHeight boundary.
-  // No frac (render transform didn't respect it), no monotone clamp
-  // (was a safety net for frac garbage — without frac, est IS the next
-  // message's top, spam-n/N converges because message tops are ordered).
-  function targetFor(i: number): number {
-    const top = jumpState.current.getItemTop(i);
-    return Math.max(0, top - HEADROOM);
-  }
-
-  // Highlight positions[ord]. Positions are MESSAGE-RELATIVE (row 0 =
-  // element top, from scanElement). Compute rowOffset = getItemTop -
-  // scrollTop fresh. If ord's position is off-viewport, scroll to bring
-  // it in, recompute rowOffset. setPositions triggers overlay write.
-  function highlight(ord: number): void {
-    const s = scrollRef.current;
-    const {
-      msgIdx,
-      positions
-    } = elementPositions.current;
-    if (!s || positions.length === 0 || msgIdx < 0) {
-      setPositions?.(null);
-      return;
-    }
-    const idx = Math.max(0, Math.min(ord, positions.length - 1));
-    const p = positions[idx]!;
-    const top = jumpState.current.getItemTop(msgIdx);
-    // lo = item's position within scroll content (wrapper-relative).
-    // viewportTop = where the scroll content starts on SCREEN (after
-    // ScrollBox padding/border + any chrome above). Highlight writes to
-    // screen-absolute, so rowOffset = viewportTop + lo. Observed: off-by-
-    // 1+ without viewportTop (FullscreenLayout has paddingTop=1 on the
-    // ScrollBox, plus any header above).
-    const vpTop = s.getViewportTop();
-    let lo = top - s.getScrollTop();
-    const vp = s.getViewportHeight();
-    let screenRow = vpTop + lo + p.row;
-    // Off viewport → scroll to bring it in (HEADROOM from top).
-    // scrollTo commits sync; read-back after gives fresh lo.
-    if (screenRow < vpTop || screenRow >= vpTop + vp) {
-      s.scrollTo(Math.max(0, top + p.row - HEADROOM));
-      lo = top - s.getScrollTop();
-      screenRow = vpTop + lo + p.row;
-    }
-    setPositions?.({
-      positions,
-      rowOffset: vpTop + lo,
-      currentIdx: idx
+  const { activeResult, matchedMessageIdxs } =
+    useVirtualTranscriptSearch({
+      jumpRef,
+      scrollRef,
+      jumpStateRef: jumpState,
+      extractSearchText,
+      searchProgress,
+      scanElement,
     });
-    // Badge: global current = sum of occurrences before this msg + ord+1.
-    // prefixSum[ptr] is engine-counted (indexOf on extractSearchText);
-    // may drift from render-count for ghost messages but close enough —
-    // badge is a rough location hint, not a proof.
-    const st = searchState.current;
-    const total = st.prefixSum.at(-1) ?? 0;
-    const current = (st.prefixSum[st.ptr] ?? 0) + idx + 1;
-    onSearchMatchesChange?.(total, current);
-    logForDebugging(`highlight(i=${msgIdx}, ord=${idx}/${positions.length}): ` + `pos={row:${p.row},col:${p.col}} lo=${lo} screenRow=${screenRow} ` + `badge=${current}/${total}`);
-  }
-  highlightRef.current = highlight;
-
-  // Seek effect. jump() sets scanRequestRef + scrollToIndex + bump.
-  // bump → re-render → useVirtualScroll mounts the target (scrollToIndex
-  // guarantees this — scrollTop and topSpacer agree via the same
-  // offsets value) → resetAfterCommit paints → this passive effect
-  // fires POST-PAINT with the element mounted. Precise scrollTo + scan.
-  //
-  // Dep is ONLY seekGen — effect doesn't re-run on random renders
-  // (onSearchMatchesChange churn during incsearch).
-  const [seekGen, setSeekGen] = useState(0);
-  const bumpSeek = useCallback(() => setSeekGen(g => g + 1), []);
-  useEffect(() => {
-    const req = scanRequestRef.current;
-    if (!req) return;
-    const {
-      idx,
-      wantLast,
-      tries
-    } = req;
-    const s = scrollRef.current;
-    if (!s) return;
-    const {
-      getItemElement,
-      getItemTop,
-      scrollToIndex
-    } = jumpState.current;
-    const el = getItemElement(idx);
-    const h = el?.yogaNode?.getComputedHeight() ?? 0;
-    if (!el || h === 0) {
-      // Not mounted after scrollToIndex. Shouldn't happen — scrollToIndex
-      // guarantees mount by construction (scrollTop and topSpacer agree
-      // via the same offsets value). Sanity: retry once, then skip.
-      if (tries > 1) {
-        scanRequestRef.current = null;
-        logForDebugging(`seek(i=${idx}): no mount after scrollToIndex, skip`);
-        stepRef.current(wantLast ? -1 : 1);
-        return;
-      }
-      scanRequestRef.current = {
-        idx,
-        wantLast,
-        tries: tries + 1
-      };
-      scrollToIndex(idx);
-      bumpSeek();
-      return;
-    }
-    scanRequestRef.current = null;
-    // Precise scrollTo — scrollToIndex got us in the neighborhood
-    // (item is mounted, maybe a few-dozen rows off due to overscan
-    // estimate drift). Now land it at top-HEADROOM.
-    s.scrollTo(Math.max(0, getItemTop(idx) - HEADROOM));
-    const positions = scanElement?.(el) ?? [];
-    elementPositions.current = {
-      msgIdx: idx,
-      positions
-    };
-    logForDebugging(`seek(i=${idx} t=${tries}): ${positions.length} positions`);
-    if (positions.length === 0) {
-      // Phantom — engine matched, render didn't. Auto-advance.
-      if (++phantomBurstRef.current > 20) {
-        phantomBurstRef.current = 0;
-        return;
-      }
-      stepRef.current(wantLast ? -1 : 1);
-      return;
-    }
-    phantomBurstRef.current = 0;
-    const ord = wantLast ? positions.length - 1 : 0;
-    searchState.current.screenOrd = ord;
-    startPtrRef.current = -1;
-    highlightRef.current(ord);
-    const pending = pendingStepRef.current;
-    if (pending) {
-      pendingStepRef.current = 0;
-      stepRef.current(pending);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seekGen]);
-
-  // Scroll to message i's top, arm scanPending. scan-effect reads fresh
-  // screen next tick. wantLast: N-into-message — screenOrd = length-1.
-  function jump(i: number, wantLast: boolean): void {
-    const s = scrollRef.current;
-    if (!s) return;
-    const js = jumpState.current;
-    const {
-      getItemElement,
-      scrollToIndex
-    } = js;
-    // offsets is a Float64Array whose .length is the allocated buffer (only
-    // grows) — messages.length is the logical item count.
-    if (i < 0 || i >= js.messages.length) return;
-    // Clear stale highlight before scroll. Between now and the seek
-    // effect's highlight, inverse-only from scan-highlight shows.
-    setPositions?.(null);
-    elementPositions.current = {
-      msgIdx: -1,
-      positions: []
-    };
-    scanRequestRef.current = {
-      idx: i,
-      wantLast,
-      tries: 0
-    };
-    const el = getItemElement(i);
-    const h = el?.yogaNode?.getComputedHeight() ?? 0;
-    // Mounted → precise scrollTo. Unmounted → scrollToIndex mounts it
-    // (scrollTop and topSpacer agree via the same offsets value — exact
-    // by construction, no estimation). Seek effect does the precise
-    // scrollTo after paint either way.
-    if (el && h > 0) {
-      s.scrollTo(targetFor(i));
-    } else {
-      scrollToIndex(i);
-    }
-    bumpSeek();
-  }
-
-  // Advance screenOrd within elementPositions. Exhausted → ptr advances,
-  // jump to next matches[ptr], re-scan. Phantom (scan found 0 after
-  // jump) triggers auto-advance from scan-effect. Wraparound guard stops
-  // if every message is a phantom.
-  function step(delta: 1 | -1): void {
-    const st = searchState.current;
-    const {
-      matches,
-      prefixSum
-    } = st;
-    const total = prefixSum.at(-1) ?? 0;
-    if (matches.length === 0) return;
-
-    // Seek in-flight — queue this press (one-deep, latest overwrites).
-    // The seek effect fires it after highlight.
-    if (scanRequestRef.current) {
-      pendingStepRef.current = delta;
-      return;
-    }
-    if (startPtrRef.current < 0) startPtrRef.current = st.ptr;
-    const {
-      positions
-    } = elementPositions.current;
-    const newOrd = st.screenOrd + delta;
-    if (newOrd >= 0 && newOrd < positions.length) {
-      st.screenOrd = newOrd;
-      highlight(newOrd); // updates badge internally
-      startPtrRef.current = -1;
-      return;
-    }
-
-    // Exhausted visible. Advance ptr → jump → re-scan.
-    const ptr = (st.ptr + delta + matches.length) % matches.length;
-    if (ptr === startPtrRef.current) {
-      setPositions?.(null);
-      startPtrRef.current = -1;
-      logForDebugging(`step: wraparound at ptr=${ptr}, all ${matches.length} msgs phantoms`);
-      return;
-    }
-    st.ptr = ptr;
-    st.screenOrd = 0; // resolved after scan (wantLast → length-1)
-    jump(matches[ptr]!, delta < 0);
-    // screenOrd will resolve after scan. Best-effort: prefixSum[ptr] + 0
-    // for n (first pos), prefixSum[ptr+1] for N (last pos = count-1).
-    // The scan-effect's highlight will be the real value; this is a
-    // pre-scan placeholder so the badge updates immediately.
-    const placeholder = delta < 0 ? prefixSum[ptr + 1] ?? total : prefixSum[ptr]! + 1;
-    onSearchMatchesChange?.(total, placeholder);
-  }
-  stepRef.current = step;
-  useImperativeHandle(jumpRef, () => ({
-    // Non-search jump (sticky header click, etc). No scan, no positions.
-    jumpToIndex: (i: number) => {
-      const s = scrollRef.current;
-      if (s) s.scrollTo(targetFor(i));
-    },
-    setSearchQuery: (q: string) => {
-      // New search invalidates everything.
-      scanRequestRef.current = null;
-      elementPositions.current = {
-        msgIdx: -1,
-        positions: []
-      };
-      startPtrRef.current = -1;
-      setPositions?.(null);
-      const lq = q.toLowerCase();
-      // One entry per MESSAGE (deduplicated). Boolean "does this msg
-      // contain the query". ~10ms for 9k messages with cached lowered.
-      const matches: number[] = [];
-      // Per-message occurrence count → prefixSum for global current
-      // index. Engine-counted (cheap indexOf loop); may differ from
-      // render-count (scanElement) for ghost/phantom messages but close
-      // enough for the badge. The badge is a rough location hint.
-      const prefixSum: number[] = [0];
-      if (lq) {
-        const msgs = jumpState.current.messages;
-        for (let i = 0; i < msgs.length; i++) {
-          const text = extractSearchText(msgs[i]!);
-          let pos = text.indexOf(lq);
-          let cnt = 0;
-          while (pos >= 0) {
-            cnt++;
-            pos = text.indexOf(lq, pos + lq.length);
-          }
-          if (cnt > 0) {
-            matches.push(i);
-            prefixSum.push(prefixSum.at(-1)! + cnt);
-          }
-        }
-      }
-      const total = prefixSum.at(-1)!;
-      // Nearest MESSAGE to the anchor. <= so ties go to later.
-      let ptr = 0;
-      const s = scrollRef.current;
-      const {
-        offsets,
-        start,
-        getItemTop
-      } = jumpState.current;
-      const firstTop = getItemTop(start);
-      const origin = firstTop >= 0 ? firstTop - offsets[start]! : 0;
-      if (matches.length > 0 && s) {
-        const curTop = searchAnchor.current >= 0 ? searchAnchor.current : s.getScrollTop();
-        let best = Infinity;
-        for (let k = 0; k < matches.length; k++) {
-          const d = Math.abs(origin + offsets[matches[k]!]! - curTop);
-          if (d <= best) {
-            best = d;
-            ptr = k;
-          }
-        }
-        logForDebugging(`setSearchQuery('${q}'): ${matches.length} msgs · ptr=${ptr} ` + `msgIdx=${matches[ptr]} curTop=${curTop} origin=${origin}`);
-      }
-      searchState.current = {
-        matches,
-        ptr,
-        screenOrd: 0,
-        prefixSum
-      };
-      if (matches.length > 0) {
-        // wantLast=true: preview the LAST occurrence in the nearest
-        // message. At sticky-bottom (common / entry), nearest is the
-        // last msg; its last occurrence is closest to where the user
-        // was — minimal view movement. n advances forward from there.
-        jump(matches[ptr]!, true);
-      } else if (searchAnchor.current >= 0 && s) {
-        // /foob → 0 matches → snap back to anchor. less/vim incsearch.
-        s.scrollTo(searchAnchor.current);
-      }
-      // Global occurrence count + 1-based current. wantLast=true so the
-      // scan will land on the last occurrence in matches[ptr]. Placeholder
-      // = prefixSum[ptr+1] (count through this msg). highlight() updates
-      // to the exact value after scan completes.
-      onSearchMatchesChange?.(total, matches.length > 0 ? prefixSum[ptr + 1] ?? total : 0);
-    },
-    nextMatch: () => step(1),
-    prevMatch: () => step(-1),
-    setAnchor: () => {
-      const s = scrollRef.current;
-      if (s) searchAnchor.current = s.getScrollTop();
-    },
-    disarmSearch: () => {
-      // Manual scroll invalidates screen-absolute positions.
-      setPositions?.(null);
-      scanRequestRef.current = null;
-      elementPositions.current = {
-        msgIdx: -1,
-        positions: []
-      };
-      startPtrRef.current = -1;
-    },
-    warmSearchIndex: async () => {
-      if (indexWarmed.current) return 0;
-      const msgs = jumpState.current.messages;
-      const CHUNK = 500;
-      let workMs = 0;
-      const wallStart = performance.now();
-      for (let i = 0; i < msgs.length; i += CHUNK) {
-        await sleep(0);
-        const t0 = performance.now();
-        const end = Math.min(i + CHUNK, msgs.length);
-        for (let j = i; j < end; j++) {
-          extractSearchText(msgs[j]!);
-        }
-        workMs += performance.now() - t0;
-      }
-      const wallMs = Math.round(performance.now() - wallStart);
-      logForDebugging(`warmSearchIndex: ${msgs.length} msgs · work=${Math.round(workMs)}ms wall=${wallMs}ms chunks=${Math.ceil(msgs.length / CHUNK)}`);
-      indexWarmed.current = true;
-      return Math.round(workMs);
-    }
-  }),
-  // Closures over refs + callbacks. scrollRef stable; others are
-  // useCallback([]) or prop-drilled from REPL (stable).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [scrollRef]);
 
   // StickyTracker goes AFTER the list content. It returns null (no DOM node)
   // so order shouldn't matter for layout — but putting it first means every
@@ -862,7 +421,7 @@ export function VirtualMessageList({
       const clickable = !!onItemClick && (isItemClickable?.(msg) ?? true);
       const hovered = clickable && hoveredKey === k;
       const expanded = isItemExpanded?.(msg);
-      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
+      return <VirtualItem key={k} itemKey={k} msg={msg} idx={idx} measureRef={measureRef} expanded={expanded} searchMatched={matchedMessageIdxs.has(idx)} searchActive={activeResult?.msgIdx === idx} hovered={hovered} clickable={clickable} onClickK={onClickK} onEnterK={onEnterK} onLeaveK={onLeaveK} renderItem={renderItem} />;
     })}
       {bottomSpacer > 0 && <Box height={bottomSpacer} flexShrink={0} />}
       {trackStickyPrompt && <StickyTracker messages={messages} start={start} end={end} offsets={offsets} getItemTop={getItemTop} getItemElement={getItemElement} scrollRef={scrollRef} />}

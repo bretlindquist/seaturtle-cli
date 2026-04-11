@@ -11,6 +11,7 @@ import { useAppState, useSetAppState } from '../state/AppState.js';
 import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, modelSupportsEffort, modelSupportsMaxEffort, resolvePickerEffortPersistence, toPersistableEffort } from '../utils/effort.js';
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
 import { getModelOptions } from '../utils/model/modelOptions.js';
+import { shouldUseOpenAiCodexProvider } from '../utils/model/providers.js';
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
@@ -265,7 +266,7 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const t16 = headerText ?? "Switch between Claude models. Applies to this session and future Claude Code sessions. For other/previous model names, specify with --model.";
+  const t16 = headerText ?? (shouldUseOpenAiCodexProvider() ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future CT sessions." : "Switch between the models currently supported by this build. Applies to this session and future CT sessions. For other/previous model names, specify with --model.");
   let t17;
   if ($[42] !== t16) {
     t17 = <Text dimColor={true}>{t16}</Text>;

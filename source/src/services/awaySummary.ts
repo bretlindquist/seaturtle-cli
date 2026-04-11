@@ -8,7 +8,7 @@ import {
 } from '../utils/messages.js'
 import { getSmallFastModel } from '../utils/model/model.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
-import { queryModelWithoutStreaming } from './api/claude.js'
+import { queryModelWithoutStreamingViaProviderRuntime } from './api/providerRuntime.js'
 import { getSessionMemoryContent } from './SessionMemory/sessionMemoryUtils.js'
 
 // Recap only needs recent context — truncate to avoid "prompt too long" on
@@ -38,7 +38,7 @@ export async function generateAwaySummary(
     const memory = await getSessionMemoryContent()
     const recent = messages.slice(-RECENT_MESSAGE_WINDOW)
     recent.push(createUserMessage({ content: buildAwaySummaryPrompt(memory) }))
-    const response = await queryModelWithoutStreaming({
+    const response = await queryModelWithoutStreamingViaProviderRuntime({
       messages: recent,
       systemPrompt: asSystemPrompt([]),
       thinkingConfig: { type: 'disabled' },

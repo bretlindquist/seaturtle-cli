@@ -13,6 +13,7 @@ import type { SetToolJSXFn } from '../Tool.js'
 import type { LocalJSXCommandOnDone } from '../types/command.js'
 import type { Message } from '../types/message.js'
 import {
+  type EditablePromptInputMode,
   isValidImagePaste,
   type PromptInputMode,
   type QueuedCommand,
@@ -24,13 +25,16 @@ import type { EffortValue } from './effort.js'
 import type { FileHistoryState } from './fileHistory.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './fileHistory.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
+import { stopTransientLolcatAnimation } from '../services/lolcat.js'
 import { enqueue } from './messageQueueManager.js'
+import { classifyMidTurnSteering } from './midTurnSteering.js'
 import { resolveSkillModelOverride } from './model/model.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
 import { processUserInput } from './processUserInput/processUserInput.js'
 import type { QueryGuard } from './QueryGuard.js'
 import { queryCheckpoint, startQueryProfile } from './queryProfiler.js'
 import { runWithWorkload } from './workloadContext.js'
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js'
 
 function exit(): void {
   gracefulShutdownSync(0)
@@ -68,6 +72,7 @@ type BaseExecutionParams = {
     mainLoopModel: string,
     onBeforeQuery?: (input: string, newMessages: Message[]) => Promise<boolean>,
     input?: string,
+    inputMode?: EditablePromptInputMode,
     effort?: EffortValue,
   ) => Promise<void>
   setAppState: (updater: (prev: AppState) => AppState) => void
@@ -81,6 +86,10 @@ type BaseExecutionParams = {
 type ExecuteUserInputParams = BaseExecutionParams & {
   resetHistory: () => void
   onInputChange: (value: string) => void
+  onModeChange: (mode: EditablePromptInputMode) => void
+  setPastedContents: React.Dispatch<
+    React.SetStateAction<Record<number, PastedContent>>
+  >
 }
 
 export type PromptInputHelpers = {
@@ -96,6 +105,7 @@ export type HandlePromptSubmitParams = BaseExecutionParams & {
   pastedContents?: Record<number, PastedContent>
   helpers: PromptInputHelpers
   onInputChange: (value: string) => void
+  onModeChange: (mode: EditablePromptInputMode) => void
   setPastedContents: React.Dispatch<
     React.SetStateAction<Record<number, PastedContent>>
   >
@@ -126,6 +136,7 @@ export async function handlePromptSubmit(
     isExternalLoading = false,
     commands,
     onInputChange,
+    onModeChange,
     setPastedContents,
     setToolJSX,
     getToolUseContext,
@@ -148,6 +159,7 @@ export async function handlePromptSubmit(
   // Queue processor path: commands are pre-validated and ready to execute.
   // Skip all input validation, reference parsing, and queuing logic.
   if (queuedCommands?.length) {
+    stopTransientLolcatAnimation()
     startQueryProfile()
     await executeUserInput({
       queuedCommands,
@@ -167,6 +179,8 @@ export async function handlePromptSubmit(
       resetHistory,
       canUseTool,
       onInputChange,
+      onModeChange,
+      setPastedContents,
     })
     return
   }
@@ -187,6 +201,10 @@ export async function handlePromptSubmit(
   const hasImages = Object.values(pastedContents).some(isValidImagePaste)
   if (input.trim() === '') {
     return
+  }
+
+  if (!input.trim().startsWith('/lolcat')) {
+    stopTransientLolcatAnimation()
   }
 
   // Handle exit commands by triggering the exit command instead of direct process.exit
@@ -285,10 +303,21 @@ export async function handlePromptSubmit(
           })
         }
         if (options?.nextInput) {
+          const nextInputMode = options.nextInputMode ?? 'prompt'
+          const nextPastedContents = options.nextPastedContents ?? {}
           if (options.submitNextInput) {
-            enqueue({ value: options.nextInput, mode: 'prompt' })
+            enqueue({
+              value: options.nextInput,
+              mode: nextInputMode,
+              pastedContents:
+                Object.keys(nextPastedContents).length > 0
+                  ? nextPastedContents
+                  : undefined,
+            })
           } else {
+            onModeChange(nextInputMode)
             onInputChange(options.nextInput)
+            setPastedContents(nextPastedContents)
           }
         }
       }
@@ -312,7 +341,7 @@ export async function handlePromptSubmit(
 
   if (queryGuard.isActive || isExternalLoading) {
     // Only allow prompt and bash mode commands to be queued
-    if (mode !== 'prompt' && mode !== 'bash') {
+    if (!isPromptLikeInputMode(mode) && mode !== 'bash') {
       return
     }
 
@@ -333,13 +362,61 @@ export async function handlePromptSubmit(
 
     // Enqueue with string value + raw pastedContents. Images will be resized
     // at execution time when processUserInput runs (not baked in here).
-    enqueue({
+    const midTurnIntent = classifyMidTurnSteering({
+      currentInput: finalInput.trim(),
+      messages,
+    })
+    const priority =
+      midTurnIntent === 'interrupt_now'
+        ? 'now'
+        : midTurnIntent === 'same_task_steer'
+          ? 'next'
+          : 'later'
+
+    const queuedCommand: QueuedCommand = {
       value: finalInput.trim(),
       preExpansionValue: input.trim(),
       mode,
+      priority,
+      midTurnIntent,
       pastedContents: hasImages ? pastedContents : undefined,
       skipSlashCommands,
       uuid,
+    }
+
+    if (midTurnIntent === 'park_for_later') {
+      setAppState(prev => ({
+        ...prev,
+        parkedPrompts: [...(prev.parkedPrompts ?? []), queuedCommand],
+      }))
+
+      params.addNotification?.({
+        key: 'parked-prompt',
+        text: `Parked for later: ${finalInput.trim()}`,
+        priority: 'immediate',
+        timeoutMs: 3500,
+      })
+
+      onInputChange('')
+      setCursorOffset(0)
+      setPastedContents({})
+      resetHistory()
+      clearBuffer()
+      return
+    }
+
+    if (midTurnIntent === 'same_task_steer') {
+      params.addNotification?.({
+        key: 'same-task-steer',
+        text: 'Steering current task…',
+        priority: 'medium',
+        timeoutMs: 2200,
+        fold: accumulator => accumulator,
+      })
+    }
+
+    enqueue({
+      ...queuedCommand,
     })
 
     onInputChange('')
@@ -443,6 +520,8 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
     let model: string | undefined
     let effort: EffortValue | undefined
     let nextInput: string | undefined
+    let nextInputMode: EditablePromptInputMode | undefined
+    let nextPastedContents: Record<number, PastedContent> | undefined
     let submitNextInput: boolean | undefined
 
     // Iterate all commands uniformly. First command gets attachments +
@@ -517,6 +596,8 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           model = result.model
           effort = result.effort
           nextInput = result.nextInput
+          nextInputMode = result.nextInputMode
+          nextPastedContents = result.nextPastedContents
           submitNextInput = result.submitNextInput
         }
       }
@@ -556,7 +637,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
           primaryCmd && typeof primaryCmd.value === 'string'
             ? primaryCmd.value
             : undefined
-        const shouldCallBeforeQuery = primaryMode === 'prompt'
+        const shouldCallBeforeQuery = isPromptLikeInputMode(primaryMode)
         await onQuery(
           newMessages,
           abortController,
@@ -567,6 +648,7 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
             : mainLoopModel,
           shouldCallBeforeQuery ? onBeforeQuery : undefined,
           primaryInput,
+          isPromptLikeInputMode(primaryMode) ? primaryMode : undefined,
           effort,
         )
       } else {
@@ -586,11 +668,24 @@ async function executeUserInput(params: ExecuteUserInputParams): Promise<void> {
       }
 
       // Handle nextInput from commands that want to chain (e.g., /discover activation)
-      if (nextInput) {
-        if (submitNextInput) {
-          enqueue({ value: nextInput, mode: 'prompt' })
+      if (nextInput !== undefined || nextInputMode !== undefined) {
+        const restoredMode = nextInputMode ?? 'prompt'
+        const restoredPastedContents = nextPastedContents ?? {}
+        if (nextInput !== undefined && submitNextInput) {
+          enqueue({
+            value: nextInput,
+            mode: restoredMode,
+            pastedContents:
+              Object.keys(restoredPastedContents).length > 0
+                ? restoredPastedContents
+                : undefined,
+          })
         } else {
-          params.onInputChange(nextInput)
+          params.onModeChange(restoredMode)
+          if (nextInput !== undefined) {
+            params.onInputChange(nextInput)
+            params.setPastedContents(restoredPastedContents)
+          }
         }
       }
     }) // end runWithWorkload — ALS context naturally scoped, no finally needed

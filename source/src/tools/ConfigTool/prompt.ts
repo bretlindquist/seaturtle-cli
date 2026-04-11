@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { getGlobalClaudeFileDisplayPath } from '../../utils/env.js'
 import { getModelOptions } from '../../utils/model/modelOptions.js'
 import { isVoiceGrowthBookEnabled } from '../../voice/voiceModeEnabled.js'
 import {
@@ -59,7 +60,7 @@ export function generatePrompt(): string {
 ## Configurable settings list
 The following settings are available for you to change:
 
-### Global Settings (stored in ~/.claude.json)
+### Global Settings (stored in ${getGlobalClaudeFileDisplayPath()})
 ${globalSettings.join('\n')}
 
 ### Project Settings (stored in settings.json)

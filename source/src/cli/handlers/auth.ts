@@ -20,6 +20,8 @@ import {
 import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProfile.js'
 import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
+import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
+import { getOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodexTelemetry.js'
 import {
   clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
@@ -233,6 +235,8 @@ export async function authStatus(opts: {
   json?: boolean
   text?: boolean
 }): Promise<void> {
+  const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot()
+  const codexTelemetry = getOpenAiCodexSessionTelemetry()
   const { source: authTokenSource, hasToken } = getAuthTokenSource()
   const { source: apiKeySource } = getAnthropicApiKeyWithSource()
   const hasApiKeyEnvVar =
@@ -240,8 +244,9 @@ export async function authStatus(opts: {
   const oauthAccount = getOauthAccountInfo()
   const subscriptionType = getSubscriptionType()
   const using3P = isUsing3PServices()
+  const hasOpenAiCodexAuth = runtimeSnapshot.openAiCodexAuthReady
   const loggedIn =
-    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P
+    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P || hasOpenAiCodexAuth
 
   // Determine auth method
   let authMethod: string = 'none'
@@ -257,6 +262,12 @@ export async function authStatus(opts: {
     authMethod = 'api_key'
   } else if (apiKeySource === '/login managed key') {
     authMethod = 'claude.ai'
+  } else if (hasOpenAiCodexAuth) {
+    authMethod =
+      runtimeSnapshot.openAiCodexAuthSource === 'OPENAI_API_KEY' ||
+      runtimeSnapshot.openAiCodexAuthSource === 'provider-api-key-profile'
+        ? 'openai_codex_api_key'
+        : 'openai_codex_oauth'
   }
 
   if (opts.text) {
@@ -286,9 +297,7 @@ export async function authStatus(opts: {
       process.stdout.write('API key: ANTHROPIC_API_KEY\n')
     }
     if (!loggedIn) {
-      process.stdout.write(
-        'Not logged in. Run claude auth login to authenticate.\n',
-      )
+      process.stdout.write('Not logged in. Run /login or ct auth login.\n')
     }
   } else {
     const apiProvider = getAPIProvider()
@@ -298,13 +307,72 @@ export async function authStatus(opts: {
         : hasApiKeyEnvVar
           ? 'ANTHROPIC_API_KEY'
           : null
-    const output: Record<string, string | boolean | null> = {
+    const output: Record<string, unknown> = {
       loggedIn,
       authMethod,
       apiProvider,
+      mainLoopRuntime: runtimeSnapshot.execution.provider,
+      preferredMainLoopRuntime: runtimeSnapshot.preferred.provider,
+      openAiCodexAuthReady: runtimeSnapshot.openAiCodexAuthReady,
+      openAiCodexNativeAuthReady: runtimeSnapshot.openAiCodexNativeAuthReady,
+      openAiCodexApiKeyReady: runtimeSnapshot.openAiCodexApiKeyReady,
+      openAiCodexCliFallbackReady: runtimeSnapshot.openAiCodexCliFallbackReady,
+    }
+    if (runtimeSnapshot.openAiCodexAuthSource) {
+      output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource
+    }
+    if (runtimeSnapshot.openAiCodexAccountLabel) {
+      output.openAiCodexAccount = runtimeSnapshot.openAiCodexAccountLabel
+    }
+    if (runtimeSnapshot.openAiCodexPlanLabel) {
+      output.openAiCodexPlan = runtimeSnapshot.openAiCodexPlanLabel
+    }
+    if (codexTelemetry.collaborationMode) {
+      output.openAiCodexCollaborationMode =
+        codexTelemetry.collaborationMode === 'background'
+          ? 'Background'
+          : 'Default'
+    }
+    if (codexTelemetry.fiveHour || codexTelemetry.weekly) {
+      output.openAiCodexUsageTelemetry = {
+        updatedAt: codexTelemetry.updatedAt,
+        ...(codexTelemetry.fiveHour
+          ? {
+              fiveHour: {
+                usedPercent: codexTelemetry.fiveHour.usedPercent,
+                remainingPercent: Math.max(
+                  0,
+                  100 - codexTelemetry.fiveHour.usedPercent,
+                ),
+                resetAt: codexTelemetry.fiveHour.resetAt,
+                windowMinutes: codexTelemetry.fiveHour.windowMinutes,
+              },
+            }
+          : {}),
+        ...(codexTelemetry.weekly
+          ? {
+              weekly: {
+                usedPercent: codexTelemetry.weekly.usedPercent,
+                remainingPercent: Math.max(
+                  0,
+                  100 - codexTelemetry.weekly.usedPercent,
+                ),
+                resetAt: codexTelemetry.weekly.resetAt,
+                windowMinutes: codexTelemetry.weekly.windowMinutes,
+              },
+            }
+          : {}),
+      }
     }
     if (resolvedApiKeySource) {
       output.apiKeySource = resolvedApiKeySource
+    }
+    if (runtimeSnapshot.execution.family === 'openai') {
+      output.openAiCodexKnownGates = [
+        'auto_mode_classifier',
+        'permission_explainer',
+        'claude_in_chrome_lightning',
+      ]
     }
     if (authMethod === 'claude.ai') {
       output.email = oauthAccount?.emailAddress ?? null
@@ -325,6 +393,6 @@ export async function authLogout(): Promise<void> {
     process.stderr.write('Failed to log out.\n')
     process.exit(1)
   }
-  process.stdout.write('Successfully logged out from your Anthropic account.\n')
+  process.stdout.write('Successfully logged out from CT provider auth.\n')
   process.exit(0)
 }

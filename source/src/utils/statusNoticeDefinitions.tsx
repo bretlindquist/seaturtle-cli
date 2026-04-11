@@ -6,12 +6,21 @@ import figures from 'figures';
 import { getCwd } from './cwd.js';
 import { relative } from 'path';
 import { formatNumber } from './format.js';
-import type { getGlobalConfig } from './config.js';
+import { getCurrentProjectConfig, getGlobalConfig } from './config.js';
+import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
 import { getAnthropicApiKeyWithSource, getApiKeyFromConfigOrMacOSKeychain, getAuthTokenSource, isClaudeAISubscriber } from './auth.js';
 import type { AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js';
 import { getAgentDescriptionsTotalTokens, AGENT_DESCRIPTIONS_THRESHOLD } from './statusNoticeHelpers.js';
 import { isSupportedJetBrainsTerminal, toIDEDisplayName, getTerminalIdeType } from './ide.js';
 import { isJetBrainsPluginInstalledCachedSync } from './jetbrains.js';
+import { pickCtGreeting, HALF_SHELL_ARCHIVES_NAME } from '../services/projectIdentity/lore.js';
+import { getCtArchives } from '../services/projectIdentity/archives.js';
+import { getCtHaikuDisplay, markStartupHaikuShown, shouldShowStartupHaiku } from '../services/projectIdentity/haiku.js';
+import { getCtCanonCallback } from '../services/projectIdentity/canonCallbacks.js';
+import { getProjectCtIdentityBootstrapFileState } from '../services/projectIdentity/state.js';
+import { hasCtIdentityLayer } from '../services/projectIdentity/bootstrapPromptCore.js';
+import { getSessionResumeAffordanceText } from '../services/sessionResume/sessionResumeCopy.js';
+import { isBareMode } from './envUtils.js';
 
 // Types
 export type StatusNoticeType = 'warning' | 'info';
@@ -187,9 +196,140 @@ const jetbrainsPluginNotice: StatusNoticeDefinition = {
       </Box>;
   }
 };
+const telegramSetupNotice: StatusNoticeDefinition = {
+  id: 'telegram-setup',
+  type: 'warning',
+  isActive: () => {
+    const snapshot = getTelegramConfigSnapshot();
+    return (snapshot.botTokenConfigured || snapshot.allowedChatIdsCount > 0) && !snapshot.ready;
+  },
+  render: () => {
+    const snapshot = getTelegramConfigSnapshot();
+    return <Box flexDirection="row">
+        <Text color="warning">{figures.warning}</Text>
+        <Text color="warning">
+          Telegram is partially configured {snapshot.source === 'env' ? '(from environment variables) ' : ''}and will not receive messages yet.
+          <Text dimColor> · /telegram to finish setup</Text>
+        </Text>
+      </Box>;
+  }
+};
+const ctIdentityBootstrapNotice: StatusNoticeDefinition = {
+  id: 'ct-identity-bootstrap',
+  type: 'info',
+  isActive: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    return !bootstrap?.hasCompletedSetup && bootstrap?.mode !== 'skipped';
+  },
+  render: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    const hasIdentityLayer = hasCtIdentityLayer(getProjectCtIdentityBootstrapFileState());
+    const seenCount = bootstrap?.seenCount ?? 0;
+    const isSeaTurtleIntro = seenCount >= 3;
+    return <Box flexDirection="row">
+        <Text color="claude">{isSeaTurtleIntro ? '🐢' : figures.arrowUp}</Text>
+        <Text>
+          {hasIdentityLayer
+            ? isSeaTurtleIntro
+              ? `I'm 🐢 SeaTurtle, or CT for short. There is a private starter kit for this project. Over time, this layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
+              : 'This project has a private `.ct/` layer.'
+            : 'CT can create a private `.ct/` layer for this project when you are ready.'}
+          <Text dimColor> · use /ct whenever you want to {hasIdentityLayer ? 'retune it or edit the private CT files directly' : 'create or tune it'}</Text>
+          <Text dimColor> · {getSessionResumeAffordanceText()}</Text>
+        </Text>
+      </Box>;
+  }
+};
+const ctIdentityGreetingNotice: StatusNoticeDefinition = {
+  id: 'ct-identity-greeting',
+  type: 'info',
+  isActive: () => {
+    const bootstrap = getCurrentProjectConfig().ctIdentityBootstrap;
+    return bootstrap?.hasCompletedSetup === true;
+  },
+  render: () => {
+    const canonCallback = getCtCanonCallback();
+    return <CtIdentityGreetingNoticeBody canonCallback={canonCallback} />;
+  }
+};
+
+const CT_GREETING_TYPING_DELAY_MS = 18;
+
+function CtIdentityGreetingNoticeBody({
+  canonCallback,
+}: {
+  canonCallback: string | null;
+}): React.ReactNode {
+  const [display] = React.useState(() => {
+    const seed = `${getCwd()}:${Date.now()}`;
+    const archives = getCtArchives();
+    const greeting = pickCtGreeting(seed, archives.temperament);
+    if (shouldShowStartupHaiku({
+      seed,
+      startupCount: getGlobalConfig().numStartups,
+      disposition: greeting.disposition,
+    })) {
+      return {
+        kind: 'haiku' as const,
+        text: getCtHaikuDisplay(seed),
+      };
+    }
+    return {
+      kind: 'greeting' as const,
+      text: greeting.prompt,
+    };
+  });
+  const prompt = display.kind === 'greeting' ? display.text : '';
+  const haikuLines = display.kind === 'haiku' ? display.text.split('\n') : [];
+  const [visibleChars, setVisibleChars] = React.useState(() =>
+    isBareMode() ? prompt.length : 0
+  );
+
+  React.useEffect(() => {
+    if (display.kind === 'haiku' || isBareMode()) {
+      if (isBareMode()) {
+        setVisibleChars(prompt.length);
+      }
+      markStartupHaikuShown();
+      return;
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const tick = () => {
+      setVisibleChars(current => {
+        const next = Math.min(prompt.length, current + 2);
+        if (next < prompt.length) {
+          timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
+        }
+        return next;
+      });
+    };
+
+    timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [display.kind, prompt]);
+
+  return <Box flexDirection="column" gap={1}>
+      <Text dimColor>
+        Use /ct to edit `.ct/session.md`, /haiku to tune the rare creative tide, or retune CT whenever you want to
+        steer the project.
+      </Text>
+      <Text dimColor>{getSessionResumeAffordanceText()}</Text>
+      {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
+      {display.kind === 'haiku' ? <Box marginTop={1} flexDirection="column">
+          {haikuLines.map((line, index) => <Text key={index} color="claude">{line}</Text>)}
+        </Box> : <Box marginTop={1}><Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text></Box>}
+    </Box>;
+}
 
 // All notice definitions
-export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice];
+export const statusNoticeDefinitions: StatusNoticeDefinition[] = [largeMemoryFilesNotice, largeAgentDescriptionsNotice, claudeAiSubscriberExternalTokenNotice, apiKeyConflictNotice, bothAuthMethodsNotice, jetbrainsPluginNotice, telegramSetupNotice, ctIdentityBootstrapNotice, ctIdentityGreetingNotice];
 
 // Helper functions for external use
 export function getActiveNotices(context: StatusNoticeContext): StatusNoticeDefinition[] {

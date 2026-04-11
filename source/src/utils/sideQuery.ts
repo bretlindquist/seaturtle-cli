@@ -14,6 +14,7 @@ import { logEvent } from '../services/analytics/index.js'
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../services/analytics/metadata.js'
 import { getAPIMetadata } from '../services/api/claude.js'
 import { getAnthropicClient } from '../services/api/client.js'
+import { getMainLoopProviderRuntime } from '../services/api/providerRuntime.js'
 import { getModelBetas, modelSupportsStructuredOutputs } from './betas.js'
 import { computeFingerprint } from './fingerprint.js'
 import { normalizeModelStringForAPI } from './model/model.js'
@@ -120,6 +121,16 @@ export async function sideQuery(opts: SideQueryOptions): Promise<BetaMessage> {
     thinking,
     stop_sequences,
   } = opts
+
+  const runtime = getMainLoopProviderRuntime()
+  if (runtime.family === 'openai') {
+    // Keep sideQuery Anthropic-only. Migrate text-only utility callers to the
+    // provider-neutral helper in services/api/providerHelpers.ts instead of
+    // widening this helper into a second generic provider transport.
+    throw new Error(
+      'sideQuery is currently Anthropic-only and is not available when the OpenAI/Codex runtime is active.',
+    )
+  }
 
   const client = await getAnthropicClient({
     maxRetries,
