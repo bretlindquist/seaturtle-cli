@@ -44,6 +44,8 @@ type StatusSectionData = {
   properties: Property[]
 }
 
+const STATUS_LABEL_WIDTH = 20
+
 function pickProperties(
   properties: Property[],
   labels: string[],
@@ -183,34 +185,44 @@ function PropertySection({
 
   return (
     <Box flexDirection="column" marginBottom={1}>
-      <Text bold color="permission">
-        {title}
-      </Text>
-      {properties.map(({ label, value }, j) => (
-        <Box key={j} flexDirection="column" flexShrink={0} marginTop={1}>
-          <Box flexDirection="row" gap={1} flexShrink={0}>
-            {label !== undefined ? (
-              <Box width={20} flexShrink={0}>
-                <Text bold dimColor>
-                  {label}:
+      <Box
+        flexDirection="column"
+        borderStyle="round"
+        borderColor="subtle"
+        borderDimColor
+        paddingX={1}
+      >
+        <Box marginBottom={1}>
+          <Text bold color="permission">
+            {title}
+          </Text>
+        </Box>
+        {properties.map(({ label, value }, j) => (
+          <Box key={j} flexDirection="column" flexShrink={0} marginTop={j === 0 ? 0 : 1}>
+            <Box flexDirection="row" gap={1} flexShrink={0}>
+              {label !== undefined ? (
+                <Box width={STATUS_LABEL_WIDTH} flexShrink={0}>
+                  <Text bold dimColor>
+                    {label}:
+                  </Text>
+                </Box>
+              ) : (
+                <Box width={STATUS_LABEL_WIDTH} flexShrink={0} />
+              )}
+              <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+                <PropertyValue value={value} />
+              </Box>
+            </Box>
+            {properties[j]?.description ? (
+              <Box paddingLeft={STATUS_LABEL_WIDTH + 1} flexDirection="column">
+                <Text dimColor color="inactive" wrap="wrap">
+                  {properties[j]?.description}
                 </Text>
               </Box>
-            ) : (
-              <Box width={20} flexShrink={0} />
-            )}
-            <Box flexDirection="column" flexGrow={1} flexShrink={1}>
-              <PropertyValue value={value} />
-            </Box>
+            ) : null}
           </Box>
-          {properties[j]?.description ? (
-            <Box paddingLeft={21} flexDirection="column">
-              <Text dimColor color="inactive" wrap="wrap">
-                {properties[j]?.description}
-              </Text>
-            </Box>
-          ) : null}
-        </Box>
-      ))}
+        ))}
+      </Box>
     </Box>
   )
 }
@@ -310,7 +322,12 @@ function AsyncPropertySection({
   title: string
 }): React.ReactNode {
   const properties = use(promise)
-  return <PropertySection title={title} properties={properties} />
+  return (
+    <PropertySection
+      title={title}
+      properties={describeProperties(properties)}
+    />
+  )
 }
 
 export function Status({
