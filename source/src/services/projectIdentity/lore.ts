@@ -116,6 +116,24 @@ const CT_GREETING_PROMPTS: Record<CtDisposition, readonly string[]> = {
   ],
 }
 
+export function getCtGreetingPromptInventory(): Record<CtDisposition, number> {
+  return {
+    brisk: CT_GREETING_PROMPTS.brisk.length,
+    curious: CT_GREETING_PROMPTS.curious.length,
+    mischievous: CT_GREETING_PROMPTS.mischievous.length,
+    steady: CT_GREETING_PROMPTS.steady.length,
+    warm: CT_GREETING_PROMPTS.warm.length,
+    reflective: CT_GREETING_PROMPTS.reflective.length,
+  }
+}
+
+export function getCtGreetingPromptTotalCount(): number {
+  return Object.values(CT_GREETING_PROMPTS).reduce(
+    (count, prompts) => count + prompts.length,
+    0,
+  )
+}
+
 function hashSeed(seed: string): number {
   let score = 0
   for (const char of seed) {
