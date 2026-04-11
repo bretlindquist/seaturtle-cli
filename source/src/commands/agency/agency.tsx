@@ -1,6 +1,7 @@
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import {
   buildAgencyRunPrompt,
+  formatAgencyBrowse,
   formatAgencyList,
   formatAgencyStatus,
   getAgencyHelpText,
@@ -27,6 +28,12 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
 
       case 'list':
         onDone(formatAgencyList(parsed.scope), { display: 'system' })
+        return null
+
+      case 'browse':
+        onDone(await formatAgencyBrowse(parsed.query, parsed.ref), {
+          display: 'system',
+        })
         return null
 
       case 'run': {

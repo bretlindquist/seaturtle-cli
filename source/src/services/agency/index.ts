@@ -133,6 +133,24 @@ export type AgencyResolvedRunTarget = {
   entry: AgencyManifestEntry
 }
 
+function groupAgencyEntriesByDivision<T extends { division: string; id: string }>(
+  entries: T[],
+): Array<[string, T[]]> {
+  const grouped = new Map<string, T[]>()
+  for (const entry of entries) {
+    const existing = grouped.get(entry.division) ?? []
+    existing.push(entry)
+    grouped.set(entry.division, existing)
+  }
+
+  return Array.from(grouped.entries())
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([division, items]) => [
+      division,
+      items.sort((a, b) => a.id.localeCompare(b.id)),
+    ])
+}
+
 function normalizeAgencyLookup(value: string | undefined): string {
   return (value ?? '').trim().toLowerCase().replace(/\.md$/, '')
 }
@@ -883,6 +901,7 @@ export function getAgencyHelpText(): string {
     'Use /agency install <all|division|agent> to install optional Agency agents.',
     '',
     'Commands:',
+    '/agency browse [query]',
     '/agency install [target] [--project]',
     '/agency run <agent> <task>',
     '/agency update [--project]',
@@ -892,6 +911,8 @@ export function getAgencyHelpText(): string {
     '/agency help',
     '',
     'Examples:',
+    '/agency browse marketing',
+    '/agency browse strategist',
     '/agency install marketing',
     '/agency install marketing --project',
     '/agency run agency-marketing-social-media-strategist Draft a launch-channel plan for our next release.',
@@ -952,10 +973,62 @@ export function formatAgencyList(scope?: AgencyInstallScope): string {
       lines.push(`Project root: ${manifest.projectRoot}`)
     }
     lines.push('')
-    for (const entry of manifest.entries) {
-      lines.push(`${entry.id}  ${entry.title} [${entry.division}]`)
+    for (const [division, entries] of groupAgencyEntriesByDivision(
+      manifest.entries,
+    )) {
+      lines.push(`[${division}]`)
+      for (const entry of entries) {
+        lines.push(`${entry.id}  ${entry.title}`)
+      }
+      lines.push('')
     }
   }
 
-  return lines.join('\n')
+  return lines.join('\n').trimEnd()
+}
+
+export async function formatAgencyBrowse(
+  rawQuery?: string,
+  ref: string = AGENCY_DEFAULT_REF,
+): Promise<string> {
+  const catalog = await fetchAgencyCatalog(ref)
+  const query = normalizeAgencyLookup(rawQuery)
+  const matches =
+    !query || query === 'all'
+      ? catalog.entries
+      : catalog.entries.filter(entry => {
+          const title = entry.title.toLowerCase()
+          const division = entry.division.toLowerCase()
+          const upstream = entry.upstreamPath.replace(/\.md$/, '').toLowerCase()
+          const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
+          return (
+            title.includes(query.replace(/-/g, ' ')) ||
+            division.includes(query) ||
+            upstream.includes(query) ||
+            suffix.includes(query) ||
+            entry.id.toLowerCase().includes(query)
+          )
+        })
+
+  if (matches.length === 0) {
+    return `No upstream Agency agents matched "${rawQuery}".`
+  }
+
+  const lines = [
+    `Agency upstream catalog (${matches.length} match${matches.length === 1 ? '' : 'es'})`,
+    `Commit: ${catalog.commit}`,
+    '',
+  ]
+
+  for (const [division, entries] of groupAgencyEntriesByDivision(matches)) {
+    lines.push(`[${division}]`)
+    for (const entry of entries) {
+      lines.push(`${entry.id}  ${entry.title}`)
+    }
+    lines.push('')
+  }
+
+  lines.push('Next:')
+  lines.push('Use /agency install <division|agent> to install one of these.')
+  return lines.join('\n').trimEnd()
 }

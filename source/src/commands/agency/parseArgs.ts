@@ -4,6 +4,7 @@ export type ParsedAgencyCommand =
   | { type: 'help' }
   | { type: 'status'; scope?: AgencyInstallScope }
   | { type: 'list'; scope?: AgencyInstallScope }
+  | { type: 'browse'; query?: string; ref?: string }
   | { type: 'run'; target?: string; task?: string; scope?: AgencyInstallScope }
   | { type: 'update'; scope: AgencyInstallScope }
   | { type: 'remove'; target?: string; scope: AgencyInstallScope }
@@ -47,6 +48,28 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
 
   if (command === 'list' || command === 'ls') {
     return { type: 'list', scope: parseOptionalScopeFlag(parts) }
+  }
+
+  if (command === 'browse' || command === 'search') {
+    let query: string | undefined
+    let ref: string | undefined
+
+    for (let index = 1; index < parts.length; index++) {
+      const part = parts[index]
+      if (!part) {
+        continue
+      }
+      if (part === '--ref') {
+        ref = parts[index + 1]
+        index += 1
+        continue
+      }
+      if (!query) {
+        query = part
+      }
+    }
+
+    return { type: 'browse', query, ref }
   }
 
   if (command === 'run') {
