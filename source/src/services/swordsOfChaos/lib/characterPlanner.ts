@@ -9,6 +9,7 @@ import type {
   SwordsOfChaosCharacterSheet,
 } from '../types/save.js'
 import type { SwordsSecondBeatOption } from '../types/shells.js'
+import type { SwordsOpeningOption } from '../types/shells.js'
 import type { SwordsOfChaosEncounterLocus } from '../types/worldMap.js'
 
 function getDevelopmentFocus(input: {
@@ -88,17 +89,17 @@ function getDevelopmentPressure(input: {
 }): string {
   switch (input.focus) {
     case 'edge':
-      return 'The next chapter should test whether you are becoming a weapon, a guardian, or simply someone who reaches for force first.'
+      return 'The next chapter should tempt speed and force while making the fallout belong to you more visibly than before.'
     case 'composure':
-      return 'The next chapter should pressure your restraint until it proves whether it is discipline, courtesy, or fear in expensive clothing.'
+      return 'The next chapter should reward restraint just enough to ask whether the quiet line is discipline or only fear taking longer to speak.'
     case 'nerve':
-      return `The next chapter should force your claims to survive contact with something that does not care who you say you are.`
+      return 'The next chapter should make bold claims useful and then expensive the moment contradiction arrives.'
     case 'witness':
-      return 'The next chapter should test whether looking back makes you harder to frighten or easier to find.'
+      return 'The next chapter should let you see more than safety allows and make hidden things notice who kept looking.'
     case 'threshold':
-      return `The next chapter should ask what you do when a boundary finally answers ${input.character.name ?? 'you'} in plain terms.`
+      return `The next chapter should let a boundary answer ${input.character.name ?? 'you'} and then ask what that answer costs to keep.`
     case 'myth':
-      return `The next chapter should bring the uncanny close enough that ${input.outcome.key === 'relic' ? 'proof' : 'association'} stops being deniable.`
+      return `The next chapter should bring the uncanny close enough that ${input.outcome.key === 'relic' ? 'proof' : 'association'} stops being deniable and ordinary explanations stop protecting you.`
   }
 }
 
@@ -156,11 +157,9 @@ export function getSwordsCharacterDevelopmentLine(
 export function getSwordsCharacterDevelopmentPressure(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string[] {
-  if (!relevantMemory?.characterDevelopment?.pressure) {
-    return []
-  }
-
-  return [relevantMemory.characterDevelopment.pressure]
+  const pressure = relevantMemory?.characterDevelopment?.pressure
+  const cost = getSwordsCharacterCostLine(relevantMemory)
+  return [pressure, cost].filter(Boolean)
 }
 
 export function getSwordsCharacterDevelopmentHint(
@@ -239,6 +238,30 @@ export function getSwordsCharacterTemptationLine(
   }
 }
 
+export function getSwordsCharacterCostLine(
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
+): string | undefined {
+  const focus = relevantMemory?.characterDevelopment?.focus
+  if (!focus) {
+    return undefined
+  }
+
+  switch (focus) {
+    case 'edge':
+      return 'Cost: force will solve some scenes faster, but the world is increasingly keeping the collateral in your name.'
+    case 'composure':
+      return 'Cost: the quieter road buys clarity, but it can also leave the initiative with whatever wanted your patience.'
+    case 'nerve':
+      return 'Cost: every bold claim buys access on credit, and contradiction is starting to collect.'
+    case 'witness':
+      return 'Cost: seeing further now also means being seen by things that preferred to remain implied.'
+    case 'threshold':
+      return 'Cost: every answered boundary changes what still counts as outside.'
+    case 'myth':
+      return 'Cost: proof is drawing nearer, and stable explanation is beginning to retreat.'
+  }
+}
+
 export function getSwordsCharacterRecognitionLine(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): string | undefined {
@@ -247,6 +270,85 @@ export function getSwordsCharacterRecognitionLine(
   }
 
   return `The world is starting to recognize a pattern in you: ${relevantMemory.characterDevelopment.title}.`
+}
+
+export function applySwordsCharacterPressureToOpeningOptions(input: {
+  options: SwordsOpeningOption[]
+  relevantMemory: SwordsOfChaosRelevantMemory | undefined
+}): SwordsOpeningOption[] {
+  const focus = input.relevantMemory?.characterDevelopment?.focus
+  if (!focus) {
+    return input.options
+  }
+
+  function score(option: SwordsOpeningOption): number {
+    switch (focus) {
+      case 'edge':
+        return option.value === 'draw-steel' ? 2 : 0
+      case 'composure':
+        return option.value === 'bow-slightly' ? 2 : 0
+      case 'nerve':
+        return option.value === 'talk-like-you-belong' ? 2 : 0
+      case 'witness':
+        return option.value === 'bow-slightly' ? 2 : 0
+      case 'threshold':
+        return option.value === 'draw-steel' || option.value === 'bow-slightly'
+          ? 1
+          : 0
+      case 'myth':
+        return option.value === 'talk-like-you-belong' ? 2 : 0
+      default:
+        return 0
+    }
+  }
+
+  const rewritten = input.options.map(option => {
+    if (focus === 'edge' && option.value === 'draw-steel') {
+      return {
+        ...option,
+        description: `${option.description} It is the fast road, and the aftermath is increasingly yours to carry.`,
+      }
+    }
+
+    if (focus === 'composure' && option.value === 'bow-slightly') {
+      return {
+        ...option,
+        description: `${option.description} It may buy clarity, but only if the scene is not using your patience against you.`,
+      }
+    }
+
+    if (focus === 'nerve' && option.value === 'talk-like-you-belong') {
+      return {
+        ...option,
+        description: `${option.description} It opens doors on credit, and contradiction is already nearby.`,
+      }
+    }
+
+    if (focus === 'witness' && option.value === 'bow-slightly') {
+      return {
+        ...option,
+        description: `${option.description} The slower line lets you see more, which also gives the hidden more time to notice you.`,
+      }
+    }
+
+    if (focus === 'threshold' && option.value === 'bow-slightly') {
+      return {
+        ...option,
+        description: `${option.description} If the boundary answers, you may not get to remain outside it afterward.`,
+      }
+    }
+
+    if (focus === 'myth' && option.value === 'talk-like-you-belong') {
+      return {
+        ...option,
+        description: `${option.description} This is the road most likely to turn omen into proof before you can explain it away.`,
+      }
+    }
+
+    return option
+  })
+
+  return [...rewritten].sort((left, right) => score(right) - score(left))
 }
 
 export function applySwordsCharacterPressureToSecondBeatOptions(input: {
@@ -293,42 +395,42 @@ export function applySwordsCharacterPressureToSecondBeatOptions(input: {
     if (focus === 'edge' && option.value === 'cut-the-sign-chain') {
       return {
         ...option,
-        description: `${option.description} The world has started watching what you do with force.`,
+        description: `${option.description} The world has started watching what you do with force, and it plans to leave the fallout in your name.`,
       }
     }
 
     if (focus === 'composure' && option.value === 'keep-bowing') {
       return {
         ...option,
-        description: `${option.description} This road now reads like a test of whether your calm is real.`,
+        description: `${option.description} This road now reads like a test of whether your calm is real or merely a way of surrendering initiative more gracefully.`,
       }
     }
 
     if (focus === 'nerve' && option.value === 'double-down') {
       return {
         ...option,
-        description: `${option.description} The place seems almost eager to discover whether your nerve can survive contradiction.`,
+        description: `${option.description} The place seems almost eager to discover whether your nerve can survive contradiction and still pay its own debt.`,
       }
     }
 
     if (focus === 'witness' && option.value === 'meet-the-gaze') {
       return {
         ...option,
-        description: `${option.description} The hidden part of the scene is no longer certain it can stare without being stared at in return.`,
+        description: `${option.description} The hidden part of the scene is no longer certain it can stare without being stared at in return, which means it is closer to noticing you as well.`,
       }
     }
 
     if (focus === 'threshold' && option.value === 'ask-the-price') {
       return {
         ...option,
-        description: `${option.description} Boundaries have started acting as if they owe you an answer or a warning.`,
+        description: `${option.description} Boundaries have started acting as if they owe you an answer or a warning, and either one may move you across something irreversible.`,
       }
     }
 
     if (focus === 'myth' && option.value === 'meet-the-gaze') {
       return {
         ...option,
-        description: `${option.description} The uncanny around you is close to becoming visible proof.`,
+        description: `${option.description} The uncanny around you is close to becoming visible proof, which means ordinary explanation is about to lose ground.`,
       }
     }
 

@@ -37,7 +37,9 @@ import {
 } from './presencePlanner.js'
 import { getSwordsSeaTurtleFavoredSecondChoice } from './seaturtleChoice.js'
 import {
+  applySwordsCharacterPressureToOpeningOptions,
   applySwordsCharacterPressureToSecondBeatOptions,
+  getSwordsCharacterCostLine,
   getSwordsCharacterDevelopmentHint,
   getSwordsCharacterDevelopmentLine,
   getSwordsCharacterDevelopmentPressure,
@@ -583,9 +585,12 @@ function renderDeterministicScene(
         options: applySwordsMagicToOpeningOptions({
           options: applySwordsPresenceToOpeningOptions({
             options: applyOpeningCallbackMemory(
-              applySwordsStoryPressureToOpeningOptions({
-                options: getSwordsOpeningActionSet({
-                  locus,
+              applySwordsCharacterPressureToOpeningOptions({
+                options: applySwordsStoryPressureToOpeningOptions({
+                  options: getSwordsOpeningActionSet({
+                    locus,
+                    relevantMemory: payload.relevantMemory,
+                  }),
                   relevantMemory: payload.relevantMemory,
                 }),
                 relevantMemory: payload.relevantMemory,
@@ -605,6 +610,7 @@ function renderDeterministicScene(
           relevantMemory: payload.relevantMemory,
         }) ??
         getSwordsMagicHint(payload.relevantMemory) ??
+        getSwordsCharacterCostLine(payload.relevantMemory) ??
         (familiar && returningAgain && !payload.relevantMemory?.canonThread
           ? payload.relevantMemory?.seaturtleOpeningPending
             ? openingShell.hintText
@@ -757,6 +763,7 @@ function renderDeterministicScene(
       }) ??
       getSwordsMagicHint(payload.relevantMemory) ??
       getSwordsCharacterTemptationLine(payload.relevantMemory) ??
+      getSwordsCharacterCostLine(payload.relevantMemory) ??
       getSwordsCharacterDevelopmentHint(payload.relevantMemory) ??
       getSecondBeatHint(payload.openingChoice, payload.relevantMemory),
   }

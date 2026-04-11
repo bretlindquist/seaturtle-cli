@@ -169,6 +169,8 @@ Current implementation:
 
 ### 6. Character Arc Temptations And Costs
 
+Status: implemented
+
 Problem:
 - character development currently recognizes who the player is becoming, but
   needs sharper tradeoffs
@@ -180,6 +182,14 @@ Target:
 
 Success:
 - character development changes play incentives and consequences
+
+Current implementation:
+- each active arc now exposes an explicit cost line alongside temptation and
+  pressure
+- opening and second-beat options are rewritten so favored arc-aligned moves
+  now telegraph their tradeoff, not just their tone
+- free-response dramatic beats and chapter payoff text now carry the cost side
+  of the arc forward so the player sees what their growth is starting to cost
 
 ### 7. Consequence Visibility Pass
 

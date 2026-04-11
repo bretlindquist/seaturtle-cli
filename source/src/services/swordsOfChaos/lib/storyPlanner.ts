@@ -856,15 +856,15 @@ export function getSwordsOutcomeVariationLines(input: {
   if (character?.focus === 'edge') {
     lines.push('The world is beginning to score your choices by what you do with force, not only by whether you win.')
   } else if (character?.focus === 'composure') {
-    lines.push('Restraint is no longer reading as passivity. The world is starting to test it like a form of power.')
+    lines.push('Restraint is no longer reading as passivity. The world is starting to test it like a form of power and to charge interest when it delays action.')
   } else if (character?.focus === 'nerve') {
-    lines.push('Your confidence is gaining consequences. Future scenes will be less willing to treat boldness as harmless style.')
+    lines.push('Your confidence is gaining consequences. Future scenes will be less willing to treat boldness as harmless style or free access.')
   } else if (character?.focus === 'witness') {
-    lines.push('Being willing to look back is changing what stays hidden around you.')
+    lines.push('Being willing to look back is changing what stays hidden around you, and what hidden things now remember about you.')
   } else if (character?.focus === 'threshold') {
-    lines.push('Boundaries are beginning to remember you as a recurring problem.')
+    lines.push('Boundaries are beginning to remember you as a recurring problem, which means crossing and belonging are both becoming less simple.')
   } else if (character?.focus === 'myth') {
-    lines.push('The uncanny around you is hardening from implication into history.')
+    lines.push('The uncanny around you is hardening from implication into history, while ordinary explanation loses more ground with each chapter.')
   }
 
   if (input.relevantMemory?.magicState?.activeImpossible === 'crossing') {

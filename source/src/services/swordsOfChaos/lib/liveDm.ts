@@ -1,5 +1,6 @@
 import { getSwordsEncounterLocus, getSwordsEncounterPlaceName } from './worldMap.js'
 import {
+  getSwordsCharacterCostLine,
   getSwordsCharacterReactionLine,
   getSwordsCharacterTemptationLine,
 } from './characterPlanner.js'
@@ -660,6 +661,7 @@ function buildSecondBeatLines(
     getSwordsEncounterLocus(relevantMemory),
   )
   const temptation = getSwordsCharacterTemptationLine(relevantMemory)
+  const cost = getSwordsCharacterCostLine(relevantMemory)
 
   if (intent.risk === 'high') {
     return buildBeatScript('strike', [
@@ -683,6 +685,7 @@ function buildSecondBeatLines(
         tone: 'accent',
       },
       ...(temptation ? [{ text: '', tone: 'quiet' as const }, { text: temptation, tone: 'plain' as const }] : []),
+      ...(cost ? [{ text: '', tone: 'quiet' as const }, { text: cost, tone: 'plain' as const }] : []),
     ])
   }
 
@@ -698,6 +701,7 @@ function buildSecondBeatLines(
         tone: 'accent',
       },
       ...(reaction ? [{ text: '', tone: 'quiet' as const }, { text: reaction, tone: 'plain' as const }] : []),
+      ...(cost ? [{ text: '', tone: 'quiet' as const }, { text: cost, tone: 'plain' as const }] : []),
     ])
   }
 
@@ -706,6 +710,7 @@ function buildSecondBeatLines(
     { text: '', tone: 'quiet' },
     { text: `Now ${place} has to answer the intent behind it.`, tone: 'accent' },
     ...(reaction ? [{ text: '', tone: 'quiet' as const }, { text: reaction, tone: 'plain' as const }] : []),
+    ...(cost ? [{ text: '', tone: 'quiet' as const }, { text: cost, tone: 'plain' as const }] : []),
   ])
 }
 
