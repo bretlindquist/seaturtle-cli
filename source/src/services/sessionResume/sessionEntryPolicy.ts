@@ -6,6 +6,16 @@ export type SessionEntryPolicyInput = {
   remoteValue?: string[] | null
 }
 
+export function buildSessionEntryPolicyInput(input: SessionEntryPolicyInput): SessionEntryPolicyInput {
+  return {
+    continueFlag: input.continueFlag,
+    resumeValue: input.resumeValue,
+    fromPrValue: input.fromPrValue,
+    teleportValue: input.teleportValue,
+    remoteValue: input.remoteValue,
+  }
+}
+
 export function hasExplicitSessionResumeRequest(
   input: SessionEntryPolicyInput,
 ): boolean {

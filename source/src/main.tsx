@@ -144,7 +144,7 @@ import { logPermissionContextForAnts } from 'src/services/internalLogging.js';
 import { fetchClaudeAIMcpConfigsIfEligible } from 'src/services/mcp/claudeai.js';
 import { clearServerCache } from 'src/services/mcp/client.js';
 import { areMcpConfigsAllowedWithEnterpriseMcpConfig, dedupClaudeAiMcpServers, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, getMcpServerSignature, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
-import { hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
+import { buildSessionEntryPolicyInput, hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
 import { getNoContinuableSessionText } from 'src/services/sessionResume/sessionResumeCopy.js';
 import { excludeCommandsByServer, excludeResourcesByServer } from 'src/services/mcp/utils.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
@@ -2431,18 +2431,20 @@ async function run(): Promise<CommanderCommand> {
       commands: uniqBy([...local.commands, ...claudeai.commands], 'name')
     }));
 
-    // Start hooks early so they run in parallel with MCP connections.
-    // Skip for initOnly/init/maintenance (handled separately), non-interactive
-    // (handled via setupTrigger), and resume/continue (conversationRecovery.ts
-    // fires 'resume' instead — without this guard, hooks fire TWICE on /resume
-    // and the second systemMessage clobbers the first. gh-30825)
-    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || !shouldStartFreshSession({
+    const sessionEntryPolicy = buildSessionEntryPolicyInput({
       continueFlag: options.continue,
       resumeValue: options.resume,
       fromPrValue: options.fromPr,
       teleportValue: teleport,
       remoteValue: remote
-    }) ? null : processSessionStartHooks('startup', {
+    });
+
+    // Start hooks early so they run in parallel with MCP connections.
+    // Skip for initOnly/init/maintenance (handled separately), non-interactive
+    // (handled via setupTrigger), and resume/continue (conversationRecovery.ts
+    // fires 'resume' instead — without this guard, hooks fire TWICE on /resume
+    // and the second systemMessage clobbers the first. gh-30825)
+    const hooksPromise = initOnly || init || maintenance || isNonInteractiveSession || !shouldStartFreshSession(sessionEntryPolicy) ? null : processSessionStartHooks('startup', {
       agentType: mainThreadAgentDefinition?.agentType,
       model: resolvedInitialModel
     });
@@ -2612,13 +2614,7 @@ async function run(): Promise<CommanderCommand> {
       // undefined and the ?? fallback runs). Also skip when setupTrigger is
       // set — those paths run setup hooks first (print.ts:544), and session
       // start hooks must wait until setup completes.
-      const sessionStartHooksPromise = !shouldStartFreshSession({
-        continueFlag: options.continue,
-        resumeValue: options.resume,
-        fromPrValue: options.fromPr,
-        teleportValue: teleport,
-        remoteValue: remote
-      }) || setupTrigger ? undefined : processSessionStartHooks('startup');
+      const sessionStartHooksPromise = !shouldStartFreshSession(sessionEntryPolicy) || setupTrigger ? undefined : processSessionStartHooks('startup');
       // Suppress transient unhandledRejection if this rejects before
       // loadInitialMessages awaits it. Downstream await still observes the
       // rejection — this just prevents the spurious global handler fire.
@@ -3366,12 +3362,7 @@ async function run(): Promise<CommanderCommand> {
         thinkingConfig
       }, renderAndRun);
       return;
-    } else if (hasExplicitSessionResumeRequest({
-      resumeValue: options.resume,
-      fromPrValue: options.fromPr,
-      teleportValue: teleport,
-      remoteValue: remote
-    })) {
+    } else if (hasExplicitSessionResumeRequest(sessionEntryPolicy)) {
       // Handle resume flow - from file (ant-only), session ID, or interactive selector
 
       // Clear stale caches before resuming to ensure fresh file/skill discovery
