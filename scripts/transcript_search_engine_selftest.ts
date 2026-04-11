@@ -5,13 +5,13 @@ import { join } from 'node:path'
 import {
   buildTranscriptSearchEngineState,
   getTranscriptSearchEngineCurrent,
+  getTranscriptSearchEngineCurrentMessageIndex,
   getTranscriptSearchEngineTotal,
+  hasTranscriptSearchEngineMatches,
+  setTranscriptSearchEngineCursorToNext,
   setTranscriptSearchEngineCursorToOccurrence,
+  setTranscriptSearchEngineCursorToPrevious,
 } from '../source/src/screens/repl/transcriptSearchEngine.ts'
-import {
-  getTranscriptSearchNextCursor,
-  getTranscriptSearchPreviousCursor,
-} from '../source/src/screens/repl/transcriptSearchModel.ts'
 
 type FakeMessage = {
   text: string
@@ -47,24 +47,38 @@ function run(): void {
     3,
     'cursor should report the ordinal of the chosen transcript occurrence',
   )
-
-  const wrappedNext = getTranscriptSearchNextCursor(
-    thirdOccurrence.snapshot,
-    thirdOccurrence.cursor,
+  assert.equal(
+    getTranscriptSearchEngineCurrentMessageIndex(thirdOccurrence),
+    2,
+    'engine should expose the current matched message index without adapter snapshot reads',
   )
-  assert.deepEqual(wrappedNext, {
+  assert.equal(
+    hasTranscriptSearchEngineMatches(engine),
+    true,
+    'engine should expose whether the transcript query currently has matches',
+  )
+
+  const wrappedNext = setTranscriptSearchEngineCursorToNext(thirdOccurrence)
+  assert.deepEqual(wrappedNext.cursor, {
     ptr: 0,
     occurrenceOrdinal: 0,
   })
-
-  const wrappedPrevious = getTranscriptSearchPreviousCursor(
-    engine.snapshot,
-    engine.cursor,
+  assert.equal(
+    wrappedNext.snapshot,
+    thirdOccurrence.snapshot,
+    'next cursor helper should preserve the current transcript snapshot',
   )
-  assert.deepEqual(wrappedPrevious, {
+
+  const wrappedPrevious = setTranscriptSearchEngineCursorToPrevious(engine)
+  assert.deepEqual(wrappedPrevious.cursor, {
     ptr: 1,
     occurrenceOrdinal: 0,
   })
+  assert.equal(
+    wrappedPrevious.snapshot,
+    engine.snapshot,
+    'previous cursor helper should preserve the current transcript snapshot',
+  )
 
   const preserved = buildTranscriptSearchEngineState(
     'open',

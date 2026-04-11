@@ -7,14 +7,12 @@ import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.
 import {
   buildTranscriptSearchEngineState,
   createEmptyTranscriptSearchEngineState,
+  hasTranscriptSearchEngineMatches,
   reportTranscriptSearchEngineBadge,
-  setTranscriptSearchEngineCursor,
+  setTranscriptSearchEngineCursorToNext,
+  setTranscriptSearchEngineCursorToPrevious,
 } from './transcriptSearchEngine.js';
-import {
-  getTranscriptSearchNextCursor,
-  getTranscriptSearchPreviousCursor,
-  normalizeTranscriptSearchQuery,
-} from './transcriptSearchModel.js';
+import { normalizeTranscriptSearchQuery } from './transcriptSearchModel.js';
 
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
@@ -75,16 +73,14 @@ export function useStaticTranscriptJump({
       },
       nextMatch: () => {
         const { engine } = stateRef.current;
-        if (engine.snapshot.matches.length === 0) return;
-        const next = getTranscriptSearchNextCursor(engine.snapshot, engine.cursor);
-        stateRef.current.engine = setTranscriptSearchEngineCursor(engine, next);
+        if (!hasTranscriptSearchEngineMatches(engine)) return;
+        stateRef.current.engine = setTranscriptSearchEngineCursorToNext(engine);
         reportTranscriptSearchEngineBadge(searchProgress, stateRef.current.engine);
       },
       prevMatch: () => {
         const { engine } = stateRef.current;
-        if (engine.snapshot.matches.length === 0) return;
-        const next = getTranscriptSearchPreviousCursor(engine.snapshot, engine.cursor);
-        stateRef.current.engine = setTranscriptSearchEngineCursor(engine, next);
+        if (!hasTranscriptSearchEngineMatches(engine)) return;
+        stateRef.current.engine = setTranscriptSearchEngineCursorToPrevious(engine);
         reportTranscriptSearchEngineBadge(searchProgress, stateRef.current.engine);
       },
     }),

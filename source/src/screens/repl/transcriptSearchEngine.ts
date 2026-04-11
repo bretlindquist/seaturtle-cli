@@ -5,7 +5,9 @@ import {
   clampTranscriptSearchCursor,
   createTranscriptSearchCursor,
   createTranscriptSearchEdgeCursor,
+  getTranscriptSearchNextCursor,
   getTranscriptSearchOccurrenceCount,
+  getTranscriptSearchPreviousCursor,
   getTranscriptSearchCurrent,
   getTranscriptSearchTotal,
   normalizeTranscriptSearchQuery,
@@ -99,6 +101,18 @@ export function reportTranscriptSearchEngineBadge(
   sink.reportMatches(badge.count, badge.current);
 }
 
+export function hasTranscriptSearchEngineMatches(
+  state: TranscriptSearchEngineState,
+): boolean {
+  return state.snapshot.matches.length > 0;
+}
+
+export function getTranscriptSearchEngineCurrentMessageIndex(
+  state: TranscriptSearchEngineState,
+): number | null {
+  return state.snapshot.matches[state.cursor.ptr] ?? null;
+}
+
 export function getTranscriptSearchEngineCurrentMessageOccurrenceCount(
   state: TranscriptSearchEngineState,
 ): number {
@@ -141,6 +155,24 @@ export function setTranscriptSearchEngineCursorToOccurrence(
     snapshot: state.snapshot,
     cursor: createTranscriptSearchCursor(state.snapshot, ptr, occurrenceOrdinal),
   };
+}
+
+export function setTranscriptSearchEngineCursorToNext(
+  state: TranscriptSearchEngineState,
+): TranscriptSearchEngineState {
+  return setTranscriptSearchEngineCursor(
+    state,
+    getTranscriptSearchNextCursor(state.snapshot, state.cursor),
+  );
+}
+
+export function setTranscriptSearchEngineCursorToPrevious(
+  state: TranscriptSearchEngineState,
+): TranscriptSearchEngineState {
+  return setTranscriptSearchEngineCursor(
+    state,
+    getTranscriptSearchPreviousCursor(state.snapshot, state.cursor),
+  );
 }
 
 export function getTranscriptSearchEngineEdgeCurrent(
