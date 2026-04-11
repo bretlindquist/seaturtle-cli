@@ -1,4 +1,10 @@
+import { getSeaTurtleConfigPathDisplay } from '../../../utils/envUtils.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
+
+const STATUSLINE_SCRIPT_PATH = getSeaTurtleConfigPathDisplay(
+  'statusline-command.sh',
+)
+const STATUSLINE_SETTINGS_PATH = getSeaTurtleConfigPathDisplay('settings.json')
 
 const STATUSLINE_SYSTEM_PROMPT = `You are a status line setup agent for CT. Your job is to create or update the statusLine command in the user's CT settings.
 
@@ -110,10 +116,10 @@ How to use the statusLine command:
    To display both 5-hour and 7-day limits when available:
    - input=$(cat); five=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty'); week=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty'); out=""; [ -n "$five" ] && out="5h:$(printf '%.0f' "$five")%"; [ -n "$week" ] && out="$out 7d:$(printf '%.0f' "$week")%"; echo "$out"
 
-2. For longer commands, you can save a new file in the user's ~/.claude directory, e.g.:
-   - ~/.claude/statusline-command.sh and reference that file in the settings.
+2. For longer commands, you can save a new file in the user's config directory, e.g.:
+   - ${STATUSLINE_SCRIPT_PATH} and reference that file in the settings.
 
-3. Update the user's ~/.claude/settings.json with:
+3. Update the user's ${STATUSLINE_SETTINGS_PATH} with:
    {
      "statusLine": {
        "type": "command", 
@@ -121,7 +127,7 @@ How to use the statusLine command:
      }
    }
 
-4. If ~/.claude/settings.json is a symlink, update the target file instead.
+4. If ${STATUSLINE_SETTINGS_PATH} is a symlink, update the target file instead.
 
 Guidelines:
 - Preserve existing settings when updating

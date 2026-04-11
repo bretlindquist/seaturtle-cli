@@ -1,8 +1,11 @@
+import { getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js'
 import { registerBundledSkill } from '../bundledSkills.js'
 
 // Prompt text contains `ps` commands as instructions for Claude to run,
 // not commands this file executes.
 // eslint-disable-next-line custom-rules/no-direct-ps-commands
+const DEBUG_LOG_PATH = getSeaTurtleConfigPathDisplay('debug', '<session-id>.txt')
+
 const STUCK_PROMPT = `# /stuck — diagnose frozen/slow Claude Code sessions
 
 The user thinks another Claude Code session on this machine is frozen, stuck, or very slow. Investigate and post a report to #claude-code-feedback.
@@ -31,7 +34,7 @@ Signs of a stuck session:
    - Child processes: \`pgrep -lP <pid>\`
    - If high CPU: sample again after 1-2s to confirm it's sustained
    - If a child looks hung (e.g., a git command), note its full command line with \`ps -p <child_pid> -o command=\`
-   - Check the session's debug log if you can infer the session ID: \`~/.claude/debug/<session-id>.txt\` (the last few hundred lines often show what it was doing before hanging)
+   - Check the session's debug log if you can infer the session ID: \`${DEBUG_LOG_PATH}\` (the last few hundred lines often show what it was doing before hanging)
 
 3. **Consider a stack dump** for a truly frozen process (advanced, optional):
    - macOS: \`sample <pid> 3\` gives a 3-second native stack sample
