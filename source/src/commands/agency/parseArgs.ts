@@ -4,7 +4,8 @@ export type ParsedAgencyCommand =
   | { type: 'help' }
   | { type: 'status'; scope?: AgencyInstallScope }
   | { type: 'list'; scope?: AgencyInstallScope }
-  | { type: 'browse'; query?: string; ref?: string }
+  | { type: 'browse'; query?: string; ref?: string; refresh?: boolean }
+  | { type: 'refresh'; ref?: string }
   | { type: 'run'; target?: string; task?: string; scope?: AgencyInstallScope }
   | { type: 'update'; scope: AgencyInstallScope }
   | { type: 'remove'; target?: string; scope: AgencyInstallScope }
@@ -53,10 +54,15 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
   if (command === 'browse' || command === 'search') {
     let query: string | undefined
     let ref: string | undefined
+    let refresh = false
 
     for (let index = 1; index < parts.length; index++) {
       const part = parts[index]
       if (!part) {
+        continue
+      }
+      if (part === '--refresh') {
+        refresh = true
         continue
       }
       if (part === '--ref') {
@@ -69,7 +75,22 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
       }
     }
 
-    return { type: 'browse', query, ref }
+    return { type: 'browse', query, ref, refresh }
+  }
+
+  if (command === 'refresh') {
+    let ref: string | undefined
+    for (let index = 1; index < parts.length; index++) {
+      const part = parts[index]
+      if (!part) {
+        continue
+      }
+      if (part === '--ref') {
+        ref = parts[index + 1]
+        index += 1
+      }
+    }
+    return { type: 'refresh', ref }
   }
 
   if (command === 'run') {

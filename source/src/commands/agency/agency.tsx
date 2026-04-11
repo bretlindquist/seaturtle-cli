@@ -6,6 +6,7 @@ import {
   formatAgencyStatus,
   getAgencyHelpText,
   installAgencySelection,
+  refreshAgencyCatalog,
   removeAgencyInstall,
   resolveAgencyRunTarget,
   updateAgencyInstall,
@@ -31,10 +32,30 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
         return null
 
       case 'browse':
-        onDone(await formatAgencyBrowse(parsed.query, parsed.ref), {
-          display: 'system',
-        })
+        onDone(
+          await formatAgencyBrowse(parsed.query, parsed.ref, {
+            forceRefresh: parsed.refresh,
+          }),
+          {
+            display: 'system',
+          },
+        )
         return null
+
+      case 'refresh': {
+        const catalog = await refreshAgencyCatalog(parsed.ref)
+        onDone(
+          [
+            `Agency catalog refreshed at ${catalog.commit}.`,
+            `Ref: ${catalog.ref}`,
+            `Entries: ${catalog.entries.length}`,
+          ].join('\n'),
+          {
+            display: 'system',
+          },
+        )
+        return null
+      }
 
       case 'run': {
         const target = resolveAgencyRunTarget(parsed.target, parsed.scope)

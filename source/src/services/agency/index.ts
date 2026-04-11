@@ -109,6 +109,15 @@ type PersistedAgencyCatalog = AgencyCatalog & {
   cachedAt: number
 }
 
+export type AgencyCatalogCacheStatus = {
+  ref: string
+  path: string
+  cachedAt: number
+  isFresh: boolean
+  commit: string
+  entryCount: number
+}
+
 export type AgencyInstallResult = {
   manifest: AgencyManifest
   installed: AgencyManifestEntry[]
@@ -282,6 +291,24 @@ function readAgencyCatalogCache(ref: string): PersistedAgencyCatalog | null {
         : undefined,
     })),
     cachedAt: raw.cachedAt,
+  }
+}
+
+export function getAgencyCatalogCacheStatus(
+  ref: string = AGENCY_DEFAULT_REF,
+): AgencyCatalogCacheStatus | null {
+  const cached = readAgencyCatalogCache(ref)
+  if (!cached) {
+    return null
+  }
+
+  return {
+    ref,
+    path: getAgencyCatalogCachePath(ref),
+    cachedAt: cached.cachedAt,
+    isFresh: isAgencyCatalogCacheFresh(cached.cachedAt),
+    commit: cached.commit,
+    entryCount: cached.entries.length,
   }
 }
 
@@ -585,6 +612,12 @@ export async function fetchAgencyCatalog(
 
   writeAgencyCatalogCache(ref, catalog)
   return catalog
+}
+
+export async function refreshAgencyCatalog(
+  ref: string = AGENCY_DEFAULT_REF,
+): Promise<AgencyCatalog> {
+  return fetchAgencyCatalog(ref, { forceRefresh: true })
 }
 
 function findEntriesForTarget(
@@ -1076,6 +1109,7 @@ export function getAgencyHelpText(): string {
     '',
     'Commands:',
     '/agency browse [query]',
+    '/agency refresh',
     '/agency install [target] [--project]',
     '/agency run <agent> <task>',
     '/agency update [--project]',
@@ -1086,6 +1120,8 @@ export function getAgencyHelpText(): string {
     '',
     'Examples:',
     '/agency browse marketing',
+    '/agency browse marketing --refresh',
+    '/agency refresh',
     '/agency browse strategist',
     '/agency install marketing',
     '/agency install marketing --project',
@@ -1101,13 +1137,26 @@ export function getAgencyHelpText(): string {
 
 export function formatAgencyStatus(scope?: AgencyInstallScope): string {
   const { manifests } = getAgencyStatusSummary(scope)
+  const cacheStatus = getAgencyCatalogCacheStatus()
   if (manifests.length === 0) {
-    return [
+    const lines = [
       scope ? `Agency is not installed for ${scope} scope.` : 'Agency is not installed.',
       '',
       'Run /agency install marketing or /agency install all.',
       'Use --project to install into this project instead of the user agent directory.',
-    ].join('\n')
+    ]
+    if (cacheStatus) {
+      lines.push('')
+      lines.push(`Catalog cache: ${cacheStatus.isFresh ? 'fresh' : 'stale'}`)
+      lines.push(`Catalog ref: ${cacheStatus.ref}`)
+      lines.push(`Catalog commit: ${cacheStatus.commit}`)
+      lines.push(`Catalog entries: ${cacheStatus.entryCount}`)
+      lines.push(`Catalog cache path: ${cacheStatus.path}`)
+    } else {
+      lines.push('')
+      lines.push('Catalog cache: empty')
+    }
+    return lines.join('\n')
   }
 
   const lines: string[] = []
@@ -1124,6 +1173,17 @@ export function formatAgencyStatus(scope?: AgencyInstallScope): string {
       lines.push(`Project root: ${manifest.projectRoot}`)
     }
     lines.push(`Manifest: ${getAgencyManifestPath(manifest.scope)}`)
+  }
+
+  lines.push('')
+  if (cacheStatus) {
+    lines.push(`Catalog cache: ${cacheStatus.isFresh ? 'fresh' : 'stale'}`)
+    lines.push(`Catalog ref: ${cacheStatus.ref}`)
+    lines.push(`Catalog commit: ${cacheStatus.commit}`)
+    lines.push(`Catalog entries: ${cacheStatus.entryCount}`)
+    lines.push(`Catalog cache path: ${cacheStatus.path}`)
+  } else {
+    lines.push('Catalog cache: empty')
   }
 
   return lines.join('\n')
@@ -1165,8 +1225,11 @@ export function formatAgencyList(scope?: AgencyInstallScope): string {
 export async function formatAgencyBrowse(
   rawQuery?: string,
   ref: string = AGENCY_DEFAULT_REF,
+  options?: { forceRefresh?: boolean },
 ): Promise<string> {
-  const catalog = await fetchAgencyCatalog(ref)
+  const catalog = options?.forceRefresh
+    ? await refreshAgencyCatalog(ref)
+    : await fetchAgencyCatalog(ref)
   const query = normalizeAgencyLookup(rawQuery)
   const matches = findCatalogEntriesForLookup(catalog, rawQuery)
 
