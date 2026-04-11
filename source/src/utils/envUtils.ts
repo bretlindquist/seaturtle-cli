@@ -2,7 +2,10 @@ import { existsSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
-import { resolveSeaTurtleConfigHomeDir } from './configHome.js'
+import {
+  formatConfigHomeDisplayPath,
+  resolveSeaTurtleConfigHomeDir,
+} from './configHome.js'
 
 // Memoized: 150+ callers, many on hot paths. Keyed off explicit env overrides
 // plus filesystem presence of config-home directories so tests that swap these
@@ -32,6 +35,14 @@ export const getSeaTurtleConfigHomeDir = memoize(
 // naming on many callsites and env vars.
 export function getClaudeConfigHomeDir(): string {
   return getSeaTurtleConfigHomeDir()
+}
+
+export function getSeaTurtleConfigHomeDisplayPath(): string {
+  return formatConfigHomeDisplayPath(getSeaTurtleConfigHomeDir(), homedir())
+}
+
+export function getSeaTurtleConfigPathDisplay(...segments: string[]): string {
+  return join(getSeaTurtleConfigHomeDisplayPath(), ...segments)
 }
 
 export function getTeamsDir(): string {

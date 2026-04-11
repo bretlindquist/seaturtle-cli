@@ -9,6 +9,7 @@ import { applyPermissionUpdate, persistPermissionUpdate } from '../../../utils/p
 import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js';
 import { detectUnreachableRules, type UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js';
 import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js';
+import { getSeaTurtleConfigPathDisplay } from '../../../utils/envUtils.js';
 import { type EditableSettingSource, SOURCES } from '../../../utils/settings/constants.js';
 import { getRelativeSettingsFilePathForSource } from '../../../utils/settings/settings.js';
 import { plural } from '../../../utils/stringUtils.js';
@@ -32,7 +33,7 @@ export function optionForPermissionSaveDestination(saveDestination: EditableSett
     case 'userSettings':
       return {
         label: 'User settings',
-        description: `Saved in at ~/.claude/settings.json`,
+        description: `Saved in ${getSeaTurtleConfigPathDisplay('settings.json')}`,
         value: saveDestination
       };
   }

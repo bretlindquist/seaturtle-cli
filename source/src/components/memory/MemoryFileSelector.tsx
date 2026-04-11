@@ -17,7 +17,7 @@ import { useAppState } from '../../state/AppState.js';
 import { getAgentMemoryDir } from '../../tools/AgentTool/agentMemory.js';
 import { openPath } from '../../utils/browser.js';
 import { getMemoryFiles, type MemoryFileInfo } from '../../utils/claudemd.js';
-import { getClaudeConfigHomeDir } from '../../utils/envUtils.js';
+import { getClaudeConfigHomeDir, getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { formatRelativeTimeAgo } from '../../utils/format.js';
 import { getCandidateMemoryFileNames } from '../../utils/memoryFileNames.js';
@@ -91,7 +91,7 @@ export function MemoryFileSelector(t0) {
     let description;
     const isGit = projectIsInGitRepo(getOriginalCwd());
     if (file.type === "User" && !file.isNested) {
-      description = "Saved in ~/.claude/SEATURTLE.md";
+      description = `Saved in ${getSeaTurtleConfigPathDisplay('SEATURTLE.md')}`;
     } else {
       if (file.type === "Project" && !file.isNested && file.path === projectMemoryPath) {
         description = `${isGit ? "Checked in at" : "Saved in"} ./SEATURTLE.md`;

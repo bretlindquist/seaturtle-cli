@@ -20,6 +20,7 @@ import {
   modelSupportsEffort,
 } from '../../utils/effort.js'
 import { env } from '../../utils/env.js'
+import { getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js'
 import { cacheKeys } from '../../utils/fileStateCache.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getWorktreeCount } from '../../utils/git.js'
@@ -484,7 +485,7 @@ const externalTips: Tip[] = [
   {
     id: 'custom-commands',
     content: async () =>
-      'Create skills by adding .md files to .claude/skills/ in your project or ~/.claude/skills/ for skills that work in any project',
+      `Create skills by adding .md files to .claude/skills/ in your project or ${getSeaTurtleConfigPathDisplay('skills')}/ for skills that work in any project`,
     cooldownSessions: 15,
     async isRelevant() {
       const config = getGlobalConfig()

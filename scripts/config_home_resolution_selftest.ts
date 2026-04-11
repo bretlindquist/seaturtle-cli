@@ -1,4 +1,7 @@
-import { resolveSeaTurtleConfigHomeDir } from '../source/src/utils/configHome.ts'
+import {
+  formatConfigHomeDisplayPath,
+  resolveSeaTurtleConfigHomeDir,
+} from '../source/src/utils/configHome.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -61,6 +64,18 @@ assert(
     claudeDirExists: false,
   }) === '/Users/tester/.seaturtle',
   'expected fresh installs without prior state to default to ~/.seaturtle',
+)
+
+assert(
+  formatConfigHomeDisplayPath('/Users/tester/.seaturtle', HOME_DIR) ===
+    '~/.seaturtle',
+  'expected config-home display path to collapse inside-home paths to ~',
+)
+
+assert(
+  formatConfigHomeDisplayPath('/Volumes/shared/ct-config', HOME_DIR) ===
+    '/Volumes/shared/ct-config',
+  'expected config-home display path to preserve non-home absolute paths',
 )
 
 console.log('config-home-resolution selftest passed')

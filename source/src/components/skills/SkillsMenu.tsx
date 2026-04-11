@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { type Command, type CommandBase, type CommandResultDisplay, getCommandName, type PromptCommand } from '../../commands.js';
 import { Box, Text } from '../../ink.js';
 import { estimateSkillFrontmatterTokens, getSkillsPath } from '../../skills/loadSkillsDir.js';
+import { getSeaTurtleConfigPathDisplay } from '../../utils/envUtils.js';
 import { getDisplayPath } from '../../utils/file.js';
 import { formatTokens } from '../../utils/format.js';
 import { getSettingSourceName, type SettingSource } from '../../utils/settings/constants.js';
@@ -103,7 +104,7 @@ export function SkillsMenu(t0) {
     if ($[6] === Symbol.for("react.memo_cache_sentinel")) {
       t3 = <Box flexDirection="column">
           <Text dimColor={true}>No skills are installed yet. That is normal on a new install.</Text>
-          <Text dimColor={true}>Create skills in .claude/skills/ or ~/.claude/skills/ to add your own.</Text>
+          <Text dimColor={true}>{`Create skills in .claude/skills/ or ${getSeaTurtleConfigPathDisplay('skills')}/ to add your own.`}</Text>
           <Text dimColor={true}>Plugin and MCP skills will appear here automatically once they are installed or connected.</Text>
         </Box>;
       $[6] = t3;

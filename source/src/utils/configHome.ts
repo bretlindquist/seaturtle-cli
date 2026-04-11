@@ -1,4 +1,4 @@
-import { join } from 'path'
+import { join, relative } from 'path'
 
 export type ConfigHomeResolutionInput = {
   seaTurtleConfigDirEnv: string | undefined
@@ -29,4 +29,18 @@ export function resolveSeaTurtleConfigHomeDir(
   }
 
   return seaTurtleHome
+}
+
+export function formatConfigHomeDisplayPath(
+  configHomeDir: string,
+  homeDir: string,
+): string {
+  const relativeToHome = relative(homeDir, configHomeDir)
+  if (
+    relativeToHome === '' ||
+    (!relativeToHome.startsWith('..') && relativeToHome !== '.')
+  ) {
+    return relativeToHome ? `~/${relativeToHome}` : '~'
+  }
+  return configHomeDir
 }
