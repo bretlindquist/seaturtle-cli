@@ -237,6 +237,16 @@ function run(): void {
     /reportTranscriptSearchEngineBadge\(params\.searchProgress, engine\)/,
     'static transcript jump core should report badge state through the shared engine helper',
   )
+  assert.match(
+    jumpHandleCoreSource,
+    /stepTranscriptSearchEngine\(engine, 1\)\.state/,
+    'static transcript jump core should use the shared engine step helper for forward navigation',
+  )
+  assert.match(
+    jumpHandleCoreSource,
+    /stepTranscriptSearchEngine\(engine, -1\)\.state/,
+    'static transcript jump core should use the shared engine step helper for reverse navigation',
+  )
   assert.throws(
     () => readFileSync(rendererModelPath, 'utf8'),
     /ENOENT/,

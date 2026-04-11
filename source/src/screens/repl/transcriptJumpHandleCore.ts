@@ -4,8 +4,7 @@ import {
   createEmptyTranscriptSearchEngineState,
   hasTranscriptSearchEngineMatches,
   reportTranscriptSearchEngineBadge,
-  setTranscriptSearchEngineCursorToNext,
-  setTranscriptSearchEngineCursorToPrevious,
+  stepTranscriptSearchEngine,
   type TranscriptSearchEngineState,
 } from './transcriptSearchEngine.js'
 import type { TranscriptJumpHandle } from './transcriptJumpHandle.js'
@@ -68,7 +67,7 @@ export function buildStaticTranscriptJumpHandle(params: {
     nextMatch: () => {
       const { engine } = params.stateRef.current
       if (!hasTranscriptSearchEngineMatches(engine)) return
-      params.stateRef.current.engine = setTranscriptSearchEngineCursorToNext(engine)
+      params.stateRef.current.engine = stepTranscriptSearchEngine(engine, 1).state
       reportTranscriptSearchEngineBadge(
         params.searchProgress,
         params.stateRef.current.engine,
@@ -77,7 +76,7 @@ export function buildStaticTranscriptJumpHandle(params: {
     prevMatch: () => {
       const { engine } = params.stateRef.current
       if (!hasTranscriptSearchEngineMatches(engine)) return
-      params.stateRef.current.engine = setTranscriptSearchEngineCursorToPrevious(engine)
+      params.stateRef.current.engine = stepTranscriptSearchEngine(engine, -1).state
       reportTranscriptSearchEngineBadge(
         params.searchProgress,
         params.stateRef.current.engine,
