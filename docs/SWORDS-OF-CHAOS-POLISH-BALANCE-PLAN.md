@@ -120,6 +120,8 @@ Current implementation:
 
 ### 4. Chapter Confrontations
 
+Status: implemented
+
 Problem:
 - chapter progression exists, but chapters need stronger dramatic crowns
 
@@ -135,6 +137,14 @@ Confrontation examples:
 
 Success:
 - the journey has peaks, not only accumulating atmosphere
+
+Current implementation:
+- confrontation peaks are planner-derived from existing chapter, tension,
+  presence, continuation, scene, and magic state
+- active confrontation modes include the watcher reckoning, wrong-name source,
+  liar door, relic custodian, and debt come due
+- confrontation lines, pressure, hints, and option rewrites now create harder
+  chapter peaks without new save schema
 
 ### 5. Rule-Changing Magic
 

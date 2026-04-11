@@ -11,6 +11,13 @@ import {
 } from './shells.js'
 import { getSwordsMagicLine, getSwordsMagicPressure } from './magicPlanner.js'
 import {
+  applySwordsConfrontationToOpeningOptions,
+  applySwordsConfrontationToSecondBeatOptions,
+  getSwordsChapterConfrontationHint,
+  getSwordsChapterConfrontationLine,
+  getSwordsChapterConfrontationPressure,
+} from './chapterConfrontationPlanner.js'
+import {
   getSwordsOpeningActionSet,
   getSwordsSceneStakesLine,
   getSwordsSecondBeatActionSet,
@@ -549,27 +556,46 @@ function renderDeterministicScene(
               }) as string,
             ]
           : []),
+        ...(getSwordsChapterConfrontationLine({
+          locus,
+          relevantMemory: payload.relevantMemory,
+        })
+          ? [
+              getSwordsChapterConfrontationLine({
+                locus,
+                relevantMemory: payload.relevantMemory,
+              }) as string,
+            ]
+          : []),
         ...openingTail,
       ].join('\n\n'),
-      options: applySwordsPresenceToOpeningOptions({
-        options: applyOpeningCallbackMemory(
-          applySwordsStoryPressureToOpeningOptions({
-            options: getSwordsOpeningActionSet({
-              locus,
+      options: applySwordsConfrontationToOpeningOptions({
+        options: applySwordsPresenceToOpeningOptions({
+          options: applyOpeningCallbackMemory(
+            applySwordsStoryPressureToOpeningOptions({
+              options: getSwordsOpeningActionSet({
+                locus,
+                relevantMemory: payload.relevantMemory,
+              }),
               relevantMemory: payload.relevantMemory,
             }),
-            relevantMemory: payload.relevantMemory,
-          }),
-          payload.relevantMemory,
-        ),
+            payload.relevantMemory,
+          ),
+          relevantMemory: payload.relevantMemory,
+        }),
         relevantMemory: payload.relevantMemory,
+        locus,
       }),
       hintText:
-        familiar && returningAgain && !payload.relevantMemory?.canonThread
+        getSwordsChapterConfrontationHint({
+          locus,
+          relevantMemory: payload.relevantMemory,
+        }) ??
+        (familiar && returningAgain && !payload.relevantMemory?.canonThread
           ? payload.relevantMemory?.seaturtleOpeningPending
             ? openingShell.hintText
             : 'The alley remembers your last answer. It is more interested in the one you withheld.'
-          : openingShell.hintText,
+          : openingShell.hintText),
     }
   }
 
@@ -604,6 +630,10 @@ function renderDeterministicScene(
       ? [
           ...(canonPressure ? [canonPressure] : []),
           ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsChapterConfrontationPressure({
+            locus,
+            relevantMemory: payload.relevantMemory,
+          }),
           ...getSwordsPresencePressure(payload.relevantMemory),
           ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
           ...getSwordsContinuationPressure(payload.relevantMemory),
@@ -613,6 +643,10 @@ function renderDeterministicScene(
         ]
       : [
           ...getSwordsMagicPressure(payload.relevantMemory),
+          ...getSwordsChapterConfrontationPressure({
+            locus,
+            relevantMemory: payload.relevantMemory,
+          }),
           ...getSwordsPresencePressure(payload.relevantMemory),
           ...getSwordsCharacterDevelopmentPressure(payload.relevantMemory),
           ...getSwordsContinuationPressure(payload.relevantMemory),
@@ -644,6 +678,17 @@ function renderDeterministicScene(
             }) as string,
           ]
         : []),
+      ...(getSwordsChapterConfrontationLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      })
+        ? [
+            getSwordsChapterConfrontationLine({
+              locus,
+              relevantMemory: payload.relevantMemory,
+            }) as string,
+          ]
+        : []),
       ...(getSwordsContinuationLead(payload.relevantMemory)
         ? [getSwordsContinuationLead(payload.relevantMemory) as string]
         : []),
@@ -659,29 +704,37 @@ function renderDeterministicScene(
     ].join('\n\n'),
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
-      applySwordsPresenceToSecondBeatOptions({
-        options: applySwordsCarryForwardToSecondBeatOptions({
-          options: applySwordsCharacterPressureToSecondBeatOptions({
-            options: applySwordsStoryPressureToSecondBeatOptions({
-              openingChoice: payload.openingChoice,
-              options: getSwordsSecondBeatActionSet({
+      applySwordsConfrontationToSecondBeatOptions({
+        options: applySwordsPresenceToSecondBeatOptions({
+          options: applySwordsCarryForwardToSecondBeatOptions({
+            options: applySwordsCharacterPressureToSecondBeatOptions({
+              options: applySwordsStoryPressureToSecondBeatOptions({
                 openingChoice: payload.openingChoice,
+                options: getSwordsSecondBeatActionSet({
+                  openingChoice: payload.openingChoice,
+                  locus,
+                  relevantMemory: payload.relevantMemory,
+                }),
                 locus,
                 relevantMemory: payload.relevantMemory,
               }),
-              locus,
               relevantMemory: payload.relevantMemory,
             }),
+            locus,
             relevantMemory: payload.relevantMemory,
           }),
-          locus,
           relevantMemory: payload.relevantMemory,
         }),
         relevantMemory: payload.relevantMemory,
+        locus,
       }),
       payload.relevantMemory,
     ),
     hintText:
+      getSwordsChapterConfrontationHint({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }) ??
       getSwordsCharacterTemptationLine(payload.relevantMemory) ??
       getSwordsCharacterDevelopmentHint(payload.relevantMemory) ??
       getSecondBeatHint(payload.openingChoice, payload.relevantMemory),
