@@ -77,6 +77,7 @@ type State = {
   strictToolResultPairing: boolean
   sdkAgentProgressSummariesEnabled: boolean
   userMsgOptIn: boolean
+  cavemanMode: 'off' | 'lite' | 'full' | 'ultra'
   clientType: string
   sessionSource: string | undefined
   questionPreviewFormat: 'markdown' | 'html' | undefined
@@ -302,6 +303,7 @@ function getInitialState(): State {
     strictToolResultPairing: false,
     sdkAgentProgressSummariesEnabled: false,
     userMsgOptIn: false,
+    cavemanMode: 'off',
     clientType: 'cli',
     sessionSource: undefined,
     questionPreviewFormat: undefined,
@@ -1109,6 +1111,14 @@ export function setUserMsgOptIn(value: boolean): void {
   STATE.userMsgOptIn = value
 }
 
+export function getCavemanMode(): 'off' | 'lite' | 'full' | 'ultra' {
+  return STATE.cavemanMode
+}
+
+export function setCavemanMode(value: 'off' | 'lite' | 'full' | 'ultra'): void {
+  STATE.cavemanMode = value
+}
+
 export function getSessionSource(): string | undefined {
   return STATE.sessionSource
 }
@@ -1755,4 +1765,3 @@ export function getPromptId(): string | null {
 export function setPromptId(id: string | null): void {
   STATE.promptId = id
 }
-

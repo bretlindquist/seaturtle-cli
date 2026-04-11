@@ -3,7 +3,10 @@ import { type as osType, version as osVersion, release as osRelease } from 'os'
 import { env } from '../utils/env.js'
 import { getIsGit } from '../utils/git.js'
 import { getCwd } from '../utils/cwd.js'
-import { getIsNonInteractiveSession } from '../bootstrap/state.js'
+import {
+  getCavemanMode,
+  getIsNonInteractiveSession,
+} from '../bootstrap/state.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { getSessionStartDate } from './common.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -451,6 +454,32 @@ function getCtInternalSoulInvariantSection(): string {
   return [`# Internal voice invariants`, ...prependBullets(items)].join(`\n`)
 }
 
+function getCavemanSection(): string | null {
+  const mode = getCavemanMode()
+  if (mode === 'off') return null
+
+  const intensity =
+    mode === 'lite'
+      ? 'Lite: remove filler and hedging, keep full sentences, stay professional and tight.'
+      : mode === 'ultra'
+        ? 'Ultra: maximum compression. Fragments, abbreviations, and arrows are allowed when still clear.'
+        : 'Full: default caveman compression. Drop articles and filler, fragments OK, keep technical meaning exact.'
+
+  return `# Caveman mode
+
+Caveman mode is active: ${mode}.
+
+Respond with sharply compressed user-facing text while preserving technical accuracy.
+
+- Cut filler, pleasantries, hedging, and repeated framing.
+- Keep technical terms, code, commands, errors, and file paths exact.
+- Prefer short concrete statements over padded explanation.
+- Code blocks stay normal.
+- If the user is confused, a warning is safety-critical, or a destructive or irreversible step needs precision, temporarily switch back to normal clarity for that part.
+
+${intensity}`
+}
+
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
@@ -527,6 +556,11 @@ ${CYBER_RISK_INSTRUCTION}`,
           ? null
           : getMcpInstructionsSection(mcpClients),
       'MCP servers connect/disconnect between turns',
+    ),
+    DANGEROUS_uncachedSystemPromptSection(
+      'caveman_mode',
+      () => getCavemanSection(),
+      'Session-level caveman mode can change mid-session via /caveman',
     ),
     systemPromptSection('scratchpad', () => getScratchpadInstructions()),
     systemPromptSection('frc', () => getFunctionResultClearingSection(model)),
