@@ -59,8 +59,8 @@ function run(): void {
   )
 
   assert(
-    getFooterExecutionModeLabel('prompt') === 'default',
-    'footer execution label should present prompt mode as default',
+    getFooterExecutionModeLabel('prompt') === 'general',
+    'footer execution label should present prompt mode as general rather than leaking the internal default label',
   )
   assert(
     getFooterExecutionModeLabel('discovery') === 'discovery',

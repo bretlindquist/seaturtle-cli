@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { getWelcomeBodyLines } from '../source/src/components/LogoV2/welcomeCopyCore.js'
 
 function assert(condition: unknown, message: string): asserts condition {
@@ -32,6 +34,19 @@ function run(): void {
     onboardingLines[1]?.includes('stock starter kit') &&
       onboardingLines[1]?.includes('tune how CT shows up here'),
     'expected onboarding welcome to explain the starter-vs-guided choice',
+  )
+
+  const statusNoticeSource = readFileSync(
+    join(process.cwd(), 'source/src/utils/statusNoticeDefinitions.tsx'),
+    'utf8',
+  )
+  assert(
+    !statusNoticeSource.includes('rare creative tide'),
+    'startup status notice copy should not use the unclear "rare creative tide" phrasing',
+  )
+  assert(
+    statusNoticeSource.includes('Use /haiku to turn occasional startup haiku on or off.'),
+    'startup status notice copy should explain /haiku explicitly',
   )
 }
 

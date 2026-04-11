@@ -20,7 +20,7 @@ const PROMPT_LIKE_INPUT_MODE_SET = new Set<PromptInputMode>(
 )
 
 const MODE_LABELS: Record<EditablePromptInputMode, string> = {
-  prompt: 'default',
+  prompt: 'general',
   convo: 'convo',
   discovery: 'discovery',
   planning: 'planning',

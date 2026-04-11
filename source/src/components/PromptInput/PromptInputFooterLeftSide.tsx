@@ -342,7 +342,7 @@ function ModeIndicator({
   const executionPart = isPromptLikeInputMode(mode) ? (
     <FooterControl
       key="execution-control"
-      label="Execution"
+      label="Lane"
       value={getFooterExecutionModeLabel(mode)}
       focused={footerControlGroup === 'execution'}
       color="ide"

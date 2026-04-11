@@ -377,7 +377,7 @@ export function LogoV2() {
   }
   let t19;
   if ($[48] === Symbol.for("react.memo_cache_sentinel")) {
-    t19 = <Box flexDirection="column" alignItems="center"><SeaTurtleMark size="hero" /><Box marginTop={1}><SeaTurtleWordmark /></Box></Box>;
+    t19 = <Box flexDirection="column" alignItems="center"><SeaTurtleMark size="compact" /><Box marginTop={1}><SeaTurtleWordmark /></Box></Box>;
     $[48] = t19;
   } else {
     t19 = $[48];
@@ -409,7 +409,7 @@ export function LogoV2() {
   }
   let t23;
   if ($[56] !== leftWidth || $[57] !== t18 || $[58] !== t22) {
-    t23 = <Box flexDirection="column" width={leftWidth} justifyContent="space-between" alignItems="center" minHeight={9}>{t18}{t19}{t22}</Box>;
+    t23 = <Box flexDirection="column" width={leftWidth} justifyContent="center" alignItems="center" gap={1}>{t18}{t19}{t22}</Box>;
     $[56] = leftWidth;
     $[57] = t18;
     $[58] = t22;

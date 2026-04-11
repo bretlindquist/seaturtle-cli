@@ -253,8 +253,6 @@ const ctIdentityGreetingNotice: StatusNoticeDefinition = {
   }
 };
 
-const CT_GREETING_TYPING_DELAY_MS = 18;
-
 function CtIdentityGreetingNoticeBody({
   canonCallback,
 }: {
@@ -281,50 +279,22 @@ function CtIdentityGreetingNoticeBody({
   });
   const prompt = display.kind === 'greeting' ? display.text : '';
   const haikuLines = display.kind === 'haiku' ? display.text.split('\n') : [];
-  const [visibleChars, setVisibleChars] = React.useState(() =>
-    isBareMode() ? prompt.length : 0
-  );
 
   React.useEffect(() => {
     if (display.kind === 'haiku' || isBareMode()) {
-      if (isBareMode()) {
-        setVisibleChars(prompt.length);
-      }
       markStartupHaikuShown();
-      return;
     }
-
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    const tick = () => {
-      setVisibleChars(current => {
-        const next = Math.min(prompt.length, current + 2);
-        if (next < prompt.length) {
-          timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
-        }
-        return next;
-      });
-    };
-
-    timeoutId = setTimeout(tick, CT_GREETING_TYPING_DELAY_MS);
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
   }, [display.kind, prompt]);
 
   return <Box flexDirection="column" gap={1}>
       <Text dimColor>
-        Use /ct to edit `.ct/session.md`, /haiku to tune the rare creative tide, or retune CT whenever you want to
-        steer the project.
+        Use /ct to edit the private `.ct/` files for this project. Use /haiku to turn occasional startup haiku on or off.
       </Text>
       <Text dimColor>{getSessionResumeAffordanceText()}</Text>
       {canonCallback ? <Text dimColor>{canonCallback}</Text> : null}
       {display.kind === 'haiku' ? <Box marginTop={1} flexDirection="column">
           {haikuLines.map((line, index) => <Text key={index} color="claude">{line}</Text>)}
-        </Box> : <Box marginTop={1}><Text color="claude">🐢 {prompt.slice(0, visibleChars)}</Text></Box>}
+        </Box> : <Box marginTop={1}><Text color="claude">🐢 {prompt}</Text></Box>}
     </Box>;
 }
 

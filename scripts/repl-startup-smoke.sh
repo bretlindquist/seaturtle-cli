@@ -101,6 +101,12 @@ if grep -Eq 'ReferenceError|Cannot access|is not defined|Error:' "$OUTPUT_FILE";
   exit 1
 fi
 
+if grep -Eq 'Execution: default|Lane: default|rare creative tide' "$OUTPUT_FILE"; then
+  cat "$OUTPUT_FILE"
+  echo "repl-startup-smoke failed: startup leaked an internal lane label or stale welcome copy" >&2
+  exit 1
+fi
+
 if ! grep -Eq 'SeaTurtle|CT CLI|Sign in with your provider|OpenAI Codex OAuth|❯' "$OUTPUT_FILE"; then
   cat "$OUTPUT_FILE"
   echo "repl-startup-smoke failed: REPL did not reach a recognizable startup frame" >&2
