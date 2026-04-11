@@ -31,16 +31,22 @@ interface OnboardingStep {
 }
 type Props = {
   onDone(): void;
+  shouldShowCtIdentityBootstrap?: boolean;
 };
 
 export function Onboarding({
-  onDone
+  onDone,
+  shouldShowCtIdentityBootstrap,
 }: Props): React.ReactNode {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [skipOAuth, setSkipOAuth] = useState(false);
   const [oauthEnabled] = useState(() => !isBareMode() || isAnthropicAuthEnabled());
   const [theme, setTheme] = useTheme();
-  const [shouldShowCtIdentityStep] = useState(() => shouldShowCtIdentityBootstrapDialog())
+  const [shouldShowCtIdentityStep] = useState(
+    () =>
+      shouldShowCtIdentityBootstrap ??
+      shouldShowCtIdentityBootstrapDialog(),
+  )
   useEffect(() => {
     logEvent('tengu_began_setup', {
       oauthEnabled
