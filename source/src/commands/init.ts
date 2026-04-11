@@ -1,7 +1,12 @@
 import { feature } from 'bun:bundle'
 import type { Command } from '../commands.js'
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js'
-import { isEnvTruthy } from '../utils/envUtils.js'
+import {
+  getSeaTurtleConfigHomeDisplayPath,
+  isEnvTruthy,
+} from '../utils/envUtils.js'
+
+const CONFIG_HOME_DISPLAY = getSeaTurtleConfigHomeDisplayPath()
 
 const OLD_INIT_PROMPT = `Please analyze this codebase and create a SEATURTLE.md file, which will be given to future instances of CT to operate in this repository.
 
@@ -67,7 +72,7 @@ If the user chose personal SEATURTLE.local.md or both: ask about them, not the c
   - What's their role on the team? (e.g., "backend engineer", "data scientist", "new hire onboarding")
   - How familiar are they with this codebase and its languages/frameworks? (so CT can calibrate explanation depth)
   - Do they have personal sandbox URLs, test accounts, API key paths, or local setup details CT should know?
-  - Only if Phase 2 found multiple git worktrees: ask whether their worktrees are nested inside the main repo (e.g., \`.claude/worktrees/<name>/\`) or siblings/external (e.g., \`../myrepo-feature/\`). If nested, the upward file walk finds the main repo's SEATURTLE.local.md automatically — no special handling needed. If sibling/external, the personal content should live in a home-directory file (e.g., \`~/.claude/<project-name>-instructions.md\`) and each worktree gets a one-line SEATURTLE.local.md stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. Never put this import in the project SEATURTLE.md — that would check a personal reference into the team-shared file.
+  - Only if Phase 2 found multiple git worktrees: ask whether their worktrees are nested inside the main repo (e.g., \`.claude/worktrees/<name>/\`) or siblings/external (e.g., \`../myrepo-feature/\`). If nested, the upward file walk finds the main repo's SEATURTLE.local.md automatically — no special handling needed. If sibling/external, the personal content should live in a home-directory file (e.g., \`${CONFIG_HOME_DISPLAY}/<project-name>-instructions.md\`) and each worktree gets a one-line SEATURTLE.local.md stub that imports it: \`@${CONFIG_HOME_DISPLAY}/<project-name>-instructions.md\`. Never put this import in the project SEATURTLE.md — that would check a personal reference into the team-shared file.
   - Any communication preferences? (e.g., "be terse", "always explain tradeoffs", "don't summarize at the end")
 
 **Synthesize a proposal from Phase 2 findings** — e.g., format-on-edit if a formatter exists, a \`/verify\` skill if tests exist, a SEATURTLE.md note for anything from the gap-fill answers that's a guideline rather than a workflow. For each, pick the artifact type that fits, **constrained by the Phase 1 skills+hooks choice**:
@@ -147,7 +152,7 @@ Include:
 
 Keep it short — only include what would make CT's responses noticeably better for this user.
 
-If Phase 2 found multiple git worktrees and the user confirmed they use sibling/external worktrees (not nested inside the main repo): the upward file walk won't find a single SEATURTLE.local.md from all worktrees. Write the actual personal content to \`~/.claude/<project-name>-instructions.md\` and make SEATURTLE.local.md a one-line stub that imports it: \`@~/.claude/<project-name>-instructions.md\`. The user can copy this one-line stub to each sibling worktree. Never put this import in the project SEATURTLE.md. If worktrees are nested inside the main repo (e.g., \`.claude/worktrees/\`), no special handling is needed — the main repo's SEATURTLE.local.md is found automatically.
+If Phase 2 found multiple git worktrees and the user confirmed they use sibling/external worktrees (not nested inside the main repo): the upward file walk won't find a single SEATURTLE.local.md from all worktrees. Write the actual personal content to \`${CONFIG_HOME_DISPLAY}/<project-name>-instructions.md\` and make SEATURTLE.local.md a one-line stub that imports it: \`@${CONFIG_HOME_DISPLAY}/<project-name>-instructions.md\`. The user can copy this one-line stub to each sibling worktree. Never put this import in the project SEATURTLE.md. If worktrees are nested inside the main repo (e.g., \`.claude/worktrees/\`), no special handling is needed — the main repo's SEATURTLE.local.md is found automatically.
 
 If SEATURTLE.local.md already exists: read it, propose specific additions, and do not silently overwrite.
 
