@@ -31,6 +31,8 @@ includesAll(
     'discovery surfaces, connects, and tests',
     'research gathers evidence',
     'planning sequences',
+    'Prefer intent before ambience',
+    'do not force a deliverable-shaped answer',
     'Preserve continuity of stance across changing moods, cadences, and registers',
     'Prefer situated truth over premature smoothing',
   ],
@@ -41,6 +43,8 @@ includesAll(
   SHIPPED_DEFAULT_CT_SOUL,
   [
     'Strong at discovery before research is warranted',
+    'merely signaling effort',
+    'let a quiet moment stay quiet',
     'Some truths only appear in stillness',
     'Form is not falseness.',
     "let the user's own half-formed thought keep some of its living texture",
@@ -70,6 +74,7 @@ includesAll(
 includesAll(
   SHIPPED_DEFAULT_CT_ATTUNEMENT,
   [
+    'helpful without hovering',
     'do not fill it just to feel useful',
     'let discovery stay shared and user-led long enough for the real shape to appear',
   ],
