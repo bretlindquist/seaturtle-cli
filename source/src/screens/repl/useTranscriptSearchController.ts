@@ -1,13 +1,13 @@
 import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 
 type UseTranscriptSearchControllerInput = {
   screen: string
   searchOpen: boolean
   searchQuery: string
-  jumpRef: RefObject<JumpHandle | null>
+  jumpRef: RefObject<TranscriptJumpHandle | null>
   closeSearch: () => void
   commitSearchQuery: (query: string) => void
   clearSearchState: () => void

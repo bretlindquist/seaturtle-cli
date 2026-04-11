@@ -42,8 +42,8 @@ import { isNullRenderingAttachment } from './messages/nullRenderingAttachments.j
 import { OffscreenFreeze } from './OffscreenFreeze.js';
 import type { ToolUseConfirm } from './permissions/PermissionRequest.js';
 import { StatusNotices } from './StatusNotices.js';
-import type { JumpHandle } from './VirtualMessageList.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
+import type { TranscriptJumpHandle } from '../screens/repl/transcriptJumpHandle.js';
 
 // Memoed logo header: this box is the FIRST sibling before all MessageRows
 // in main-screen mode. If it becomes dirty on every Messages re-render,
@@ -244,7 +244,7 @@ type Props = {
   /** Fullscreen-mode: enable sticky-prompt tracking (writes via ScrollChromeContext). */
   trackStickyPrompt?: boolean;
   /** Transcript search: jump-to-index + setSearchQuery/nextMatch/prevMatch. */
-  jumpRef?: RefObject<JumpHandle | null>;
+  jumpRef?: RefObject<TranscriptJumpHandle | null>;
   /** Transcript search: receives match-count/current updates. */
   searchProgress?: TranscriptSearchProgressSink;
   /** Paint an existing DOM subtree to fresh Screen, scan. Element comes

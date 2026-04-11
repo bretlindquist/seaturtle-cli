@@ -96,27 +96,52 @@ function run(): void {
   )
 
   const repoRoot = join(import.meta.dir, '..')
-  const transcriptModeSource = readFileSync(
+  const stripSourceMap = (source: string) => source.split('//# sourceMappingURL=')[0] ?? source
+  const transcriptModeSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/screens/repl/ReplTranscriptMode.tsx'),
     'utf8',
-  )
-  const transcriptHelpersSource = readFileSync(
+  ))
+  const transcriptHelpersSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/screens/repl/ReplShellHelpers.tsx'),
     'utf8',
-  )
-  const staticJumpSource = readFileSync(
+  ))
+  const staticJumpSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/screens/repl/useStaticTranscriptJump.ts'),
     'utf8',
-  )
-  const virtualMessageListSource = readFileSync(
+  ))
+  const virtualMessageListSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/components/VirtualMessageList.tsx'),
     'utf8',
-  )
-  const virtualTranscriptSearchSource = readFileSync(
+  ))
+  const virtualTranscriptSearchSource = stripSourceMap(readFileSync(
     join(repoRoot, 'source/src/components/useVirtualTranscriptSearch.ts'),
     'utf8',
-  )
+  ))
+  const jumpHandleSource = stripSourceMap(readFileSync(
+    join(repoRoot, 'source/src/screens/repl/transcriptJumpHandle.ts'),
+    'utf8',
+  ))
 
+  assert.match(
+    virtualMessageListSource,
+    /import type \{ TranscriptJumpHandle \} from '\.\.\/screens\/repl\/transcriptJumpHandle\.js';/,
+    'virtual transcript list should consume the shared transcript jump-handle contract',
+  )
+  assert.doesNotMatch(
+    virtualMessageListSource,
+    /export type JumpHandle = \{/,
+    'virtual transcript list should not own the transcript jump-handle contract',
+  )
+  assert.match(
+    staticJumpSource,
+    /import type \{ TranscriptJumpHandle \} from '\.\/transcriptJumpHandle\.js';/,
+    'static transcript jump adapter should consume the shared transcript jump-handle contract',
+  )
+  assert.match(
+    jumpHandleSource,
+    /setSearchQuery: \(query: string\) => void/,
+    'shared transcript jump-handle contract should define the transcript search query setter',
+  )
   assert.match(
     transcriptModeSource,
     /searchBadge=\{searchBadge\}/,

@@ -7,9 +7,9 @@ import type { StreamingThinking, StreamingToolUse } from '../../utils/messages.j
 import type { MatchPosition } from '../../ink/render-to-screen.js';
 import type { DOMElement } from '../../ink/dom.js';
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchBadge, TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
 import type { ReplTranscriptMode } from './ReplTranscriptMode.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 
 type BuildReplTranscriptModePropsArgs = {
   titleIsAnimating: boolean
@@ -34,7 +34,7 @@ type BuildReplTranscriptModePropsArgs = {
   onOpenRateLimitOptions: () => void
   isLoading: boolean
   streamingThinking: StreamingThinking | null
-  jumpRef: React.RefObject<JumpHandle | null>
+  jumpRef: React.RefObject<TranscriptJumpHandle | null>
   searchProgress: TranscriptSearchProgressSink
   scanElement?: (el: DOMElement) => MatchPosition[]
   dumpMode: boolean

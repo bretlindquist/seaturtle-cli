@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { RefObject } from 'react';
 import type { RenderableMessage } from '../../types/message.js';
 import { renderableSearchText } from '../../utils/transcriptSearch.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink } from './useTranscriptSearchTracker.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 import {
   buildTranscriptSearchEngineState,
   createEmptyTranscriptSearchEngineState,
@@ -17,7 +17,7 @@ import { normalizeTranscriptSearchQuery } from './transcriptSearchModel.js';
 type UseStaticTranscriptJumpInput = {
   enabled: boolean;
   messages: RenderableMessage[];
-  jumpRef: RefObject<JumpHandle | null>;
+  jumpRef: RefObject<TranscriptJumpHandle | null>;
   searchProgress: TranscriptSearchProgressSink;
 };
 
@@ -35,7 +35,7 @@ export function useStaticTranscriptJump({
     engine: createEmptyTranscriptSearchEngineState(),
   });
 
-  const handle = useMemo<JumpHandle>(
+  const handle = useMemo<TranscriptJumpHandle>(
     () => ({
       jumpToIndex: () => {},
       setAnchor: () => {},

@@ -2,7 +2,7 @@ import { useRef, type RefObject } from 'react';
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js';
 import { useSearchHighlight } from '../../ink/hooks/use-search-highlight.js';
 import type { RenderableMessage } from '../../types/message.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 import { useStaticTranscriptJump } from './useStaticTranscriptJump.js';
 import { useTranscriptCleanupEffects } from './useTranscriptCleanupEffects.js';
 import { useTranscriptSearchController } from './useTranscriptSearchController.js';
@@ -33,7 +33,7 @@ export function useTranscriptSearchFeature({
   setDumpMode,
   setEditorStatus,
 }: UseTranscriptSearchFeatureInput) {
-  const jumpRef = useRef<JumpHandle | null>(null);
+  const jumpRef = useRef<TranscriptJumpHandle | null>(null);
   const {
     searchOpen,
     openSearch,

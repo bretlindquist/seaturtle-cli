@@ -6,6 +6,7 @@ import type { MatchPosition } from '../ink/render-to-screen.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import type { RenderableMessage } from '../types/message.js'
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js'
+import type { TranscriptJumpHandle } from '../screens/repl/transcriptJumpHandle.js'
 import {
   buildTranscriptSearchEngineState,
   createEmptyTranscriptSearchEngineState,
@@ -55,16 +56,7 @@ export function useVirtualTranscriptSearch({
   searchProgress,
   scanElement,
 }: {
-  jumpRef?: RefObject<{
-    jumpToIndex: (i: number) => void
-    setSearchQuery: (q: string) => void
-    nextMatch: () => void
-    prevMatch: () => void
-    refreshCurrentMatch: () => void
-    setAnchor: () => void
-    warmSearchIndex: () => Promise<number>
-    disarmSearch: () => void
-  } | null>
+  jumpRef?: RefObject<TranscriptJumpHandle | null>
   scrollRef: RefObject<ScrollBoxHandle | null>
   jumpStateRef: RefObject<VirtualTranscriptSearchRuntime>
   extractSearchText: (msg: RenderableMessage) => string

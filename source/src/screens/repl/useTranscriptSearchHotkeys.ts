@@ -1,13 +1,13 @@
 import { useInput } from '../../ink.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { RefObject } from 'react';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 
 type UseTranscriptSearchHotkeysInput = {
   screen: 'prompt' | 'transcript'
   searchOpen: boolean
   dumpMode: boolean
   hasNavigableMatches: boolean
-  jumpRef: RefObject<JumpHandle | null>
+  jumpRef: RefObject<TranscriptJumpHandle | null>
   openSearch: () => void
 }
 

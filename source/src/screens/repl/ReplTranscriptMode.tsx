@@ -11,10 +11,10 @@ import type { AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir
 import type { RenderableMessage } from '../../types/message.js';
 import type { StreamingThinking, StreamingToolUse } from '../../utils/messages.js';
 import type { MatchPosition } from '../../ink/render-to-screen.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
 import type { TranscriptSearchProgressSink, TranscriptSearchBadge } from './useTranscriptSearchTracker.js';
 import { TranscriptSearchBar } from './ReplShellHelpers.js';
 import { ReplTranscriptScreen } from './ReplTranscriptScreen.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 
 type ReplTranscriptModeProps = {
   titleIsAnimating: boolean
@@ -39,7 +39,7 @@ type ReplTranscriptModeProps = {
   onOpenRateLimitOptions: () => void
   isLoading: boolean
   streamingThinking: StreamingThinking | null
-  jumpRef: RefObject<JumpHandle | null>
+  jumpRef: RefObject<TranscriptJumpHandle | null>
   searchProgress: TranscriptSearchProgressSink
   scanElement?: (el: DOMElement) => MatchPosition[]
   dumpMode: boolean

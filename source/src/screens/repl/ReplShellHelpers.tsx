@@ -4,7 +4,7 @@ import { useEffect, useState, type RefObject } from 'react';
 import { Box, Text, useTerminalFocus, useTerminalTitle } from '../../ink.js';
 import { useSearchInput } from '../../hooks/useSearchInput.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
-import type { JumpHandle } from '../../components/VirtualMessageList.js';
+import type { TranscriptJumpHandle } from './transcriptJumpHandle.js';
 
 type TranscriptModeFooterProps = {
   showAllInTranscript: boolean
@@ -76,7 +76,7 @@ export function TranscriptModeFooter({
 }
 
 type TranscriptSearchBarProps = {
-  jumpRef: RefObject<JumpHandle | null>
+  jumpRef: RefObject<TranscriptJumpHandle | null>
   searchBadge?: {
     current: number
     count: number

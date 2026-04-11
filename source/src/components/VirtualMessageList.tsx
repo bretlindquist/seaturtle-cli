@@ -14,6 +14,7 @@ import { ScrollChromeContext } from './FullscreenLayout.js';
 import { renderableSearchText } from '../utils/transcriptSearch.js';
 import { isNavigableMessage, type MessageActionsNav, type MessageActionsState, type NavigableMessage, stripSystemReminders, toolCallOf } from './messageActions.js';
 import type { TranscriptSearchProgressSink } from '../screens/repl/useTranscriptSearchTracker.js';
+import type { TranscriptJumpHandle } from '../screens/repl/transcriptJumpHandle.js';
 import {
   useVirtualTranscriptSearch,
 } from './useVirtualTranscriptSearch.js';
@@ -42,31 +43,6 @@ export type StickyPrompt = {
  *  2 rows via overflow:hidden — this just bounds the React prop size. */
 const STICKY_TEXT_CAP = 500;
 
-/** Imperative handle for transcript navigation. Methods compute matches
- *  HERE (renderableMessages indices are only valid inside this component —
- *  Messages.tsx filters and reorders, REPL can't compute externally). */
-export type JumpHandle = {
-  jumpToIndex: (i: number) => void;
-  setSearchQuery: (q: string) => void;
-  nextMatch: () => void;
-  prevMatch: () => void;
-  refreshCurrentMatch: () => void;
-  /** Capture current scrollTop as the incsearch anchor. Typing jumps
-   *  around as preview; 0-matches snaps back here. Enter/n/N never
-   *  restore (they don't call setSearchQuery with empty). Next / call
-   *  overwrites. */
-  setAnchor: () => void;
-  /** Warm the search-text cache by extracting every message's text.
-   *  Returns elapsed ms, or 0 if already warm (subsequent / in same
-   *  transcript session). Yields before work so the caller can paint
-   *  "indexing…" first. Caller shows "indexed in Xms" on resolve. */
-  warmSearchIndex: () => Promise<number>;
-  /** Manual scroll (j/k/PgUp/wheel) exited the search context. Clear
-   *  positions (yellow goes away, inverse highlights stay). Next n/N
-   *  re-establishes via step()→jump(). Wired from ScrollKeybindingHandler's
-   *  onScroll — only fires for keyboard/wheel, not programmatic scrollTo. */
-  disarmSearch: () => void;
-};
 type Props = {
   messages: RenderableMessage[];
   scrollRef: RefObject<ScrollBoxHandle | null>;
@@ -95,7 +71,7 @@ type Props = {
   /** Nav handle lives here because height measurement lives here. */
   cursorNavRef?: React.Ref<MessageActionsNav>;
   setCursor?: (c: MessageActionsState | null) => void;
-  jumpRef?: RefObject<JumpHandle | null>;
+  jumpRef?: RefObject<TranscriptJumpHandle | null>;
   /** Receives match-count/current updates from transcript search. */
   searchProgress?: TranscriptSearchProgressSink;
   /** Paint existing DOM subtree to fresh Screen, scan. Element from the
