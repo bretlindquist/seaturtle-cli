@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 import {
   buildSteerCheckpoint,
@@ -137,6 +139,25 @@ function run(): void {
     }),
     null,
     'task notifications alone should not fabricate a steer checkpoint',
+  )
+
+  const repoRoot = join(import.meta.dir, '..')
+  const querySource = readFileSync(join(repoRoot, 'source/src/query.ts'), 'utf8')
+
+  assert.match(
+    querySource,
+    /const steerCheckpoint = buildSteerCheckpoint\(/,
+    'query loop should build steer checkpoints from the shared helper',
+  )
+  assert.match(
+    querySource,
+    /content: buildSteerCheckpointTranscriptLine\(/,
+    'query loop should build transcript checkpoint lines from the shared helper',
+  )
+  assert.match(
+    querySource,
+    /partitionQueuedCommandsForBoundary\(queuedCommandsSnapshot\)/,
+    'query loop should partition queued commands through the shared boundary helper',
   )
 }
 
