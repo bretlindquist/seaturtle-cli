@@ -7,10 +7,12 @@ import {
   queryOpenAiCodexWithoutStreaming,
 } from './openaiCodex.js'
 import {
+  getDefaultOpenAiCodexApiKeyProfile,
   getDefaultOpenAiCodexOAuthProfile,
   getOpenAiCodexAuthReadiness,
 } from '../authProfiles/store.js'
 import { maybeAdoptExternalCodexCliAuthProfile } from '../authProfiles/openaiCodexOAuth.js'
+import { getResolvedOpenAiCodexAuth } from '../authProfiles/openaiCodexAuth.js'
 import {
   type APIProvider,
   getAPIProvider,
@@ -83,8 +85,15 @@ function buildAnthropicMainLoopRuntime(
 function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
   maybeAdoptExternalCodexCliAuthProfile()
   const readiness = getOpenAiCodexAuthReadiness()
-  const authSource = readiness.hasDefaultProfile
+  const defaultOAuthProfile = getDefaultOpenAiCodexOAuthProfile()
+  const defaultApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
+  const hasApiKeyAuth = !!defaultApiKeyProfile || !!process.env.OPENAI_API_KEY?.trim()
+  const authSource = defaultOAuthProfile
     ? 'provider-auth-profile'
+    : defaultApiKeyProfile
+      ? 'provider-api-key-profile'
+    : process.env.OPENAI_API_KEY?.trim()
+      ? 'OPENAI_API_KEY'
     : readiness.hasAnyProfile
       ? 'provider-auth-profile'
       : readiness.externalSources.includes('codex-cli')
@@ -99,7 +108,7 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
     wireApi: 'openai-codex-responses',
     supportsProviderOwnedOAuth: true,
     supportsOpenAiStyleModels: true,
-    authState: readiness.hasAnyProfile
+    authState: readiness.hasAnyProfile || hasApiKeyAuth
       ? 'ready'
       : readiness.externalSources.includes('codex-cli')
         ? 'available-via-cli'
@@ -119,6 +128,7 @@ export type MainLoopProviderRuntimeSnapshot = {
   available: MainLoopProviderRuntime[]
   openAiCodexAuthReady: boolean
   openAiCodexNativeAuthReady: boolean
+  openAiCodexApiKeyReady: boolean
   openAiCodexCliFallbackReady: boolean
   openAiCodexAuthSource: string | null
   openAiCodexAccountLabel: string | null
@@ -159,6 +169,7 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
   const openAiReadiness = getOpenAiCodexAuthReadiness()
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
   const openAiProfile = getDefaultOpenAiCodexOAuthProfile()
+  const openAiApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
   const preferred = shouldPreferOpenAiCodexMainLoop() ? openAiCodex : anthropic
   const execution = preferred.executionEnabled ? preferred : anthropic
   const available = [anthropic]
@@ -172,14 +183,18 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     preferred,
     available,
     openAiCodexAuthReady: openAiCodex.authState !== 'not-configured',
-    openAiCodexNativeAuthReady: openAiReadiness.readyViaProfile,
+    openAiCodexNativeAuthReady: !!openAiProfile,
+    openAiCodexApiKeyReady:
+      !!openAiApiKeyProfile || !!process.env.OPENAI_API_KEY?.trim(),
     openAiCodexCliFallbackReady: openAiReadiness.readyViaExternal,
     openAiCodexAuthSource: openAiCodex.authSource,
     openAiCodexAccountLabel:
       openAiProfile?.emailAddress ??
       (typeof openAiProfile?.metadata?.accountId === 'string'
         ? openAiProfile.metadata.accountId
-        : openAiProfile?.accountUuid ?? null),
+        : openAiProfile?.accountUuid ??
+          openAiApiKeyProfile?.label ??
+          null),
     openAiCodexPlanLabel: formatOpenAiCodexPlanLabel(
       openAiProfile?.metadata?.planType,
     ),
@@ -196,6 +211,11 @@ export function getMainLoopProviderRuntime(
 
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
   return openAiCodex.executionEnabled ? openAiCodex : anthropic
+}
+
+export async function getResolvedMainLoopOpenAiCodexAuthSource(): Promise<string | null> {
+  const auth = await getResolvedOpenAiCodexAuth()
+  return auth?.source ?? null
 }
 
 export function queryModelWithStreamingViaProviderRuntime(

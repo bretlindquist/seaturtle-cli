@@ -7,7 +7,10 @@ import {
   normalizeOpenAiToolParameterSchema,
   shouldUseStrictOpenAiToolSchema,
 } from './openaiToolSchema.js'
-import { getUsableOpenAiCodexAuth } from '../authProfiles/openaiCodexOAuth.js'
+import {
+  getResolvedOpenAiCodexAuth,
+  type OpenAiCodexResolvedAuth,
+} from '../authProfiles/openaiCodexAuth.js'
 import type {
   AssistantMessage,
   Message,
@@ -30,9 +33,6 @@ import {
   recordOpenAiCodexTelemetryFromEvent,
   recordOpenAiCodexTelemetryFromHeaders,
 } from './openaiCodexTelemetry.js'
-
-const DEFAULT_CHATGPT_CODEX_BASE_URL =
-  'https://chatgpt.com/backend-api/codex'
 
 export type OpenAiCodexModelDefinition = {
   value: string
@@ -98,11 +98,6 @@ const KNOWN_CHATGPT_CODEX_MODELS = new Set(
 
 export function getOpenAiCodexModelDefinitions(): readonly OpenAiCodexModelDefinition[] {
   return OPENAI_CODEX_MODEL_DEFINITIONS
-}
-
-type ChatgptCodexAuth = {
-  accessToken: string
-  accountId: string
 }
 
 type OpenAiCodexReasoningPayload = {
@@ -260,10 +255,37 @@ function formatOpenAiCodexHttpError(params: {
   return `${API_ERROR_MESSAGE_PREFIX}: ${params.status} ${params.statusText}${params.body ? ` · ${params.body}` : ''}`
 }
 
-function resolveChatgptCodexBaseUrl(): string {
-  return (
-    process.env.CODEX_CHATGPT_BASE_URL || DEFAULT_CHATGPT_CODEX_BASE_URL
-  ).replace(/\/+$/, '')
+function buildOpenAiCodexRequestTarget(
+  auth: OpenAiCodexResolvedAuth,
+): {
+  baseUrl: string
+  headers: Record<string, string>
+} {
+  if (auth.mode === 'api_key') {
+    return {
+      baseUrl: auth.baseUrl,
+      headers: {
+        'content-type': 'application/json',
+        accept: 'text/event-stream',
+        authorization: `Bearer ${auth.apiKey}`,
+        ...(auth.organizationId
+          ? { 'OpenAI-Organization': auth.organizationId }
+          : {}),
+        ...(auth.projectId ? { 'OpenAI-Project': auth.projectId } : {}),
+      },
+    }
+  }
+
+  return {
+    baseUrl: auth.baseUrl,
+    headers: {
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      authorization: `Bearer ${auth.accessToken}`,
+      'ChatGPT-Account-ID': auth.accountId,
+      originator: 'claude_code_source_build',
+    },
+  }
 }
 
 function normalizeTextParts(
@@ -986,8 +1008,7 @@ async function* finalizeSyntheticToolUse(
 }
 
 async function collectChatgptCodexText(params: {
-  auth: ChatgptCodexAuth
-  baseUrl: string
+  auth: OpenAiCodexResolvedAuth
   messages: Message[]
   systemPrompt: SystemPrompt
   signal: AbortSignal
@@ -1003,16 +1024,11 @@ async function collectChatgptCodexText(params: {
     tools: params.tools,
   })
   const reasoning = buildOpenAiCodexReasoningPayload(params.options)
+  const requestTarget = buildOpenAiCodexRequestTarget(params.auth)
 
-  const response = await fetch(responsesEndpoint(params.baseUrl), {
+  const response = await fetch(responsesEndpoint(requestTarget.baseUrl), {
     method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      accept: 'text/event-stream',
-      authorization: `Bearer ${params.auth.accessToken}`,
-      'ChatGPT-Account-ID': params.auth.accountId,
-      originator: 'claude_code_source_build',
-    },
+    headers: requestTarget.headers,
     body: JSON.stringify({
       model: params.model,
       instructions: buildInstructions(params.systemPrompt),
@@ -1161,11 +1177,11 @@ async function runOpenAiCodexPlainText(params: {
   tools: Tools
   options: Options
 }): Promise<AssistantMessage> {
-  const auth = await getUsableOpenAiCodexAuth()
+  const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     return createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex OAuth is not configured. Sign in through CT, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
     })
   }
 
@@ -1181,7 +1197,6 @@ async function runOpenAiCodexPlainText(params: {
       tools: params.tools,
       options: params.options,
       auth,
-      baseUrl: resolveChatgptCodexBaseUrl(),
       messages: params.messages,
       systemPrompt: params.systemPrompt,
       signal: params.signal,
@@ -1227,11 +1242,11 @@ export async function* queryOpenAiCodexWithStreaming(params: {
   StreamEvent | AssistantMessage | SystemAPIErrorMessage,
   void
 > {
-  const auth = await getUsableOpenAiCodexAuth()
+  const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     yield createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex OAuth is not configured. Sign in through CT, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
     })
     return
   }
@@ -1256,17 +1271,12 @@ export async function* queryOpenAiCodexWithStreaming(params: {
     tools: params.tools,
   })
   const reasoning = buildOpenAiCodexReasoningPayload(params.options)
+  const requestTarget = buildOpenAiCodexRequestTarget(auth)
 
   try {
-    const response = await fetch(responsesEndpoint(resolveChatgptCodexBaseUrl()), {
+    const response = await fetch(responsesEndpoint(requestTarget.baseUrl), {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'text/event-stream',
-        authorization: `Bearer ${auth.accessToken}`,
-        'ChatGPT-Account-ID': auth.accountId,
-        originator: 'claude_code_source_build',
-      },
+      headers: requestTarget.headers,
       body: JSON.stringify({
         model: params.options.model,
         instructions: buildInstructions(params.systemPrompt),

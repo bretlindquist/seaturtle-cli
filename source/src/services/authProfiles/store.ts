@@ -8,6 +8,7 @@ import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import type {
   ProviderAuthMode,
   ProviderAuthProfile,
+  ProviderApiKeyProfile,
   ProviderAuthProfileStore,
   ProviderOAuthProfile,
   SecureStorageData,
@@ -44,6 +45,14 @@ export type OpenAiCodexOAuthCredentialFields = {
   planType?: string
   enterpriseUrl?: string
   projectId?: string
+}
+
+export type OpenAiCodexApiKeyCredentialFields = {
+  apiKey: string
+  label?: string
+  organizationId?: string
+  projectId?: string
+  baseUrl?: string
 }
 
 function emptyStore(): ProviderAuthProfileStore {
@@ -148,6 +157,34 @@ export function buildOpenAiCodexOAuthProfile(
   }
 }
 
+export function buildOpenAiCodexApiKeyProfile(
+  params: OpenAiCodexApiKeyCredentialFields,
+): ProviderApiKeyProfile {
+  const label =
+    params.label?.trim() ||
+    (params.projectId
+      ? `OpenAI API key (${params.projectId})`
+      : 'OpenAI API key')
+
+  return {
+    profileId: `${OPENAI_CODEX_PROVIDER}:api-key:${label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'default'}`,
+    provider: OPENAI_CODEX_PROVIDER,
+    mode: 'api_key',
+    apiKey: params.apiKey,
+    label,
+    metadata: {
+      source: 'openai_api_key',
+      organizationId: params.organizationId ?? null,
+      projectId: params.projectId ?? null,
+      baseUrl: params.baseUrl ?? null,
+    },
+    updatedAt: Date.now(),
+  }
+}
+
 export function upsertProviderAuthProfileInStore(params: {
   store: ProviderAuthProfileStore | null | undefined
   profile: ProviderAuthProfile
@@ -223,6 +260,13 @@ export function getDefaultProviderOAuthProfile(
 ): ProviderOAuthProfile | undefined {
   const profile = getDefaultProviderAuthProfile(provider)
   return profile?.mode === 'oauth' ? profile : undefined
+}
+
+export function getDefaultProviderApiKeyProfile(
+  provider: string,
+): ProviderApiKeyProfile | undefined {
+  const profile = getDefaultProviderAuthProfile(provider)
+  return profile?.mode === 'api_key' ? profile : undefined
 }
 
 export function hasProviderAuthProfile(
@@ -335,6 +379,12 @@ export function getDefaultOpenAiCodexOAuthProfile():
   | ProviderOAuthProfile
   | undefined {
   return getDefaultProviderOAuthProfile(OPENAI_CODEX_PROVIDER)
+}
+
+export function getDefaultOpenAiCodexApiKeyProfile():
+  | ProviderApiKeyProfile
+  | undefined {
+  return getDefaultProviderApiKeyProfile(OPENAI_CODEX_PROVIDER)
 }
 
 export function saveProviderAuthProfileStore(

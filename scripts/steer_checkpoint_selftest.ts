@@ -23,6 +23,13 @@ function createPromptCommand(
   }
 }
 
+function removeByIdentity(
+  queue: QueuedCommand[],
+  commandsToRemove: QueuedCommand[],
+): QueuedCommand[] {
+  return queue.filter(cmd => !commandsToRemove.includes(cmd))
+}
+
 function run(): void {
   const relevantNow = createPromptCommand(
     'also tighten the validation on that path',
@@ -175,9 +182,51 @@ function run(): void {
     'task notifications alone should not fabricate a steer checkpoint',
   )
 
+  const slashCommand = createPromptCommand('/status')
+  const mutationRelevant = createPromptCommand(
+    'carry this straight into the active task',
+    'same_task_steer',
+  )
+  const mutationDeferred = createPromptCommand(
+    'save this adjacent cleanup for later',
+    'park_for_later',
+  )
+  const mutationNotification: QueuedCommand = {
+    value: '<task-id>456</task-id><summary>done</summary>',
+    mode: 'task-notification',
+    priority: 'later',
+  }
+  const queueSnapshot = [
+    mutationRelevant,
+    mutationDeferred,
+    mutationNotification,
+  ]
+  const queuePlan = buildSteerBoundaryPlan({
+    stepNumber: 6,
+    queuedCommands: queueSnapshot,
+    toolNames: ['Read'],
+  })
+  assert.deepEqual(
+    removeByIdentity(
+      [mutationRelevant, mutationDeferred, mutationNotification, slashCommand],
+      queuePlan.consumedCommands,
+    ),
+    [mutationDeferred, slashCommand],
+    'queue mutation should remove only consumed prompt/task commands and preserve deferred or slash-routed entries',
+  )
+
   const repoRoot = join(import.meta.dir, '..')
   const querySource = readFileSync(join(repoRoot, 'source/src/query.ts'), 'utf8')
+  const queueManagerSource = readFileSync(
+    join(repoRoot, 'source/src/utils/messageQueueManager.ts'),
+    'utf8',
+  )
 
+  assert.match(
+    querySource,
+    /if \(isSlashCommand\(cmd\)\) return false/,
+    'query loop should keep slash commands out of the model-attachment boundary',
+  )
   assert.match(
     querySource,
     /const steerBoundaryPlan = buildSteerBoundaryPlan\(/,
@@ -202,6 +251,16 @@ function run(): void {
     querySource,
     /const consumedCommands = steerBoundaryPlan\.consumedCommands/,
     'query loop should consume queue entries from the shared boundary plan',
+  )
+  assert.match(
+    querySource,
+    /removeFromQueue\(consumedCommands\)/,
+    'query loop should remove only the consumed boundary commands from the shared queue',
+  )
+  assert.match(
+    queueManagerSource,
+    /export function remove\(commandsToRemove: QueuedCommand\[\]\): void/,
+    'queue manager should keep a dedicated remove-by-identity path for consumed boundary commands',
   )
 }
 

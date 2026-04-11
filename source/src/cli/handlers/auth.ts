@@ -263,7 +263,11 @@ export async function authStatus(opts: {
   } else if (apiKeySource === '/login managed key') {
     authMethod = 'claude.ai'
   } else if (hasOpenAiCodexAuth) {
-    authMethod = 'openai_codex_oauth'
+    authMethod =
+      runtimeSnapshot.openAiCodexAuthSource === 'OPENAI_API_KEY' ||
+      runtimeSnapshot.openAiCodexAuthSource === 'provider-api-key-profile'
+        ? 'openai_codex_api_key'
+        : 'openai_codex_oauth'
   }
 
   if (opts.text) {
@@ -311,6 +315,7 @@ export async function authStatus(opts: {
       preferredMainLoopRuntime: runtimeSnapshot.preferred.provider,
       openAiCodexAuthReady: runtimeSnapshot.openAiCodexAuthReady,
       openAiCodexNativeAuthReady: runtimeSnapshot.openAiCodexNativeAuthReady,
+      openAiCodexApiKeyReady: runtimeSnapshot.openAiCodexApiKeyReady,
       openAiCodexCliFallbackReady: runtimeSnapshot.openAiCodexCliFallbackReady,
     }
     if (runtimeSnapshot.openAiCodexAuthSource) {

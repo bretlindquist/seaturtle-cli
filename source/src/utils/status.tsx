@@ -455,7 +455,7 @@ export function buildAPIProviderProperties(): Property[] {
       });
     }
   }
-  const codexAuthSourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'Provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'Not configured';
+  const codexAuthSourceLabel = runtimeSnapshot.openAiCodexAuthSource === 'provider-auth-profile' ? 'Provider auth profile' : runtimeSnapshot.openAiCodexAuthSource === 'provider-api-key-profile' ? 'Provider API key profile' : runtimeSnapshot.openAiCodexAuthSource === 'OPENAI_API_KEY' ? 'OPENAI_API_KEY' : runtimeSnapshot.openAiCodexAuthSource === 'codex-cli' ? 'Codex CLI auth' : 'Not configured';
   const codexStatusLabel = runtimeSnapshot.execution.family === 'openai' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'openai' ? 'Preferred but not active' : runtimeSnapshot.openAiCodexAuthReady ? 'Available' : 'Not configured';
   properties.push({
     label: 'Codex status',
@@ -468,6 +468,10 @@ export function buildAPIProviderProperties(): Property[] {
   properties.push({
     label: 'Codex native auth',
     value: runtimeSnapshot.openAiCodexNativeAuthReady ? 'Ready' : 'Not detected'
+  });
+  properties.push({
+    label: 'Codex API key',
+    value: runtimeSnapshot.openAiCodexApiKeyReady ? 'Ready' : 'Not detected'
   });
   properties.push({
     label: 'Codex CLI fallback',

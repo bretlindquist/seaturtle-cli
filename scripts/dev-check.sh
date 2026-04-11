@@ -66,6 +66,7 @@ bun scripts/onboarding_flow_selftest.ts >/dev/null
 bun scripts/voice_identity_selftest.ts >/dev/null
 bun scripts/session_resume_copy_selftest.ts >/dev/null
 bun scripts/session_entry_policy_selftest.ts >/dev/null
+bun scripts/openai_codex_auth_selftest.ts >/dev/null
 bun scripts/steer_checkpoint_selftest.ts >/dev/null
 bun scripts/transcript_search_engine_selftest.ts >/dev/null
 bun scripts/telegram_typing_lifecycle_selftest.ts >/dev/null
