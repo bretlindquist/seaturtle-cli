@@ -52,6 +52,7 @@ bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
 bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/config_help_selftest.ts >/dev/null
+bun scripts/config_home_resolution_selftest.ts >/dev/null
 bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
 bun scripts/ct_identity_bootstrap_prompt_selftest.ts >/dev/null

@@ -1,20 +1,41 @@
+import { existsSync } from 'fs'
 import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
+import { resolveSeaTurtleConfigHomeDir } from './configHome.js'
 
-// Memoized: 150+ callers, many on hot paths. Keyed off CLAUDE_CONFIG_DIR so
-// tests that change the env var get a fresh value without explicit cache.clear.
-export const getClaudeConfigHomeDir = memoize(
+// Memoized: 150+ callers, many on hot paths. Keyed off explicit env overrides
+// plus filesystem presence of config-home directories so tests that swap these
+// inputs get a fresh value without explicit cache.clear.
+export const getSeaTurtleConfigHomeDir = memoize(
   (): string => {
-    return (
-      process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude')
-    ).normalize('NFC')
+    const homeDir = homedir()
+    return resolveSeaTurtleConfigHomeDir({
+      seaTurtleConfigDirEnv: process.env.SEATURTLE_CONFIG_DIR,
+      claudeConfigDirEnv: process.env.CLAUDE_CONFIG_DIR,
+      homeDir,
+      seaTurtleDirExists: existsSync(join(homeDir, '.seaturtle')),
+      claudeDirExists: existsSync(join(homeDir, '.claude')),
+    })
   },
-  () => process.env.CLAUDE_CONFIG_DIR,
+  () =>
+    [
+      process.env.SEATURTLE_CONFIG_DIR ?? '',
+      process.env.CLAUDE_CONFIG_DIR ?? '',
+      homedir(),
+      existsSync(join(homedir(), '.seaturtle')) ? '1' : '0',
+      existsSync(join(homedir(), '.claude')) ? '1' : '0',
+    ].join('|'),
 )
 
+// Compatibility wrapper retained while the repo still carries Claude-era
+// naming on many callsites and env vars.
+export function getClaudeConfigHomeDir(): string {
+  return getSeaTurtleConfigHomeDir()
+}
+
 export function getTeamsDir(): string {
-  return join(getClaudeConfigHomeDir(), 'teams')
+  return join(getSeaTurtleConfigHomeDir(), 'teams')
 }
 
 /**
