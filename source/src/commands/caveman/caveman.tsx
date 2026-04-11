@@ -1,5 +1,6 @@
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getCavemanMode, setCavemanMode } from '../../bootstrap/state.js'
+import { COMMON_HELP_ARGS } from '../../constants/xml.js'
 
 type CavemanMode = 'off' | 'lite' | 'full' | 'ultra'
 
@@ -43,6 +44,16 @@ function parseModeArg(args: string | undefined): CavemanMode | undefined {
 }
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
+  const trimmedArgs = args?.trim().toLowerCase() ?? ''
+
+  if (COMMON_HELP_ARGS.includes(trimmedArgs)) {
+    onDone(
+      'Use /caveman off, /caveman lite, /caveman full, or /caveman ultra.\n\nDefault: /caveman = full.\nStatusline shows [CAVEMAN] while active.',
+      { display: 'system' },
+    )
+    return null
+  }
+
   const requestedMode = parseModeArg(args)
 
   if (!requestedMode) {

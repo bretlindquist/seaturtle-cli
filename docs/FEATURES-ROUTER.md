@@ -340,6 +340,7 @@ Keywords:
 - theme
 - neonbbs
 - lolcat
+- caveman
 - rainbow
 - animated rainbow
 
@@ -347,6 +348,7 @@ Next step:
 
 - Use `/theme` and choose `neonbbs`
 - Use `/lolcat` to turn the whole shell rainbow, including the animated variants
+- Use `/caveman off|lite|full|ultra` to switch native response compression modes
 - Use `/haiku` to recite a SeaTurtle haiku or enable rare startup haiku
 
 ## Skills / Plugins / MCP / Hooks
