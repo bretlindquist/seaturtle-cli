@@ -153,6 +153,7 @@ export type AgencyResolvedRunTarget = {
 
 export class AgencySelectionError extends Error {
   readonly kind: 'missing' | 'ambiguous'
+  readonly source: 'installed' | 'upstream'
   readonly candidates: Array<{
     id: string
     title: string
@@ -163,6 +164,7 @@ export class AgencySelectionError extends Error {
   constructor(
     kind: 'missing' | 'ambiguous',
     message: string,
+    source: 'installed' | 'upstream' = 'installed',
     candidates: Array<{
       id: string
       title: string
@@ -173,6 +175,7 @@ export class AgencySelectionError extends Error {
     super(message)
     this.name = 'AgencySelectionError'
     this.kind = kind
+    this.source = source
     this.candidates = candidates
   }
 }
@@ -718,14 +721,37 @@ function findEntriesForTarget(
   }
 
   if (directMatches.length > 1) {
-    throw new Error(
-      `Agency target "${rawTarget}" is ambiguous. Use one of: ${directMatches
-        .map(entry => entry.id)
-        .join(', ')}`,
+    throw new AgencySelectionError(
+      'ambiguous',
+      `Agency target "${rawTarget}" is ambiguous upstream.`,
+      'upstream',
+      directMatches.map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        division: entry.division,
+      })),
     )
   }
 
-  throw new Error(`Agency target "${rawTarget}" was not found upstream`)
+  const fallbackMatches = findCatalogEntriesForLookup(catalog, rawTarget)
+  if (fallbackMatches.length > 0) {
+    throw new AgencySelectionError(
+      'missing',
+      `Agency target "${rawTarget}" was not found upstream.`,
+      'upstream',
+      fallbackMatches.map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        division: entry.division,
+      })),
+    )
+  }
+
+  throw new AgencySelectionError(
+    'missing',
+    `Agency target "${rawTarget}" was not found upstream.`,
+    'upstream',
+  )
 }
 
 function findCatalogEntriesForLookup(
@@ -994,6 +1020,7 @@ function resolveInstalledEntriesForTarget(
       throw new AgencySelectionError(
         'missing',
         `Agency target "${rawTarget}" is not currently installed.`,
+        'installed',
         fallbackMatches.map(entry => ({
           id: entry.id,
           title: entry.title,
@@ -1005,6 +1032,7 @@ function resolveInstalledEntriesForTarget(
     throw new AgencySelectionError(
       'missing',
       `Agency target "${rawTarget}" is not currently installed.`,
+      'installed',
     )
   }
 
@@ -1012,6 +1040,7 @@ function resolveInstalledEntriesForTarget(
     throw new AgencySelectionError(
       'ambiguous',
       `Agency target "${rawTarget}" is ambiguous.`,
+      'installed',
       directMatches.map(entry => ({
         id: entry.id,
         title: entry.title,
@@ -1049,6 +1078,7 @@ export function resolveAgencyRunTarget(
     throw new AgencySelectionError(
       'missing',
       'Agency run requires an installed agent target before the task.',
+      'installed',
       manifests.flatMap(manifest =>
         manifest.entries.slice(0, 6).map(entry => ({
           id: entry.id,
@@ -1071,6 +1101,7 @@ export function resolveAgencyRunTarget(
     throw new AgencySelectionError(
       'missing',
       `Agency target "${rawTarget}" is not currently installed.`,
+      'installed',
     )
   }
 
@@ -1078,6 +1109,7 @@ export function resolveAgencyRunTarget(
     throw new AgencySelectionError(
       'ambiguous',
       `Agency target "${rawTarget}" is ambiguous across installed scopes.`,
+      'installed',
       matches.map(match => ({
         id: match.entry.id,
         title: match.entry.title,
@@ -1098,7 +1130,9 @@ export function formatAgencySelectionError(error: AgencySelectionError): string 
     lines.push(
       error.kind === 'ambiguous'
         ? 'Matching candidates:'
-        : 'Closest installed matches:',
+        : error.source === 'upstream'
+          ? 'Closest upstream matches:'
+          : 'Closest installed matches:',
     )
     for (const candidate of error.candidates.slice(0, 8)) {
       const suffix = [
@@ -1119,8 +1153,13 @@ export function formatAgencySelectionError(error: AgencySelectionError): string 
   if (error.message.includes('requires an installed agent target')) {
     lines.push('Run /agency run <agent> <task> after choosing one installed agent.')
   }
-  lines.push('Use /agency list to inspect installed agents.')
-  lines.push('Use /agency browse to inspect upstream agents.')
+  if (error.source === 'upstream') {
+    lines.push('Use /agency browse to inspect upstream agents.')
+    lines.push('Use /agency install <division|agent> after choosing one upstream target.')
+  } else {
+    lines.push('Use /agency list to inspect installed agents.')
+    lines.push('Use /agency browse to inspect upstream agents.')
+  }
   return lines.join('\n')
 }
 
