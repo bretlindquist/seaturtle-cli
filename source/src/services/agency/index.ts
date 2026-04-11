@@ -1044,8 +1044,24 @@ export function resolveAgencyRunTarget(
     throw new Error('Agency is not installed. Run /agency install first.')
   }
 
+  const normalizedTarget = normalizeAgencyLookup(rawTarget)
+  if (!normalizedTarget) {
+    throw new AgencySelectionError(
+      'missing',
+      'Agency run requires an installed agent target before the task.',
+      manifests.flatMap(manifest =>
+        manifest.entries.slice(0, 6).map(entry => ({
+          id: entry.id,
+          title: entry.title,
+          division: entry.division,
+          scope: manifest.scope,
+        })),
+      ),
+    )
+  }
+
   const matches = manifests.flatMap(manifest =>
-    findInstalledEntriesForTarget(manifest, rawTarget).map(entry => ({
+    findInstalledEntriesForTarget(manifest, normalizedTarget).map(entry => ({
       manifest,
       entry,
     })),
@@ -1100,6 +1116,9 @@ export function formatAgencySelectionError(error: AgencySelectionError): string 
   }
 
   lines.push('')
+  if (error.message.includes('requires an installed agent target')) {
+    lines.push('Run /agency run <agent> <task> after choosing one installed agent.')
+  }
   lines.push('Use /agency list to inspect installed agents.')
   lines.push('Use /agency browse to inspect upstream agents.')
   return lines.join('\n')
@@ -1198,14 +1217,14 @@ export function getAgencyHelpText(): string {
     'Use /agency install <all|division|agent> to install optional Agency agents.',
     '',
     'Commands:',
-    '/agency browse [query]',
-    '/agency refresh',
+    '/agency browse [query] [--refresh]',
+    '/agency refresh [--ref <ref>]',
     '/agency install [target] [--project]',
-    '/agency run <agent> <task>',
+    '/agency run <agent> <task> [--user|--project]',
     '/agency update [--project]',
-    '/agency list',
+    '/agency list [--user|--project]',
     '/agency remove <target|all> [--project]',
-    '/agency status',
+    '/agency status [--user|--project]',
     '/agency help',
     '',
     'Examples:',
