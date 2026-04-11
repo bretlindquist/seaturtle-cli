@@ -2,8 +2,8 @@ import type { AgencyInstallScope } from '../../services/agency/index.js'
 
 export type ParsedAgencyCommand =
   | { type: 'help' }
-  | { type: 'status' }
-  | { type: 'list' }
+  | { type: 'status'; scope?: AgencyInstallScope }
+  | { type: 'list'; scope?: AgencyInstallScope }
   | { type: 'run'; target?: string; task?: string; scope?: AgencyInstallScope }
   | { type: 'update'; scope: AgencyInstallScope }
   | { type: 'remove'; target?: string; scope: AgencyInstallScope }
@@ -14,6 +14,18 @@ function parseScopeFlag(parts: string[]): AgencyInstallScope {
     return 'project'
   }
   return 'user'
+}
+
+function parseOptionalScopeFlag(
+  parts: string[],
+): AgencyInstallScope | undefined {
+  if (parts.includes('--project')) {
+    return 'project'
+  }
+  if (parts.includes('--user')) {
+    return 'user'
+  }
+  return undefined
 }
 
 export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
@@ -30,11 +42,11 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
   }
 
   if (command === 'status') {
-    return { type: 'status' }
+    return { type: 'status', scope: parseOptionalScopeFlag(parts) }
   }
 
   if (command === 'list' || command === 'ls') {
-    return { type: 'list' }
+    return { type: 'list', scope: parseOptionalScopeFlag(parts) }
   }
 
   if (command === 'run') {

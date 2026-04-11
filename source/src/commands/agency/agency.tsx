@@ -22,11 +22,11 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
         return null
 
       case 'status':
-        onDone(formatAgencyStatus(), { display: 'system' })
+        onDone(formatAgencyStatus(parsed.scope), { display: 'system' })
         return null
 
       case 'list':
-        onDone(formatAgencyList(), { display: 'system' })
+        onDone(formatAgencyList(parsed.scope), { display: 'system' })
         return null
 
       case 'run': {

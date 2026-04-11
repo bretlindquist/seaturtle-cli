@@ -133,6 +133,10 @@ export type AgencyResolvedRunTarget = {
   entry: AgencyManifestEntry
 }
 
+function normalizeAgencyLookup(value: string | undefined): string {
+  return (value ?? '').trim().toLowerCase().replace(/\.md$/, '')
+}
+
 function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
@@ -274,6 +278,16 @@ function readAllAgencyManifests(): AgencyManifest[] {
   }
 
   return manifests
+}
+
+function getAgencyManifestsForScope(
+  scope?: AgencyInstallScope,
+): AgencyManifest[] {
+  if (scope) {
+    const manifest = readAgencyManifest(scope)
+    return manifest ? [manifest] : []
+  }
+  return readAllAgencyManifests()
 }
 
 export function writeAgencyManifest(manifest: AgencyManifest): void {
@@ -459,7 +473,7 @@ function findEntriesForTarget(
   targets: string[]
   entries: AgencyCatalogEntry[]
 } {
-  const target = rawTarget?.trim().toLowerCase()
+  const target = normalizeAgencyLookup(rawTarget)
   if (!target || target === 'all') {
     return {
       kind: 'all',
@@ -479,14 +493,15 @@ function findEntriesForTarget(
     }
   }
 
-  const strippedTarget = target.replace(/\.md$/, '')
   const directMatches = catalog.entries.filter(entry => {
     const upstreamNoExt = entry.upstreamPath.replace(/\.md$/, '').toLowerCase()
     const baseNoExt = posix.basename(entry.upstreamPath, '.md').toLowerCase()
+    const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
     return (
-      entry.id.toLowerCase() === strippedTarget ||
-      upstreamNoExt === strippedTarget ||
-      baseNoExt === strippedTarget
+      entry.id.toLowerCase() === target ||
+      upstreamNoExt === target ||
+      baseNoExt === target ||
+      suffix === target
     )
   })
 
@@ -691,7 +706,7 @@ function resolveInstalledEntriesForTarget(
   manifest: AgencyManifest,
   rawTarget: string | undefined,
 ): AgencyManifestEntry[] {
-  const target = rawTarget?.trim().toLowerCase()
+  const target = normalizeAgencyLookup(rawTarget)
   if (!target || target === 'all') {
     return manifest.entries
   }
@@ -703,14 +718,17 @@ function resolveInstalledEntriesForTarget(
     return divisionMatches
   }
 
-  const strippedTarget = target.replace(/\.md$/, '')
   const directMatches = manifest.entries.filter(entry => {
     const upstreamNoExt = entry.upstreamPath.replace(/\.md$/, '').toLowerCase()
     const baseNoExt = posix.basename(entry.upstreamPath, '.md').toLowerCase()
+    const suffix = entry.id.replace(/^agency-/, '').toLowerCase()
+    const titleSlug = normalizeAgencyLookup(entry.title).replace(/\s+/g, '-')
     return (
-      entry.id.toLowerCase() === strippedTarget ||
-      upstreamNoExt === strippedTarget ||
-      baseNoExt === strippedTarget
+      entry.id.toLowerCase() === target ||
+      upstreamNoExt === target ||
+      baseNoExt === target ||
+      suffix === target ||
+      titleSlug === target
     )
   })
 
@@ -744,12 +762,7 @@ export function resolveAgencyRunTarget(
   rawTarget: string | undefined,
   preferredScope?: AgencyInstallScope,
 ): AgencyResolvedRunTarget {
-  const manifests =
-    preferredScope !== undefined
-      ? [readAgencyManifest(preferredScope)].filter(
-          (manifest): manifest is AgencyManifest => manifest !== null,
-        )
-      : readAllAgencyManifests()
+  const manifests = getAgencyManifestsForScope(preferredScope)
 
   if (manifests.length === 0) {
     throw new Error('Agency is not installed. Run /agency install first.')
@@ -852,11 +865,13 @@ export function removeAgencyInstall(
   }
 }
 
-export function getAgencyStatusSummary(): {
+export function getAgencyStatusSummary(
+  scope?: AgencyInstallScope,
+): {
   installed: boolean
   manifests: AgencyManifest[]
 } {
-  const manifests = readAllAgencyManifests()
+  const manifests = getAgencyManifestsForScope(scope)
   return {
     installed: manifests.length > 0,
     manifests,
@@ -888,11 +903,11 @@ export function getAgencyHelpText(): string {
   ].join('\n')
 }
 
-export function formatAgencyStatus(): string {
-  const { manifests } = getAgencyStatusSummary()
+export function formatAgencyStatus(scope?: AgencyInstallScope): string {
+  const { manifests } = getAgencyStatusSummary(scope)
   if (manifests.length === 0) {
     return [
-      'Agency is not installed.',
+      scope ? `Agency is not installed for ${scope} scope.` : 'Agency is not installed.',
       '',
       'Run /agency install marketing or /agency install all.',
       'Use --project to install into this project instead of the user agent directory.',
@@ -918,10 +933,12 @@ export function formatAgencyStatus(): string {
   return lines.join('\n')
 }
 
-export function formatAgencyList(): string {
-  const manifests = readAllAgencyManifests()
+export function formatAgencyList(scope?: AgencyInstallScope): string {
+  const manifests = getAgencyManifestsForScope(scope)
   if (manifests.length === 0) {
-    return 'Agency has no installed agents.'
+    return scope
+      ? `Agency has no installed agents in ${scope} scope.`
+      : 'Agency has no installed agents.'
   }
 
   const lines: string[] = []
