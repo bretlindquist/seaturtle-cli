@@ -8,12 +8,16 @@ export type SessionEntryPolicyInput = {
 
 export function buildSessionEntryPolicyInput(input: SessionEntryPolicyInput): SessionEntryPolicyInput {
   return {
-    continueFlag: input.continueFlag,
+    continueFlag: input.continueFlag === true,
     resumeValue: input.resumeValue,
     fromPrValue: input.fromPrValue,
-    teleportValue: input.teleportValue,
-    remoteValue: input.remoteValue,
+    teleportValue: input.teleportValue ?? null,
+    remoteValue: input.remoteValue ?? null,
   }
+}
+
+function hasOptionalFlagValue<T>(value: T | null | undefined): boolean {
+  return value !== null && value !== undefined
 }
 
 export function hasExplicitSessionResumeRequest(
@@ -21,10 +25,10 @@ export function hasExplicitSessionResumeRequest(
 ): boolean {
   return (
     input.continueFlag === true ||
-    Boolean(input.resumeValue) ||
-    Boolean(input.fromPrValue) ||
-    Boolean(input.teleportValue) ||
-    input.remoteValue !== null
+    hasOptionalFlagValue(input.resumeValue) ||
+    hasOptionalFlagValue(input.fromPrValue) ||
+    hasOptionalFlagValue(input.teleportValue) ||
+    hasOptionalFlagValue(input.remoteValue)
   )
 }
 

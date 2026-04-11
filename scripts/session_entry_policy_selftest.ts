@@ -24,6 +24,22 @@ assert(
 )
 
 assert(
+  shouldStartFreshSession({}),
+  'omitted optional CLI flags should be treated as absent and fresh',
+)
+
+assert(
+  shouldStartFreshSession({
+    continueFlag: false,
+    resumeValue: undefined,
+    fromPrValue: undefined,
+    teleportValue: undefined,
+    remoteValue: undefined,
+  }),
+  'undefined optional CLI flags should not masquerade as explicit resume requests',
+)
+
+assert(
   hasExplicitSessionResumeRequest({
     continueFlag: true,
     remoteValue: null,
@@ -65,9 +81,24 @@ assert(
 
 assert(
   hasExplicitSessionResumeRequest({
+    teleportValue: '',
+    remoteValue: null,
+  }),
+  '--teleport without a session id should count as an explicit interactive session-entry request',
+)
+
+assert(
+  hasExplicitSessionResumeRequest({
     remoteValue: [],
   }),
   '--remote should count as an explicit non-fresh session-entry request',
+)
+
+assert(
+  hasExplicitSessionResumeRequest({
+    remoteValue: '',
+  }),
+  '--remote without an initial prompt should still count as an explicit non-fresh session-entry request',
 )
 
 const sharedInput = buildSessionEntryPolicyInput({
@@ -83,6 +114,20 @@ assert(sharedInput.resumeValue === 'session-id', 'builder should preserve resume
 assert(sharedInput.fromPrValue === true, 'builder should preserve fromPrValue')
 assert(sharedInput.teleportValue === 'remote-session', 'builder should preserve teleportValue')
 assert(Array.isArray(sharedInput.remoteValue), 'builder should preserve remoteValue')
+
+const normalizedPlainStartup = buildSessionEntryPolicyInput({})
+assert(
+  normalizedPlainStartup.continueFlag === false,
+  'builder should normalize missing continueFlag to false',
+)
+assert(
+  normalizedPlainStartup.teleportValue === null,
+  'builder should normalize missing teleportValue to null',
+)
+assert(
+  normalizedPlainStartup.remoteValue === null,
+  'builder should normalize missing remoteValue to null',
+)
 
 const repoRoot = join(import.meta.dir, '..')
 const mainSource = readFileSync(join(repoRoot, 'source/src/main.tsx'), 'utf8')

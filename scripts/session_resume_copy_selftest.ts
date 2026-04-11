@@ -84,6 +84,10 @@ assert(
   'plain startup policy should remain fresh by default',
 )
 assert(
+  shouldStartFreshSession({}),
+  'plain startup policy should remain fresh when optional flags are omitted',
+)
+assert(
   hasExplicitSessionResumeRequest({
     continueFlag: true,
     remoteValue: null,
@@ -102,6 +106,13 @@ assert(
     remoteValue: [],
   }),
   'remote sessions should count as explicit non-fresh entrypoints',
+)
+assert(
+  hasExplicitSessionResumeRequest({
+    teleportValue: '',
+    remoteValue: null,
+  }),
+  'interactive teleport picker should count as an explicit non-fresh entrypoint',
 )
 
 const repoRoot = join(import.meta.dir, '..')
