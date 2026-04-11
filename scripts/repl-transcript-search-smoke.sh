@@ -30,16 +30,25 @@ cleanup() {
 }
 trap cleanup EXIT
 
-node dist/cli.js \
+run_seed_turn() {
+  local output_file
+  output_file="$(mktemp)"
+  if ! node dist/cli.js "$@" >"$output_file" 2>&1; then
+    cat "$output_file"
+    rm -f "$output_file"
+    return 1
+  fi
+  rm -f "$output_file"
+}
+
+run_seed_turn \
   --session-id "$SESSION_ID" \
-  -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-1" \
-  >/dev/null
+  -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-1"
 
 for index in 2 3; do
-  node dist/cli.js \
+  run_seed_turn \
     --resume "$SESSION_ID" \
-    -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-$index" \
-    >/dev/null
+    -p "Reply with exactly ok and nothing else. transcript-search-smoke-needle-$index"
 done
 
 if ! python3 - "$OUTPUT_FILE" <<'PY'
@@ -144,16 +153,26 @@ def find_last_footer_count_marker(data: bytes) -> str | None:
         return None
     return matches[-1]
 
-def next_marker(marker: str, delta: int) -> str:
-    current, total = marker.split("/", 1)
-    total_n = int(total)
-    current_n = int(current)
-    nxt = ((current_n - 1 + delta) % total_n) + 1
-    return f"{nxt}/{total_n}"
-
 def wait_for_plain_fragment(fragment: str, timeout: float) -> bytes:
     starting_size = len(joined())
     return read_until(lambda data: fragment in visible_text(data[starting_size:]), timeout)
+
+def find_last_footer_badge(data: bytes) -> str | None:
+    text = visible_text(data)
+    matches = re.findall(r"Transcript · ctrl\+o · n/N · ([1-9]\d*/[1-9]\d*)", text)
+    if not matches:
+        return None
+    return matches[-1]
+
+def wait_for_footer_badge(previous: str | None, timeout: float) -> str | None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        pump_output(0.1)
+        badge = find_last_footer_badge(joined())
+        if badge is not None and badge != previous:
+            return badge
+        time.sleep(0.1)
+    return find_last_footer_badge(joined())
 
 def read_debug_log() -> str:
     try:
@@ -231,39 +250,80 @@ try:
     if current_marker is None:
         exit_code = 5
         raise RuntimeError("transcript search did not close into footer navigation state")
+    if current_marker != "1/3":
+        exit_code = 6
+        raise RuntimeError(
+            f"transcript search should begin at the first of three seeded matches, got {current_marker}"
+        )
 
     baseline_badges = wait_for_badge_quiescence(12)
     if not baseline_badges:
-        exit_code = 6
+        exit_code = 7
         raise RuntimeError("transcript search never resolved an active badge after close")
+    if baseline_badges[-1] != "1/3":
+        exit_code = 8
+        raise RuntimeError(
+            f"debug badge should agree with the initial footer badge, got {baseline_badges[-1]!r}"
+        )
 
     observed: list[str] = []
+    footer_observed: list[str] = []
     last_badge = baseline_badges[-1]
-    for _ in range(3):
+    last_footer_badge = current_marker
+    for expected in ("2/3", "3/3", "1/3"):
         os.write(master_fd, b"n")
         next_badge = wait_for_debug_badge(last_badge, 12)
         if next_badge is None or next_badge == last_badge:
-            exit_code = 7
+            exit_code = 9
             raise RuntimeError(
                 f"transcript search did not advance after n: baseline={baseline_badges!r} observed={observed!r}"
             )
+        next_footer_badge = wait_for_footer_badge(last_footer_badge, 12)
+        if next_footer_badge is None or next_footer_badge == last_footer_badge:
+            exit_code = 10
+            raise RuntimeError(
+                f"transcript footer did not advance after n: baseline={current_marker!r} observed={footer_observed!r}"
+            )
         observed.append(next_badge)
+        footer_observed.append(next_footer_badge)
+        if next_badge != expected or next_footer_badge != expected:
+            exit_code = 11
+            raise RuntimeError(
+                "transcript search advanced to an impossible badge state after n: "
+                f"expected={expected!r} debug={next_badge!r} footer={next_footer_badge!r}"
+            )
         last_badge = next_badge
+        last_footer_badge = next_footer_badge
         wait_for_badge_quiescence(8)
 
-    coherent_cycle_found = False
-    for start in range(len(observed)):
-        window = observed[start:start + 3]
-        if len(window) < 3:
-            break
-        if all(window[index + 1] == next_marker(window[index], 1) for index in range(2)):
-            coherent_cycle_found = True
-            break
-
-    if not coherent_cycle_found:
-        exit_code = 8
+    if observed != ["2/3", "3/3", "1/3"] or footer_observed != ["2/3", "3/3", "1/3"]:
+        exit_code = 12
         raise RuntimeError(
-            f"transcript search badge history was not coherent enough: baseline={baseline_badges!r} final={final_badges!r}"
+            f"transcript search n-cycle drifted: debug={observed!r} footer={footer_observed!r}"
+        )
+
+    reverse_debug: list[str] = []
+    reverse_footer: list[str] = []
+    for expected in ("3/3", "2/3"):
+        os.write(master_fd, b"N")
+        next_badge = wait_for_debug_badge(last_badge, 12)
+        next_footer_badge = wait_for_footer_badge(last_footer_badge, 12)
+        if next_badge != expected or next_footer_badge != expected:
+            exit_code = 13
+            raise RuntimeError(
+                "transcript search reverse navigation drifted after N: "
+                f"expected={expected!r} debug={next_badge!r} footer={next_footer_badge!r}"
+            )
+        reverse_debug.append(next_badge)
+        reverse_footer.append(next_footer_badge)
+        last_badge = next_badge
+        last_footer_badge = next_footer_badge
+        wait_for_badge_quiescence(8)
+
+    if reverse_debug != ["3/3", "2/3"] or reverse_footer != ["3/3", "2/3"]:
+        exit_code = 14
+        raise RuntimeError(
+            f"transcript search N-cycle drifted: debug={reverse_debug!r} footer={reverse_footer!r}"
         )
 except RuntimeError as error:
     print(str(error), file=sys.stderr)
