@@ -92,6 +92,10 @@ export function CtIdentityBootstrapDialog({
             ? `If you want, we can use the stock SeaTurtle starter kit, or tune how I think, sound, and work in this project. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`
             : `This is a small first conversation, not a form. We can tune how I think, sound, and work in this project, create the stock starter kit, or skip for now. Later, this private layer can grow into ${HALF_SHELL_ARCHIVES_NAME}.`}
         </Text>
+        <Text dimColor>
+          CT keeps this starter layer in the project-local `.ct/` folder so it
+          can stay private, editable, and out of git.
+        </Text>
         <Box>
           <Select
             options={

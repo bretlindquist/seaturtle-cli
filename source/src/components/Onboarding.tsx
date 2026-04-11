@@ -205,7 +205,7 @@ export function Onboarding({
     isActive: currentStep?.id === 'terminal-setup'
   });
   return <Box flexDirection="column">
-      <WelcomeV2 />
+      <WelcomeV2 mode="onboarding" />
       <Box flexDirection="column" marginTop={1}>
         {currentStep?.component}
         {exitState.pending && <Box padding={1}>

@@ -3,12 +3,17 @@ import { Box, Text } from 'src/ink.js'
 import { SeaTurtleMark, SeaTurtleWordmark } from './SeaTurtleMark.js'
 import { getWakeupLine } from '../../services/projectIdentity/lore.js'
 import { getCtCanonCallback } from '../../services/projectIdentity/canonCallbacks.js'
-import { getSessionResumeAffordanceText } from '../../services/sessionResume/sessionResumeCopy.js'
+import { getWelcomeBodyLines, type WelcomeMode } from './welcomeCopyCore.js'
 
 const WELCOME_V2_WIDTH = 68
 
-export function WelcomeV2() {
+export function WelcomeV2({
+  mode = 'default',
+}: {
+  mode?: WelcomeMode
+}) {
   const canonCallback = getCtCanonCallback()
+  const bodyLines = getWelcomeBodyLines(mode)
 
   return (
     <Box
@@ -28,14 +33,11 @@ export function WelcomeV2() {
         <SeaTurtleWordmark />
       </Box>
       <Box marginTop={1} flexDirection="column" alignItems="center">
-        <Text dimColor={true}>
-          Start with /login, /ct, or /telegram and CT will guide the next step.
-        </Text>
-        <Text dimColor={true}>
-          If you want to slow down first, ask for a research pass or a surgical
-          plan.
-        </Text>
-        <Text dimColor={true}>{getSessionResumeAffordanceText()}</Text>
+        {bodyLines.map(line => (
+          <Text key={line} dimColor={true}>
+            {line}
+          </Text>
+        ))}
       </Box>
     </Box>
   )
