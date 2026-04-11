@@ -13,3 +13,7 @@ export function getSessionResumeFeedFooterText(): string {
 export function getNoResumableSessionsText(): string {
   return 'No conversations found to resume. /resume opens the picker when sessions exist, and /continue resumes the most recent session in this directory.'
 }
+
+export function getNoContinuableSessionText(): string {
+  return 'No conversation found to continue. CT starts fresh by default, so use ct --continue when you want the last thread in this directory or ct --resume to browse earlier ones.'
+}

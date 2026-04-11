@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import {
+  getNoContinuableSessionText,
   getSessionResumeAffordanceText,
   getSessionResumeFeedFooterText,
   getNoResumableSessionsText,
@@ -62,6 +63,16 @@ assert(
   'no-resume message should explain the direct continue path',
 )
 
+const noContinuable = getNoContinuableSessionText()
+assert(
+  noContinuable.includes('starts fresh by default'),
+  'no-continue message should reinforce fresh-by-default behavior',
+)
+assert(
+  noContinuable.includes('ct --continue') && noContinuable.includes('ct --resume'),
+  'no-continue message should explain both explicit session-entry paths',
+)
+
 assert(
   shouldStartFreshSession({
     continueFlag: false,
@@ -98,6 +109,7 @@ const resumeCommandSource = readFileSync(
   join(repoRoot, 'source/src/commands/resume/resume.tsx'),
   'utf8',
 )
+const mainSource = readFileSync(join(repoRoot, 'source/src/main.tsx'), 'utf8')
 
 assert(
   resumeCommandSource.includes('onDone(getNoResumableSessionsText())'),
@@ -106,6 +118,14 @@ assert(
 assert(
   !resumeCommandSource.includes("onDone('No conversations found to resume')"),
   '/resume should not keep a stale hardcoded no-resumable string',
+)
+assert(
+  mainSource.includes('exitWithError(root, getNoContinuableSessionText())'),
+  '--continue should use the shared no-continue copy in its empty-state path',
+)
+assert(
+  !mainSource.includes("exitWithError(root, 'No conversation found to continue')"),
+  '--continue should not keep a stale hardcoded empty-state string',
 )
 
 console.log('session-resume-copy selftest passed')

@@ -145,6 +145,7 @@ import { fetchClaudeAIMcpConfigsIfEligible } from 'src/services/mcp/claudeai.js'
 import { clearServerCache } from 'src/services/mcp/client.js';
 import { areMcpConfigsAllowedWithEnterpriseMcpConfig, dedupClaudeAiMcpServers, doesEnterpriseMcpConfigExist, filterMcpServersByPolicy, getClaudeCodeMcpConfigs, getMcpServerSignature, parseMcpConfig, parseMcpConfigFromFilePath } from 'src/services/mcp/config.js';
 import { hasExplicitSessionResumeRequest, shouldStartFreshSession } from 'src/services/sessionResume/sessionEntryPolicy.js';
+import { getNoContinuableSessionText } from 'src/services/sessionResume/sessionResumeCopy.js';
 import { excludeCommandsByServer, excludeResourcesByServer } from 'src/services/mcp/utils.js';
 import { isXaaEnabled } from 'src/services/mcp/xaaIdpLogin.js';
 import { getRelevantTips } from 'src/services/tips/tipRegistry.js';
@@ -3127,7 +3128,7 @@ async function run(): Promise<CommanderCommand> {
           logEvent('tengu_continue', {
             success: false
           });
-          return await exitWithError(root, 'No conversation found to continue');
+          return await exitWithError(root, getNoContinuableSessionText());
         }
         const loaded = await processResumedConversation(result, {
           forkSession: !!options.forkSession,
