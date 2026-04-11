@@ -11,6 +11,7 @@ import {
   buildCtConversationPostureAddendum,
   classifyCtConversationPosture,
 } from '../source/src/services/projectIdentity/conversationPosture.ts'
+import { buildGuidedCtIdentity } from '../source/src/services/projectIdentity/templates.ts'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -143,6 +144,38 @@ assert(
     currentInput: 'fix source/src/services/projectIdentity/defaults.ts',
   }) === 'work',
   'explicit file-edit requests should classify as work',
+)
+
+const guidedIdentity = buildGuidedCtIdentity({
+  role: 'planner',
+  focus: 'caution',
+  tone: 'straightforward',
+  userNote: '  Bret likes direct, production-grade passes   with tests.  ',
+})
+includesAll(
+  guidedIdentity.user,
+  [
+    '# CT User',
+    'First-run note:',
+    '- Bret likes direct, production-grade passes with tests.',
+    'Do not build a dossier.',
+  ],
+  'guided CT user file',
+)
+assert(
+  guidedIdentity.role.includes('research planner') &&
+    guidedIdentity.soul.includes('Keep the tone clean, direct, and low-fluff.'),
+  'guided CT identity should preserve selected role and tone',
+)
+
+const emptyGuidedIdentity = buildGuidedCtIdentity({
+  role: 'builder',
+  focus: 'speed',
+  tone: 'lightly-playful',
+})
+assert(
+  emptyGuidedIdentity.user.includes('No stable preference captured yet.'),
+  'guided CT identity should keep empty first-run user notes explicit and non-invasive',
 )
 
 console.log('voice-identity selftest passed')

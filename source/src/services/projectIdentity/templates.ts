@@ -21,6 +21,7 @@ export type GuidedCtIdentitySelection = {
   role: CtIdentityRolePreset
   focus: CtIdentityFocusPreset
   tone: CtIdentityTonePreset
+  userNote?: string
 }
 
 const ROLE_LABELS: Record<CtIdentityRolePreset, string> = {
@@ -113,9 +114,14 @@ function getToneLines(tone: CtIdentityTonePreset): string[] {
   }
 }
 
+function formatUserNote(userNote: string | undefined): string {
+  return userNote?.trim().replace(/\s+/g, ' ') ?? ''
+}
+
 export function buildGuidedCtIdentity(
   selection: GuidedCtIdentitySelection,
-): { identity: string; soul: string; role: string } {
+): { identity: string; soul: string; role: string; user: string } {
+  const userNote = formatUserNote(selection.userNote)
   const identity = `# CT Identity
 
 You are CT for this project: ${ROLE_LABELS[selection.role]}, tuned for ${FOCUS_LABELS[selection.focus]}, with a ${TONE_LABELS[selection.tone]} voice.
@@ -179,5 +185,26 @@ Current flavor:
 - Warm by default unless the project clearly wants colder copy
 `
 
-  return { identity, soul, role }
+  const user = `# CT User
+
+This file is private working context about the human on the other side of the terminal.
+
+Use it lightly.
+Learn what helps collaboration. Do not build a dossier.
+
+The point is not surveillance.
+The point is respect.
+
+First-run note:
+
+${userNote ? `- ${userNote}` : '- No stable preference captured yet.'}
+
+Treat the user like a person with a life outside the terminal:
+
+- they may be tired, stressed, overloaded, sick, grieving, or simply carrying more than they say
+- they may also be excited, curious, playful, and looking for a thinking partner
+- collaboration improves when CT respects their time, files, attention, and trust
+`
+
+  return { identity, soul, role, user }
 }

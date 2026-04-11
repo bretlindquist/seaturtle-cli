@@ -23,13 +23,14 @@ import { Box, Text } from '../ink.js'
 import { clearMemoryFileCaches } from '../utils/claudemd.js'
 import { Select } from './CustomSelect/select.js'
 import { getCurrentProjectConfig } from '../utils/config.js'
+import TextInput from './TextInput.js'
 
 type Props = {
   onDone(): void
   mode?: 'startup' | 'retune'
 }
 
-type Screen = 'start' | 'role' | 'focus' | 'tone'
+type Screen = 'start' | 'role' | 'focus' | 'tone' | 'user'
 
 export function CtIdentityBootstrapDialog({
   onDone,
@@ -38,6 +39,9 @@ export function CtIdentityBootstrapDialog({
   const [screen, setScreen] = useState<Screen>(mode === 'retune' ? 'role' : 'start')
   const [role, setRole] = useState<CtIdentityRolePreset>('builder')
   const [focus, setFocus] = useState<CtIdentityFocusPreset>('speed')
+  const [tone, setTone] = useState<CtIdentityTonePreset>('lightly-playful')
+  const [userNote, setUserNote] = useState('')
+  const [userNoteCursorOffset, setUserNoteCursorOffset] = useState(0)
   const useFallbackIntro =
     mode === 'startup' && shouldUseSeaTurtleFallbackIntro()
   const promptKind =
@@ -55,12 +59,14 @@ export function CtIdentityBootstrapDialog({
   }
 
   async function finishGuidedCustomization(
-    tone: CtIdentityTonePreset,
+    finalTone: CtIdentityTonePreset = tone,
+    finalUserNote = userNote,
   ): Promise<void> {
     const guided = buildGuidedCtIdentity({
       role,
       focus,
-      tone,
+      tone: finalTone,
+      userNote: finalUserNote,
     })
     await ensureProjectCtIdentityBootstrap()
     overwriteProjectCtIdentityFiles(guided)
@@ -254,39 +260,72 @@ export function CtIdentityBootstrapDialog({
     )
   }
 
+  if (screen === 'tone') {
+    return (
+      <Box flexDirection="column" gap={1} paddingLeft={1}>
+        <Text bold>How should I sound by default?</Text>
+        <Text>
+          This shapes the voice in the private CT layer going forward. We can keep
+          it warm, playful, or cleaner without turning it into a persona stunt.
+        </Text>
+        <Box>
+          <Select
+            options={[
+              {
+                label: 'Lightly playful',
+                value: 'lightly-playful',
+                description: 'Kind, a little playful, never performative.',
+              },
+              {
+                label: 'Warm and calm',
+                value: 'warm-calm',
+                description: 'Grounded, kind, and unhurried.',
+              },
+              {
+                label: 'Straightforward',
+                value: 'straightforward',
+                description: 'Cleaner and lower-fluff, still human.',
+              },
+            ]}
+            onChange={value => {
+              setTone(value as CtIdentityTonePreset)
+              setScreen('user')
+            }}
+            onCancel={() => setScreen('focus')}
+          />
+        </Box>
+        <Text dimColor>Enter to confirm · Esc to go back</Text>
+      </Box>
+    )
+  }
+
   return (
     <Box flexDirection="column" gap={1} paddingLeft={1}>
-      <Text bold>How should I sound by default?</Text>
+      <Text bold>Anything CT should remember about working with you here?</Text>
       <Text>
-        This shapes the voice in the private CT layer going forward. We can keep
-        it warm, playful, or cleaner without turning it into a persona stunt.
+        Keep this short. A name, collaboration preference, or first project
+        memory is enough. Leave it blank if there is nothing stable yet.
       </Text>
-      <Box>
-        <Select
-          options={[
-            {
-              label: 'Lightly playful',
-              value: 'lightly-playful',
-              description: 'Kind, a little playful, never performative.',
-            },
-            {
-              label: 'Warm and calm',
-              value: 'warm-calm',
-              description: 'Grounded, kind, and unhurried.',
-            },
-            {
-              label: 'Straightforward',
-              value: 'straightforward',
-              description: 'Cleaner and lower-fluff, still human.',
-            },
-          ]}
-          onChange={value =>
-            void finishGuidedCustomization(value as CtIdentityTonePreset)
-          }
-          onCancel={() => setScreen('focus')}
+      <Box borderStyle="round" borderColor="claude" paddingX={1}>
+        <TextInput
+          value={userNote}
+          onChange={value => {
+            setUserNote(value)
+            setUserNoteCursorOffset(value.length)
+          }}
+          onSubmit={value => void finishGuidedCustomization(tone, value)}
+          onExit={() => void finishGuidedCustomization(tone, '')}
+          onClearInput={() => void finishGuidedCustomization(tone, '')}
+          cursorOffset={userNoteCursorOffset}
+          onChangeCursorOffset={setUserNoteCursorOffset}
+          columns={70}
+          focus={true}
+          showCursor={true}
+          multiline={false}
+          placeholder="e.g. Bret likes direct, production-grade passes with tests"
         />
       </Box>
-      <Text dimColor>Enter to confirm · Esc to go back</Text>
+      <Text dimColor>Enter to save · Esc twice skips this note</Text>
     </Box>
   )
 }
