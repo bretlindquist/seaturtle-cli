@@ -22,6 +22,7 @@ const AGENCY_MANIFEST_FILE = 'agency-agents.json'
 const AGENCY_PROJECTS_DIR = 'projects'
 const AGENCY_CATALOGS_DIR = 'catalogs'
 const AGENCY_CATALOG_CACHE_TTL_MS = 10 * 60 * 1000
+const AGENCY_CATALOG_CACHE_VERSION = 1
 
 const SUPPORTED_TOOL_NAMES = new Set([
   'Bash',
@@ -106,6 +107,7 @@ export type AgencyCatalog = {
 }
 
 type PersistedAgencyCatalog = AgencyCatalog & {
+  version: 1
   cachedAt: number
 }
 
@@ -116,6 +118,7 @@ export type AgencyCatalogCacheStatus = {
   isFresh: boolean
   commit: string
   entryCount: number
+  ageMs: number
 }
 
 export type AgencyInstallResult = {
@@ -204,6 +207,23 @@ function compactDescription(description: string, maxLength: number = 88): string
   return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`
 }
 
+function formatAgeMs(ageMs: number): string {
+  const seconds = Math.max(0, Math.floor(ageMs / 1000))
+  if (seconds < 60) {
+    return `${seconds}s`
+  }
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) {
+    return `${minutes}m`
+  }
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) {
+    return `${hours}h`
+  }
+  const days = Math.floor(hours / 24)
+  return `${days}d`
+}
+
 function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
@@ -281,6 +301,7 @@ function readAgencyCatalogCache(ref: string): PersistedAgencyCatalog | null {
   )
   if (
     !raw ||
+    raw.version !== AGENCY_CATALOG_CACHE_VERSION ||
     typeof raw.repoUrl !== 'string' ||
     typeof raw.ref !== 'string' ||
     typeof raw.commit !== 'string' ||
@@ -335,6 +356,7 @@ export function getAgencyCatalogCacheStatus(
     isFresh: isAgencyCatalogCacheFresh(cached.cachedAt),
     commit: cached.commit,
     entryCount: cached.entries.length,
+    ageMs: Date.now() - cached.cachedAt,
   }
 }
 
@@ -344,6 +366,7 @@ function writeAgencyCatalogCache(
   cachedAt: number = Date.now(),
 ): void {
   writeJsonFile(getAgencyCatalogCachePath(ref), {
+    version: AGENCY_CATALOG_CACHE_VERSION,
     ...catalog,
     cachedAt,
   } satisfies PersistedAgencyCatalog)
@@ -1218,6 +1241,7 @@ export function formatAgencyStatus(scope?: AgencyInstallScope): string {
       lines.push(`Catalog ref: ${cacheStatus.ref}`)
       lines.push(`Catalog commit: ${cacheStatus.commit}`)
       lines.push(`Catalog entries: ${cacheStatus.entryCount}`)
+      lines.push(`Catalog age: ${formatAgeMs(cacheStatus.ageMs)}`)
       lines.push(`Catalog cache path: ${cacheStatus.path}`)
     } else {
       lines.push('')
@@ -1248,6 +1272,7 @@ export function formatAgencyStatus(scope?: AgencyInstallScope): string {
     lines.push(`Catalog ref: ${cacheStatus.ref}`)
     lines.push(`Catalog commit: ${cacheStatus.commit}`)
     lines.push(`Catalog entries: ${cacheStatus.entryCount}`)
+    lines.push(`Catalog age: ${formatAgeMs(cacheStatus.ageMs)}`)
     lines.push(`Catalog cache path: ${cacheStatus.path}`)
   } else {
     lines.push('Catalog cache: empty')
@@ -1294,9 +1319,11 @@ export async function formatAgencyBrowse(
   ref: string = AGENCY_DEFAULT_REF,
   options?: { forceRefresh?: boolean },
 ): Promise<string> {
+  const priorCacheStatus = getAgencyCatalogCacheStatus(ref)
   const catalog = options?.forceRefresh
     ? await refreshAgencyCatalog(ref)
     : await fetchAgencyCatalog(ref)
+  const cacheStatus = getAgencyCatalogCacheStatus(ref)
   const query = normalizeAgencyLookup(rawQuery)
   const matches = findCatalogEntriesForLookup(catalog, rawQuery)
 
@@ -1307,6 +1334,13 @@ export async function formatAgencyBrowse(
   const lines = [
     `Agency upstream catalog (${matches.length} match${matches.length === 1 ? '' : 'es'})`,
     `Commit: ${catalog.commit}`,
+    options?.forceRefresh
+      ? `Source: refreshed upstream now${cacheStatus ? ` · cache age ${formatAgeMs(cacheStatus.ageMs)}` : ''}`
+      : cacheStatus
+        ? `Source: ${cacheStatus.isFresh ? 'fresh cache' : 'stale cache'} · age ${formatAgeMs(cacheStatus.ageMs)}`
+        : priorCacheStatus
+          ? 'Source: upstream fetch'
+          : 'Source: upstream fetch',
     '',
   ]
 
