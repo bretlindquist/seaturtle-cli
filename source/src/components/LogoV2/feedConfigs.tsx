@@ -47,6 +47,8 @@ export function createStartupUpdateFeed(signal: StartupUpdateSignal): FeedConfig
     }, {
       text: `Current version: ${signal.currentVersion}`
     }, {
+      text: signal.versionSource === 'seaturtle-upstream' ? 'Source: SeaTurtle upstream version' : 'Source: package release channel'
+    }, {
       text: `${signal.action.label}: ${signal.action.command}`
     }],
     footer: `/status for runtime info · channel ${signal.channel}`,

@@ -11,6 +11,7 @@ export type StartupUpdateAction = {
 export type StartupUpdateSignal = {
   currentVersion: string
   latestVersion: string
+  versionSource: 'seaturtle-upstream' | 'legacy-package-source'
   channel: ReleaseChannel
   installationType: InstallationType
   packageManager?: PackageManager
@@ -20,6 +21,7 @@ export type StartupUpdateSignal = {
 export type StartupUpdateSignalInput = {
   currentVersion: string
   latestVersion: string | null
+  versionSource?: StartupUpdateSignal['versionSource']
   maxVersion?: string
   channel: ReleaseChannel
   installationType: InstallationType
@@ -105,6 +107,7 @@ export function buildStartupUpdateSignal(
   return {
     currentVersion: input.currentVersion,
     latestVersion,
+    versionSource: input.versionSource ?? 'legacy-package-source',
     channel: input.channel,
     installationType: input.installationType,
     packageManager: input.packageManager,

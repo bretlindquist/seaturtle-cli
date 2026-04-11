@@ -14,6 +14,7 @@ import {
   buildStartupUpdateSignal,
   type StartupUpdateSignal,
 } from './startupUpdateSignalCore.js'
+import { getLatestSeaTurtleUpstreamVersion } from './seaTurtleUpstreamVersion.js'
 
 export async function getStartupUpdateSignal(): Promise<StartupUpdateSignal | null> {
   if (
@@ -32,15 +33,20 @@ export async function getStartupUpdateSignal(): Promise<StartupUpdateSignal | nu
       installationType === 'package-manager'
         ? await getPackageManager()
         : undefined
+    const upstreamVersion = await getLatestSeaTurtleUpstreamVersion()
     const latestVersion =
-      installationType === 'package-manager'
+      upstreamVersion ??
+      (installationType === 'package-manager'
         ? await getLatestVersionFromGcs(channel)
-        : await getLatestVersion(channel)
+        : await getLatestVersion(channel))
     const maxVersion = await getMaxVersion()
 
     return buildStartupUpdateSignal({
       currentVersion: MACRO.VERSION,
       latestVersion,
+      versionSource: upstreamVersion
+        ? 'seaturtle-upstream'
+        : 'legacy-package-source',
       maxVersion,
       channel,
       installationType,
