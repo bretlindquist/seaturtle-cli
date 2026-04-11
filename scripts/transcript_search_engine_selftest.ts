@@ -11,6 +11,7 @@ import {
   setTranscriptSearchEngineCursorToNext,
   setTranscriptSearchEngineCursorToOccurrence,
   setTranscriptSearchEngineCursorToPrevious,
+  stepTranscriptSearchEngine,
 } from '../source/src/screens/repl/transcriptSearchEngine.ts'
 
 type FakeMessage = {
@@ -67,6 +68,38 @@ function run(): void {
     wrappedNext.snapshot,
     thirdOccurrence.snapshot,
     'next cursor helper should preserve the current transcript snapshot',
+  )
+
+  const steppedForward = stepTranscriptSearchEngine(thirdOccurrence, 1)
+  assert.deepEqual(steppedForward.state.cursor, {
+    ptr: 0,
+    occurrenceOrdinal: 0,
+  })
+  assert.equal(
+    steppedForward.previousMessageIndex,
+    2,
+    'engine step helper should report the previous message index for renderer targeting',
+  )
+  assert.equal(
+    steppedForward.nextMessageIndex,
+    0,
+    'engine step helper should report the next message index for renderer targeting',
+  )
+  assert.equal(
+    steppedForward.stayedOnMessage,
+    false,
+    'engine step helper should distinguish cross-message navigation from same-message occurrence movement',
+  )
+
+  const steppedWithinMessage = stepTranscriptSearchEngine(engine, 1)
+  assert.deepEqual(steppedWithinMessage.state.cursor, {
+    ptr: 0,
+    occurrenceOrdinal: 1,
+  })
+  assert.equal(
+    steppedWithinMessage.stayedOnMessage,
+    true,
+    'engine step helper should keep same-message multi-occurrence navigation semantic-only',
   )
 
   const wrappedPrevious = setTranscriptSearchEngineCursorToPrevious(engine)

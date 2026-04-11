@@ -25,6 +25,13 @@ export type TranscriptSearchEngineBadge = {
   current: number;
 };
 
+export type TranscriptSearchEngineStep = {
+  state: TranscriptSearchEngineState;
+  previousMessageIndex: number | null;
+  nextMessageIndex: number | null;
+  stayedOnMessage: boolean;
+};
+
 export function createEmptyTranscriptSearchEngineState(): TranscriptSearchEngineState {
   return {
     snapshot: buildTranscriptSearchSnapshot('', [], () => ''),
@@ -173,6 +180,26 @@ export function setTranscriptSearchEngineCursorToPrevious(
     state,
     getTranscriptSearchPreviousCursor(state.snapshot, state.cursor),
   );
+}
+
+export function stepTranscriptSearchEngine(
+  state: TranscriptSearchEngineState,
+  delta: 1 | -1,
+): TranscriptSearchEngineStep {
+  const nextState =
+    delta > 0
+      ? setTranscriptSearchEngineCursorToNext(state)
+      : setTranscriptSearchEngineCursorToPrevious(state);
+  const previousMessageIndex =
+    getTranscriptSearchEngineCurrentMessageIndex(state);
+  const nextMessageIndex =
+    getTranscriptSearchEngineCurrentMessageIndex(nextState);
+  return {
+    state: nextState,
+    previousMessageIndex,
+    nextMessageIndex,
+    stayedOnMessage: previousMessageIndex === nextMessageIndex,
+  };
 }
 
 export function getTranscriptSearchEngineEdgeCurrent(

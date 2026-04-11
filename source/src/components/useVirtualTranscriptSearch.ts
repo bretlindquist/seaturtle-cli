@@ -15,12 +15,10 @@ import {
   getTranscriptSearchEngineBadge,
   hasTranscriptSearchEngineMatches,
   reportTranscriptSearchEngineBadge,
-  setTranscriptSearchEngineCursorToNext,
   setTranscriptSearchEngineCursorToOccurrence,
-  setTranscriptSearchEngineCursorToPrevious,
+  stepTranscriptSearchEngine,
   type TranscriptSearchEngineState,
 } from '../screens/repl/transcriptSearchEngine.js'
-import { wrapTranscriptSearchPtr } from '../screens/repl/transcriptSearchModel.js'
 import { logForDebugging } from '../utils/debug.js'
 import { sleep } from '../utils/sleep.js'
 
@@ -352,24 +350,17 @@ export function useVirtualTranscriptSearch({
       jump(targetMsgIdx, delta < 0)
       return
     }
-    const nextState =
-      delta > 0
-        ? setTranscriptSearchEngineCursorToNext(st)
-        : setTranscriptSearchEngineCursorToPrevious(st)
-    const stayingOnCurrentMessage = nextState.cursor.ptr === st.cursor.ptr
+    const stepResult = stepTranscriptSearchEngine(st, delta)
+    const nextState = stepResult.state
     const newOrd = nextState.cursor.occurrenceOrdinal
-    if (stayingOnCurrentMessage && newOrd >= 0 && newOrd < usablePositions) {
+    if (stepResult.stayedOnMessage && newOrd >= 0 && newOrd < usablePositions) {
       searchState.current = nextState
       highlight(newOrd)
       startPtrRef.current = -1
       return
     }
 
-    const ptr = wrapTranscriptSearchPtr(
-      st.cursor.ptr,
-      delta,
-      st.snapshot.matches.length,
-    )
+    const ptr = nextState.cursor.ptr
     if (ptr === startPtrRef.current) {
       if (usablePositions > 0) {
         const wrapOrd = delta < 0 ? usablePositions - 1 : 0
@@ -390,7 +381,7 @@ export function useVirtualTranscriptSearch({
       )
       return
     }
-    const nextTargetMsgIdx = getTranscriptSearchEngineCurrentMessageIndex(nextState)
+    const nextTargetMsgIdx = stepResult.nextMessageIndex
     if (nextTargetMsgIdx === null) {
       return
     }
