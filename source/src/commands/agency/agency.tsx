@@ -1,10 +1,12 @@
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import {
+  buildAgencyRunPrompt,
   formatAgencyList,
   formatAgencyStatus,
   getAgencyHelpText,
   installAgencySelection,
   removeAgencyInstall,
+  resolveAgencyRunTarget,
   updateAgencyInstall,
 } from '../../services/agency/index.js'
 import { clearAgentDefinitionsCache } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -26,6 +28,21 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       case 'list':
         onDone(formatAgencyList(), { display: 'system' })
         return null
+
+      case 'run': {
+        const target = resolveAgencyRunTarget(parsed.target, parsed.scope)
+        const nextInput = buildAgencyRunPrompt(target, parsed.task ?? '')
+        onDone(
+          `Launching ${target.entry.id} from ${target.manifest.scope} scope.`,
+          {
+            display: 'system',
+            shouldQuery: true,
+            nextInput,
+            submitNextInput: true,
+          },
+        )
+        return null
+      }
 
       case 'update': {
         const result = await updateAgencyInstall(parsed.scope)

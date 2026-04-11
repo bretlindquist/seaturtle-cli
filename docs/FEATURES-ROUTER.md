@@ -367,6 +367,7 @@ Next steps:
 
 - Use `/agency install marketing` to install optional Agency specialist agents into your user agent directory
 - Use `/agency install marketing --project` to install them into this project’s `.claude/agents`
+- Use `/agency run agency-marketing-social-media-strategist <task>` to launch an installed Agency specialist through the normal clean subagent runtime
 - Use `/agency status` to inspect the installed Agency pack and tracked upstream commit
 - Use `/agents` to inspect or use installed custom agents
 - Use `/skills` for project and user skills

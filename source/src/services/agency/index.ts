@@ -128,6 +128,11 @@ export type AgencyRemoveResult = {
   remaining: AgencyManifestEntry[]
 }
 
+export type AgencyResolvedRunTarget = {
+  manifest: AgencyManifest
+  entry: AgencyManifestEntry
+}
+
 function getAgencyStateDir(): string {
   return join(getClaudeConfigHomeDir(), AGENCY_STATE_DIR)
 }
@@ -724,6 +729,71 @@ function resolveInstalledEntriesForTarget(
   return directMatches
 }
 
+function findInstalledEntriesForTarget(
+  manifest: AgencyManifest,
+  rawTarget: string | undefined,
+): AgencyManifestEntry[] {
+  try {
+    return resolveInstalledEntriesForTarget(manifest, rawTarget)
+  } catch {
+    return []
+  }
+}
+
+export function resolveAgencyRunTarget(
+  rawTarget: string | undefined,
+  preferredScope?: AgencyInstallScope,
+): AgencyResolvedRunTarget {
+  const manifests =
+    preferredScope !== undefined
+      ? [readAgencyManifest(preferredScope)].filter(
+          (manifest): manifest is AgencyManifest => manifest !== null,
+        )
+      : readAllAgencyManifests()
+
+  if (manifests.length === 0) {
+    throw new Error('Agency is not installed. Run /agency install first.')
+  }
+
+  const matches = manifests.flatMap(manifest =>
+    findInstalledEntriesForTarget(manifest, rawTarget).map(entry => ({
+      manifest,
+      entry,
+    })),
+  )
+
+  if (matches.length === 0) {
+    throw new Error(`Agency target "${rawTarget}" is not currently installed`)
+  }
+
+  if (matches.length > 1) {
+    throw new Error(
+      `Agency target "${rawTarget}" is ambiguous across installed scopes. Use one of: ${matches
+        .map(match => `${match.entry.id} [${match.manifest.scope}]`)
+        .join(', ')}`,
+    )
+  }
+
+  return matches[0]!
+}
+
+export function buildAgencyRunPrompt(
+  target: AgencyResolvedRunTarget,
+  task: string,
+): string {
+  const trimmedTask = task.trim()
+  if (!trimmedTask) {
+    throw new Error('Agency run requires a task after the agent target.')
+  }
+
+  return [
+    `Use the custom agent "${target.entry.id}" for this task in a clean separate agent session.`,
+    'Keep the work bounded to that agent session and return only the result summary here unless more detail is needed.',
+    '',
+    trimmedTask,
+  ].join('\n')
+}
+
 export function removeAgencyInstall(
   rawTarget: string | undefined,
   scope: AgencyInstallScope = 'user',
@@ -799,6 +869,7 @@ export function getAgencyHelpText(): string {
     '',
     'Commands:',
     '/agency install [target] [--project]',
+    '/agency run <agent> <task>',
     '/agency update [--project]',
     '/agency list',
     '/agency remove <target|all> [--project]',
@@ -808,6 +879,7 @@ export function getAgencyHelpText(): string {
     'Examples:',
     '/agency install marketing',
     '/agency install marketing --project',
+    '/agency run agency-marketing-social-media-strategist Draft a launch-channel plan for our next release.',
     '/agency install engineering/engineering-frontend-developer',
     '/agency update',
     '/agency update --project',

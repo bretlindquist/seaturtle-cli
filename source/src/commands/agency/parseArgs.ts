@@ -4,6 +4,7 @@ export type ParsedAgencyCommand =
   | { type: 'help' }
   | { type: 'status' }
   | { type: 'list' }
+  | { type: 'run'; target?: string; task?: string; scope?: AgencyInstallScope }
   | { type: 'update'; scope: AgencyInstallScope }
   | { type: 'remove'; target?: string; scope: AgencyInstallScope }
   | { type: 'install'; target?: string; ref?: string; scope: AgencyInstallScope }
@@ -34,6 +35,25 @@ export function parseAgencyArgs(args?: string): ParsedAgencyCommand {
 
   if (command === 'list' || command === 'ls') {
     return { type: 'list' }
+  }
+
+  if (command === 'run') {
+    const scope = parts.includes('--project')
+      ? 'project'
+      : parts.includes('--user')
+        ? 'user'
+        : undefined
+    const filtered = parts.filter(
+      (part, index) =>
+        index > 0 && part !== '--project' && part !== '--user',
+    )
+    const [target, ...taskParts] = filtered
+    return {
+      type: 'run',
+      target,
+      task: taskParts.join(' ').trim() || undefined,
+      scope,
+    }
   }
 
   if (command === 'update' || command === 'upgrade') {
