@@ -193,6 +193,8 @@ Current implementation:
 
 ### 7. Consequence Visibility Pass
 
+Status: implemented
+
 Problem:
 - continuity exists, but emotional consequence can still be under-felt
 
@@ -204,6 +206,13 @@ Target:
 
 Success:
 - players can explain why a prior choice matters without reading save state
+
+Current implementation:
+- chapter payoff text now explicitly answers what changed in the world, what
+  changed in the character, and what pressure comes next
+- residual variation lines still carry thread- and continuity-specific fallout
+- the live journey panel now surfaces upcoming pressure more directly instead of
+  only showing aftermath and chapter identity
 
 ### 8. Content Polish Pass
 

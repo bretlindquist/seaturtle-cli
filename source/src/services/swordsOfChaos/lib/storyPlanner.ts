@@ -786,7 +786,9 @@ export function buildSwordsStoryResultText(input: {
   nextObjective: string
   nextTension: 'low' | 'rising' | 'high'
   carryForward: string
-  characterLine?: string
+  characterTitle?: string
+  characterStage?: number
+  characterLesson?: string
   variationLines?: string[]
 }): string {
   const locusName = getSwordsLocusName(input.encounterLocus)
@@ -807,15 +809,26 @@ export function buildSwordsStoryResultText(input: {
       ? `Chapter ${input.chapter} ends with pressure still climbing in ${locusName}.`
       : `Chapter ${input.chapter} closes, but ${locusName} is still carrying the weight of what you chose.`
 
+  const worldChangeLine = input.variationLines?.[0]
+    ? `${input.carryForward} ${input.variationLines[0]}`
+    : input.carryForward
+  const characterChangeLine = input.characterTitle
+    ? input.characterLesson
+      ? `${input.characterTitle}${input.characterStage ? ` (${input.characterStage})` : ''}. ${input.characterLesson}`
+      : `${input.characterTitle}${input.characterStage ? ` (${input.characterStage})` : ''}.`
+    : undefined
+  const nextPressureLine = [threadLine, tensionLine, `Objective: ${input.nextObjective}`].join(' ')
+  const residueLines = (input.variationLines ?? []).slice(1)
+
   return [
     input.baseEnding,
     `Chapter ${input.chapter}: ${input.chapterTitle}`,
-    ...(input.characterLine ? [input.characterLine] : []),
-    ...(input.variationLines ?? []),
-    threadLine,
-    tensionLine,
-    `What changes now: ${input.carryForward}`,
-    `Next objective: ${input.nextObjective}`,
+    `What changed in the world: ${worldChangeLine}`,
+    ...(characterChangeLine
+      ? [`What changed in you: ${characterChangeLine}`]
+      : []),
+    `What comes next: ${nextPressureLine}`,
+    ...residueLines,
   ].join('\n\n')
 }
 

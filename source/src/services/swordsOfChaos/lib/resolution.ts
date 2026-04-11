@@ -353,10 +353,12 @@ export function resolveSwordsOfChaosRoute(
       nextObjective: currentObjective,
       nextTension: tension,
       carryForward,
-      characterLine:
-        characterAdvance.title && characterAdvance.lesson
-          ? `Character development: ${characterAdvance.title} (${characterAdvance.stage})\n\nWhat it is teaching you: ${characterAdvance.lesson}`
+      characterTitle: characterAdvance.title ?? undefined,
+      characterStage:
+        characterAdvance.title && characterAdvance.stage > 0
+          ? characterAdvance.stage
           : undefined,
+      characterLesson: characterAdvance.lesson ?? undefined,
       variationLines: getSwordsOutcomeVariationLines({
         encounterLocus,
         relevantMemory: variationMemory,

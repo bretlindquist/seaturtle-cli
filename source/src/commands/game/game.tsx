@@ -220,6 +220,18 @@ function getSwordsJourneyPanelLines(
     lines.push(`Aftermath: ${relevantMemory.carryForward}`)
   }
 
+  if (relevantMemory.currentObjective || relevantMemory.storyTension !== 'low') {
+    const pressureLead =
+      relevantMemory.storyTension === 'high'
+        ? 'Pressure is climbing'
+        : relevantMemory.storyTension === 'rising'
+          ? 'Pressure is carrying forward'
+          : 'The next step is live'
+    lines.push(
+      `Coming next: ${pressureLead}${relevantMemory.currentObjective ? ` · ${relevantMemory.currentObjective}` : ''}`,
+    )
+  }
+
   return lines.slice(0, 4)
 }
 
