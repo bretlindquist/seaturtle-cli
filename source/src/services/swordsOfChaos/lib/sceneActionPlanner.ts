@@ -141,21 +141,21 @@ export function getSwordsSceneStakesLine(input: {
 
   switch (family) {
     case 'intrusion':
-      return `Stakes: something is entering ${place} before invitation; if you misread it, it may choose the first real cost for you.`
+      return `Stakes: something is crossing into ${place} unasked; if you misread it, the first real cost will not be yours to time.`
     case 'negotiation':
-      return `Stakes: ${place} is close to naming terms; accept the wrong shape of bargain and the chapter may remember it as consent.`
+      return `Stakes: ${place} is close to naming terms; take the wrong bargain and the chapter may remember it as consent.`
     case 'pursuit':
-      return `Stakes: movement matters now; hesitate too long and the scene may decide what gets hunted, lost, or cornered.`
+      return `Stakes: movement matters now; hesitate too long and the hunt may decide what gets cornered, lost, or claimed.`
     case 'omen':
-      return `Stakes: the sign is not decorative; touch it carelessly and myth may become evidence before you are ready to carry it.`
+      return `Stakes: the sign is not decoration; touch it carelessly and rumor may harden into proof before you are ready to carry it.`
     case 'test':
-      return `Stakes: the scene is testing a boundary; pass, break, or refuse it, but none of those answers will leave ${place} unchanged.`
+      return `Stakes: a boundary is under trial; pass, break, or refuse it, but none of those answers leave ${place} unchanged.`
     case 'revelation':
-      return `Stakes: a hidden truth is close enough to answer; force it too early and it may answer in the wrong name.`
+      return `Stakes: a hidden truth is close enough to answer; force it too early and it may answer wearing the wrong name.`
     case 'debt-collection':
-      return `Stakes: a prior promise or unpaid cost has entered ${place}; the next move may decide whether it becomes leverage or chain.`
+      return `Stakes: a prior promise or unpaid cost has entered ${place}; the next move may decide whether it becomes leverage or a collar.`
     case 'false-refuge':
-      return `Stakes: ${place} is offering shelter too easily; if it is lying, comfort may be the trap instead of the reward.`
+      return `Stakes: ${place} is offering shelter too easily; if it is lying, comfort is the bait rather than the reward.`
   }
 }
 

@@ -776,6 +776,38 @@ export function getSwordsNextStoryTension(input: {
   return 'rising'
 }
 
+function getSwordsMemorableImageLine(input: {
+  encounterLocus: SwordsOfChaosEncounterLocus
+  outcomeThread: string
+  outcome: SwordsOfChaosOutcome
+}): string {
+  if (input.outcomeThread === 'half-shell-relic-trail') {
+    return input.encounterLocus === 'space-station'
+      ? 'The last thing left in the chapter is a shell-green gleam caught in the seam of a pressure door.'
+      : 'The last thing left in the chapter is a shell-green glint that refuses to decide whether it is metal, relic, or memory.'
+  }
+
+  if (input.outcomeThread === 'broken-lamp-witnesses') {
+    return input.encounterLocus === 'alley'
+      ? 'When the moment settles, the broken lamp still throws light like an eye that stayed open on purpose.'
+      : 'When the moment settles, one watching angle of the scene still feels lit from behind.'
+  }
+
+  if (input.outcomeThread === 'alley-oath-keepers') {
+    return 'The chapter leaves behind the sensation of a vow hanging in the air like wire pulled too tight to see.'
+  }
+
+  if (input.outcomeThread === 'sign-truth-fractures') {
+    return 'The chapter closes with the wrong name still ringing somewhere just past the last honest echo.'
+  }
+
+  if (input.outcome.key === 'refusal') {
+    return 'The chapter shuts like a door that has learned your outline but not your permission.'
+  }
+
+  return 'The chapter ends with one image left standing after the noise: the place you changed, still looking back at you.'
+}
+
 export function buildSwordsStoryResultText(input: {
   baseEnding: string
   chapter: number
@@ -795,19 +827,19 @@ export function buildSwordsStoryResultText(input: {
 
   const threadLine =
     input.outcomeThread === 'half-shell-relic-trail'
-      ? 'The relic trail has hardened into the chapter’s center of gravity.'
+      ? 'The relic trail is now the chapter’s center of gravity.'
       : input.outcomeThread === 'broken-lamp-witnesses'
-        ? 'The witness thread has deepened; something keeps watching from the edge of events.'
+        ? 'The witness thread has deepened; something still keeps watch from the edge of events.'
         : input.outcomeThread === 'alley-oath-keepers'
-          ? 'The oath thread has tightened; promises now feel like architecture instead of dialogue.'
+          ? 'The oath thread has tightened; promises now feel like architecture rather than dialogue.'
           : input.outcomeThread === 'sign-truth-fractures'
-            ? 'The truth-fracture thread has advanced; the wrong name is no longer acting accidental.'
-            : 'The refusal thread has advanced; closed things are beginning to feel intentional.'
+            ? 'The truth-fracture thread has advanced; the wrong name no longer feels accidental.'
+            : 'The refusal thread has advanced; closed things are beginning to feel deliberate.'
 
   const tensionLine =
     input.nextTension === 'high'
-      ? `Chapter ${input.chapter} ends with pressure still climbing in ${locusName}.`
-      : `Chapter ${input.chapter} closes, but ${locusName} is still carrying the weight of what you chose.`
+      ? `Chapter ${input.chapter} ends with the heat still climbing in ${locusName}.`
+      : `Chapter ${input.chapter} closes, but ${locusName} still carries the mark of what you chose.`
 
   const worldChangeLine = input.variationLines?.[0]
     ? `${input.carryForward} ${input.variationLines[0]}`
@@ -819,10 +851,16 @@ export function buildSwordsStoryResultText(input: {
     : undefined
   const nextPressureLine = [threadLine, tensionLine, `Objective: ${input.nextObjective}`].join(' ')
   const residueLines = (input.variationLines ?? []).slice(1)
+  const imageLine = getSwordsMemorableImageLine({
+    encounterLocus: input.encounterLocus,
+    outcomeThread: input.outcomeThread,
+    outcome: input.outcome,
+  })
 
   return [
     input.baseEnding,
     `Chapter ${input.chapter}: ${input.chapterTitle}`,
+    imageLine,
     `What changed in the world: ${worldChangeLine}`,
     ...(characterChangeLine
       ? [`What changed in you: ${characterChangeLine}`]

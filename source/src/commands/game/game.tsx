@@ -207,12 +207,12 @@ function getSwordsJourneyPanelLines(
     const magicLine =
       magicState.lastOmen ??
       (magicState.activeImpossible === 'crossing'
-        ? 'A crossing pressure is active around you.'
+        ? 'A crossing is active around you.'
         : magicState.activeImpossible === 'witness'
-          ? 'An impossible witness pressure is active around you.'
+          ? 'An impossible witness is active around you.'
           : magicState.activeImpossible === 'relic-sign'
             ? 'The uncanny is behaving like evidence around you now.'
-            : 'A quiet omen is active around you now.')
+            : 'A quiet omen is moving around you now.')
     lines.push(`Uncanny: ${magicLine}`)
   }
 
@@ -223,9 +223,9 @@ function getSwordsJourneyPanelLines(
   if (relevantMemory.currentObjective || relevantMemory.storyTension !== 'low') {
     const pressureLead =
       relevantMemory.storyTension === 'high'
-        ? 'Pressure is climbing'
+        ? 'Heat is climbing'
         : relevantMemory.storyTension === 'rising'
-          ? 'Pressure is carrying forward'
+          ? 'The thread is carrying forward'
           : 'The next step is live'
     lines.push(
       `Coming next: ${pressureLead}${relevantMemory.currentObjective ? ` · ${relevantMemory.currentObjective}` : ''}`,

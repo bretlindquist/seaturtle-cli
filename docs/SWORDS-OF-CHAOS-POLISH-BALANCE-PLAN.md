@@ -216,6 +216,8 @@ Current implementation:
 
 ### 8. Content Polish Pass
 
+Status: implemented
+
 Problem:
 - procedural text can still overuse the same ominous sentence shapes
 
@@ -225,6 +227,12 @@ Target:
 
 Success:
 - the game feels written and curated, not assembled from competent fragments
+
+Current implementation:
+- stakes and payoff framing now vary their diction more instead of repeatedly
+  leaning on the same pressure vocabulary
+- chapter results now include a stronger image line keyed to thread and locus
+- journey-panel wording is slightly cleaner and less diagnostic
 
 ## Implementation Rule
 
