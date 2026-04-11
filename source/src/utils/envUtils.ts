@@ -3,6 +3,8 @@ import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
 import {
+  buildConfigHomePathDisplay,
+  buildConfigHomePermissionPattern,
   formatConfigHomeDisplayPath,
   resolveSeaTurtleConfigHomeDir,
 } from './configHome.js'
@@ -42,7 +44,14 @@ export function getSeaTurtleConfigHomeDisplayPath(): string {
 }
 
 export function getSeaTurtleConfigPathDisplay(...segments: string[]): string {
-  return join(getSeaTurtleConfigHomeDisplayPath(), ...segments)
+  return buildConfigHomePathDisplay(getSeaTurtleConfigHomeDisplayPath(), ...segments)
+}
+
+export function getSeaTurtleConfigPermissionPattern(...segments: string[]): string {
+  return buildConfigHomePermissionPattern(
+    getSeaTurtleConfigHomeDisplayPath(),
+    ...segments,
+  )
 }
 
 export function getTeamsDir(): string {

@@ -1,4 +1,6 @@
 import {
+  buildConfigHomePathDisplay,
+  buildConfigHomePermissionPattern,
   formatConfigHomeDisplayPath,
   resolveSeaTurtleConfigHomeDir,
 } from '../source/src/utils/configHome.ts'
@@ -76,6 +78,18 @@ assert(
   formatConfigHomeDisplayPath('/Volumes/shared/ct-config', HOME_DIR) ===
     '/Volumes/shared/ct-config',
   'expected config-home display path to preserve non-home absolute paths',
+)
+
+assert(
+  buildConfigHomePathDisplay('~/.seaturtle', 'settings.json') ===
+    '~/.seaturtle/settings.json',
+  'expected config-home path display to join subpaths under the displayed config home',
+)
+
+assert(
+  buildConfigHomePermissionPattern('~/.seaturtle', 'skills') ===
+    '~/.seaturtle/skills/**',
+  'expected config-home permission pattern to track the displayed config home',
 )
 
 console.log('config-home-resolution selftest passed')

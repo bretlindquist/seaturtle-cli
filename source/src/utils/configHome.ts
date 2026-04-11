@@ -44,3 +44,17 @@ export function formatConfigHomeDisplayPath(
   }
   return configHomeDir
 }
+
+export function buildConfigHomePathDisplay(
+  configHomeDisplayPath: string,
+  ...segments: string[]
+): string {
+  return join(configHomeDisplayPath, ...segments)
+}
+
+export function buildConfigHomePermissionPattern(
+  configHomeDisplayPath: string,
+  ...segments: string[]
+): string {
+  return `${buildConfigHomePathDisplay(configHomeDisplayPath, ...segments)}/**`
+}

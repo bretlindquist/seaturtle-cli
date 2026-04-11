@@ -17,7 +17,10 @@ import { checkStatsigFeatureGate_CACHED_MAY_BE_STALE } from '../../services/anal
 import type { AnyObject, Tool, ToolPermissionContext } from '../../Tool.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { getCwd } from '../cwd.js'
-import { getClaudeConfigHomeDir } from '../envUtils.js'
+import {
+  getClaudeConfigHomeDir,
+  getSeaTurtleConfigPathDisplay,
+} from '../envUtils.js'
 import {
   getFsImplementation,
   getPathsForPermissionCheck,
@@ -110,8 +113,8 @@ export function getClaudeSkillScope(
       prefix: '/.claude/skills/',
     },
     {
-      dir: expandPath(join(homedir(), '.claude', 'skills')),
-      prefix: '~/.claude/skills/',
+      dir: expandPath(join(getClaudeConfigHomeDir(), 'skills')),
+      prefix: `${getSeaTurtleConfigPathDisplay('skills')}/`,
     },
   ]
 
