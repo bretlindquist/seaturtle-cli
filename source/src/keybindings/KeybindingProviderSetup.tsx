@@ -4,24 +4,22 @@ import { c as _c } from "react/compiler-runtime";
  *
  * This file provides the bindings and a composed provider that can be
  * added to the app's component tree. It loads both default bindings and
- * user-defined bindings from ~/.claude/keybindings.json, with hot-reload
+ * user-defined bindings from the resolved user keybindings path, with hot-reload
  * support when the file changes.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNotifications } from '../context/notifications.js';
-import type { InputEvent } from '../ink/events/input-event.js';
 // ChordInterceptor intentionally uses useInput to intercept all keystrokes before
 // other handlers process them - this is required for chord sequence support
 // eslint-disable-next-line custom-rules/prefer-use-keybindings
-import { type Key, useInput } from '../ink.js';
+import { useInput } from '../ink.js';
 import { count } from '../utils/array.js';
 import { logForDebugging } from '../utils/debug.js';
 import { plural } from '../utils/stringUtils.js';
 import { KeybindingProvider } from './KeybindingContext.js';
 import { initializeKeybindingWatcher, type KeybindingsLoadResult, loadKeybindingsSyncWithWarnings, subscribeToKeybindingChanges } from './loadUserBindings.js';
 import { resolveKeyWithChordState } from './resolver.js';
-import type { KeybindingContextName, ParsedBinding, ParsedKeystroke } from './types.js';
-import type { KeybindingWarning } from './validate.js';
+import type { KeybindingContextName, ParsedKeystroke } from './types.js';
 
 /**
  * Timeout for chord sequences in milliseconds.
@@ -47,7 +45,7 @@ type Props = {
  *
  * Features:
  * - Loads default bindings from code
- * - Merges with user bindings from ~/.claude/keybindings.json
+ * - Merges with user bindings from the resolved user keybindings path
  * - Watches for file changes and reloads automatically (hot-reload)
  * - User bindings override defaults (later entries win)
  * - Chord support with automatic timeout
@@ -218,11 +216,6 @@ export function KeybindingSetup({
  * captured by PromptInput and added to the input field before the keybinding
  * system could recognize it as completing a chord.
  */
-type HandlerRegistration = {
-  action: string;
-  context: KeybindingContextName;
-  handler: () => void;
-};
 function ChordInterceptor(t0) {
   const $ = _c(6);
   const {
