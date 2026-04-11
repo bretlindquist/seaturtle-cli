@@ -9,7 +9,14 @@ import {
   getSwordsSecondBeat,
   getSwordsSecondBeatVariant,
 } from './shells.js'
-import { getSwordsMagicLine, getSwordsMagicPressure } from './magicPlanner.js'
+import {
+  applySwordsMagicToOpeningOptions,
+  applySwordsMagicToSecondBeatOptions,
+  getSwordsMagicHint,
+  getSwordsMagicLine,
+  getSwordsMagicPressure,
+  getSwordsMagicRuleLine,
+} from './magicPlanner.js'
 import {
   applySwordsConfrontationToOpeningOptions,
   applySwordsConfrontationToSecondBeatOptions,
@@ -545,6 +552,9 @@ function renderDeterministicScene(
           locus,
           relevantMemory: payload.relevantMemory,
         }),
+        ...(getSwordsMagicRuleLine(payload.relevantMemory)
+          ? [getSwordsMagicRuleLine(payload.relevantMemory) as string]
+          : []),
         ...(getSwordsPresenceLine({
           locus,
           relevantMemory: payload.relevantMemory,
@@ -570,17 +580,20 @@ function renderDeterministicScene(
         ...openingTail,
       ].join('\n\n'),
       options: applySwordsConfrontationToOpeningOptions({
-        options: applySwordsPresenceToOpeningOptions({
-          options: applyOpeningCallbackMemory(
-            applySwordsStoryPressureToOpeningOptions({
-              options: getSwordsOpeningActionSet({
-                locus,
+        options: applySwordsMagicToOpeningOptions({
+          options: applySwordsPresenceToOpeningOptions({
+            options: applyOpeningCallbackMemory(
+              applySwordsStoryPressureToOpeningOptions({
+                options: getSwordsOpeningActionSet({
+                  locus,
+                  relevantMemory: payload.relevantMemory,
+                }),
                 relevantMemory: payload.relevantMemory,
               }),
-              relevantMemory: payload.relevantMemory,
-            }),
-            payload.relevantMemory,
-          ),
+              payload.relevantMemory,
+            ),
+            relevantMemory: payload.relevantMemory,
+          }),
           relevantMemory: payload.relevantMemory,
         }),
         relevantMemory: payload.relevantMemory,
@@ -591,6 +604,7 @@ function renderDeterministicScene(
           locus,
           relevantMemory: payload.relevantMemory,
         }) ??
+        getSwordsMagicHint(payload.relevantMemory) ??
         (familiar && returningAgain && !payload.relevantMemory?.canonThread
           ? payload.relevantMemory?.seaturtleOpeningPending
             ? openingShell.hintText
@@ -667,6 +681,9 @@ function renderDeterministicScene(
         locus,
         relevantMemory: payload.relevantMemory,
       }),
+      ...(getSwordsMagicRuleLine(payload.relevantMemory)
+        ? [getSwordsMagicRuleLine(payload.relevantMemory) as string]
+        : []),
       ...(getSwordsPresenceLine({
         locus,
         relevantMemory: payload.relevantMemory,
@@ -705,22 +722,25 @@ function renderDeterministicScene(
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
       applySwordsConfrontationToSecondBeatOptions({
-        options: applySwordsPresenceToSecondBeatOptions({
-          options: applySwordsCarryForwardToSecondBeatOptions({
-            options: applySwordsCharacterPressureToSecondBeatOptions({
-              options: applySwordsStoryPressureToSecondBeatOptions({
-                openingChoice: payload.openingChoice,
-                options: getSwordsSecondBeatActionSet({
+        options: applySwordsMagicToSecondBeatOptions({
+          options: applySwordsPresenceToSecondBeatOptions({
+            options: applySwordsCarryForwardToSecondBeatOptions({
+              options: applySwordsCharacterPressureToSecondBeatOptions({
+                options: applySwordsStoryPressureToSecondBeatOptions({
                   openingChoice: payload.openingChoice,
+                  options: getSwordsSecondBeatActionSet({
+                    openingChoice: payload.openingChoice,
+                    locus,
+                    relevantMemory: payload.relevantMemory,
+                  }),
                   locus,
                   relevantMemory: payload.relevantMemory,
                 }),
-                locus,
                 relevantMemory: payload.relevantMemory,
               }),
+              locus,
               relevantMemory: payload.relevantMemory,
             }),
-            locus,
             relevantMemory: payload.relevantMemory,
           }),
           relevantMemory: payload.relevantMemory,
@@ -735,6 +755,7 @@ function renderDeterministicScene(
         locus,
         relevantMemory: payload.relevantMemory,
       }) ??
+      getSwordsMagicHint(payload.relevantMemory) ??
       getSwordsCharacterTemptationLine(payload.relevantMemory) ??
       getSwordsCharacterDevelopmentHint(payload.relevantMemory) ??
       getSecondBeatHint(payload.openingChoice, payload.relevantMemory),

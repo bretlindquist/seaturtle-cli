@@ -148,6 +148,8 @@ Current implementation:
 
 ### 5. Rule-Changing Magic
 
+Status: implemented
+
 Problem:
 - magical pressure is tracked but still often behaves like enhanced flavor
 
@@ -157,6 +159,13 @@ Target:
 
 Success:
 - magical events feel dangerous and game-shaping, not decorative
+
+Current implementation:
+- active uncanny states now add explicit rule-change lines and hint text
+- magic can rewrite visible choices when crossing, witness, relic-sign, or omen
+  pressure is active
+- current magic effects can alter how retreat, observation, proof, and symbolic
+  action are framed without changing the underlying safe route spine
 
 ### 6. Character Arc Temptations And Costs
 
