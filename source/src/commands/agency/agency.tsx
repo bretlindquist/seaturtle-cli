@@ -1,6 +1,8 @@
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import {
+  AgencySelectionError,
   buildAgencyRunPrompt,
+  formatAgencySelectionError,
   formatAgencyBrowse,
   formatAgencyList,
   formatAgencyStatus,
@@ -164,6 +166,10 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       }
     }
   } catch (error) {
+    if (error instanceof AgencySelectionError) {
+      onDone(formatAgencySelectionError(error), { display: 'system' })
+      return null
+    }
     onDone(
       error instanceof Error ? error.message : 'Agency command failed.',
       { display: 'system' },

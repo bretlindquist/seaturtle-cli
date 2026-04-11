@@ -148,6 +148,32 @@ export type AgencyResolvedRunTarget = {
   entry: AgencyManifestEntry
 }
 
+export class AgencySelectionError extends Error {
+  readonly kind: 'missing' | 'ambiguous'
+  readonly candidates: Array<{
+    id: string
+    title: string
+    scope?: AgencyInstallScope
+    division?: string
+  }>
+
+  constructor(
+    kind: 'missing' | 'ambiguous',
+    message: string,
+    candidates: Array<{
+      id: string
+      title: string
+      scope?: AgencyInstallScope
+      division?: string
+    }> = [],
+  ) {
+    super(message)
+    this.name = 'AgencySelectionError'
+    this.kind = kind
+    this.candidates = candidates
+  }
+}
+
 function groupAgencyEntriesByDivision<T extends { division: string; id: string }>(
   entries: T[],
 ): Array<[string, T[]]> {
@@ -942,24 +968,32 @@ function resolveInstalledEntriesForTarget(
     })
 
     if (fallbackMatches.length > 0) {
-      throw new Error(
-        [
-          `Agency target "${rawTarget}" is not currently installed.`,
-          '',
-          'Closest installed matches:',
-          formatAgencyCandidateList(fallbackMatches),
-        ].join('\n'),
+      throw new AgencySelectionError(
+        'missing',
+        `Agency target "${rawTarget}" is not currently installed.`,
+        fallbackMatches.map(entry => ({
+          id: entry.id,
+          title: entry.title,
+          division: entry.division,
+        })),
       )
     }
 
-    throw new Error(`Agency target "${rawTarget}" is not currently installed`)
+    throw new AgencySelectionError(
+      'missing',
+      `Agency target "${rawTarget}" is not currently installed.`,
+    )
   }
 
   if (directMatches.length > 1) {
-    throw new Error(
-      `Agency target "${rawTarget}" is ambiguous. Use one of: ${directMatches
-        .map(entry => entry.id)
-        .join(', ')}`,
+    throw new AgencySelectionError(
+      'ambiguous',
+      `Agency target "${rawTarget}" is ambiguous.`,
+      directMatches.map(entry => ({
+        id: entry.id,
+        title: entry.title,
+        division: entry.division,
+      })),
     )
   }
 
@@ -995,24 +1029,57 @@ export function resolveAgencyRunTarget(
   )
 
   if (matches.length === 0) {
-    throw new Error(
-      [
-        `Agency target "${rawTarget}" is not currently installed.`,
-        '',
-        'Use /agency list to inspect installed agents or /agency browse to inspect upstream agents.',
-      ].join('\n'),
+    throw new AgencySelectionError(
+      'missing',
+      `Agency target "${rawTarget}" is not currently installed.`,
     )
   }
 
   if (matches.length > 1) {
-    throw new Error(
-      `Agency target "${rawTarget}" is ambiguous across installed scopes. Use one of: ${matches
-        .map(match => `${match.entry.id} [${match.manifest.scope}]`)
-        .join(', ')}`,
+    throw new AgencySelectionError(
+      'ambiguous',
+      `Agency target "${rawTarget}" is ambiguous across installed scopes.`,
+      matches.map(match => ({
+        id: match.entry.id,
+        title: match.entry.title,
+        division: match.entry.division,
+        scope: match.manifest.scope,
+      })),
     )
   }
 
   return matches[0]!
+}
+
+export function formatAgencySelectionError(error: AgencySelectionError): string {
+  const lines = [error.message]
+
+  if (error.candidates.length > 0) {
+    lines.push('')
+    lines.push(
+      error.kind === 'ambiguous'
+        ? 'Matching candidates:'
+        : 'Closest installed matches:',
+    )
+    for (const candidate of error.candidates.slice(0, 8)) {
+      const suffix = [
+        candidate.division ? candidate.division : undefined,
+        candidate.scope ? `${candidate.scope} scope` : undefined,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      lines.push(
+        suffix
+          ? `- ${candidate.id}  ${candidate.title} [${suffix}]`
+          : `- ${candidate.id}  ${candidate.title}`,
+      )
+    }
+  }
+
+  lines.push('')
+  lines.push('Use /agency list to inspect installed agents.')
+  lines.push('Use /agency browse to inspect upstream agents.')
+  return lines.join('\n')
 }
 
 export function buildAgencyRunPrompt(
