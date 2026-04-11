@@ -129,6 +129,10 @@ function run(): void {
     join(repoRoot, 'source/src/screens/repl/transcriptJumpHandle.ts'),
     'utf8',
   ))
+  const rendererModelPath = join(
+    repoRoot,
+    'source/src/screens/repl/transcriptSearchRendererModel.ts',
+  )
 
   assert.match(
     virtualMessageListSource,
@@ -199,6 +203,11 @@ function run(): void {
     jumpHandleCoreSource,
     /reportTranscriptSearchEngineBadge\(params\.searchProgress, engine\)/,
     'static transcript jump core should report badge state through the shared engine helper',
+  )
+  assert.throws(
+    () => readFileSync(rendererModelPath, 'utf8'),
+    /ENOENT/,
+    'stale transcript renderer navigation model should be removed once the engine owns search semantics',
   )
   assert.doesNotMatch(
     replSource,

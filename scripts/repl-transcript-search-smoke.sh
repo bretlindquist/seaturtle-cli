@@ -221,6 +221,22 @@ def wait_for_badge_quiescence(timeout: float, quiet_period: float = 1.0) -> list
         time.sleep(0.1)
     return condensed_badges()
 
+def assert_stable_badge(expected: str, timeout: float, label: str) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        pump_output(0.1)
+        footer_badge = find_last_footer_badge(joined())
+        debug_badge = find_last_debug_badge(read_debug_log())
+        if footer_badge not in (None, expected):
+            raise RuntimeError(
+                f"{label} drifted footer badge away from {expected!r}: got {footer_badge!r}"
+            )
+        if debug_badge not in (None, expected):
+            raise RuntimeError(
+                f"{label} drifted debug badge away from {expected!r}: got {debug_badge!r}"
+            )
+        time.sleep(0.1)
+
 exit_code = 0
 
 try:
@@ -325,6 +341,41 @@ try:
         raise RuntimeError(
             f"transcript search N-cycle drifted: debug={reverse_debug!r} footer={reverse_footer!r}"
         )
+
+    os.write(master_fd, b"/")
+    data = wait_for_plain_fragment("indexing", 15)
+    if "indexing" not in visible_text(data):
+        exit_code = 15
+        raise RuntimeError("transcript search bar did not reopen for the single-match probe")
+
+    unique_needle = "transcript-search-smoke-needle-2"
+    os.write(master_fd, unique_needle.encode())
+    data = wait_for_plain_fragment(unique_needle, 15)
+    if unique_needle not in visible_text(data):
+        exit_code = 16
+        raise RuntimeError("single-match probe query did not appear in the transcript search bar")
+
+    os.write(master_fd, b"\r")
+    data = wait_for_plain_fragment("Transcript · ctrl+o · n/N ·", 20)
+    single_marker = find_last_footer_count_marker(data)
+    if single_marker != "1/1":
+        exit_code = 17
+        raise RuntimeError(
+            f"single-match transcript search should report 1/1, got {single_marker!r}"
+        )
+
+    single_badges = wait_for_badge_quiescence(12)
+    if not single_badges or single_badges[-1] != "1/1":
+        exit_code = 18
+        raise RuntimeError(
+            f"single-match debug badge should settle at 1/1, got {single_badges!r}"
+        )
+
+    os.write(master_fd, b"n")
+    assert_stable_badge("1/1", 3, "single-match forward navigation")
+
+    os.write(master_fd, b"N")
+    assert_stable_badge("1/1", 3, "single-match reverse navigation")
 except RuntimeError as error:
     print(str(error), file=sys.stderr)
 finally:
