@@ -1,11 +1,13 @@
 import chalk from 'chalk'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
-import { dirname, join } from 'path'
+import { dirname } from 'path'
 import { pathToFileURL } from 'url'
 import { color } from '../components/design-system/color.js'
 import { supportsHyperlinks } from '../ink/supports-hyperlinks.js'
+import { resolveCompletionShellInfo, type CompletionShellInfo } from './completionCachePaths.js'
 import { logForDebugging } from './debug.js'
+import { getClaudeConfigHomeDir } from './envUtils.js'
 import { isENOENT } from './errors.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { logError } from './log.js'
@@ -13,51 +15,13 @@ import type { ThemeName } from './theme.js'
 
 const EOL = '\n'
 
-type ShellInfo = {
-  name: string
-  rcFile: string
-  cacheFile: string
-  completionLine: string
-  shellFlag: string
-}
-
-function detectShell(): ShellInfo | null {
-  const shell = process.env.SHELL || ''
-  const home = homedir()
-  const claudeDir = join(home, '.claude')
-
-  if (shell.endsWith('/zsh') || shell.endsWith('/zsh.exe')) {
-    const cacheFile = join(claudeDir, 'completion.zsh')
-    return {
-      name: 'zsh',
-      rcFile: join(home, '.zshrc'),
-      cacheFile,
-      completionLine: `[[ -f "${cacheFile}" ]] && source "${cacheFile}"`,
-      shellFlag: 'zsh',
-    }
-  }
-  if (shell.endsWith('/bash') || shell.endsWith('/bash.exe')) {
-    const cacheFile = join(claudeDir, 'completion.bash')
-    return {
-      name: 'bash',
-      rcFile: join(home, '.bashrc'),
-      cacheFile,
-      completionLine: `[ -f "${cacheFile}" ] && source "${cacheFile}"`,
-      shellFlag: 'bash',
-    }
-  }
-  if (shell.endsWith('/fish') || shell.endsWith('/fish.exe')) {
-    const xdg = process.env.XDG_CONFIG_HOME || join(home, '.config')
-    const cacheFile = join(claudeDir, 'completion.fish')
-    return {
-      name: 'fish',
-      rcFile: join(xdg, 'fish', 'config.fish'),
-      cacheFile,
-      completionLine: `[ -f "${cacheFile}" ] && source "${cacheFile}"`,
-      shellFlag: 'fish',
-    }
-  }
-  return null
+function detectShell(): CompletionShellInfo | null {
+  return resolveCompletionShellInfo({
+    shellPath: process.env.SHELL || '',
+    homeDir: homedir(),
+    xdgConfigHome: process.env.XDG_CONFIG_HOME,
+    configHomeDir: getClaudeConfigHomeDir(),
+  })
 }
 
 function formatPathLink(filePath: string): string {
@@ -134,7 +98,7 @@ export async function setupShellCompletion(theme: ThemeName): Promise<string> {
 }
 
 /**
- * Regenerate cached shell completion scripts in ~/.claude/.
+ * Regenerate cached shell completion scripts in the active config home.
  * Called after `claude update` so completions stay in sync with the new binary.
  */
 export async function regenerateCompletionCache(): Promise<void> {
