@@ -8,6 +8,12 @@ const APPEND_TO_TASK_PATTERNS = [
   /\b(when you get there|when you get to that)\b/i,
 ] as const
 
+export type SteerCheckpointClassification =
+  | 'relevant_now'
+  | 'append_to_task'
+  | 'defer_adjacent'
+  | 'ignore'
+
 function getPromptText(value: string | Array<ContentBlockParam>): string {
   if (typeof value === 'string') {
     return value.trim()
@@ -24,7 +30,7 @@ function classifyBoundarySteer(input: {
   midTurnIntent?: QueuedCommand['midTurnIntent']
 }):
   | {
-      classification: 'relevant_now' | 'append_to_task' | 'defer_adjacent' | 'ignore'
+      classification: SteerCheckpointClassification
       reason: string
     } {
   const prompt = input.prompt
@@ -68,7 +74,7 @@ export function classifyBoundaryQueuedCommand(
   cmd: QueuedCommand,
 ):
   | {
-      classification: 'relevant_now' | 'append_to_task' | 'defer_adjacent' | 'ignore'
+      classification: SteerCheckpointClassification
       reason: string
     }
   | null {
@@ -98,6 +104,39 @@ function getStepDescription(input: {
   return 'Post-tool boundary'
 }
 
+export function buildSteerCheckpointTranscriptLine(input: {
+  stepNumber: number
+  toolJustCompleted: string
+  steerClassifications: Array<{
+    classification: SteerCheckpointClassification
+  }>
+}): string {
+  const relevantNowCount = input.steerClassifications.filter(
+    item => item.classification === 'relevant_now',
+  ).length
+  const appendCount = input.steerClassifications.filter(
+    item => item.classification === 'append_to_task',
+  ).length
+  const deferCount = input.steerClassifications.filter(
+    item => item.classification === 'defer_adjacent',
+  ).length
+  const ignoreCount = input.steerClassifications.filter(
+    item => item.classification === 'ignore',
+  ).length
+
+  const parts = [
+    `Steer checkpoint: step ${input.stepNumber}`,
+    `after ${input.toolJustCompleted}`,
+  ]
+
+  if (relevantNowCount > 0) parts.push(`${relevantNowCount} now`)
+  if (appendCount > 0) parts.push(`${appendCount} append`)
+  if (deferCount > 0) parts.push(`${deferCount} deferred`)
+  if (ignoreCount > 0) parts.push(`${ignoreCount} ignored`)
+
+  return parts.join(' · ')
+}
+
 export function buildSteerCheckpoint(input: {
   stepNumber: number
   lastAssistantText?: string
@@ -116,11 +155,7 @@ export function buildSteerCheckpoint(input: {
       }[]
       steerClassifications: {
         prompt: string
-        classification:
-          | 'relevant_now'
-          | 'append_to_task'
-          | 'defer_adjacent'
-          | 'ignore'
+        classification: SteerCheckpointClassification
         reason?: string
       }[]
       appliedChangesToActiveTask: string[]

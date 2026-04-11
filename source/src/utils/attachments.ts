@@ -559,10 +559,6 @@ export type Attachment =
        * This is intentionally separate from low-level queue-operation logs:
        * - queue-operation records transport (`enqueue`, `dequeue`, `remove`)
        * - steer_checkpoint records boundary semantics
-       *
-       * The runtime does not emit this yet in the current wave; the schema is
-       * added first so the next wave can write checkpoints into a stable
-       * attachment/transcript surface without redesigning the loop.
        */
       type: 'steer_checkpoint'
       stepNumber: number

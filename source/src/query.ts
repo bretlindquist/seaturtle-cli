@@ -112,6 +112,7 @@ import { createBudgetTracker, checkTokenBudget } from './query/tokenBudget.js'
 import { count } from './utils/array.js'
 import {
   buildSteerCheckpoint,
+  buildSteerCheckpointTranscriptLine,
   partitionQueuedCommandsForBoundary,
 } from './utils/steerCheckpoint.js'
 import { isPromptLikeInputMode } from './components/PromptInput/inputModes.js'
@@ -124,43 +125,6 @@ const taskSummaryModule = feature('BG_SESSIONS')
   ? (require('./utils/taskSummary.js') as typeof import('./utils/taskSummary.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
-
-function buildSteerCheckpointTranscriptLine(input: {
-  stepNumber: number
-  toolJustCompleted: string
-  steerClassifications: Array<{
-    classification:
-      | 'relevant_now'
-      | 'append_to_task'
-      | 'defer_adjacent'
-      | 'ignore'
-  }>
-}): string {
-  const relevantNowCount = input.steerClassifications.filter(
-    item => item.classification === 'relevant_now',
-  ).length
-  const appendCount = input.steerClassifications.filter(
-    item => item.classification === 'append_to_task',
-  ).length
-  const deferCount = input.steerClassifications.filter(
-    item => item.classification === 'defer_adjacent',
-  ).length
-  const ignoreCount = input.steerClassifications.filter(
-    item => item.classification === 'ignore',
-  ).length
-
-  const parts = [
-    `Steer checkpoint: step ${input.stepNumber}`,
-    `after ${input.toolJustCompleted}`,
-  ]
-
-  if (relevantNowCount > 0) parts.push(`${relevantNowCount} now`)
-  if (appendCount > 0) parts.push(`${appendCount} append`)
-  if (deferCount > 0) parts.push(`${deferCount} deferred`)
-  if (ignoreCount > 0) parts.push(`${ignoreCount} ignored`)
-
-  return parts.join(' · ')
-}
 
 function* yieldMissingToolResultBlocks(
   assistantMessages: AssistantMessage[],
@@ -1586,21 +1550,17 @@ async function* queryLoop(
       queryDepth: queryTracking.depth,
     })
 
-    // Get queued commands snapshot before processing attachments.
-    // These are currently sent as generic queued-command attachments so the
-    // model can react within the same turn.
+    // Get the queued commands snapshot before processing attachments.
     //
-    // Queue/steering refinement seam:
-    // this is the exact post-tool boundary where deterministic steer
-    // checkpointing should be inserted. The future checkpoint layer should sit
-    // between:
-    //   1. queuedCommandsSnapshot creation
-    //   2. attachment emission
-    //   3. queue removal
+    // Queue/steering ownership:
+    // 1. snapshot the post-tool boundary queue state
+    // 2. emit one deterministic steer checkpoint for transcript/debug history
+    // 3. partition commands into attach-now vs leave-queued
+    // 4. remove only the commands actually consumed into this turn
     //
-    // That lets us preserve current timing while adding structured boundary
-    // semantics (applied / appended / deferred / ignored) without asking the
-    // model to infer the entire steer history from freeform queued attachments.
+    // This keeps the current transport timing while making semantic steering
+    // explicit at the boundary instead of asking the model to infer it from
+    // raw queued-command attachments alone.
     //
     // Drain pending notifications. LocalShellTask completions are 'next'
     // (when MONITOR_TOOL is on) and drain without Sleep. Other task types
