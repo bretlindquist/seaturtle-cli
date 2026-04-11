@@ -295,7 +295,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
     } = await import('./components/ClaudeInChromeOnboarding.js');
     await showSetupDialog(root, done => <ClaudeInChromeOnboarding onDone={done} />);
   }
-  if (shouldShowCtIdentityBootstrapDialog()) {
+  if (!onboardingShown && shouldShowCtIdentityBootstrapDialog()) {
     const {
       CtIdentityBootstrapDialog
     } = await import('./components/CtIdentityBootstrapDialog.js');

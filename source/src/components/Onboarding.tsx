@@ -19,7 +19,12 @@ import { WelcomeV2 } from './LogoV2/WelcomeV2.js';
 import { PressEnterToContinue } from './PressEnterToContinue.js';
 import { ThemePicker } from './ThemePicker.js';
 import { OrderedList } from './ui/OrderedList.js';
-type StepId = 'preflight' | 'theme' | 'oauth' | 'api-key' | 'security' | 'terminal-setup';
+import { CtIdentityBootstrapDialog } from './CtIdentityBootstrapDialog.js'
+import { shouldShowCtIdentityBootstrapDialog } from '../services/projectIdentity/state.js'
+import {
+  buildOnboardingStepIds,
+  type OnboardingStepId as StepId,
+} from './onboardingFlowCore.js'
 interface OnboardingStep {
   id: StepId;
   component: React.ReactNode;
@@ -27,6 +32,7 @@ interface OnboardingStep {
 type Props = {
   onDone(): void;
 };
+
 export function Onboarding({
   onDone
 }: Props): React.ReactNode {
@@ -34,6 +40,7 @@ export function Onboarding({
   const [skipOAuth, setSkipOAuth] = useState(false);
   const [oauthEnabled] = useState(() => !isBareMode() || isAnthropicAuthEnabled());
   const [theme, setTheme] = useTheme();
+  const [shouldShowCtIdentityStep] = useState(() => shouldShowCtIdentityBootstrapDialog())
   useEffect(() => {
     logEvent('tengu_began_setup', {
       oauthEnabled
@@ -62,6 +69,16 @@ export function Onboarding({
       <ThemePicker onThemeSelect={handleThemeSelection} showIntroText={true} helpText="To change this later, run /theme" hideEscToCancel={true} skipExitHandling={true} // Skip exit handling as Onboarding already handles it
     />
     </Box>;
+  const ctIdentityStep = <Box flexDirection="column" gap={1}>
+      <Text bold>
+        Let&apos;s set up CT for this project before anything else.
+      </Text>
+      <Text>
+        This is the private project layer where SeaTurtle gets its first local
+        identity, soul, and working stance.
+      </Text>
+      <CtIdentityBootstrapDialog onDone={goToNextStep} />
+    </Box>;
   const securityStep = <Box flexDirection="column" gap={1} paddingLeft={1}>
       <Text bold>Security notes:</Text>
       <Box flexDirection="column" width={70}>
@@ -73,7 +90,7 @@ export function Onboarding({
           <OrderedList.Item>
             <Text>CT can make mistakes</Text>
             <Text dimColor wrap="wrap">
-              You should always review CT&apos;s responses, especially when
+              You should still review CT&apos;s work, especially when
               <Newline />
               running code.
               <Newline />
@@ -81,7 +98,7 @@ export function Onboarding({
           </OrderedList.Item>
           <OrderedList.Item>
             <Text>
-              Due to prompt injection risks, only use it with code you trust
+              Due to prompt injection risks, only use SeaTurtle with code you trust
             </Text>
             <Text dimColor wrap="wrap">
               For more details see:
@@ -113,68 +130,54 @@ export function Onboarding({
     }
     goToNextStep();
   }
-  const steps: OnboardingStep[] = [];
-  if (oauthEnabled) {
-    steps.push({
-      id: 'preflight',
-      component: preflightStep
-    });
-  }
-  steps.push({
-    id: 'theme',
-    component: themeStep
-  });
-  if (apiKeyNeedingApproval) {
-    steps.push({
-      id: 'api-key',
-      component: <ApproveApiKey customApiKeyTruncated={apiKeyNeedingApproval} onDone={handleApiKeyDone} />
-    });
-  }
-  if (oauthEnabled) {
-    steps.push({
-      id: 'oauth',
-      component: <SkippableStep skip={skipOAuth} onSkip={goToNextStep}>
-          <StartupAuthFlow onDone={goToNextStep} />
-        </SkippableStep>
-    });
-  }
-  steps.push({
-    id: 'security',
-    component: securityStep
-  });
-  if (shouldOfferTerminalSetup()) {
-    steps.push({
-      id: 'terminal-setup',
-      component: <Box flexDirection="column" gap={1} paddingLeft={1}>
-          <Text bold>Use CT&apos;s terminal setup?</Text>
-          <Box flexDirection="column" width={70} gap={1}>
-            <Text>
-              For the optimal coding experience, enable the recommended settings
-              <Newline />
-              for your terminal:{' '}
-              {env.terminal === 'Apple_Terminal' ? 'Option+Enter for newlines and visual bell' : 'Shift+Enter for newlines'}
-            </Text>
-            <Select options={[{
-            label: 'Yes, use recommended settings',
-            value: 'install'
-          }, {
-            label: 'No, maybe later with /terminal-setup',
-            value: 'no'
-          }]} onChange={value => {
-            if (value === 'install') {
-              // Errors already logged in setupTerminal, just swallow and proceed
-              void setupTerminal(theme).catch(() => {}).finally(goToNextStep);
-            } else {
-              goToNextStep();
-            }
-          }} onCancel={() => goToNextStep()} />
-            <Text dimColor>
-              {exitState.pending ? <>Press {exitState.keyName} again to exit</> : <>Enter to confirm · Esc to skip</>}
-            </Text>
-          </Box>
+  const stepIds = buildOnboardingStepIds({
+    oauthEnabled,
+    shouldShowCtIdentityBootstrap: shouldShowCtIdentityStep,
+    hasApiKeyNeedingApproval: Boolean(apiKeyNeedingApproval),
+    shouldOfferTerminalSetupStep: shouldOfferTerminalSetup(),
+  })
+  const stepMap: Record<StepId, React.ReactNode> = {
+    preflight: preflightStep,
+    'ct-identity': ctIdentityStep,
+    theme: themeStep,
+    'api-key': <ApproveApiKey customApiKeyTruncated={apiKeyNeedingApproval} onDone={handleApiKeyDone} />,
+    oauth: <SkippableStep skip={skipOAuth} onSkip={goToNextStep}>
+        <StartupAuthFlow onDone={goToNextStep} />
+      </SkippableStep>,
+    security: securityStep,
+    'terminal-setup': <Box flexDirection="column" gap={1} paddingLeft={1}>
+        <Text bold>Use SeaTurtle&apos;s terminal setup?</Text>
+        <Box flexDirection="column" width={70} gap={1}>
+          <Text>
+            For the best terminal experience, enable the recommended settings
+            <Newline />
+            for your terminal:{' '}
+            {env.terminal === 'Apple_Terminal' ? 'Option+Enter for newlines and visual bell' : 'Shift+Enter for newlines'}
+          </Text>
+          <Select options={[{
+          label: 'Yes, use recommended settings',
+          value: 'install'
+        }, {
+          label: 'No, maybe later with /terminal-setup',
+          value: 'no'
+        }]} onChange={value => {
+          if (value === 'install') {
+            // Errors already logged in setupTerminal, just swallow and proceed
+            void setupTerminal(theme).catch(() => {}).finally(goToNextStep);
+          } else {
+            goToNextStep();
+          }
+        }} onCancel={() => goToNextStep()} />
+          <Text dimColor>
+            {exitState.pending ? <>Press {exitState.keyName} again to exit</> : <>Enter to confirm · Esc to skip</>}
+          </Text>
         </Box>
-    });
+      </Box>
   }
+  const steps: OnboardingStep[] = stepIds.map(id => ({
+    id,
+    component: stepMap[id],
+  }));
   const currentStep = steps[currentStepIndex];
 
   // Handle Enter on security step and Escape on terminal-setup step
