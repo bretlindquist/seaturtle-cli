@@ -112,6 +112,10 @@ function run(): void {
     join(repoRoot, 'source/src/components/VirtualMessageList.tsx'),
     'utf8',
   )
+  const virtualTranscriptSearchSource = readFileSync(
+    join(repoRoot, 'source/src/components/useVirtualTranscriptSearch.ts'),
+    'utf8',
+  )
 
   assert.match(
     transcriptModeSource,
@@ -140,13 +144,23 @@ function run(): void {
   )
   assert.match(
     virtualMessageListSource,
-    /reportTranscriptSearchEngineBadge\(searchProgress, currentState\)/,
-    'virtual transcript adapter should report active badge state through the shared engine helper',
+    /useVirtualTranscriptSearch\(\{/,
+    'virtual transcript list should delegate transcript search ownership to the dedicated controller hook',
   )
   assert.doesNotMatch(
     virtualMessageListSource,
-    /const reportSearchProgress = useCallback/,
-    'virtual transcript adapter should not keep a separate local badge-reporting helper',
+    /const scanRequestRef = useRef<\{/,
+    'virtual transcript list should no longer own the transcript search seek state directly',
+  )
+  assert.match(
+    virtualTranscriptSearchSource,
+    /reportTranscriptSearchEngineBadge\(searchProgress, currentState\)/,
+    'virtual transcript search controller should report active badge state through the shared engine helper',
+  )
+  assert.match(
+    virtualTranscriptSearchSource,
+    /const CHUNK = 500/,
+    'virtual transcript search controller should keep the chunked lazy warm-index path for large transcripts',
   )
 }
 
