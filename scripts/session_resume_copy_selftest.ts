@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import {
   getSessionResumeAffordanceText,
   getSessionResumeFeedFooterText,
@@ -88,6 +91,21 @@ assert(
     remoteValue: [],
   }),
   'remote sessions should count as explicit non-fresh entrypoints',
+)
+
+const repoRoot = join(import.meta.dir, '..')
+const resumeCommandSource = readFileSync(
+  join(repoRoot, 'source/src/commands/resume/resume.tsx'),
+  'utf8',
+)
+
+assert(
+  resumeCommandSource.includes('onDone(getNoResumableSessionsText())'),
+  '/resume should use the shared no-resumable copy in its empty-state picker path',
+)
+assert(
+  !resumeCommandSource.includes("onDone('No conversations found to resume')"),
+  '/resume should not keep a stale hardcoded no-resumable string',
 )
 
 console.log('session-resume-copy selftest passed')

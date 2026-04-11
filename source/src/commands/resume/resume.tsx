@@ -111,7 +111,7 @@ function ResumeCommand({
       const allLogs = allProjects ? await loadAllProjectsMessageLogs() : await loadSameRepoMessageLogs(paths);
       const resumable = filterResumableSessions(allLogs, getSessionId());
       if (resumable.length === 0) {
-        onDone('No conversations found to resume');
+        onDone(getNoResumableSessionsText());
         return;
       }
       setLogs(resumable);
