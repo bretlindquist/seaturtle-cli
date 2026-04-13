@@ -1,6 +1,7 @@
 import { feature } from 'bun:bundle'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
+import { isAntRuntimeEnabled } from '../runtimeUserType.js'
 import type { PermissionMode } from './PermissionMode.js'
 import {
   getAutoModeUnavailableReason,
@@ -31,7 +32,7 @@ function canCycleToAuto(ctx: ToolPermissionContext): boolean {
 function getPermissionModeCycleOrder(
   toolPermissionContext: ToolPermissionContext,
 ): PermissionMode[] {
-  if (process.env.USER_TYPE === 'ant') {
+  if (isAntRuntimeEnabled()) {
     const order: PermissionMode[] = ['default']
     if (toolPermissionContext.isBypassPermissionsModeAvailable) {
       order.push('bypassPermissions')

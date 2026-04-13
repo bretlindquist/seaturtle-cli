@@ -73,6 +73,18 @@ function run(): void {
     'utf8',
   )
   const querySource = readFileSync(join(repoRoot, 'source/src/query.ts'), 'utf8')
+  const fullscreen = readFileSync(
+    join(repoRoot, 'source/src/utils/fullscreen.ts'),
+    'utf8',
+  )
+  const immediateCommand = readFileSync(
+    join(repoRoot, 'source/src/utils/immediateCommand.ts'),
+    'utf8',
+  )
+  const permissionCycle = readFileSync(
+    join(repoRoot, 'source/src/utils/permissions/getNextPermissionMode.ts'),
+    'utf8',
+  )
 
   assert.match(
     configTs,
@@ -188,6 +200,21 @@ function run(): void {
     querySource,
     /isAntRuntimeEnabled\(\)/,
     'query fallback signature stripping should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    fullscreen,
+    /isAntRuntimeEnabled\(\)/,
+    'fullscreen default gating should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    immediateCommand,
+    /isAntRuntimeEnabled\(\)/,
+    'immediate command gating should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    permissionCycle,
+    /isAntRuntimeEnabled\(\)/,
+    'permission-mode cycling should honor the centralized ant runtime helper',
   )
 }
 

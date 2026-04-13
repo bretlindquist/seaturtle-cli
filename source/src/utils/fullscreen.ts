@@ -3,6 +3,7 @@ import { getIsInteractive } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
+import { isAntRuntimeEnabled } from './runtimeUserType.js'
 
 let loggedTmuxCcDisable = false
 let checkedTmuxMouseHint = false
@@ -125,7 +126,7 @@ export function isFullscreenEnvEnabled(): boolean {
     }
     return false
   }
-  return process.env.USER_TYPE === 'ant'
+  return isAntRuntimeEnabled()
 }
 
 /**
