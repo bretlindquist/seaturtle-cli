@@ -137,6 +137,14 @@ const resumeCommandSource = readFileSync(
   'utf8',
 )
 const mainSource = readFileSync(join(repoRoot, 'source/src/main.tsx'), 'utf8')
+const crossProjectResumeSource = readFileSync(
+  join(repoRoot, 'source/src/utils/crossProjectResume.ts'),
+  'utf8',
+)
+const gracefulShutdownSource = readFileSync(
+  join(repoRoot, 'source/src/utils/gracefulShutdown.ts'),
+  'utf8',
+)
 
 assert(
   resumeCommandSource.includes('onDone(getNoResumableSessionsText())'),
@@ -171,6 +179,34 @@ assert(
 assert(
   printSource.includes('getFailedResumeSessionText()'),
   'print-mode resume should use shared generic failed-session copy',
+)
+assert(
+  printSource.includes('Usage: ct -p --resume <session-id>'),
+  'print-mode resume usage should use ct branding',
+)
+assert(
+  crossProjectResumeSource.includes('&& ct --resume ${sessionId}'),
+  'cross-project resume guidance should use ct branding',
+)
+assert(
+  crossProjectResumeSource.includes('isAntRuntimeEnabled()'),
+  'cross-project resume worktree gating should use the centralized ant runtime helper',
+)
+assert(
+  gracefulShutdownSource.includes('ct --resume ${resumeArg}'),
+  'shutdown resume hint should use ct branding',
+)
+assert(
+  !crossProjectResumeSource.includes('&& claude --resume'),
+  'cross-project resume guidance should not leak claude branding',
+)
+assert(
+  !gracefulShutdownSource.includes('claude --resume'),
+  'shutdown resume hint should not leak claude branding',
+)
+assert(
+  !printSource.includes('Usage: claude -p --resume <session-id>'),
+  'print-mode resume usage should not leak claude branding',
 )
 
 console.log('session-resume-copy selftest passed')

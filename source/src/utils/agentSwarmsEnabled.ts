@@ -1,5 +1,7 @@
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
+import { getMainLoopProviderRuntime } from '../services/api/providerRuntime.js'
 import { isEnvTruthy } from './envUtils.js'
+import { isAntRuntimeEnabled } from './runtimeUserType.js'
 
 /**
  * Check if --agent-teams flag is provided via CLI.
@@ -23,8 +25,16 @@ function isAgentTeamsFlagSet(): boolean {
  */
 export function isAgentSwarmsEnabled(): boolean {
   // Ant: always on
-  if (process.env.USER_TYPE === 'ant') {
+  if (isAntRuntimeEnabled()) {
     return true
+  }
+
+  // OpenAI/Codex: expose SeaTurtle's local teammate runtime whenever the
+  // active provider runtime is OpenAI and auth is ready. The local swarm/team
+  // machinery is provider-owned by CT, not an Anthropic-only entitlement.
+  const runtime = getMainLoopProviderRuntime()
+  if (runtime.family === 'openai') {
+    return runtime.executionEnabled && runtime.supportsAgentTeams
   }
 
   // External: require opt-in via env var or --agent-teams flag

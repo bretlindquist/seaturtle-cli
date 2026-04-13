@@ -7,12 +7,14 @@ import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
 import { TASK_STOP_TOOL_NAME } from '../tools/TaskStopTool/prompt.js'
 import { FILE_READ_TOOL_NAME } from '../tools/FileReadTool/prompt.js'
+import { FILE_SEARCH_TOOL_NAME } from '../tools/FileSearchTool/prompt.js'
 import { WEB_SEARCH_TOOL_NAME } from '../tools/WebSearchTool/prompt.js'
 import { TODO_WRITE_TOOL_NAME } from '../tools/TodoWriteTool/constants.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
 import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { SHELL_TOOL_NAMES } from '../utils/shell/shellToolUtils.js'
+import { isAntRuntimeEnabled } from '../utils/runtimeUserType.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../tools/NotebookEditTool/constants.js'
@@ -38,7 +40,7 @@ export const ALL_AGENT_DISALLOWED_TOOLS = new Set([
   EXIT_PLAN_MODE_V2_TOOL_NAME,
   ENTER_PLAN_MODE_TOOL_NAME,
   // Allow Agent tool for agents when user is ant (enables nested agents)
-  ...(process.env.USER_TYPE === 'ant' ? [] : [AGENT_TOOL_NAME]),
+  ...(isAntRuntimeEnabled() ? [] : [AGENT_TOOL_NAME]),
   ASK_USER_QUESTION_TOOL_NAME,
   TASK_STOP_TOOL_NAME,
   // Prevent recursive workflow execution inside subagents.
@@ -54,6 +56,7 @@ export const CUSTOM_AGENT_DISALLOWED_TOOLS = new Set([
  */
 export const ASYNC_AGENT_ALLOWED_TOOLS = new Set([
   FILE_READ_TOOL_NAME,
+  FILE_SEARCH_TOOL_NAME,
   WEB_SEARCH_TOOL_NAME,
   TODO_WRITE_TOOL_NAME,
   GREP_TOOL_NAME,

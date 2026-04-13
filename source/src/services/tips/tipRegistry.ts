@@ -45,6 +45,7 @@ import {
   getCurrentSessionAgentColor,
   isCustomTitleEnabled,
 } from '../../utils/sessionStorage.js'
+import { isAntRuntimeEnabled, isBuildTimeAntUserType } from '../../utils/runtimeUserType.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/growthbook.js'
 import {
   formatGrantAmount,
@@ -58,9 +59,18 @@ import {
 import { getCtTodoPath } from '../projectIdentity/paths.js'
 import { getSessionResumeTipText } from '../sessionResume/sessionResumeCopy.js'
 import {
+  getMainLoopProviderRuntimeSnapshot,
+} from '../api/providerRuntime.js'
+import {
   shouldShowConfigHelpTip,
   shouldShowCopyMenuTip,
   shouldShowExecutionLanesTip,
+  shouldShowOpenAiComputerUseTip,
+  shouldShowOpenAiHostedFileSearchTip,
+  shouldShowOpenAiHostedShellTip,
+  shouldShowOpenAiImageGenerationTip,
+  shouldShowOpenAiRemoteMcpTip,
+  shouldShowOpenAiRuntimeDocsTip,
   shouldShowProjectTodoCommandTip,
   shouldShowStatusDashboardTip,
   shouldShowTelegramSetupTip,
@@ -131,7 +141,7 @@ const externalTips: Tip[] = [
       `Use Plan Mode to prepare for a complex request before making changes. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to enable.`,
     cooldownSessions: 5,
     isRelevant: async () => {
-      if (process.env.USER_TYPE === 'ant') return false
+      if (isAntRuntimeEnabled()) return false
       const config = getGlobalConfig()
       // Show to users who haven't used plan mode recently (7+ days)
       const daysSinceLastUse = config.lastPlanModeUse
@@ -319,6 +329,72 @@ const externalTips: Tip[] = [
     },
   },
   {
+    id: 'openai-runtime-docs',
+    content: async () =>
+      'On OpenAI/Codex, use /status to inspect the live runtime surface, then /help or docs/OPENAI-CODEX.md when you need the deeper contract.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiRuntimeDocsTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
+    id: 'openai-hosted-shell',
+    content: async () =>
+      'On OpenAI/Codex, ask CT to use HostedShell when you want an isolated hosted shell instead of your local machine.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiHostedShellTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
+    id: 'openai-image-generation',
+    content: async () =>
+      'On OpenAI/Codex, CT can generate images directly when image generation is live for this session.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiImageGenerationTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
+    id: 'openai-computer-use',
+    content: async () =>
+      'On OpenAI/Codex, CT can use ComputerUse against the local desktop when computer access is enabled for this session.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiComputerUseTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
+    id: 'openai-file-search',
+    content: async () =>
+      'With OpenAI vector stores configured, CT can use hosted file search on the OpenAI path instead of only local grep/read loops.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiHostedFileSearchTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
+    id: 'openai-remote-mcp',
+    content: async () =>
+      'When an eligible remote MCP server is configured, CT can route it through the OpenAI provider path instead of only the local MCP loop.',
+    cooldownSessions: 10,
+    async isRelevant() {
+      return shouldShowOpenAiRemoteMcpTip(
+        getMainLoopProviderRuntimeSnapshot(),
+      )
+    },
+  },
+  {
     id: 'config-help',
     content: async () =>
       'Use /config to tune defaults like permissions, copy behavior, tips, and notifications.',
@@ -495,7 +571,7 @@ const externalTips: Tip[] = [
   {
     id: 'shift-tab',
     content: async () =>
-      process.env.USER_TYPE === 'ant'
+      isAntRuntimeEnabled()
         ? `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to focus footer controls, then use Shift+Up or Shift+Down to change the selected value.`
         : `Hit ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} to focus execution lanes or permissions, then use Shift+Up or Shift+Down to change them.`,
     cooldownSessions: 10,
@@ -570,7 +646,7 @@ const externalTips: Tip[] = [
       `Your default model setting is Opus Plan Mode. Press ${getShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab')} twice to activate Plan Mode and plan with Opus.`,
     cooldownSessions: 2,
     async isRelevant() {
-      if (process.env.USER_TYPE === 'ant') return false
+      if (isAntRuntimeEnabled()) return false
       const config = getGlobalConfig()
       const modelSetting = getUserSpecifiedModelSetting()
       const hasOpusPlanMode = modelSetting === 'opusplan'
@@ -718,7 +794,7 @@ const externalTips: Tip[] = [
     content: async () => 'Use /feedback to help us improve!',
     cooldownSessions: 15,
     async isRelevant() {
-      if (process.env.USER_TYPE === 'ant') {
+      if (isAntRuntimeEnabled()) {
         return false
       }
       const config = getGlobalConfig()
@@ -727,7 +803,7 @@ const externalTips: Tip[] = [
   },
 ]
 const internalOnlyTips: Tip[] =
-  process.env.USER_TYPE === 'ant'
+  isBuildTimeAntUserType()
     ? [
         {
           id: 'important-claudemd',

@@ -3,12 +3,20 @@ import {
   shouldShowConfigHelpTip,
   shouldShowCopyMenuTip,
   shouldShowExecutionLanesTip,
+  shouldShowOpenAiComputerUseTip,
+  shouldShowOpenAiHostedFileSearchTip,
+  shouldShowOpenAiHostedShellTip,
+  shouldShowOpenAiImageGenerationTip,
+  shouldShowOpenAiRemoteMcpTip,
+  shouldShowOpenAiRuntimeDocsTip,
   shouldShowProjectTodoCommandTip,
   shouldShowStatusDashboardTip,
   shouldShowTelegramSetupTip,
   shouldShowTranscriptSearchTip,
 } from '../source/src/services/tips/ctFeatureDiscovery.js'
 import type { Tip } from '../source/src/services/tips/types.js'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -26,6 +34,23 @@ function createTip(id: string): Tip {
 }
 
 function run(): void {
+  const repoRoot = join(import.meta.dir, '..')
+  const tipRegistry = readFileSync(
+    join(repoRoot, 'source/src/services/tips/tipRegistry.ts'),
+    'utf8',
+  )
+
+  assert(
+    /isAntRuntimeEnabled\(\)/.test(tipRegistry),
+    'expected user-facing tip gating to use the centralized ant runtime helper',
+  )
+  assert(
+    /const internalOnlyTips: Tip\[] =\s*isBuildTimeAntUserType\(\)/.test(
+      tipRegistry,
+    ),
+    'expected internal-only tips to remain build-time gated',
+  )
+
   assert(
     shouldShowProjectTodoCommandTip({ todoFeatureEnabled: true }, false),
     'expected /todo discovery tip when todo feature is enabled and .ct/todo.md is absent',
@@ -70,6 +95,53 @@ function run(): void {
   assert(
     !shouldShowTelegramSetupTip({ numStartups: 5 }, true),
     'expected Telegram setup tip to stay off once the project is paired',
+  )
+  assert(
+    shouldShowOpenAiRuntimeDocsTip({ execution: { family: 'openai' } }),
+    'expected OpenAI runtime docs tip when the active runtime is OpenAI',
+  )
+  assert(
+    shouldShowOpenAiHostedShellTip({
+      execution: { family: 'openai' },
+      supportsHostedShell: true,
+    }),
+    'expected hosted shell tip when OpenAI hosted shell is live',
+  )
+  assert(
+    shouldShowOpenAiImageGenerationTip({
+      execution: { family: 'openai' },
+      supportsImageGeneration: true,
+    }),
+    'expected image generation tip when OpenAI image generation is live',
+  )
+  assert(
+    shouldShowOpenAiComputerUseTip({
+      execution: { family: 'openai' },
+      supportsComputerUse: true,
+    }),
+    'expected computer use tip when OpenAI computer use is live',
+  )
+  assert(
+    shouldShowOpenAiHostedFileSearchTip({
+      execution: { family: 'openai' },
+      hostedFileSearchConfigured: true,
+      supportsHostedFileSearch: true,
+    }),
+    'expected hosted file search tip when vector stores are configured and file search is routed',
+  )
+  assert(
+    shouldShowOpenAiRemoteMcpTip({
+      execution: { family: 'openai' },
+      supportsRemoteMcp: true,
+    }),
+    'expected remote MCP tip when the OpenAI remote MCP bridge is live',
+  )
+  assert(
+    !shouldShowOpenAiHostedShellTip({
+      execution: { family: 'anthropic' },
+      supportsHostedShell: true,
+    }),
+    'expected OpenAI-specific tips to stay off on non-OpenAI runtimes',
   )
 
   const tips = [createTip('newer'), createTip('older'), createTip('middle')]
