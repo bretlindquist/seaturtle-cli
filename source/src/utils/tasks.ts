@@ -14,6 +14,7 @@ import { errorMessage, getErrnoCode } from './errors.js'
 import { lazySchema } from './lazySchema.js'
 import * as lockfile from './lockfile.js'
 import { logError } from './log.js'
+import { isAntRuntimeEnabled } from './runtimeUserType.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { getTeamName } from './teammate.js'
@@ -326,7 +327,7 @@ export async function getTask(
     const data = jsonParse(content) as { status?: string }
 
     // TEMPORARY: Migrate old status names for existing sessions (ant-only)
-    if (process.env.USER_TYPE === 'ant') {
+    if (isAntRuntimeEnabled()) {
       if (data.status === 'open') data.status = 'pending'
       else if (data.status === 'resolved') data.status = 'completed'
       // Migrate development task statuses to in_progress
