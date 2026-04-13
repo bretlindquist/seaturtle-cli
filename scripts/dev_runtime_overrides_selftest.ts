@@ -68,6 +68,11 @@ function run(): void {
     join(repoRoot, 'source/src/services/tools/toolExecution.ts'),
     'utf8',
   )
+  const bashPrompt = readFileSync(
+    join(repoRoot, 'source/src/tools/BashTool/prompt.ts'),
+    'utf8',
+  )
+  const querySource = readFileSync(join(repoRoot, 'source/src/query.ts'), 'utf8')
 
   assert.match(
     configTs,
@@ -168,6 +173,21 @@ function run(): void {
     toolExecution,
     /isAntRuntimeEnabled\(\)/,
     'tool-hook inline summaries should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    bashPrompt,
+    /isAntRuntimeEnabled\(\)/,
+    'bash prompt runtime guidance should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    bashPrompt,
+    /isBuildTimeAntUserType\(\)/,
+    'bash prompt undercover handling should remain build-time gated',
+  )
+  assert.match(
+    querySource,
+    /isAntRuntimeEnabled\(\)/,
+    'query fallback signature stripping should honor the centralized ant runtime helper',
   )
 }
 
