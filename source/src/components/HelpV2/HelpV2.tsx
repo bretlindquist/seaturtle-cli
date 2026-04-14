@@ -11,7 +11,7 @@ import { Pane } from '../design-system/Pane.js';
 import { Tab, Tabs } from '../design-system/Tabs.js';
 import { Commands } from './Commands.js';
 import { General } from './General.js';
-import { PRODUCT_DOCS_URL } from '../../constants/product.js';
+import { PRODUCT_DOCS_URL, PRODUCT_OPENAI_DOCS_URL } from '../../constants/product.js';
 type Props = {
   onClose: (result?: string, options?: {
     display?: CommandResultDisplay;
@@ -19,7 +19,7 @@ type Props = {
   commands: Command[];
 };
 export function HelpV2(t0: Props) {
-  const $ = _c(44);
+  const $ = _c(49);
   const {
     onClose,
     commands
@@ -148,7 +148,7 @@ export function HelpV2(t0: Props) {
   }
   let t7;
   if ($[33] === Symbol.for("react.memo_cache_sentinel")) {
-    t7 = <Box marginTop={1}><Text>For more help:{" "}<Link url={PRODUCT_DOCS_URL} /></Text></Box>;
+    t7 = <Box marginTop={1} flexDirection="column"><Text>Docs: <Link url={PRODUCT_DOCS_URL} /></Text><Text>OpenAI runtime: <Link url={PRODUCT_OPENAI_DOCS_URL} /></Text></Box>;
     $[33] = t7;
   } else {
     t7 = $[33];

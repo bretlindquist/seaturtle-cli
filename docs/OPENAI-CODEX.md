@@ -18,6 +18,7 @@ main conversation loop work on OpenAI/Codex auth.
 - strict OpenAI tool-schema coverage for `TodoWrite`
 - provider-aware `status` and `auth status`
 - provider-neutral `auto-mode critique`
+- truthful documented-vs-routed OpenAI capability reporting
 
 ## What Currently Works
 
@@ -31,6 +32,61 @@ main conversation loop work on OpenAI/Codex auth.
 - `/status` rendering of CT-owned context window, collaboration mode, and 5h/weekly usage telemetry
 - streamed text and tool-use events without synthetic `unknown_tool` leakage
 - `claude auto-mode critique` on the OpenAI/Codex path
+- local `ToolSearch` and `Skill` support through the normal SeaTurtle
+  function-tool loop
+- local computer-use support through the Chicago MCP runtime when that local
+  runtime is enabled
+- OpenAI web search routed through the Responses `web_search` tool
+- OpenAI image input via Responses `input_image`
+- OpenAI PDF/file input via Responses `input_file`
+- OpenAI hosted file search via Responses `file_search` when vector stores are configured
+- OpenAI hosted shell via the hosted `shell` tool through SeaTurtle's
+  `HostedShell` tool
+- OpenAI computer use via the hosted `computer` tool through SeaTurtle's
+  `ComputerUse` tool, reusing the local Chicago permission/lock/screenshot runtime
+- OpenAI image generation via the hosted `image_generation` tool through
+  SeaTurtle's `ImageGeneration` tool
+- SeaTurtle local MCP tools exposed on the OpenAI/Codex path
+- OpenAI provider-hosted remote MCP for a restricted safe subset of MCP servers
+
+## OpenAI Runtime Truth
+
+SeaTurtle now distinguishes three different questions:
+
+- what OpenAI documents for the active model
+- what SeaTurtle has configured locally
+- what SeaTurtle actually routes today
+
+That distinction is visible in both `/status` and `ct auth status --json`.
+
+Examples:
+
+- hosted file search is only marked routed when vector stores are configured
+- provider-hosted remote MCP is only marked routed when an eligible MCP server exists
+- local `ToolSearch` and `Skill` support are reported separately from provider-hosted OpenAI tools
+- local computer-use support is reported separately from OpenAI's provider-hosted `computer` tool
+- local MCP tools are reported separately from provider-hosted remote MCP
+- documented model capabilities are reported separately from runtime-routed support
+- `auth status --json` now exposes `openAiCodexRoutedModelCapabilities` for the provider-hosted OpenAI tool paths SeaTurtle actually wires today
+
+## OpenAI Computer Use Enablement
+
+Computer use is not a generic prompt-level toggle inside CT. It is available only when all of these are true:
+
+- the build includes the Chicago computer-use runtime
+- CT is running on macOS
+- the session is interactive
+- the local account tier is `Pro` or `Max`
+- the Chicago gate is enabled for this runtime
+- OpenAI/Codex auth is active for the main loop
+
+Use `/status` to inspect this directly. SeaTurtle now shows an `OpenAI computer use` row with the missing prerequisite when it is unavailable.
+
+Important current truth:
+
+- there is not yet a simple public `/config` switch that external users can flip to force computer use on
+- if `/status` says `Chicago gate off`, the current build/runtime did not expose the local computer-use runtime for this session
+- when every local prerequisite is satisfied, CT can route the OpenAI hosted `computer` tool through the existing permission/lock/screenshot stack
 
 ## Current Known Gates
 
@@ -42,6 +98,8 @@ These surfaces are intentionally not pretending to work on OpenAI/Codex yet:
 - Anthropic-only `sideQuery` helper flows outside the explicitly supported gates
 - OpenAI/Codex GitHub Actions setup remains gated for OAuth-only installs; the
   defensible CI path is API-key-based via an explicit OpenAI API key
+- provider-hosted remote MCP is intentionally limited to plain `http` / `sse`
+  MCP servers with no custom headers, no `headersHelper`, and no OAuth-managed config
 
 When the active main-loop runtime is OpenAI/Codex:
 
@@ -84,6 +142,26 @@ export OPENAI_ORGANIZATION="org_..."
 export OPENAI_PROJECT="proj_..."
 ```
 
+Optional hosted file-search configuration:
+
+```bash
+export SEATURTLE_OPENAI_VECTOR_STORE_IDS="vs_123,vs_456"
+```
+
+SeaTurtle also accepts the legacy compatibility alias
+`CLAUDE_CODE_OPENAI_VECTOR_STORE_IDS`, but the SeaTurtle-prefixed variable is
+the primary contract going forward.
+
+Optional provider-hosted remote MCP configuration:
+
+- use existing CT MCP configuration
+- only a production-safe subset is bridged into the OpenAI provider path:
+  - transport `http` or `sse`
+  - no custom `headers`
+  - no `headersHelper`
+  - no `oauth` block
+- ineligible MCP servers still work through SeaTurtle's local MCP runtime when connected there
+
 Quick smoke check:
 
 ```bash
@@ -99,6 +177,10 @@ Useful OpenAI/Codex-specific fields in `auth status --json` now include:
 - `openAiCodexCliFallbackReady`
 - `openAiCodexCollaborationMode`
 - `openAiCodexUsageTelemetry`
+- `openAiCodexCapabilityConfig`
+- `openAiCodexCapabilities`
+- `openAiCodexModelCapabilities`
+- `openAiCodexRoutedModelCapabilities`
 
 Session behavior:
 
@@ -160,5 +242,5 @@ Notes:
 After the current planned port/hardening chunks, the most likely next areas are:
 
 - expand strict OpenAI tool-schema coverage beyond `TodoWrite`
-- broaden provider-neutral replacements for Anthropic-only account surfaces
+- route more OpenAI-native tools directly where they add real value in CT
 - continue operator-facing polish as SeaTurtle stabilizes

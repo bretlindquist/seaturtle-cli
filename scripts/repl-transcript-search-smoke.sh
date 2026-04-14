@@ -75,6 +75,7 @@ env["CLAUDE_CODE_DEBUG_LOGS_DIR"] = os.environ["DEBUG_LOG_FILE"]
 needle = "transcript-search-smoke-needle"
 session_id = os.environ["SESSION_ID"]
 debug_log_path = os.environ["DEBUG_LOG_FILE"]
+overall_deadline = time.time() + 120
 
 master_fd, slave_fd = pty.openpty()
 fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", 42, 140, 0, 0))
@@ -108,6 +109,11 @@ ansi_re = re.compile(r"\x1b(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 def joined() -> bytes:
     return b"".join(chunks)
 
+def ensure_not_timed_out(label: str) -> None:
+    if time.time() <= overall_deadline:
+        return
+    raise TimeoutError(f"transcript search smoke timed out during {label}")
+
 def prompt_count() -> int:
     return joined().count(prompt_marker)
 
@@ -116,6 +122,7 @@ def wait_for_prompt_settle(timeout: float, quiet_period: float = 0.75) -> bytes:
     last_size = len(joined())
     stable_since = None
     while time.time() < deadline:
+        ensure_not_timed_out("prompt settle")
         ready, _, _ = select.select([master_fd], [], [], 0.2)
         if master_fd in ready:
             chunk = os.read(master_fd, 65536)
@@ -153,6 +160,7 @@ def enter_transcript_mode(timeout: float) -> bytes:
 def read_until(predicate, timeout: float) -> bytes:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out("read loop")
         ready, _, _ = select.select([master_fd], [], [], 0.2)
         if master_fd not in ready:
             continue
@@ -215,6 +223,7 @@ def find_last_footer_badge(data: bytes) -> str | None:
 def wait_for_footer_badge(previous: str | None, timeout: float) -> str | None:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out("footer badge wait")
         pump_output(0.1)
         badge = find_last_footer_badge(joined())
         if badge is not None and badge != previous:
@@ -241,6 +250,7 @@ def find_last_debug_badge(log_text: str) -> str | None:
 def wait_for_debug_badge(previous: str | None, timeout: float) -> str | None:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out("debug badge wait")
         badge = find_last_debug_badge(read_debug_log())
         if badge is not None and badge != previous:
             return badge
@@ -250,6 +260,7 @@ def wait_for_debug_badge(previous: str | None, timeout: float) -> str | None:
 def wait_for_specific_debug_badge(expected: str, timeout: float) -> str | None:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out("specific debug badge wait")
         badge = find_last_debug_badge(read_debug_log())
         if badge == expected:
             return badge
@@ -259,6 +270,7 @@ def wait_for_specific_debug_badge(expected: str, timeout: float) -> str | None:
 def wait_for_debug_fragment(fragment: str, timeout: float) -> str:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out("debug fragment wait")
         log_text = read_debug_log()
         if fragment in log_text:
             return log_text
@@ -286,6 +298,7 @@ def wait_for_badge_quiescence(timeout: float, quiet_period: float = 1.0) -> list
     last = condensed_badges()
     stable_since = time.time()
     while time.time() < deadline:
+        ensure_not_timed_out("badge quiescence")
         pump_output(0.1)
         current = condensed_badges()
         if current != last:
@@ -299,6 +312,7 @@ def wait_for_badge_quiescence(timeout: float, quiet_period: float = 1.0) -> list
 def assert_stable_badge(expected: str, timeout: float, label: str) -> None:
     deadline = time.time() + timeout
     while time.time() < deadline:
+        ensure_not_timed_out(label)
         pump_output(0.1)
         footer_badge = find_last_footer_badge(joined())
         debug_badge = find_last_debug_badge(read_debug_log())
@@ -313,6 +327,7 @@ def assert_stable_badge(expected: str, timeout: float, label: str) -> None:
         time.sleep(0.1)
 
 exit_code = 0
+error_detail = ""
 
 try:
     data = wait_for_prompt_settle(20)
@@ -449,8 +464,9 @@ try:
 
     os.write(master_fd, b"N")
     assert_stable_badge("1/1", 3, "single-match reverse navigation")
-except RuntimeError as error:
-    print(str(error), file=sys.stderr)
+except (RuntimeError, TimeoutError) as error:
+    error_detail = str(error)
+    print(error_detail, file=sys.stderr)
 finally:
     try:
         os.killpg(proc.pid, signal.SIGTERM)
@@ -469,6 +485,15 @@ finally:
 output = joined().decode("utf-8", "ignore")
 with open(output_path, "w", encoding="utf-8") as fh:
     fh.write(output)
+if exit_code != 0:
+    visible_tail = visible_text(joined())[-4000:]
+    debug_tail = read_debug_log()[-4000:]
+    print("--- visible tail ---", file=sys.stderr)
+    print(visible_tail, file=sys.stderr)
+    print("--- debug tail ---", file=sys.stderr)
+    print(debug_tail, file=sys.stderr)
+    if error_detail:
+        print(f"failure: {error_detail}", file=sys.stderr)
 sys.exit(exit_code)
 PY
 then

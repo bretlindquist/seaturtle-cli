@@ -1,5 +1,17 @@
 import type { Tip } from './types.js'
 
+type OpenAiTipRuntimeSnapshot = {
+  execution?: {
+    family?: 'anthropic' | 'openai'
+  }
+  supportsHostedShell?: boolean
+  supportsImageGeneration?: boolean
+  supportsComputerUse?: boolean
+  hostedFileSearchConfigured?: boolean
+  supportsHostedFileSearch?: boolean
+  supportsRemoteMcp?: boolean
+}
+
 export function shouldShowProjectTodoCommandTip(
   params: {
     todoFeatureEnabled?: boolean
@@ -46,6 +58,48 @@ export function shouldShowTelegramSetupTip(
   hasTelegramBinding: boolean,
 ): boolean {
   return !hasTelegramBinding && params.numStartups > 4
+}
+
+export function shouldShowOpenAiRuntimeDocsTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return runtime.execution?.family === 'openai'
+}
+
+export function shouldShowOpenAiHostedShellTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return runtime.execution?.family === 'openai' && !!runtime.supportsHostedShell
+}
+
+export function shouldShowOpenAiImageGenerationTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return (
+    runtime.execution?.family === 'openai' && !!runtime.supportsImageGeneration
+  )
+}
+
+export function shouldShowOpenAiComputerUseTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return runtime.execution?.family === 'openai' && !!runtime.supportsComputerUse
+}
+
+export function shouldShowOpenAiHostedFileSearchTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return (
+    runtime.execution?.family === 'openai' &&
+    !!runtime.hostedFileSearchConfigured &&
+    !!runtime.supportsHostedFileSearch
+  )
+}
+
+export function shouldShowOpenAiRemoteMcpTip(
+  runtime: OpenAiTipRuntimeSnapshot,
+): boolean {
+  return runtime.execution?.family === 'openai' && !!runtime.supportsRemoteMcp
 }
 
 export function selectTipWithLongestTimeSinceShownUsing(

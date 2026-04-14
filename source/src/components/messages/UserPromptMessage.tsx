@@ -9,6 +9,7 @@ import { isEnvTruthy } from '../../utils/envUtils.js'
 import { formatBriefTimestamp } from '../../utils/formatBriefTimestamp.js'
 import { logError } from '../../utils/log.js'
 import { countCharInString } from '../../utils/stringUtils.js'
+import { useQueuedMessage } from '../../context/QueuedMessageContext.js'
 import { MessageActionsSelectedContext } from '../messageActions.js'
 import { HighlightedThinkingText } from './HighlightedThinkingText.js'
 
@@ -73,6 +74,7 @@ export function UserPromptMessage({
   }, [text])
 
   const isSelected = useContext(MessageActionsSelectedContext)
+  const isQueued = useQueuedMessage()?.isQueued ?? false
   const displayTimestamp = useMemo(
     () => (timestamp ? formatBriefTimestamp(timestamp) : ''),
     [timestamp],
@@ -84,6 +86,7 @@ export function UserPromptMessage({
   }
 
   const labelColor = isSelected ? 'suggestion' : 'briefLabelYou'
+  const queueTagColor = '#6fd3c5'
 
   return (
     <Box
@@ -95,6 +98,7 @@ export function UserPromptMessage({
       {!useBriefLayout && (
         <Box flexDirection="row" paddingLeft={2}>
           <Text color={labelColor}>You</Text>
+          {isQueued ? <Text color={queueTagColor}>  queued</Text> : null}
           {displayTimestamp ? <Text dimColor> {displayTimestamp}</Text> : null}
         </Box>
       )}

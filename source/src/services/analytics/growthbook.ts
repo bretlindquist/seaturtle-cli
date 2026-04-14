@@ -14,6 +14,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { toError } from '../../utils/errors.js'
 import { getAuthHeaders } from '../../utils/http.js'
 import { logError } from '../../utils/log.js'
+import { isAntRuntimeEnabled, isBuildTimeAntUserType } from '../../utils/runtimeUserType.js'
 import { createSignal } from '../../utils/signal.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import {
@@ -170,7 +171,7 @@ let envOverridesParsed = false
 function getEnvOverrides(): Record<string, unknown> | null {
   if (!envOverridesParsed) {
     envOverridesParsed = true
-    if (process.env.USER_TYPE === 'ant') {
+    if (isBuildTimeAntUserType()) {
       const raw = process.env.CLAUDE_INTERNAL_FC_OVERRIDES
       if (raw) {
         try {
@@ -209,7 +210,9 @@ export function hasGrowthBookEnvOverride(feature: string): boolean {
  * until the next saveGlobalConfig() invalidates it.
  */
 function getConfigOverrides(): Record<string, unknown> | undefined {
-  if (process.env.USER_TYPE !== 'ant') return undefined
+  if (!isAntRuntimeEnabled()) {
+    return undefined
+  }
   try {
     return getGlobalConfig().growthBookOverrides
   } catch {
@@ -246,7 +249,9 @@ export function setGrowthBookConfigOverride(
   feature: string,
   value: unknown,
 ): void {
-  if (process.env.USER_TYPE !== 'ant') return
+  if (!isAntRuntimeEnabled()) {
+    return
+  }
   try {
     saveGlobalConfig(c => {
       const current = c.growthBookOverrides ?? {}
@@ -271,7 +276,9 @@ export function setGrowthBookConfigOverride(
 }
 
 export function clearGrowthBookConfigOverrides(): void {
-  if (process.env.USER_TYPE !== 'ant') return
+  if (!isAntRuntimeEnabled()) {
+    return
+  }
   try {
     saveGlobalConfig(c => {
       if (

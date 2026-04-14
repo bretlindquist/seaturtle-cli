@@ -44,6 +44,7 @@ import {
   resolveTelegramCapabilityMode,
   type TelegramCapabilityMode,
 } from '../../services/telegram/runtimeContract.js'
+import { TELEGRAM_ENV_KEYS } from '../../services/telegram/env.js'
 
 type Props = {
   onExit: (result?: string, options?: { display?: CommandResultDisplay }) => void
@@ -1626,8 +1627,8 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
           <Text bold>Manual setup</Text>
           <Bullet>Create a Telegram bot with BotFather.</Bullet>
           <Bullet>
-            Set <Text color="claude">CLAUDE_CODE_TELEGRAM_BOT_TOKEN</Text> to
-            the bot token.
+            Set <Text color="claude">{TELEGRAM_ENV_KEYS.botToken}</Text> to the
+            bot token.
           </Bullet>
           <Bullet>
             Pairing in-app saves the bot as a reusable profile, then binds it
@@ -1639,14 +1640,12 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
           </Bullet>
           <Bullet>
             Set{' '}
-            <Text color="claude">CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS</Text>{' '}
+            <Text color="claude">{TELEGRAM_ENV_KEYS.allowedChatIds}</Text>{' '}
             to a comma-separated list of allowed chat IDs.
           </Bullet>
           <Bullet>
             Optional: set{' '}
-            <Text color="claude">
-              CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_API_KEY
-            </Text>{' '}
+            <Text color="claude">{TELEGRAM_ENV_KEYS.transcriptionApiKey}</Text>{' '}
             or <Text color="claude">OPENAI_API_KEY</Text> to enable voice-note
             transcription.
           </Bullet>
@@ -1654,18 +1653,10 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
 
         <Box flexDirection="column">
           <Text bold>Environment variables</Text>
-          <Text color="claude">
-            CLAUDE_CODE_TELEGRAM_BOT_TOKEN=...
-          </Text>
-          <Text color="claude">
-            CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS=123456789
-          </Text>
-          <Text color="claude">
-            CLAUDE_CODE_TELEGRAM_POLL_TIMEOUT_SEC=20
-          </Text>
-          <Text color="claude">
-            CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_API_KEY=...
-          </Text>
+          <Text color="claude">{TELEGRAM_ENV_KEYS.botToken}=...</Text>
+          <Text color="claude">{TELEGRAM_ENV_KEYS.allowedChatIds}=123456789</Text>
+          <Text color="claude">{TELEGRAM_ENV_KEYS.pollTimeoutSeconds}=20</Text>
+          <Text color="claude">{TELEGRAM_ENV_KEYS.transcriptionApiKey}=...</Text>
         </Box>
 
         {!snapshot.botTokenConfigured && snapshot.allowedChatIdsCount > 0 ? (

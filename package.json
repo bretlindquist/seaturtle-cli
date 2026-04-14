@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic-ai/claude-code-source-build",
+  "name": "@seaturtle/ct-source-build",
   "private": true,
   "type": "module",
   "scripts": {

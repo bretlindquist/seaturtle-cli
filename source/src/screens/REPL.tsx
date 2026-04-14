@@ -1627,6 +1627,7 @@ export function REPL({
     inputValue,
     setInputValue,
     setInputMode,
+    pastedContents,
     setPastedContents,
     isMessageSelectorVisible,
     showBashesDialog: Boolean(showBashesDialog),

@@ -15,7 +15,6 @@ import type {
 } from '../types/textInputTypes.js'
 import type { PastedContent } from './config.js'
 import { extractTextContent } from './messages.js'
-import { objectGroupBy } from './objectGroupBy.js'
 import { recordQueueOperation } from './sessionStorage.js'
 import { createSignal } from './signal.js'
 
@@ -418,67 +417,55 @@ export type PopAllEditableResult = {
   images: PastedContent[]
 }
 
+export type PopNextEditableResult = PopAllEditableResult
+
 /**
- * Pop all editable commands and combine them with current input for editing.
- * Notification modes (task-notification) are left in the queue
- * to be auto-processed later.
+ * Pop the next editable command and combine it with current input for editing.
+ * Notification modes (task-notification) are left in the queue to be
+ * auto-processed later.
  * Returns object with combined text, cursor offset, and images to restore.
- * Returns undefined if no editable commands in queue.
+ * Returns undefined if no editable commands are in the queue.
  */
-export function popAllEditable(
+export function popNextEditable(
   currentInput: string,
   currentCursorOffset: number,
-): PopAllEditableResult | undefined {
+): PopNextEditableResult | undefined {
   if (commandQueue.length === 0) {
     return undefined
   }
 
-  const { editable = [], nonEditable = [] } = objectGroupBy(
-    [...commandQueue],
-    cmd => (isQueuedCommandEditable(cmd) ? 'editable' : 'nonEditable'),
-  )
-
-  if (editable.length === 0) {
+  const editableIndex = commandQueue.findIndex(isQueuedCommandEditable)
+  if (editableIndex === -1) {
     return undefined
   }
 
-  // Extract text from queued commands (handles both strings and ContentBlockParam[])
-  const queuedTexts = editable.map(cmd => extractTextFromValue(cmd.value))
-  const newInput = [...queuedTexts, currentInput].filter(Boolean).join('\n')
+  const [editable] = commandQueue.splice(editableIndex, 1)
+  notifySubscribers()
 
-  // Calculate cursor offset: length of joined queued commands + 1 + current cursor offset
-  const cursorOffset = queuedTexts.join('\n').length + 1 + currentCursorOffset
+  const queuedText = extractTextFromValue(editable!.value)
+  const newInput = [queuedText, currentInput].filter(Boolean).join('\n')
+  const cursorOffset =
+    currentInput.length > 0
+      ? queuedText.length + 1 + currentCursorOffset
+      : queuedText.length
 
-  // Extract images from queued commands
   const images: PastedContent[] = []
-  let nextImageId = Date.now() // Use timestamp as base for unique IDs
-  for (const cmd of editable) {
-    // handlePromptSubmit queues images in pastedContents (value is a string).
-    // Preserve the original PastedContent id so imageStore lookups still work.
-    if (cmd.pastedContents) {
-      for (const content of Object.values(cmd.pastedContents)) {
-        if (content.type === 'image') {
-          images.push(content)
-        }
+
+  if (editable!.pastedContents) {
+    for (const content of Object.values(editable!.pastedContents)) {
+      if (content.type === 'image') {
+        images.push(content)
       }
     }
-    // Bridge/remote commands may embed images directly in ContentBlockParam[].
-    const cmdImages = extractImagesFromValue(cmd.value, nextImageId)
-    images.push(...cmdImages)
-    nextImageId += cmdImages.length
   }
 
-  for (const command of editable) {
-    logOperation(
-      'popAll',
-      typeof command.value === 'string' ? command.value : undefined,
-    )
-  }
+  const nextImageId = Date.now()
+  images.push(...extractImagesFromValue(editable!.value, nextImageId))
 
-  // Replace queue contents with only the non-editable commands
-  commandQueue.length = 0
-  commandQueue.push(...nonEditable)
-  notifySubscribers()
+  logOperation(
+    'popAll',
+    typeof editable!.value === 'string' ? editable!.value : undefined,
+  )
 
   return { text: newInput, cursorOffset, images }
 }

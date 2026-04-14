@@ -346,6 +346,54 @@ export function Config({
         enabled
       });
     }
+  }, {
+    id: 'simulateAntRuntime',
+    label: 'Dev: simulate ant runtime gates',
+    value: globalConfig.devRuntimeOverrides?.simulateAntRuntime ?? false,
+    type: 'boolean' as const,
+    onChange(simulateAntRuntime: boolean) {
+      const currentConfig = getGlobalConfig();
+      const nextOverrides = {
+        ...currentConfig.devRuntimeOverrides,
+        simulateAntRuntime
+      };
+      saveGlobalConfig(current_5a => ({
+        ...current_5a,
+        devRuntimeOverrides: nextOverrides
+      }));
+      setGlobalConfig({
+        ...currentConfig,
+        devRuntimeOverrides: nextOverrides
+      });
+      logEvent('tengu_config_changed', {
+        setting: 'simulateAntRuntime' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: String(simulateAntRuntime) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      });
+    }
+  }, {
+    id: 'forceChicagoGate',
+    label: 'Dev: force Chicago gate',
+    value: globalConfig.devRuntimeOverrides?.forceChicagoGate ?? false,
+    type: 'boolean' as const,
+    onChange(forceChicagoGate: boolean) {
+      const currentConfig = getGlobalConfig();
+      const nextOverrides = {
+        ...currentConfig.devRuntimeOverrides,
+        forceChicagoGate
+      };
+      saveGlobalConfig(current_5b => ({
+        ...current_5b,
+        devRuntimeOverrides: nextOverrides
+      }));
+      setGlobalConfig({
+        ...currentConfig,
+        devRuntimeOverrides: nextOverrides
+      });
+      logEvent('tengu_config_changed', {
+        setting: 'forceChicagoGate' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: String(forceChicagoGate) as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      });
+    }
   },
   // Fast mode toggle (ant-only, eliminated from external builds)
   ...(isFastModeEnabled() && isFastModeAvailable() ? [{

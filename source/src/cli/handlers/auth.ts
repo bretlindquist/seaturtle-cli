@@ -21,6 +21,7 @@ import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProf
 import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
+import { getConfiguredOpenAiVectorStoreIds } from '../../services/api/openaiCapabilityConfig.js'
 import { getOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodexTelemetry.js'
 import {
   clearOAuthTokenCache,
@@ -368,6 +369,32 @@ export async function authStatus(opts: {
       output.apiKeySource = resolvedApiKeySource
     }
     if (runtimeSnapshot.execution.family === 'openai') {
+      const vectorStoreIds = getConfiguredOpenAiVectorStoreIds()
+      output.openAiCodexCapabilities = {
+        localToolSearch: runtimeSnapshot.supportsLocalToolSearch,
+        localSkills: runtimeSnapshot.supportsLocalSkills,
+        localComputerUse: runtimeSnapshot.supportsLocalComputerUse,
+        localMcpTools: runtimeSnapshot.supportsLocalMcpTools,
+        teams: runtimeSnapshot.supportsAgentTeams,
+        webSearch: runtimeSnapshot.supportsWebSearch,
+        fileSearch: runtimeSnapshot.supportsHostedFileSearch,
+        computerUse: runtimeSnapshot.supportsComputerUse,
+        hostedShell: runtimeSnapshot.supportsHostedShell,
+        imageGeneration: runtimeSnapshot.supportsImageGeneration,
+        remoteMcp: runtimeSnapshot.supportsRemoteMcp,
+        builtInTools: runtimeSnapshot.supportsOpenAiBuiltInTools,
+      }
+      output.openAiCodexCapabilityConfig = {
+        hostedFileSearchConfigured: runtimeSnapshot.hostedFileSearchConfigured,
+        hostedFileSearchRouted: runtimeSnapshot.supportsHostedFileSearch,
+        ...(vectorStoreIds.length > 0
+          ? { hostedFileSearchVectorStoreIds: vectorStoreIds }
+          : {}),
+      }
+      output.openAiCodexModelCapabilities =
+        runtimeSnapshot.documentedOpenAiModelCapabilities
+      output.openAiCodexRoutedModelCapabilities =
+        runtimeSnapshot.routedOpenAiModelCapabilities
       output.openAiCodexKnownGates = [
         'auto_mode_classifier',
         'permission_explainer',

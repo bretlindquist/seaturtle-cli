@@ -18,7 +18,17 @@ export async function getSessionEnvDirPath(): Promise<string> {
     'session-env',
     getSessionId(),
   )
-  await mkdir(sessionEnvDir, { recursive: true })
+  try {
+    await mkdir(sessionEnvDir, { recursive: true })
+  } catch (e: unknown) {
+    const code = getErrnoCode(e)
+    if (code !== 'EACCES' && code !== 'EPERM') {
+      throw e
+    }
+    logForDebugging(
+      `Session environment directory unavailable: ${errorMessage(e)}`,
+    )
+  }
   return sessionEnvDir
 }
 

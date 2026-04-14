@@ -860,6 +860,17 @@ class Project {
     })
   }
 
+  async flushBufferedWritesOnly(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
+    if (this.activeDrain) {
+      await this.activeDrain
+    }
+    await this.drainWriteQueue()
+  }
+
   /**
    * Remove a message from the transcript by UUID.
    * Used for tombstoning orphaned messages from failed streaming attempts.
@@ -1506,6 +1517,11 @@ export async function resetSessionFilePointer() {
   getProject().resetSessionFile()
 }
 
+export function activateSessionForPersistence(sessionId: UUID): void {
+  switchSession(asSessionId(sessionId))
+  getProject().resetSessionFile()
+}
+
 /**
  * Adopt the existing session file after --continue/--resume (non-fork).
  * Call after switchSession + resetSessionFilePointer + restoreSessionMetadata:
@@ -1582,6 +1598,78 @@ export async function recordContextCollapseSnapshot(snapshot: {
 
 export async function flushSessionStorage(): Promise<void> {
   await getProject().flush()
+}
+
+export async function flushBufferedSessionStorageWrites(): Promise<void> {
+  await getProject().flushBufferedWritesOnly()
+}
+
+export async function mirrorCurrentSessionToAliasSession(
+  targetSessionId: UUID,
+): Promise<void> {
+  const sourceSessionId = getSessionId() as UUID
+  const targetPath = getTranscriptPathForSession(targetSessionId)
+  if (!sourceSessionId || sourceSessionId === targetSessionId) {
+    return
+  }
+
+  await getProject().flushBufferedWritesOnly()
+
+  let sourcePath = getTranscriptPath()
+
+  try {
+    await stat(sourcePath)
+  } catch {
+    const projectDir = getProjectDir(getOriginalCwd())
+    try {
+      const candidates = await readdir(projectDir)
+      const newest = (
+        await Promise.all(
+          candidates
+            .filter(name => name.endsWith('.jsonl'))
+            .map(async name => {
+              const filePath = join(projectDir, name)
+              const info = await stat(filePath)
+              return { filePath, mtimeMs: info.mtimeMs }
+            }),
+        )
+      )
+        .sort((left, right) => right.mtimeMs - left.mtimeMs)
+        .find(candidate => candidate.filePath !== targetPath)
+
+      if (newest) {
+        sourcePath = newest.filePath
+      } else {
+        return
+      }
+    } catch (error) {
+      logForDebugging(
+        `Failed to locate fallback transcript for alias ${targetSessionId}: ${String(error)}`,
+        { level: 'warn' },
+      )
+      return
+    }
+  }
+
+  try {
+    const content = await readFile(sourcePath, 'utf8')
+    if (!content.trim()) {
+      return
+    }
+
+    const rewritten = content.replaceAll(
+      `"sessionId":"${sourceSessionId}"`,
+      `"sessionId":"${targetSessionId}"`,
+    )
+
+    await mkdir(dirname(targetPath), { recursive: true, mode: 0o700 })
+    await writeFile(targetPath, rewritten, { encoding: 'utf8', mode: 0o600 })
+  } catch (error) {
+    logForDebugging(
+      `Failed to mirror session ${sourceSessionId} to alias ${targetSessionId}: ${String(error)}`,
+      { level: 'warn' },
+    )
+  }
 }
 
 export async function hydrateRemoteSession(

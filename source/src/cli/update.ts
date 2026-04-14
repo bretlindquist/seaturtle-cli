@@ -25,8 +25,48 @@ import {
 } from 'src/utils/nativeInstaller/index.js'
 import { getPackageManager } from 'src/utils/nativeInstaller/packageManagers.js'
 import { writeToStdout } from 'src/utils/process.js'
+import {
+  fetchRemoteChangelog,
+  getRecentReleaseNotes,
+} from 'src/utils/releaseNotes.js'
 import { gte } from 'src/utils/semver.js'
 import { getInitialSettings } from 'src/utils/settings/settings.js'
+
+function printUpdateReleaseNotes(
+  previousVersion: string,
+  nextVersion: string,
+  changelogContent: string,
+) {
+  const releaseNotes = getRecentReleaseNotes(
+    nextVersion,
+    previousVersion,
+    changelogContent,
+  ).slice(0, 5)
+
+  if (releaseNotes.length === 0) {
+    return
+  }
+
+  writeToStdout('\n')
+  writeToStdout(chalk.bold(`What's new in ${nextVersion}\n`))
+  for (const note of releaseNotes) {
+    writeToStdout(`  • ${note}\n`)
+  }
+}
+
+async function tryPrintUpdateReleaseNotes(
+  previousVersion: string,
+  nextVersion: string,
+) {
+  try {
+    const changelogContent = await fetchRemoteChangelog()
+    printUpdateReleaseNotes(previousVersion, nextVersion, changelogContent)
+  } catch (error) {
+    logForDebugging(
+      `update: Failed to fetch release notes for ${nextVersion}: ${String(error)}`,
+    )
+  }
+}
 
 export async function update() {
   logEvent('tengu_update_check', {})
@@ -247,6 +287,7 @@ export async function update() {
             `Successfully updated from ${MACRO.VERSION} to version ${result.latestVersion}`,
           ) + '\n',
         )
+        await tryPrintUpdateReleaseNotes(MACRO.VERSION, result.latestVersion)
         await regenerateCompletionCache()
       }
       await gracefulShutdown(0)
@@ -284,7 +325,7 @@ export async function update() {
     process.stderr.write('  • Network connectivity issues\n')
     process.stderr.write('  • npm registry is unreachable\n')
     process.stderr.write('  • Corporate proxy/firewall blocking npm\n')
-    if (MACRO.PACKAGE_URL && !MACRO.PACKAGE_URL.startsWith('@anthropic')) {
+    if (MACRO.PACKAGE_URL && !MACRO.PACKAGE_URL.startsWith('@seaturtle/')) {
       process.stderr.write(
         '  • Internal/development build not published to npm\n',
       )
@@ -293,11 +334,7 @@ export async function update() {
     process.stderr.write('Try:\n')
     process.stderr.write('  • Check your internet connection\n')
     process.stderr.write('  • Run with --debug flag for more details\n')
-    const packageName =
-      MACRO.PACKAGE_URL ||
-      (process.env.USER_TYPE === 'ant'
-        ? '@anthropic-ai/claude-cli'
-        : '@anthropic-ai/claude-code')
+    const packageName = MACRO.PACKAGE_URL || '@seaturtle/ct'
     process.stderr.write(
       `  • Manually check: npm view ${packageName} version\n`,
     )
@@ -378,6 +415,7 @@ export async function update() {
           `Successfully updated from ${MACRO.VERSION} to version ${latestVersion}`,
         ) + '\n',
       )
+      await tryPrintUpdateReleaseNotes(MACRO.VERSION, latestVersion)
       await regenerateCompletionCache()
       break
     case 'no_permissions':
@@ -392,7 +430,7 @@ export async function update() {
       } else {
         process.stderr.write('Try running with sudo or fix npm permissions\n')
         process.stderr.write(
-          'Or consider using native installation with: claude install\n',
+          'Or consider using native installation with: ct install\n',
         )
       }
       await gracefulShutdown(1)
@@ -406,7 +444,7 @@ export async function update() {
         )
       } else {
         process.stderr.write(
-          'Or consider using native installation with: claude install\n',
+          'Or consider using native installation with: ct install\n',
         )
       }
       await gracefulShutdown(1)

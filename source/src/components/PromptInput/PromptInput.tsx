@@ -10,7 +10,7 @@ import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEve
 import { type AppState, useAppState, useAppStateStore, useSetAppState } from 'src/state/AppState.js';
 import type { FooterItem } from 'src/state/AppStateStore.js';
 import { getCwd } from 'src/utils/cwd.js';
-import { enqueue, isQueuedCommandEditable, popAllEditable } from 'src/utils/messageQueueManager.js';
+import { enqueue, isQueuedCommandEditable, popNextEditable } from 'src/utils/messageQueueManager.js';
 import stripAnsi from 'strip-ansi';
 import { companionReservedColumns } from '../../buddy/CompanionSprite.js';
 import { findBuddyTriggerPositions, useBuddyNotification } from '../../buddy/useBuddyNotification.js';
@@ -941,8 +941,10 @@ function PromptInput({
 
     // If there's an editable queued command, move it to the input for editing when UP is pressed
     const hasEditableCommand = queuedCommands.some(isQueuedCommandEditable);
-    if (hasEditableCommand) {
-      void popAllCommandsFromQueue();
+    const hasDraftInput =
+      input.length > 0 || Object.keys(pastedContents).length > 0;
+    if (hasEditableCommand && !hasDraftInput) {
+      void popNextCommandFromQueue();
       return;
     }
     onHistoryUp();
@@ -1260,8 +1262,8 @@ function PromptInput({
   const doublePressEscFromEmpty = useDoublePress(() => {}, () => onShowMessageSelector());
 
   // Function to get the queued command for editing. Returns true if commands were popped.
-  const popAllCommandsFromQueue = useCallback((): boolean => {
-    const result = popAllEditable(input, cursorOffset);
+  const popNextCommandFromQueue = useCallback((): boolean => {
+    const result = popNextEditable(input, cursorOffset);
     if (!result) {
       return false;
     }
@@ -1955,8 +1957,10 @@ function PromptInput({
 
       // If there's an editable queued command, move it to the input for editing when ESC is pressed
       const hasEditableCommand = queuedCommands.some(isQueuedCommandEditable);
-      if (hasEditableCommand) {
-        void popAllCommandsFromQueue();
+      const hasDraftInput =
+        input.length > 0 || Object.keys(pastedContents).length > 0;
+      if (hasEditableCommand && !hasDraftInput) {
+        void popNextCommandFromQueue();
         return;
       }
       if (messages.length > 0 && !input && !isLoading) {

@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { feature } from 'bun:bundle';
 import { logForDebugging } from '../../utils/debug.js';
 import { createAgentsKilledMessage } from '../../utils/messages.js';
+import type { PastedContent } from '../../utils/config.js';
 import { cancelActiveReplRequest } from './cancelActiveReplRequest.js';
 import { restoreQueuedCancelInput } from './restoreQueuedCancelInput.js';
 
@@ -26,6 +27,7 @@ export function useReplCancelController({
   inputValue,
   setInputValue,
   setInputMode,
+  pastedContents,
   setPastedContents,
   isMessageSelectorVisible,
   showBashesDialog,
@@ -56,6 +58,7 @@ export function useReplCancelController({
   inputValue: string;
   setInputValue: (value: string) => void;
   setInputMode: (value: any) => void;
+  pastedContents: Record<number, PastedContent>;
   setPastedContents: (value: any) => void;
   isMessageSelectorVisible: boolean;
   showBashesDialog: boolean;
@@ -119,6 +122,12 @@ export function useReplCancelController({
     });
   }, [inputValue, setInputMode, setInputValue, setPastedContents]);
 
+  const handleClearDraft = useCallback(() => {
+    setInputValue('');
+    setInputMode('prompt');
+    setPastedContents({});
+  }, [setInputMode, setInputValue, setPastedContents]);
+
   const cancelRequestProps = useMemo(
     () => ({
       setToolUseConfirmQueue,
@@ -134,11 +143,15 @@ export function useReplCancelController({
       isHelpOpen,
       inputMode,
       inputValue,
+      hasDraftInput:
+        inputValue.length > 0 || Object.keys(pastedContents).length > 0,
+      onClearDraft: handleClearDraft,
       streamMode,
     }),
     [
       abortController,
       handleQueuedCommandOnCancel,
+      handleClearDraft,
       inputMode,
       inputValue,
       isHelpOpen,
@@ -147,6 +160,7 @@ export function useReplCancelController({
       onCancel,
       screen,
       setMessages,
+      pastedContents,
       setToolUseConfirmQueue,
       showBashesDialog,
       streamMode,

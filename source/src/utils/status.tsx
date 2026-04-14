@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Box, color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
+import { getConfiguredOpenAiVectorStoreIds } from '../services/api/openaiCapabilityConfig.js';
 import {
   getOpenAiCodexSessionTelemetry,
   type OpenAiCodexUsageWindow,
@@ -35,6 +36,7 @@ import { calculateContextPercentages, getContextWindowForModel } from './context
 import { getCurrentUsage } from './tokens.js';
 import { formatResetTime } from './format.js';
 import { ProgressBar } from '../components/design-system/ProgressBar.js';
+import { getChicagoAvailabilitySnapshot, getChicagoEnablementSummary } from './computerUse/gates.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
@@ -485,6 +487,51 @@ export function buildAPIProviderProperties(): Property[] {
     });
   }
   if (runtimeSnapshot.execution.family === 'openai') {
+    const vectorStoreIds = getConfiguredOpenAiVectorStoreIds();
+    const chicagoAvailability = getChicagoAvailabilitySnapshot();
+    const capabilityLabels = [];
+    if (runtimeSnapshot.supportsLocalToolSearch) capabilityLabels.push('ToolSearch');
+    if (runtimeSnapshot.supportsLocalSkills) capabilityLabels.push('skills');
+    if (runtimeSnapshot.supportsLocalComputerUse) capabilityLabels.push('local computer use');
+    if (runtimeSnapshot.supportsLocalMcpTools) capabilityLabels.push('local MCP tools');
+    if (runtimeSnapshot.supportsAgentTeams) capabilityLabels.push('teams');
+    if (runtimeSnapshot.supportsWebSearch) capabilityLabels.push('web search');
+    if (runtimeSnapshot.supportsHostedFileSearch) capabilityLabels.push('file search');
+    if (runtimeSnapshot.supportsComputerUse) capabilityLabels.push('computer use');
+    if (runtimeSnapshot.supportsHostedShell) capabilityLabels.push('hosted shell');
+    if (runtimeSnapshot.supportsImageGeneration) capabilityLabels.push('image generation');
+    if (runtimeSnapshot.supportsRemoteMcp) capabilityLabels.push('remote MCP');
+    if (runtimeSnapshot.supportsOpenAiBuiltInTools) capabilityLabels.push('built-in tools');
+    properties.push({
+      label: 'OpenAI/Codex runtime',
+      value: capabilityLabels.length > 0 ? capabilityLabels.join(' · ') : 'Auth required'
+    });
+    properties.push({
+      label: 'OpenAI computer use',
+      value: runtimeSnapshot.supportsComputerUse
+        ? 'Available via ComputerUse tool'
+        : `${getChicagoEnablementSummary()}${chicagoAvailability.available && !runtimeSnapshot.supportsComputerUse ? ' · OpenAI runtime/auth required' : ''}`
+    });
+    properties.push({
+      label: 'OpenAI model tools',
+      value: runtimeSnapshot.documentedOpenAiModelCapabilities.length > 0
+        ? runtimeSnapshot.documentedOpenAiModelCapabilities
+        : 'No documented tool support loaded'
+    });
+    properties.push({
+      label: 'OpenAI routed tools',
+      value: runtimeSnapshot.routedOpenAiModelCapabilities.length > 0
+        ? runtimeSnapshot.routedOpenAiModelCapabilities
+        : 'No provider-hosted OpenAI tool routing enabled'
+    });
+    properties.push({
+      label: 'OpenAI file search',
+      value: runtimeSnapshot.supportsHostedFileSearch
+        ? `Routed (${vectorStoreIds.length} vector store${vectorStoreIds.length === 1 ? '' : 's'})`
+        : runtimeSnapshot.hostedFileSearchConfigured
+          ? `Configured (${vectorStoreIds.length} vector store${vectorStoreIds.length === 1 ? '' : 's'}), runtime path pending`
+          : 'Not configured'
+    });
     properties.push({
       label: 'OpenAI/Codex gates',
       value: ['auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']

@@ -24,11 +24,28 @@ export function useTranscriptSearchController({
 }: UseTranscriptSearchControllerInput) {
   const transcriptCols = useTerminalSize().columns;
   const prevColsRef = useRef(transcriptCols);
-  const refreshAfterLayout = () => {
-    setTimeout(() => {
+  const prevSearchOpenRef = useRef(searchOpen);
+
+  useEffect(() => {
+    const wasOpen = prevSearchOpenRef.current;
+    prevSearchOpenRef.current = searchOpen;
+
+    if (!wasOpen || searchOpen || !searchQuery) {
+      return;
+    }
+
+    const firstPass = setTimeout(() => {
       jumpRef.current?.refreshCurrentMatch();
     }, 0);
-  };
+    const secondPass = setTimeout(() => {
+      jumpRef.current?.refreshCurrentMatch();
+    }, 16);
+
+    return () => {
+      clearTimeout(firstPass);
+      clearTimeout(secondPass);
+    };
+  }, [jumpRef, searchOpen, searchQuery]);
 
   useEffect(() => {
     if (prevColsRef.current !== transcriptCols) {
@@ -50,14 +67,12 @@ export function useTranscriptSearchController({
       jumpRef.current?.setSearchQuery('');
       return;
     }
-    refreshAfterLayout();
   };
 
   const handleCancelSearchBar = () => {
     closeSearch();
     jumpRef.current?.setSearchQuery('');
     jumpRef.current?.setSearchQuery(searchQuery);
-    refreshAfterLayout();
   };
 
   return {

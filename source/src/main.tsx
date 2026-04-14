@@ -2839,6 +2839,7 @@ async function run(): Promise<CommanderCommand> {
       void runHeadless(inputPrompt, () => headlessStore.getState(), headlessStore.setState, commandsHeadless, tools, sdkMcpConfigs, agentDefinitions.activeAgents, {
         continue: options.continue,
         resume: options.resume,
+        sessionId,
         verbose: verbose,
         outputFormat: outputFormat,
         jsonSchema,

@@ -204,13 +204,15 @@ import {
   setInitJsonSchema,
   getInitJsonSchema,
   setSdkAgentProgressSummariesEnabled,
-} from 'src/bootstrap/state.js'
+} from '../bootstrap/state.js'
 import { createSyntheticOutputTool } from 'src/tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
 import {
   hydrateRemoteSession,
   hydrateFromCCRv2InternalEvents,
   resetSessionFilePointer,
+  activateSessionForPersistence,
+  mirrorCurrentSessionToAliasSession,
   doesMessageExistInSession,
   findUnresolvedToolUse,
   recordAttributionSnapshot,
@@ -218,7 +220,7 @@ import {
   saveMode,
   saveAiGeneratedTitle,
   restoreSessionMetadata,
-} from 'src/utils/sessionStorage.js'
+} from '../utils/sessionStorage.js'
 import { incrementPromptCount } from 'src/utils/commitAttribution.js'
 import {
   setupSdkMcpClients,
@@ -298,7 +300,7 @@ import {
   getAllowedChannels,
   setAllowedChannels,
   type ChannelEntry,
-} from 'src/bootstrap/state.js'
+} from '../bootstrap/state.js'
 import { runWithWorkload, WORKLOAD_CRON } from 'src/utils/workloadContext.js'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
@@ -472,6 +474,7 @@ export async function runHeadless(
   options: {
     continue: boolean | undefined
     resume: string | boolean | undefined
+    sessionId?: string | undefined
     resumeSessionAt: string | undefined
     verbose: boolean | undefined
     outputFormat: string | undefined
@@ -509,6 +512,10 @@ export async function runHeadless(
     )
     // eslint-disable-next-line custom-rules/no-process-exit
     process.exit(0)
+  }
+
+  if (options.sessionId) {
+    activateSessionForPersistence(options.sessionId as UUID)
   }
 
   // Fire user settings download now so it overlaps with the MCP/tool setup
@@ -975,6 +982,10 @@ export async function runHeadless(
   // tengu_slate_thimble flag controls non-interactive extraction end-to-end.
   if (feature('EXTRACT_MEMORIES') && isExtractModeActive()) {
     await extractMemoriesModule!.drainPendingExtraction()
+  }
+
+  if (options.sessionId) {
+    await mirrorCurrentSessionToAliasSession(options.sessionId as UUID)
   }
 
   gracefulShutdownSync(
@@ -5048,7 +5059,7 @@ async function loadInitialMessages(
       )
       if (!parsedSessionId) {
         let errorMessage =
-          'Error: --resume requires a valid session ID when used with --print. Usage: claude -p --resume <session-id>'
+          'Error: --resume requires a valid session ID when used with --print. Usage: ct -p --resume <session-id>'
         if (typeof options.resume === 'string') {
           errorMessage += `. Session IDs must be in UUID format (e.g., 550e8400-e29b-41d4-a716-446655440000). Provided value "${options.resume}" is not a valid UUID`
         }

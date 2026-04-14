@@ -47,6 +47,18 @@ class EgressBlockedError extends Error {
   }
 }
 
+class SiteForbiddenError extends Error {
+  constructor(
+    public readonly domain: string,
+    public readonly url: string,
+  ) {
+    super(
+      `The target site returned 403 Forbidden for ${url}. ${domain} appears to block automated fetches from CT. Try Web Search for public information, use a browser/MCP path, or fetch a different URL that allows agent access.`,
+    )
+    this.name = 'SiteForbiddenError'
+  }
+}
+
 // Cache for storing fetched URL content
 type CacheEntry = {
   bytes: number
@@ -322,6 +334,11 @@ export async function getWithPermittedRedirects(
     ) {
       const hostname = new URL(url).hostname
       throw new EgressBlockedError(hostname)
+    }
+
+    if (axios.isAxiosError(error) && error.response?.status === 403) {
+      const hostname = new URL(url).hostname
+      throw new SiteForbiddenError(hostname, url)
     }
 
     throw error

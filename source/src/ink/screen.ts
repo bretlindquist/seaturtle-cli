@@ -89,24 +89,25 @@ const BOLD_CODE: AnsiCode = {
   code: '\x1b[1m',
   endCode: '\x1b[22m',
 }
-// Underline (SGR 4). Kept alongside yellow+bold — the underline is the
-// unambiguous visible-on-any-theme marker. Yellow-bg-via-inverse can
-// clash with existing bg colors (user-prompt style, tool chrome, syntax
-// bg). If you see underline but no yellow, the yellow is being lost in
-// the existing cell styling — the overlay IS finding the match.
+// Underline (SGR 4). Kept alongside the sea-green current-match bg so the
+// active hit remains unambiguous even when the terminal theme reduces
+// perceived bg contrast.
 const UNDERLINE_CODE: AnsiCode = {
   type: 'ansi',
   code: '\x1b[4m',
   endCode: '\x1b[24m',
 }
-// fg→yellow (SGR 33). With inverse already in the stack, the terminal
-// swaps fg↔bg at render — so yellow-fg becomes yellow-BG. Original bg
-// becomes fg (readable on most themes: dark-bg → dark-text on yellow).
-// endCode 39 is 'default fg' — cancels any prior fg color cleanly.
-const YELLOW_FG_CODE: AnsiCode = {
+// Explicit black fg on top of a light sea-green current match.
+const BLACK_FG_CODE: AnsiCode = {
   type: 'ansi',
-  code: '\x1b[33m',
+  code: '\x1b[30m',
   endCode: '\x1b[39m',
+}
+// Light sea-green bg for the active transcript-search match.
+const SEA_GREEN_BG_CODE: AnsiCode = {
+  type: 'ansi',
+  code: '\x1b[48;2;111;211;197m',
+  endCode: '\x1b[49m',
 }
 
 export class StylePool {
@@ -179,38 +180,25 @@ export class StylePool {
     return id
   }
 
-  /** Inverse + bold + yellow-bg-via-fg-swap for the CURRENT search match.
-   *  OTHER matches are plain inverse — bg inherits from the theme. Current
-   *  gets a distinct yellow bg (via fg-then-inverse swap) plus bold weight
-   *  so it stands out in a sea of inverse. Underline was too subtle. Zero
-   *  reflow risk: all pure SGR overlays, per-cell, post-layout. The yellow
-   *  overrides any existing fg (syntax highlighting) on those cells — fine,
-   *  the "you are here" signal IS the point, syntax color can yield. */
+  /** Bold + underline + explicit sea-green bg for the CURRENT search match.
+   *  OTHER matches are still plain inverse. Current gets a distinct fixed bg
+   *  color so it does not collapse into the generic search layer. */
   private currentMatchCache = new Map<number, number>()
   withCurrentMatch(baseId: number): number {
     let id = this.currentMatchCache.get(baseId)
     if (id === undefined) {
       const baseCodes = this.get(baseId)
-      // Filter BOTH fg + bg so yellow-via-inverse is unambiguous.
-      // User-prompt cells have an explicit bg (grey box); with that bg
-      // still set, inverse swaps yellow-fg↔grey-bg → grey-on-yellow on
-      // SOME terminals, yellow-on-grey on others (inverse semantics vary
-      // when both colors are explicit). Filtering both gives clean
-      // yellow-bg + terminal-default-fg everywhere. Bold/dim/italic
-      // coexist — keep those.
+      // Replace any existing fg/bg/inverse so the active match reads as one
+      // consistent sea-green block regardless of syntax/background styling.
       const codes = baseCodes.filter(
-        c => c.endCode !== '\x1b[39m' && c.endCode !== '\x1b[49m',
+        c =>
+          c.endCode !== '\x1b[39m' &&
+          c.endCode !== '\x1b[49m' &&
+          c.endCode !== '\x1b[27m',
       )
-      // fg-yellow FIRST so inverse swaps it to bg. Bold after inverse is
-      // fine — SGR 1 is fg-attribute-only, order-independent vs 7.
-      codes.push(YELLOW_FG_CODE)
-      if (!baseCodes.some(c => c.endCode === '\x1b[27m'))
-        codes.push(INVERSE_CODE)
+      codes.push(BLACK_FG_CODE)
+      codes.push(SEA_GREEN_BG_CODE)
       if (!baseCodes.some(c => c.endCode === '\x1b[22m')) codes.push(BOLD_CODE)
-      // Underline as the unambiguous marker — yellow-bg can clash with
-      // existing bg styling (user-prompt bg, syntax bg). If you see
-      // underline but no yellow on a match, the overlay IS finding it;
-      // the yellow is just losing a styling fight.
       if (!baseCodes.some(c => c.endCode === '\x1b[24m'))
         codes.push(UNDERLINE_CODE)
       id = this.intern(codes)

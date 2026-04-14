@@ -23,16 +23,16 @@ const MAX_RELEASE_NOTES_SHOWN = 5
  * The flow is:
  * 1. User updates to a new version
  * 2. We fetch the changelog in the background and store it in config
- * 3. Next time the user starts Claude, the cached changelog is available immediately
+ * 3. Next time the user starts CT, the cached changelog is available immediately
  */
 export const CHANGELOG_URL =
-  'https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md'
+  'https://github.com/bretlindquist/seaturtle-cli/blob/master/CHANGELOG.md'
 const RAW_CHANGELOG_URL =
-  'https://raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md'
+  'https://raw.githubusercontent.com/bretlindquist/seaturtle-cli/refs/heads/master/CHANGELOG.md'
 
 /**
  * Get the path for the cached changelog file.
- * The changelog is stored at ~/.claude/cache/changelog.md
+ * The changelog is stored in the CT config home cache directory.
  */
 function getChangelogCachePath(): string {
   return join(getClaudeConfigHomeDir(), 'cache', 'changelog.md')
@@ -90,9 +90,8 @@ export async function fetchAndStoreChangelog(): Promise<void> {
     return
   }
 
-  const response = await axios.get(RAW_CHANGELOG_URL)
-  if (response.status === 200) {
-    const changelogContent = response.data
+  const changelogContent = await fetchRemoteChangelog()
+  if (changelogContent) {
 
     // Skip write if content unchanged — writing Date.now() defeats the
     // dirty-check in saveGlobalConfig since the timestamp always differs.
@@ -116,6 +115,11 @@ export async function fetchAndStoreChangelog(): Promise<void> {
       changelogLastFetched,
     }))
   }
+}
+
+export async function fetchRemoteChangelog(): Promise<string> {
+  const response = await axios.get(RAW_CHANGELOG_URL)
+  return response.status === 200 ? String(response.data) : ''
 }
 
 /**

@@ -222,6 +222,9 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   }
 
   if (screen.state === 'openai-options') {
+    const hasCtStoredAuth = openAiReadiness.hasAnyProfile
+    const hasCodexCliAuth = openAiReadiness.externalSources.includes('codex-cli')
+
     return (
       <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
         <Text bold>OpenAI Codex OAuth</Text>
@@ -232,19 +235,22 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
               {
                 label: (
                   <Text>
-                    Use existing OpenAI/Codex auth ·{' '}
-                    <Text dimColor>
-                      {openAiReadiness.hasAnyProfile
-                        ? 'Detected in CT secure storage'
-                        : openAiReadiness.externalSources.includes('codex-cli')
-                          ? 'Detected in ~/.codex/auth.json'
-                        : 'Not currently detected'}
-                    </Text>
+                    Use existing OpenAI/Codex auth · <Text dimColor>Detected in CT secure storage</Text>
                     {'\n'}
                   </Text>
                 ),
-                value: 'existing',
-                disabled: !openAiReadiness.ready,
+                value: 'existing-profile',
+                disabled: !hasCtStoredAuth,
+              },
+              {
+                label: (
+                  <Text>
+                    Use existing Codex OAuth · <Text dimColor>Detected in ~/.codex/auth.json</Text>
+                    {'\n'}
+                  </Text>
+                ),
+                value: 'existing-codex-cli',
+                disabled: !hasCodexCliAuth,
               },
               {
                 label: (
@@ -258,19 +264,33 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
               },
             ]}
             onChange={value => {
-              if (value === 'existing') {
+              if (value === 'existing-profile') {
                 void (async () => {
                   try {
                     logEvent('tengu_openai_codex_existing_selected', {})
-                    const readiness = getOpenAiCodexAuthReadiness()
-                    if (!readiness.hasAnyProfile && readiness.readyViaExternal) {
-                      const importResult = importExternalCodexCliAuthProfile()
-                      if (!importResult.success) {
-                        throw new Error(
-                          importResult.warning ??
-                            'CT found existing Codex CLI auth, but could not import it into native provider auth storage.',
-                        )
-                      }
+                    persistPreferredMainProvider('openai-codex')
+                    onDone()
+                  } catch (error) {
+                    logError(error)
+                    setScreen({
+                      state: 'openai-error',
+                      message: (error as Error).message,
+                    })
+                  }
+                })()
+                return
+              }
+
+              if (value === 'existing-codex-cli') {
+                void (async () => {
+                  try {
+                    logEvent('tengu_openai_codex_cli_auth_selected', {})
+                    const importResult = importExternalCodexCliAuthProfile()
+                    if (!importResult.success) {
+                      throw new Error(
+                        importResult.warning ??
+                          'CT found existing Codex CLI auth, but could not import it into native provider auth storage.',
+                      )
                     }
 
                     persistPreferredMainProvider('openai-codex')

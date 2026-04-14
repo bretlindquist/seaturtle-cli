@@ -54,6 +54,8 @@ type CancelRequestHandlerProps = {
   isHelpOpen?: boolean
   inputMode?: PromptInputMode
   inputValue?: string
+  hasDraftInput?: boolean
+  onClearDraft?: () => void
   streamMode?: SpinnerMode
 }
 
@@ -76,6 +78,8 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     isHelpOpen,
     inputMode,
     inputValue,
+    hasDraftInput,
+    onClearDraft,
     streamMode,
   } = props
   const store = useAppStateStore()
@@ -205,6 +209,10 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
       killAllAgentsAndNotify()
       exitTeammateView(setAppState)
     }
+    if (hasDraftInput && onClearDraft) {
+      onClearDraft()
+      return
+    }
     if (canCancelRunningTask || hasQueuedCommands) {
       handleCancel()
     }
@@ -212,6 +220,8 @@ export function CancelRequestHandler(props: CancelRequestHandlerProps): null {
     isViewingTeammate,
     killAllAgentsAndNotify,
     setAppState,
+    hasDraftInput,
+    onClearDraft,
     canCancelRunningTask,
     hasQueuedCommands,
     handleCancel,

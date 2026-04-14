@@ -514,6 +514,13 @@ export type GlobalConfig = {
   // Checked after env-var overrides but before the real resolved value.
   growthBookOverrides?: { [featureName: string]: unknown }
 
+  // Developer-only runtime overrides for local testing in SeaTurtle.
+  // These affect only explicit runtime seams that read them.
+  devRuntimeOverrides?: {
+    simulateAntRuntime?: boolean
+    forceChicagoGate?: boolean
+  }
+
   // Emergency tip tracking - stores the last shown tip to prevent re-showing
   lastShownEmergencyTip?: string
 

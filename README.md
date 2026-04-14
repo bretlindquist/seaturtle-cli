@@ -1,5 +1,9 @@
 # SeaTurtle CLI (CT)
 
+![SeaTurtle ANSI](./img/SeaTurtle%20-%20Ansi.png)
+
+![SeaTurtle CLI](./img/SeaTurtle-cli.png)
+
 SeaTurtle CLI, or `CT`, is a heavily modified source-build lineage project that
 started from Andrew Kramer-Inno's local coding runtime base. The goal is to
 preserve as much of the local feature surface as possible while porting the
@@ -13,6 +17,23 @@ project-local reminders, and a private project-local CT working layer.
 That private CT layer is no longer just a couple of theme files. It is a small
 relationship stack under `.ct/` that lets SeaTurtle carry a project-local soul,
 identity, role, user context, bootstrap ritual, and current session note.
+
+## OpenAI Runtime Surface
+
+SeaTurtle's OpenAI/Codex path is no longer a narrow compatibility shim. The
+current shipped runtime can route:
+
+- OpenAI web search
+- OpenAI hosted file search when `SEATURTLE_OPENAI_VECTOR_STORE_IDS` is configured
+- OpenAI hosted shell
+- OpenAI image generation
+- OpenAI computer use when the local Chicago runtime is enabled
+- SeaTurtle local MCP tools plus provider-hosted remote MCP for the safe subset
+
+Use `/status` for the live runtime truth in your current session.
+See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for the provider contract
+and [`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md) for the command/doc
+entrypoints.
 
 ## Core SeaTurtle Feature: Context Sanctity
 
@@ -80,6 +101,23 @@ present in the product but not always directly exposed as top-level commands.
 - local tool use on the OpenAI/Codex path
 - replay/resume on the OpenAI/Codex path
 - streamed text and tool-use event translation
+- attached image and PDF input on the OpenAI/Codex path
+- OpenAI web search routed through the Responses `web_search` tool
+- OpenAI hosted file search routed through the Responses `file_search` tool
+  when `SEATURTLE_OPENAI_VECTOR_STORE_IDS` is configured
+- OpenAI hosted shell routed through the hosted `shell` tool via the
+  `HostedShell` tool
+- OpenAI computer use routed through the hosted `computer` tool via the
+  `ComputerUse` tool when the Chicago local runtime is enabled
+- OpenAI image generation routed through the hosted `image_generation` tool
+  via the `ImageGeneration` tool
+- local `ToolSearch` and `Skill` support on the OpenAI/Codex path through the
+  normal SeaTurtle function-tool loop
+- local computer-use support on the OpenAI/Codex path when the Chicago MCP
+  runtime is enabled on supported systems
+- SeaTurtle-managed local MCP tools on the OpenAI/Codex path
+- OpenAI provider-hosted remote MCP for a safe subset of MCP servers:
+  plain `http` / `sse`, no custom headers, no `headersHelper`, no OAuth-managed config
 - strict OpenAI tool-schema coverage for `TodoWrite`
 - provider-aware `/login`, `/logout`, `/model`, `/effort`, `/status`
 - Telegram pairing and project binding from inside the app
@@ -97,6 +135,8 @@ present in the product but not always directly exposed as top-level commands.
 - Claude in Chrome lightning inference path
 - some remaining Anthropic-only helper/account surfaces
 - OpenAI/Codex GitHub Actions setup for OAuth-only installs
+- advanced provider-hosted remote MCP auth/config shapes still left on the local MCP path:
+  custom headers, `headersHelper`, and OAuth-managed MCP servers
 
 The goal is explicit capability truthfulness. If a surface is not production
 ready on OpenAI/Codex, the app should say so directly.
@@ -160,6 +200,11 @@ CT-owned runtime truth for:
 - collaboration mode
 - 5h limit
 - weekly limit
+- documented model capabilities versus runtime-routed capabilities
+- hosted file-search configuration state
+- local ToolSearch and Skill availability
+- local computer-use availability
+- local MCP versus provider-hosted remote MCP availability
 
 ### 4. Use the app
 
@@ -331,6 +376,7 @@ runtime.
 - CT-owned `/status` telemetry for context window, collaboration mode, and 5h/weekly usage windows
 - provider-aware model and effort selection
 - provider-neutral auto-mode critique
+- OpenAI hosted web search, file search, shell, and image generation where configured/routed
 
 ### What To Run
 
@@ -348,6 +394,10 @@ Useful OpenAI/Codex-specific fields in that JSON now include:
 - `openAiCodexCliFallbackReady`
 - `openAiCodexCollaborationMode`
 - `openAiCodexUsageTelemetry`
+- `openAiCodexCapabilities`
+- `openAiCodexCapabilityConfig`
+- `openAiCodexModelCapabilities`
+- `openAiCodexRoutedModelCapabilities`
 
 Quick smoke test:
 

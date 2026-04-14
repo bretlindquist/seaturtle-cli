@@ -1,3 +1,4 @@
+import { feature } from 'bun:bundle'
 import {
   queryModelWithStreaming,
   queryModelWithoutStreaming,
@@ -5,6 +6,8 @@ import {
 import {
   queryOpenAiCodexWithStreaming,
   queryOpenAiCodexWithoutStreaming,
+  getDocumentedOpenAiCodexModelCapabilities,
+  getRoutedOpenAiCodexModelCapabilities,
 } from './openaiCodex.js'
 import {
   getDefaultOpenAiCodexApiKeyProfile,
@@ -14,10 +17,18 @@ import {
 import { maybeAdoptExternalCodexCliAuthProfile } from '../authProfiles/openaiCodexOAuth.js'
 import { getResolvedOpenAiCodexAuth } from '../authProfiles/openaiCodexAuth.js'
 import {
+  isOpenAiHostedFileSearchConfigured,
+  isOpenAiRemoteMcpConfigured,
+} from './openaiCapabilityConfig.js'
+import {
   type APIProvider,
   getAPIProvider,
   shouldUseOpenAiCodexProvider,
 } from '../../utils/model/providers.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
+import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
+import { getPlatform } from '../../utils/platform.js'
+import { getChicagoEnabled } from '../../utils/computerUse/gates.js'
 
 export type MainLoopProviderRuntimeId =
   | 'anthropic-first-party'
@@ -38,6 +49,21 @@ export type MainLoopProviderRuntime = {
   wireApi: MainLoopProviderWireApi
   supportsProviderOwnedOAuth: boolean
   supportsOpenAiStyleModels: boolean
+  documentedOpenAiModelCapabilities: string[]
+  routedOpenAiModelCapabilities: string[]
+  supportsLocalToolSearch: boolean
+  supportsLocalSkills: boolean
+  supportsLocalComputerUse: boolean
+  supportsLocalMcpTools: boolean
+  supportsAgentTeams: boolean
+  supportsOpenAiBuiltInTools: boolean
+  supportsComputerUse: boolean
+  supportsHostedFileSearch: boolean
+  hostedFileSearchConfigured: boolean
+  supportsRemoteMcp: boolean
+  supportsWebSearch: boolean
+  supportsHostedShell: boolean
+  supportsImageGeneration: boolean
   authState: 'ready' | 'available-via-cli' | 'not-configured'
   authSource: string | null
   executionEnabled: boolean
@@ -61,6 +87,10 @@ function mapApiProviderToMainLoopRuntimeId(
 function buildAnthropicMainLoopRuntime(
   apiProvider: APIProvider,
 ): MainLoopProviderRuntime {
+  const supportsLocalComputerUse =
+    feature('CHICAGO_MCP') &&
+    getPlatform() === 'macos' &&
+    getChicagoEnabled()
   return {
     family: 'anthropic',
     provider: mapApiProviderToMainLoopRuntimeId(apiProvider),
@@ -76,6 +106,24 @@ function buildAnthropicMainLoopRuntime(
     wireApi: 'anthropic-messages',
     supportsProviderOwnedOAuth: apiProvider === 'firstParty',
     supportsOpenAiStyleModels: false,
+    documentedOpenAiModelCapabilities: [],
+    routedOpenAiModelCapabilities: [],
+    supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
+    supportsLocalSkills: true,
+    supportsLocalComputerUse,
+    supportsLocalMcpTools: true,
+    supportsAgentTeams: true,
+    supportsOpenAiBuiltInTools: false,
+    supportsComputerUse: false,
+    supportsHostedFileSearch: false,
+    hostedFileSearchConfigured: false,
+    supportsRemoteMcp: false,
+    supportsWebSearch:
+      apiProvider === 'firstParty' ||
+      apiProvider === 'vertex' ||
+      apiProvider === 'foundry',
+    supportsHostedShell: false,
+    supportsImageGeneration: false,
     authState: 'ready',
     authSource: apiProvider === 'firstParty' ? 'anthropic-auth' : apiProvider,
     executionEnabled: true,
@@ -85,6 +133,41 @@ function buildAnthropicMainLoopRuntime(
 function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
   maybeAdoptExternalCodexCliAuthProfile()
   const readiness = getOpenAiCodexAuthReadiness()
+  const routedModelCapabilities = getRoutedOpenAiCodexModelCapabilities(
+    getMainLoopModel(),
+  )
+  const documentedModelCapabilities = getDocumentedOpenAiCodexModelCapabilities(
+    getMainLoopModel(),
+  )
+  const hostedFileSearchConfigured = isOpenAiHostedFileSearchConfigured()
+  const remoteMcpConfigured = isOpenAiRemoteMcpConfigured()
+  const supportsLocalComputerUse =
+    feature('CHICAGO_MCP') &&
+    getPlatform() === 'macos' &&
+    getChicagoEnabled()
+  const supportsWebSearch =
+    readiness.ready && routedModelCapabilities.supportsWebSearch
+  const supportsHostedFileSearch =
+    readiness.ready &&
+    hostedFileSearchConfigured &&
+    routedModelCapabilities.supportsFileSearch
+  const supportsRemoteMcp =
+    readiness.ready && remoteMcpConfigured && routedModelCapabilities.supportsMcp
+  const supportsComputerUse =
+    readiness.ready &&
+    supportsLocalComputerUse &&
+    routedModelCapabilities.supportsComputerUse
+  const supportsHostedShell =
+    readiness.ready && routedModelCapabilities.supportsHostedShell
+  const supportsImageGeneration =
+    readiness.ready && routedModelCapabilities.supportsImageGeneration
+  const supportsOpenAiBuiltInTools =
+    supportsWebSearch ||
+    supportsHostedFileSearch ||
+    supportsRemoteMcp ||
+    supportsComputerUse ||
+    supportsHostedShell ||
+    supportsImageGeneration
   const defaultOAuthProfile = getDefaultOpenAiCodexOAuthProfile()
   const defaultApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
   const hasApiKeyAuth = !!defaultApiKeyProfile || !!process.env.OPENAI_API_KEY?.trim()
@@ -108,6 +191,51 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
     wireApi: 'openai-codex-responses',
     supportsProviderOwnedOAuth: true,
     supportsOpenAiStyleModels: true,
+    documentedOpenAiModelCapabilities: [
+      ...(documentedModelCapabilities.supportsWebSearch ? ['web search'] : []),
+      ...(documentedModelCapabilities.supportsFileSearch ? ['file search'] : []),
+      ...(documentedModelCapabilities.supportsMcp ? ['MCP'] : []),
+      ...(documentedModelCapabilities.supportsToolSearch ? ['tool search'] : []),
+      ...(documentedModelCapabilities.supportsHostedShell ? ['hosted shell'] : []),
+      ...(documentedModelCapabilities.supportsApplyPatch ? ['apply patch'] : []),
+      ...(documentedModelCapabilities.supportsComputerUse ? ['computer use'] : []),
+      ...(documentedModelCapabilities.supportsSkills ? ['skills'] : []),
+      ...(documentedModelCapabilities.supportsCodeInterpreter
+        ? ['code interpreter']
+        : []),
+      ...(documentedModelCapabilities.supportsImageGeneration
+        ? ['image generation']
+        : []),
+    ],
+    routedOpenAiModelCapabilities: [
+      ...(routedModelCapabilities.supportsWebSearch ? ['web search'] : []),
+      ...(routedModelCapabilities.supportsFileSearch ? ['file search'] : []),
+      ...(routedModelCapabilities.supportsMcp ? ['MCP'] : []),
+      ...(routedModelCapabilities.supportsToolSearch ? ['tool search'] : []),
+      ...(routedModelCapabilities.supportsHostedShell ? ['hosted shell'] : []),
+      ...(routedModelCapabilities.supportsApplyPatch ? ['apply patch'] : []),
+      ...(routedModelCapabilities.supportsComputerUse ? ['computer use'] : []),
+      ...(routedModelCapabilities.supportsSkills ? ['skills'] : []),
+      ...(routedModelCapabilities.supportsCodeInterpreter
+        ? ['code interpreter']
+        : []),
+      ...(routedModelCapabilities.supportsImageGeneration
+        ? ['image generation']
+        : []),
+    ],
+    supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
+    supportsLocalSkills: true,
+    supportsLocalComputerUse,
+    supportsLocalMcpTools: true,
+    supportsAgentTeams: readiness.ready,
+    supportsOpenAiBuiltInTools,
+    supportsComputerUse,
+    supportsHostedFileSearch,
+    hostedFileSearchConfigured,
+    supportsRemoteMcp,
+    supportsWebSearch,
+    supportsHostedShell,
+    supportsImageGeneration,
     authState: readiness.hasAnyProfile || hasApiKeyAuth
       ? 'ready'
       : readiness.externalSources.includes('codex-cli')
@@ -133,6 +261,21 @@ export type MainLoopProviderRuntimeSnapshot = {
   openAiCodexAuthSource: string | null
   openAiCodexAccountLabel: string | null
   openAiCodexPlanLabel: string | null
+  documentedOpenAiModelCapabilities: string[]
+  routedOpenAiModelCapabilities: string[]
+  supportsLocalToolSearch: boolean
+  supportsLocalSkills: boolean
+  supportsLocalComputerUse: boolean
+  supportsLocalMcpTools: boolean
+  supportsAgentTeams: boolean
+  supportsOpenAiBuiltInTools: boolean
+  supportsComputerUse: boolean
+  supportsHostedFileSearch: boolean
+  hostedFileSearchConfigured: boolean
+  supportsRemoteMcp: boolean
+  supportsWebSearch: boolean
+  supportsHostedShell: boolean
+  supportsImageGeneration: boolean
 }
 
 function formatOpenAiCodexPlanLabel(rawPlanType: unknown): string | null {
@@ -198,6 +341,22 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     openAiCodexPlanLabel: formatOpenAiCodexPlanLabel(
       openAiProfile?.metadata?.planType,
     ),
+    documentedOpenAiModelCapabilities:
+      execution.documentedOpenAiModelCapabilities,
+    routedOpenAiModelCapabilities: execution.routedOpenAiModelCapabilities,
+    supportsLocalToolSearch: execution.supportsLocalToolSearch,
+    supportsLocalSkills: execution.supportsLocalSkills,
+    supportsLocalComputerUse: execution.supportsLocalComputerUse,
+    supportsLocalMcpTools: execution.supportsLocalMcpTools,
+    supportsAgentTeams: execution.supportsAgentTeams,
+    supportsOpenAiBuiltInTools: execution.supportsOpenAiBuiltInTools,
+    supportsComputerUse: execution.supportsComputerUse,
+    supportsHostedFileSearch: execution.supportsHostedFileSearch,
+    hostedFileSearchConfigured: execution.hostedFileSearchConfigured,
+    supportsRemoteMcp: execution.supportsRemoteMcp,
+    supportsWebSearch: execution.supportsWebSearch,
+    supportsHostedShell: execution.supportsHostedShell,
+    supportsImageGeneration: execution.supportsImageGeneration,
   }
 }
 

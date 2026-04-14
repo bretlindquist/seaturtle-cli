@@ -245,19 +245,27 @@ function getOrBind(): Binding {
 type ComputerUseMCPToolOverrides = ReturnType<typeof getComputerUseMCPRenderingOverrides> & {
   call: CallOverride;
 };
+export async function dispatchComputerUseMcpToolRaw(
+  toolName: string,
+  args: unknown,
+  context: ToolUseContext,
+): Promise<CuCallToolResult> {
+  currentToolUseContext = context;
+  const {
+    dispatch
+  } = getOrBind();
+  const result = await dispatch(toolName, args);
+  if (result.telemetry?.error_kind) {
+    logForDebugging(`[Computer Use MCP] ${toolName} error_kind=${result.telemetry.error_kind}`);
+  }
+  return result;
+}
 export function getComputerUseMCPToolOverrides(toolName: string): ComputerUseMCPToolOverrides {
   const call: CallOverride = async (args, context: ToolUseContext) => {
-    currentToolUseContext = context;
-    const {
-      dispatch
-    } = getOrBind();
     const {
       telemetry,
       ...result
-    } = await dispatch(toolName, args);
-    if (telemetry?.error_kind) {
-      logForDebugging(`[Computer Use MCP] ${toolName} error_kind=${telemetry.error_kind}`);
-    }
+    } = await dispatchComputerUseMcpToolRaw(toolName, args, context);
 
     // MCP content blocks → Anthropic API blocks. CU only produces text and
     // pre-sized JPEG (executor.ts computeTargetDims → targetImageSize), so

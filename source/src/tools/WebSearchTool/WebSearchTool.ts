@@ -7,6 +7,7 @@ import type { PermissionResult } from 'src/utils/permissions/PermissionResult.js
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'
+import { runOpenAiCodexWebSearch } from '../../services/api/openaiCodex.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -169,7 +170,7 @@ export const WebSearchTool = buildTool({
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
     if (runtime.family === 'openai') {
-      return false
+      return runtime.supportsWebSearch
     }
 
     const provider = getAPIProvider()
@@ -240,6 +241,7 @@ export const WebSearchTool = buildTool({
   },
   async validateInput(input) {
     const { query, allowed_domains, blocked_domains } = input
+    const runtime = getMainLoopProviderRuntime()
     if (!query.length) {
       return {
         result: false,
@@ -255,11 +257,77 @@ export const WebSearchTool = buildTool({
         errorCode: 2,
       }
     }
+    if (runtime.family === 'openai' && blocked_domains?.length) {
+      return {
+        result: false,
+        message:
+          'Error: OpenAI/Codex web search currently supports allowed_domains only in SeaTurtle. Remove blocked_domains or switch runtimes.',
+        errorCode: 3,
+      }
+    }
     return { result: true }
   },
   async call(input, context, _canUseTool, _parentMessage, onProgress) {
     const startTime = performance.now()
     const { query } = input
+    const runtime = getMainLoopProviderRuntime()
+
+    if (runtime.family === 'openai') {
+      if (onProgress) {
+        onProgress({
+          toolUseID: 'search-progress-1',
+          data: {
+            type: 'query_update',
+            query,
+          },
+        })
+      }
+
+      const result = await runOpenAiCodexWebSearch({
+        model: context.options.mainLoopModel,
+        query,
+        allowedDomains: input.allowed_domains,
+        signal: context.abortController.signal,
+        options: {
+          ...context.options,
+          model: context.options.mainLoopModel,
+        },
+      })
+
+      if (onProgress) {
+        onProgress({
+          toolUseID: 'search-progress-2',
+          data: {
+            type: 'search_results_received',
+            resultCount: result.sources.length,
+            query,
+          },
+        })
+      }
+
+      const durationSeconds = (performance.now() - startTime) / 1000
+      const results: (SearchResult | string)[] = []
+
+      if (result.outputText.length > 0) {
+        results.push(result.outputText)
+      }
+
+      if (result.sources.length > 0) {
+        results.push({
+          tool_use_id: 'openai-web-search',
+          content: result.sources,
+        })
+      }
+
+      return {
+        data: {
+          query,
+          results,
+          durationSeconds,
+        },
+      }
+    }
+
     const userMessage = createUserMessage({
       content: 'Perform a web search for the query: ' + query,
     })

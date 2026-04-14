@@ -200,7 +200,7 @@ export function scanPositions(screen: Screen, query: string): MatchPosition[] {
   return positions
 }
 
-/** Write CURRENT (yellow+bold+underline) at positions[currentIdx] +
+/** Write CURRENT (sea-green+bold+underline) at positions[currentIdx] +
  *  rowOffset. OTHER positions are NOT styled here — the scan-highlight
  *  (applySearchHighlight with null hint) does inverse for all visible
  *  matches, including these. Two-layer: scan = 'you could go here',

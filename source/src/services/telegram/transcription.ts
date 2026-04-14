@@ -1,5 +1,6 @@
 import { basename } from 'path'
 import { readFile, stat } from 'fs/promises'
+import { getTelegramEnvValue, TELEGRAM_ENV_KEYS } from './env.js'
 
 const DEFAULT_OPENAI_TRANSCRIPTION_MODEL = 'whisper-1'
 const MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024
@@ -15,7 +16,7 @@ type OpenAiTranscriptionResponse = {
 
 export function getTelegramTranscriptionConfig(): TelegramTranscriptionConfig | null {
   const apiKey =
-    process.env.CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_API_KEY?.trim() ||
+    getTelegramEnvValue('transcriptionApiKey')?.trim() ||
     process.env.OPENAI_API_KEY?.trim()
 
   if (!apiKey) {
@@ -25,7 +26,7 @@ export function getTelegramTranscriptionConfig(): TelegramTranscriptionConfig | 
   return {
     apiKey,
     model:
-      process.env.CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_MODEL?.trim() ||
+      getTelegramEnvValue('transcriptionModel')?.trim() ||
       DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
   }
 }
@@ -33,7 +34,7 @@ export function getTelegramTranscriptionConfig(): TelegramTranscriptionConfig | 
 export function getTelegramTranscriptionGateMessage(): string {
   return (
     'Telegram voice-note transcription is not configured. ' +
-    'Set CLAUDE_CODE_TELEGRAM_TRANSCRIPTION_API_KEY or OPENAI_API_KEY to enable Whisper transcription.'
+    `Set ${TELEGRAM_ENV_KEYS.transcriptionApiKey} or OPENAI_API_KEY to enable Whisper transcription.`
   )
 }
 

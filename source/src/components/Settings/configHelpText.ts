@@ -43,6 +43,10 @@ export function getConfigHelpText(setting: ConfigHelpSetting): string {
       return 'Precompute likely next steps to make follow-up actions feel faster.'
     case 'fileCheckpointingEnabled':
       return 'Keep reversible checkpoints for file edits so changes are safer to inspect and undo.'
+    case 'simulateAntRuntime':
+      return 'Testing override. Simulates ant-only runtime gate checks where this external build can still honor them. It does not enable compile-time ant-only features.'
+    case 'forceChicagoGate':
+      return 'Testing override. Forces the local Chicago computer-use gate on so you can test computer-use availability in SeaTurtle.'
     case 'verbose':
       return 'Show more operational detail from CT while it works.'
     case 'terminalProgressBarEnabled':

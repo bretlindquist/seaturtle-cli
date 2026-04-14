@@ -16,7 +16,7 @@ import {
  * col-of-char map per row — the Nth character isn't at col N when wide chars
  * are present (each occupies 2 cells: head + SpacerTail).
  *
- * This ONLY inverts — there is no "current match" logic here. The yellow
+ * This ONLY inverts — there is no "current match" logic here. The sea-green
  * current-match overlay is handled separately by applyPositionedHighlight
  * (render-to-screen.ts), which writes on top using positions scanned from
  * the target message's DOM subtree.

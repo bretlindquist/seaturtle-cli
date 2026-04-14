@@ -8,7 +8,6 @@
 
 import { getGlobalConfig } from '../../../utils/config.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { logError } from '../../../utils/log.js'
 
 export type TeammateMode = 'auto' | 'tmux' | 'in-process'
 
@@ -74,11 +73,10 @@ export function captureTeammateModeSnapshot(): void {
  */
 export function getTeammateModeFromSnapshot(): TeammateMode {
   if (initialTeammateMode === null) {
-    // This indicates an initialization bug - capture should happen in setup()
-    logError(
-      new Error(
-        'getTeammateModeFromSnapshot called before capture - this indicates an initialization bug',
-      ),
+    // Bare startup and other light-weight callers can hit this before setup()
+    // captures the snapshot. Treat it as a lazy initialization path, not an error.
+    logForDebugging(
+      '[TeammateModeSnapshot] Lazy capture on first read before startup snapshot',
     )
     captureTeammateModeSnapshot()
   }

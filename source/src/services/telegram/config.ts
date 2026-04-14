@@ -18,6 +18,11 @@ import {
   resolveTelegramCapabilityMode,
   type TelegramCapabilityMode,
 } from './runtimeContract.js'
+import {
+  getTelegramEnvValue,
+  getTelegramEnvLabel,
+  hasAnyTelegramEnvOverride,
+} from './env.js'
 
 export type TelegramConfig = {
   botToken: string
@@ -114,14 +119,6 @@ function normalizeChatIdList(values: string[] | undefined): string[] {
         .map(value => (typeof value === 'string' ? value.trim() : ''))
         .filter(Boolean),
     ),
-  )
-}
-
-function hasAnyTelegramEnvOverride(): boolean {
-  return (
-    typeof process.env.CLAUDE_CODE_TELEGRAM_BOT_TOKEN === 'string' ||
-    typeof process.env.CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS === 'string' ||
-    typeof process.env.CLAUDE_CODE_TELEGRAM_POLL_TIMEOUT_SEC === 'string'
   )
 }
 
@@ -394,23 +391,21 @@ function resolveProjectBoundConfig(): ResolvedTelegramConfigState {
 
 function getResolvedTelegramConfigState(): ResolvedTelegramConfigState {
   if (hasAnyTelegramEnvOverride()) {
-    const botToken = process.env.CLAUDE_CODE_TELEGRAM_BOT_TOKEN?.trim() || null
-    const allowedChatIds = parseAllowedChatIds(
-      process.env.CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS,
-    )
+    const botToken = getTelegramEnvValue('botToken')?.trim() || null
+    const allowedChatIds = parseAllowedChatIds(getTelegramEnvValue('allowedChatIds'))
     return {
       source: 'env',
       envOverride: true,
       botToken,
       allowedChatIds,
       pollTimeoutSeconds: parsePollTimeout(
-        process.env.CLAUDE_CODE_TELEGRAM_POLL_TIMEOUT_SEC,
+        getTelegramEnvValue('pollTimeoutSeconds'),
       ),
       capabilityMode: DEFAULT_TELEGRAM_CAPABILITY_MODE,
       brokenReason: !botToken
-        ? 'Environment override is missing CLAUDE_CODE_TELEGRAM_BOT_TOKEN'
+        ? `Environment override is missing ${getTelegramEnvLabel('botToken')}`
         : allowedChatIds.size === 0
-          ? 'Environment override is missing CLAUDE_CODE_TELEGRAM_ALLOWED_CHAT_IDS'
+          ? `Environment override is missing ${getTelegramEnvLabel('allowedChatIds')}`
           : undefined,
     }
   }

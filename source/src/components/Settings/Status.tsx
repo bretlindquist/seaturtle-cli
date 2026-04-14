@@ -192,14 +192,13 @@ function PropertySection({
         borderDimColor
         paddingX={1}
       >
-        <Box marginBottom={1}>
+        <Box>
           <Text bold color="permission">
             {title}
           </Text>
         </Box>
         {properties.map(({ label, value }, j) => (
-          <Box key={j} flexDirection="column" flexShrink={0} marginTop={j === 0 ? 0 : 1}>
-            <Box flexDirection="row" gap={1} flexShrink={0}>
+          <Box key={j} flexDirection="row" gap={1} flexShrink={1}>
               {label !== undefined ? (
                 <Box width={STATUS_LABEL_WIDTH} flexShrink={0}>
                   <Text bold dimColor>
@@ -209,17 +208,14 @@ function PropertySection({
               ) : (
                 <Box width={STATUS_LABEL_WIDTH} flexShrink={0} />
               )}
-              <Box flexDirection="column" flexGrow={1} flexShrink={1}>
+              <Box flexDirection="row" flexWrap="wrap" columnGap={1} flexGrow={1} flexShrink={1}>
                 <PropertyValue value={value} />
+                {properties[j]?.description ? (
+                  <Text dimColor color="inactive" wrap="wrap">
+                    · {properties[j]?.description}
+                  </Text>
+                ) : null}
               </Box>
-            </Box>
-            {properties[j]?.description ? (
-              <Box paddingLeft={STATUS_LABEL_WIDTH + 1} flexDirection="column">
-                <Text dimColor color="inactive" wrap="wrap">
-                  {properties[j]?.description}
-                </Text>
-              </Box>
-            ) : null}
           </Box>
         ))}
       </Box>

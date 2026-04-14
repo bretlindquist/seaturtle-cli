@@ -8,6 +8,7 @@ Use it when the user asks natural-language questions like:
 - how do I set up Telegram?
 - how should CT approach design or frontend work?
 - how do I use OpenAI OAuth or an OpenAI API key here?
+- how do I turn on computer use?
 - how does CT identity work in this project?
 - how do I make CT remind me about something after replies?
 - how do I switch models?
@@ -42,6 +43,9 @@ Keywords:
 - model
 - effort
 - status
+- computer use
+- hosted computer
+- chicago
 
 Next steps:
 
@@ -51,6 +55,7 @@ Next steps:
 - Use `/model` to switch supported OpenAI/Codex models
 - Use `/effort` to adjust reasoning level
 - Use `/status` or `auth status --json` to inspect active provider/runtime
+- Use `/status` to inspect the `OpenAI computer use` row when you need the concrete enablement path
 - Use `ct` to launch SeaTurtle directly on the OpenAI/Codex path
 
 Deep doc:
@@ -65,6 +70,7 @@ Important truth:
 - legacy `codex-cli` auth is still supported as a compatibility fallback
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs
+- OpenAI computer use also depends on local runtime prerequisites; `/status` now shows the missing prerequisite directly instead of implying there is a hidden prompt toggle
 
 ## Branding / CT / seaturtle / compatibility
 

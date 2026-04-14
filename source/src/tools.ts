@@ -6,6 +6,10 @@ import { BashTool } from './tools/BashTool/BashTool.js'
 import { FileEditTool } from './tools/FileEditTool/FileEditTool.js'
 import { FileReadTool } from './tools/FileReadTool/FileReadTool.js'
 import { FileWriteTool } from './tools/FileWriteTool/FileWriteTool.js'
+import { FileSearchTool } from './tools/FileSearchTool/FileSearchTool.js'
+import { ComputerUseTool } from './tools/ComputerUseTool/ComputerUseTool.js'
+import { HostedShellTool } from './tools/HostedShellTool/HostedShellTool.js'
+import { ImageGenerationTool } from './tools/ImageGenerationTool/ImageGenerationTool.js'
 import { GlobTool } from './tools/GlobTool/GlobTool.js'
 import { NotebookEditTool } from './tools/NotebookEditTool/NotebookEditTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
@@ -201,8 +205,12 @@ export function getAllBaseTools(): Tools {
     ...(hasEmbeddedSearchTools() ? [] : [GlobTool, GrepTool]),
     ExitPlanModeV2Tool,
     FileReadTool,
+    FileSearchTool,
+    ComputerUseTool,
     FileEditTool,
     FileWriteTool,
+    HostedShellTool,
+    ImageGenerationTool,
     NotebookEditTool,
     WebFetchTool,
     TodoWriteTool,

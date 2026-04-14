@@ -1,4 +1,4 @@
-import { popAllEditable } from '../../utils/messageQueueManager.js';
+import { popNextEditable } from '../../utils/messageQueueManager.js';
 import type { PastedContent } from '../../utils/config.js';
 
 export function restoreQueuedCancelInput({
@@ -14,7 +14,7 @@ export function restoreQueuedCancelInput({
     React.SetStateAction<Record<string, PastedContent>>
   >
 }) {
-  const result = popAllEditable(inputValue, 0);
+  const result = popNextEditable(inputValue, 0);
   if (!result) return;
 
   setInputValue(result.text);

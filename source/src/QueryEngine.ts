@@ -5,7 +5,7 @@ import last from 'lodash-es/last.js'
 import {
   getSessionId,
   isSessionPersistenceDisabled,
-} from 'src/bootstrap/state.js'
+} from './bootstrap/state.js'
 import type {
   PermissionMode,
   SDKCompactBoundaryMessage,
