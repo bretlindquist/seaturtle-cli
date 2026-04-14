@@ -8,7 +8,7 @@ function assert(condition: unknown, message: string): asserts condition {
 
 assert(
   isLocalInstallationExecPath(
-    '/Users/tester/.seaturtle/local/node_modules/.bin/claude',
+    '/Users/tester/.seaturtle/local/node_modules/.bin/ct',
     '/Users/tester/.seaturtle/local',
   ),
   'expected local installer detection to work for SeaTurtle config-home installs',
@@ -16,7 +16,7 @@ assert(
 
 assert(
   isLocalInstallationExecPath(
-    'C:\\Users\\tester\\.seaturtle\\local\\node_modules\\.bin\\claude',
+    'C:\\Users\\tester\\.seaturtle\\local\\node_modules\\.bin\\ct',
     'C:\\Users\\tester\\.seaturtle\\local',
   ),
   'expected local installer detection to work for Windows-style exec paths',
@@ -24,7 +24,7 @@ assert(
 
 assert(
   !isLocalInstallationExecPath(
-    '/Users/tester/.claude/local/node_modules/.bin/claude',
+    '/Users/tester/.claude/local/node_modules/.bin/ct',
     '/Users/tester/.seaturtle/local',
   ),
   'expected local installer detection to reject stale Claude-home paths when the active install dir differs',

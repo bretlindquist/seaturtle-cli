@@ -2,7 +2,8 @@
   "name": "@seaturtle/ct",
   "version": "1.05",
   "bin": {
-    "claude": "cli.js"
+    "ct": "cli.js",
+    "seaturtle": "cli.js"
   },
   "engines": {
     "node": ">=18.0.0"

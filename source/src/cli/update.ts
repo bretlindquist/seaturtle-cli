@@ -105,7 +105,7 @@ export async function update() {
       logForDebugging(`update: Warning detected: ${warning.issue}`)
 
       // Don't skip PATH warnings - they're always relevant
-      // The user needs to know that 'which claude' points elsewhere
+      // The user needs to know that 'which ct' points elsewhere
       logForDebugging(`update: Showing warning: ${warning.issue}`)
 
       writeToStdout(chalk.yellow(`Warning: ${warning.issue}\n`))
@@ -166,8 +166,10 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        writeToStdout('To update, run:\n')
-        writeToStdout(chalk.bold('  brew upgrade claude-code') + '\n')
+        writeToStdout('Update available through Homebrew.\n')
+        writeToStdout(
+          'Use your Homebrew upgrade command for the installed SeaTurtle formula.\n',
+        )
       } else {
         writeToStdout('CT is up to date!\n')
       }
@@ -177,9 +179,9 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        writeToStdout('To update, run:\n')
+        writeToStdout('Update available through winget.\n')
         writeToStdout(
-          chalk.bold('  winget upgrade Anthropic.ClaudeCode') + '\n',
+          'Use your winget upgrade command for the installed SeaTurtle package.\n',
         )
       } else {
         writeToStdout('CT is up to date!\n')
@@ -190,8 +192,10 @@ export async function update() {
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
-        writeToStdout('To update, run:\n')
-        writeToStdout(chalk.bold('  apk upgrade claude-code') + '\n')
+        writeToStdout('Update available through apk.\n')
+        writeToStdout(
+          'Use your apk upgrade command for the installed SeaTurtle package.\n',
+        )
       } else {
         writeToStdout('CT is up to date!\n')
       }

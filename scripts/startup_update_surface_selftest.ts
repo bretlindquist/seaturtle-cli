@@ -67,8 +67,8 @@ function run(): void {
   )
   assert(
     getStartupUpdateAction('package-manager', 'homebrew').command ===
-      'brew upgrade claude-code',
-    'expected Homebrew installs to show the Homebrew update command',
+      'use your Homebrew upgrade command for SeaTurtle',
+    'expected Homebrew installs to avoid stale Claude package-manager commands',
   )
   assert(
     getStartupUpdateAction('package-manager', 'unknown').label.includes(

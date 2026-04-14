@@ -38,17 +38,17 @@ export function getStartupUpdateAction(
       case 'homebrew':
         return {
           label: 'Update with Homebrew',
-          command: 'brew upgrade claude-code',
+          command: 'use your Homebrew upgrade command for SeaTurtle',
         }
       case 'winget':
         return {
           label: 'Update with WinGet',
-          command: 'winget upgrade Anthropic.ClaudeCode',
+          command: 'use your winget upgrade command for SeaTurtle',
         }
       case 'apk':
         return {
           label: 'Update with apk',
-          command: 'apk upgrade claude-code',
+          command: 'use your apk upgrade command for SeaTurtle',
         }
       default:
         return {

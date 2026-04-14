@@ -56,6 +56,7 @@ bun scripts/config_help_selftest.ts >/dev/null
 bun scripts/status_help_selftest.ts >/dev/null
 bun scripts/config_home_resolution_selftest.ts >/dev/null
 bun scripts/local_installer_path_selftest.ts >/dev/null
+bun scripts/branding_command_surface_selftest.ts >/dev/null
 bun scripts/completion_cache_paths_selftest.ts >/dev/null
 bun scripts/plugin_directory_display_selftest.ts >/dev/null
 bun scripts/footer_control_model_selftest.ts >/dev/null

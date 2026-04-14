@@ -1503,7 +1503,7 @@ export async function cleanupShellAliases(): Promise<SetupMessage[]> {
       if (hadAlias) {
         await writeFileLines(configFile, filtered)
         messages.push({
-          message: `Removed claude alias from ${configFile}. Run: unalias claude`,
+          message: `Removed legacy claude alias from ${configFile}. Run: unalias claude`,
           userActionRequired: true,
           type: 'alias',
         })

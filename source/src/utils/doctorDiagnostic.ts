@@ -164,7 +164,7 @@ async function getInstallationPath(): Promise<string> {
     }
 
     try {
-      const path = await which('claude')
+      const path = (await which('ct')) || (await which('claude'))
       if (path) {
         return path
       }
@@ -173,6 +173,14 @@ async function getInstallationPath(): Promise<string> {
     }
 
     // If we can't find it, check common locations
+    try {
+      const ctPath = join(homedir(), '.local/bin/ct')
+      await getFsImplementation().stat(ctPath)
+      return ctPath
+    } catch {
+      // Not found
+    }
+
     try {
       await getFsImplementation().stat(join(homedir(), '.local/bin/claude'))
       return join(homedir(), '.local/bin/claude')
@@ -437,14 +445,14 @@ async function detectConfigurationIssues(
     if (type === 'npm-local' && config.installMethod !== 'local') {
       warnings.push({
         issue: `Running from local installation but config install method is '${config.installMethod}'`,
-        fix: 'Consider using native installation: claude install',
+        fix: 'Consider using native installation: ct install',
       })
     }
 
     if (type === 'native' && config.installMethod !== 'native') {
       warnings.push({
         issue: `Running native installation but config install method is '${config.installMethod}'`,
-        fix: 'Run claude install to update configuration',
+        fix: 'Run ct install to update configuration',
       })
     }
   }
@@ -452,34 +460,19 @@ async function detectConfigurationIssues(
   if (type === 'npm-global' && (await localInstallationExists())) {
     warnings.push({
       issue: 'Local installation exists but not being used',
-      fix: 'Consider using native installation: claude install',
+      fix: 'Consider using native installation: ct install',
     })
   }
 
-  const existingAlias = await findClaudeAlias()
-  const validAlias = await findValidClaudeAlias()
-
   // Check if running local installation but it's not in PATH
   if (type === 'npm-local') {
-    // Check if claude is already accessible via PATH
-    const whichResult = await which('claude')
-    const claudeInPath = !!whichResult
+    const whichResult = await which('ct')
 
-    // Only show warning if claude is NOT in PATH AND no valid alias exists
-    if (!claudeInPath && !validAlias) {
-      if (existingAlias) {
-        // Alias exists but points to invalid target
-        warnings.push({
-          issue: 'Local installation not accessible',
-          fix: `Alias exists but points to invalid target: ${existingAlias}. Update alias: alias claude="${getLocalClaudePath()}"`,
-        })
-      } else {
-        // No alias exists and not in PATH
-        warnings.push({
-          issue: 'Local installation not accessible',
-          fix: `Create alias: alias claude="${getLocalClaudePath()}"`,
-        })
-      }
+    if (!whichResult) {
+      warnings.push({
+        issue: 'Local installation not accessible',
+        fix: `Create alias: alias ct="${getLocalClaudePath()}"`,
+      })
     }
   }
 
@@ -582,7 +575,7 @@ export async function getDoctorDiagnostic(): Promise<DiagnosticInfo> {
     if (!hasUpdatePermissions && !getAutoUpdaterDisabledReason()) {
       warnings.push({
         issue: 'Insufficient permissions for auto-updates',
-        fix: 'Do one of: (1) Re-install node without sudo, or (2) Use `claude install` for native installation',
+        fix: 'Do one of: (1) Re-install node without sudo, or (2) Use `ct install` for native installation',
       })
     }
   }

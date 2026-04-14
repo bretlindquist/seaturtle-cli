@@ -334,12 +334,6 @@ Install to a custom prefix:
 ./scripts/install-local-cli.sh --build --prefix "$HOME/.local/bin"
 ```
 
-Also expose a compatibility `claude` command locally:
-
-```bash
-./scripts/install-local-cli.sh --build --as-default-claude
-```
-
 ### Underlying Runtime Entry Point
 
 The user-facing command should be:
