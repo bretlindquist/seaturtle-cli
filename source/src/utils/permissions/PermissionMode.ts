@@ -1,4 +1,5 @@
 import { feature } from 'bun:bundle'
+import { isAntRuntimeEnabled } from '../runtimeUserType.js'
 import z from 'zod/v4'
 import { PAUSE_ICON } from '../../constants/figures.js'
 // Types extracted to src/types/permissions.ts to break import cycles
@@ -98,7 +99,7 @@ export function isExternalPermissionMode(
   mode: PermissionMode,
 ): mode is ExternalPermissionMode {
   // External users can't have auto, so always true for them
-  if (process.env.USER_TYPE !== 'ant') {
+  if (!isAntRuntimeEnabled()) {
     return true
   }
   return mode !== 'auto' && mode !== 'bubble'

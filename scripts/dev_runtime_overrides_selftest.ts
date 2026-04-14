@@ -109,6 +109,14 @@ function run(): void {
     join(repoRoot, 'source/src/utils/thinking.ts'),
     'utf8',
   )
+  const modelOptions = readFileSync(
+    join(repoRoot, 'source/src/utils/model/modelOptions.ts'),
+    'utf8',
+  )
+  const permissionMode = readFileSync(
+    join(repoRoot, 'source/src/utils/permissions/PermissionMode.ts'),
+    'utf8',
+  )
 
   assert.match(
     configTs,
@@ -269,6 +277,16 @@ function run(): void {
     thinking,
     /isAntRuntimeEnabled\(\)/,
     'thinking support detection should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    modelOptions,
+    /isAntRuntimeEnabled\(\)/,
+    'model option selection should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    permissionMode,
+    /isAntRuntimeEnabled\(\)/,
+    'permission mode typing should honor the centralized ant runtime helper',
   )
 }
 

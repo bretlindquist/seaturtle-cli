@@ -33,6 +33,7 @@ import {
 import { getOpenAiCodexModelDefinitions } from '../../services/api/openaiCodex.js'
 import { has1mContext } from '../context.js'
 import { getGlobalConfig } from '../config.js'
+import { isAntRuntimeEnabled } from '../runtimeUserType.js'
 
 // @[MODEL LAUNCH]: Update all the available and default model option strings below.
 
@@ -53,7 +54,7 @@ export function getDefaultOptionForUser(fastMode = false): ModelOption {
     }
   }
 
-  if (process.env.USER_TYPE === 'ant') {
+  if (isAntRuntimeEnabled()) {
     const currentModel = renderDefaultModelSetting(
       getDefaultMainLoopModelSetting(),
     )
@@ -292,7 +293,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     return [getDefaultOptionForUser(), ...getOpenAiCodexOptions()]
   }
 
-  if (process.env.USER_TYPE === 'ant') {
+  if (isAntRuntimeEnabled()) {
     // Build options from antModels config
     const antModelOptions: ModelOption[] = getAntModels().map(m => ({
       value: m.alias,
