@@ -66,6 +66,11 @@ function run(): void {
     'expected npm/global installs to route users to ct update',
   )
   assert(
+    getStartupUpdateAction('source-wrapper').command ===
+      'node scripts/build-cli.mjs --no-minify',
+    'expected source-wrapper installs to route users to a local rebuild command',
+  )
+  assert(
     getStartupUpdateAction('package-manager', 'homebrew').command ===
       'use your Homebrew upgrade command for SeaTurtle',
     'expected Homebrew installs to avoid stale Claude package-manager commands',
@@ -105,6 +110,20 @@ function run(): void {
   assert(
     upstreamSignal?.versionSource === 'seaturtle-upstream',
     'expected startup update signal to preserve upstream version source',
+  )
+
+  const sourceWrapperSignal = buildStartupUpdateSignal({
+    currentVersion: '1.2.0',
+    latestVersion: '1.3.0',
+    versionSource: 'seaturtle-upstream',
+    channel: 'latest',
+    installationType: 'source-wrapper',
+    shouldSkipVersion: neverSkip,
+  })
+  assert(
+    sourceWrapperSignal?.action.command ===
+      'node scripts/build-cli.mjs --no-minify',
+    'expected source-wrapper startup update signal to recommend rebuilding the local dist',
   )
 
   assert(

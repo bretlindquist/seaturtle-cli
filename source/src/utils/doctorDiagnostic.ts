@@ -48,10 +48,33 @@ import { which } from './which.js'
 export type InstallationType =
   | 'npm-global'
   | 'npm-local'
+  | 'source-wrapper'
   | 'native'
   | 'package-manager'
   | 'development'
   | 'unknown'
+
+async function isRunningFromSourceWrapperBuild(
+  invokedPath: string,
+): Promise<boolean> {
+  if (!invokedPath.endsWith('/dist/cli.js')) {
+    return false
+  }
+
+  const repoRoot = posix.dirname(posix.dirname(invokedPath))
+  const fs = getFsImplementation()
+
+  try {
+    await Promise.all([
+      fs.stat(join(repoRoot, 'source', 'package.json')),
+      fs.stat(join(repoRoot, 'bin', 'ct')),
+      fs.stat(join(repoRoot, 'scripts', 'install-local-cli.sh')),
+    ])
+    return true
+  } catch {
+    return false
+  }
+}
 
 export type DiagnosticInfo = {
   installationType: InstallationType
@@ -113,6 +136,10 @@ export async function getCurrentInstallationType(): Promise<InstallationType> {
   // Check if running from local npm installation
   if (isRunningFromLocalInstallation()) {
     return 'npm-local'
+  }
+
+  if (await isRunningFromSourceWrapperBuild(invokedPath)) {
+    return 'source-wrapper'
   }
 
   // Check if we're in a typical npm global location

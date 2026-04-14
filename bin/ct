@@ -67,6 +67,14 @@ handle_stale_build() {
 repo_version="$(extract_repo_version)"
 built_version="$(extract_built_version)"
 
+if [[ -n "${CT_LOCAL_WRAPPER_REPO_VERSION_OVERRIDE:-}" ]]; then
+  repo_version="${CT_LOCAL_WRAPPER_REPO_VERSION_OVERRIDE}"
+fi
+
+if [[ -n "${CT_LOCAL_WRAPPER_BUILT_VERSION_OVERRIDE:-}" ]]; then
+  built_version="${CT_LOCAL_WRAPPER_BUILT_VERSION_OVERRIDE}"
+fi
+
 if [[ -n "$repo_version" && -n "$built_version" && "$repo_version" != "$built_version" ]]; then
   handle_stale_build "$@"
 fi
