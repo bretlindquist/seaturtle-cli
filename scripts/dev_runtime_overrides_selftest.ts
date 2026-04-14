@@ -85,6 +85,26 @@ function run(): void {
     join(repoRoot, 'source/src/utils/permissions/getNextPermissionMode.ts'),
     'utf8',
   )
+  const enterPlanModePrompt = readFileSync(
+    join(repoRoot, 'source/src/tools/EnterPlanModeTool/prompt.ts'),
+    'utf8',
+  )
+  const taskStopTool = readFileSync(
+    join(repoRoot, 'source/src/tools/TaskStopTool/TaskStopTool.ts'),
+    'utf8',
+  )
+  const toolSearchPrompt = readFileSync(
+    join(repoRoot, 'source/src/tools/ToolSearchTool/prompt.ts'),
+    'utf8',
+  )
+  const fileEditPrompt = readFileSync(
+    join(repoRoot, 'source/src/tools/FileEditTool/prompt.ts'),
+    'utf8',
+  )
+  const fastMode = readFileSync(
+    join(repoRoot, 'source/src/utils/fastMode.ts'),
+    'utf8',
+  )
 
   assert.match(
     configTs,
@@ -215,6 +235,31 @@ function run(): void {
     permissionCycle,
     /isAntRuntimeEnabled\(\)/,
     'permission-mode cycling should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    enterPlanModePrompt,
+    /isAntRuntimeEnabled\(\)/,
+    'enter-plan-mode prompt selection should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    taskStopTool,
+    /isAntRuntimeEnabled\(\)/,
+    'task-stop user-facing naming should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    toolSearchPrompt,
+    /isAntRuntimeEnabled\(\)/,
+    'tool-search prompt guidance should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    fileEditPrompt,
+    /isAntRuntimeEnabled\(\)/,
+    'file-edit prompt guidance should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    fastMode,
+    /isAntRuntimeEnabled\(\)/,
+    'fast-mode runtime fallbacks should honor the centralized ant runtime helper',
   )
 }
 
