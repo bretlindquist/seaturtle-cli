@@ -100,6 +100,7 @@ bun scripts/telegram_typing_lifecycle_selftest.ts >/dev/null
 bun scripts/telegram_runtime_contract_selftest.ts >/dev/null
 bun scripts/telegram_env_alias_selftest.ts >/dev/null
 bash scripts/repl-paste-smoke.sh >/dev/null
+bash scripts/local_wrapper_version_notice_selftest.sh >/dev/null
 
 echo
 echo "[3/3] Lint"

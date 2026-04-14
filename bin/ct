@@ -3,12 +3,30 @@ set -euo pipefail
 
 repo_root="${0:A:h:h}"
 cli_path="$repo_root/dist/cli.js"
+package_json_path="$repo_root/source/package.json"
 
 if [[ ! -f "$cli_path" ]]; then
   echo "ct is not built yet." >&2
   echo "Build once with: node scripts/build-cli.mjs --no-minify" >&2
   echo "Or install wrappers with: ./scripts/install-local-cli.sh --build" >&2
   exit 1
+fi
+
+extract_repo_version() {
+  node -e 'const fs=require("fs"); const pkg=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(pkg.version || "");' "$package_json_path" 2>/dev/null || true
+}
+
+extract_built_version() {
+  sed -n 's#^// Version: ##p' "$cli_path" | head -n 1
+}
+
+repo_version="$(extract_repo_version)"
+built_version="$(extract_built_version)"
+
+if [[ -n "$repo_version" && -n "$built_version" && "$repo_version" != "$built_version" ]]; then
+  echo "Local CT build is stale: built $built_version, repo $repo_version." >&2
+  echo "Rebuild with: node scripts/build-cli.mjs --no-minify" >&2
+  echo "Or rerun: ./scripts/install-local-cli.sh --build" >&2
 fi
 
 export CLAUDE_CODE_USE_OPENAI_CODEX=1
