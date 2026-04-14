@@ -20,13 +20,55 @@ extract_built_version() {
   sed -n 's#^// Version: ##p' "$cli_path" | head -n 1
 }
 
+is_interactive_launch() {
+  [[ $# -eq 0 && -t 0 && -t 1 ]]
+}
+
+handle_stale_build() {
+  local stale_message
+  stale_message="Local CT build is stale: built $built_version, repo $repo_version."
+
+  echo "$stale_message" >&2
+  echo "Rebuild with: node scripts/build-cli.mjs --no-minify" >&2
+  echo "Or rerun: ./scripts/install-local-cli.sh --build" >&2
+
+  if [[ "${CT_LOCAL_WRAPPER_ASSUME_INTERACTIVE:-0}" == "1" ]]; then
+    :
+  elif ! is_interactive_launch "$@"; then
+    return 0
+  fi
+
+  echo >&2
+  echo "Choose: [b] rebuild now, [c] continue with stale build, [q] quit" >&2
+
+  local action="${CT_LOCAL_WRAPPER_STALE_ACTION:-}"
+  if [[ -z "$action" ]]; then
+    printf "> " >&2
+    read -r action
+  fi
+
+  case "${action:l}" in
+    b|build|rebuild)
+      exec ./scripts/install-local-cli.sh --build "$@"
+      ;;
+    c|continue)
+      return 0
+      ;;
+    q|quit|exit)
+      exit 1
+      ;;
+    *)
+      echo "Unknown choice: ${action}. Aborting." >&2
+      exit 1
+      ;;
+  esac
+}
+
 repo_version="$(extract_repo_version)"
 built_version="$(extract_built_version)"
 
 if [[ -n "$repo_version" && -n "$built_version" && "$repo_version" != "$built_version" ]]; then
-  echo "Local CT build is stale: built $built_version, repo $repo_version." >&2
-  echo "Rebuild with: node scripts/build-cli.mjs --no-minify" >&2
-  echo "Or rerun: ./scripts/install-local-cli.sh --build" >&2
+  handle_stale_build "$@"
 fi
 
 export CLAUDE_CODE_USE_OPENAI_CODEX=1
