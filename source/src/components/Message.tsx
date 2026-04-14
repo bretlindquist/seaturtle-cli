@@ -25,6 +25,7 @@ import { CompactBoundaryMessage } from './messages/CompactBoundaryMessage.js';
 import { GroupedToolUseContent } from './messages/GroupedToolUseContent.js';
 import { SystemTextMessage } from './messages/SystemTextMessage.js';
 import { UserImageMessage } from './messages/UserImageMessage.js';
+import { shouldRenderStandaloneUserImage } from './messages/userImageRender.js';
 import { UserTextMessage } from './messages/UserTextMessage.js';
 import { UserToolResultMessage } from './messages/UserToolResultMessage/UserToolResultMessage.js';
 import { OffscreenFreeze } from './OffscreenFreeze.js';
@@ -391,6 +392,9 @@ function UserMessage(t0) {
       }
     case "image":
       {
+        if (!shouldRenderStandaloneUserImage(message.message.content, imageIndex)) {
+          return null;
+        }
         const t1 = addMargin && !isUserContinuation;
         let t2;
         if ($[7] !== imageIndex || $[8] !== t1) {
