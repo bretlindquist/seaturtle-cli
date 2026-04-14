@@ -105,6 +105,10 @@ function run(): void {
     join(repoRoot, 'source/src/utils/fastMode.ts'),
     'utf8',
   )
+  const thinking = readFileSync(
+    join(repoRoot, 'source/src/utils/thinking.ts'),
+    'utf8',
+  )
 
   assert.match(
     configTs,
@@ -260,6 +264,11 @@ function run(): void {
     fastMode,
     /isAntRuntimeEnabled\(\)/,
     'fast-mode runtime fallbacks should honor the centralized ant runtime helper',
+  )
+  assert.match(
+    thinking,
+    /isAntRuntimeEnabled\(\)/,
+    'thinking support detection should honor the centralized ant runtime helper',
   )
 }
 
