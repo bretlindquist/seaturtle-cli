@@ -28,6 +28,7 @@ export function AutoUpdaterWrapper(t0) {
   } = t0;
   const [useNativeInstaller, setUseNativeInstaller] = React.useState(null);
   const [isPackageManager, setIsPackageManager] = React.useState(null);
+  const [isSourceWrapper, setIsSourceWrapper] = React.useState(null);
   let t1;
   let t2;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -41,6 +42,7 @@ export function AutoUpdaterWrapper(t0) {
         logForDebugging(`AutoUpdaterWrapper: Installation type: ${installationType}`);
         setUseNativeInstaller(installationType === "native");
         setIsPackageManager(installationType === "package-manager");
+        setIsSourceWrapper(installationType === "source-wrapper");
       };
       checkInstallation();
     };
@@ -52,7 +54,10 @@ export function AutoUpdaterWrapper(t0) {
     t2 = $[1];
   }
   React.useEffect(t1, t2);
-  if (useNativeInstaller === null || isPackageManager === null) {
+  if (useNativeInstaller === null || isPackageManager === null || isSourceWrapper === null) {
+    return null;
+  }
+  if (isSourceWrapper) {
     return null;
   }
   if (isPackageManager) {

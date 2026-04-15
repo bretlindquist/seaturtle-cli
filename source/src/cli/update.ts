@@ -1,6 +1,8 @@
 import chalk from 'chalk'
+import { dirname, join } from 'path'
 import { logEvent } from 'src/services/analytics/index.js'
 import {
+  getLatestVersionFromGcs,
   getLatestVersion,
   type InstallStatus,
   installGlobalPackage,
@@ -13,6 +15,7 @@ import {
 } from 'src/utils/config.js'
 import { logForDebugging } from 'src/utils/debug.js'
 import { getDoctorDiagnostic } from 'src/utils/doctorDiagnostic.js'
+import { execFileNoThrowWithCwd } from 'src/utils/execFileNoThrow.js'
 import { gracefulShutdown } from 'src/utils/gracefulShutdown.js'
 import {
   getLocalInstallDirDisplayPath,
@@ -68,6 +71,14 @@ async function tryPrintUpdateReleaseNotes(
   }
 }
 
+function getSourceWrapperRepoRoot(): string | null {
+  const invokedPath = process.argv[1]
+  if (!invokedPath || !invokedPath.endsWith('/dist/cli.js')) {
+    return null
+  }
+  return dirname(dirname(invokedPath))
+}
+
 export async function update() {
   logEvent('tengu_update_check', {})
   writeToStdout(`Current version: ${MACRO.VERSION}\n`)
@@ -118,7 +129,8 @@ export async function update() {
   const config = getGlobalConfig()
   if (
     !config.installMethod &&
-    diagnostic.installationType !== 'package-manager'
+    diagnostic.installationType !== 'package-manager' &&
+    diagnostic.installationType !== 'source-wrapper'
   ) {
     writeToStdout('\n')
     writeToStdout('Updating configuration to track installation method...\n')
@@ -134,6 +146,9 @@ export async function update() {
         break
       case 'npm-global':
         detectedMethod = 'global'
+        break
+      case 'source-wrapper':
+        detectedMethod = 'unknown'
         break
       default:
         detectedMethod = 'unknown'
@@ -155,6 +170,67 @@ export async function update() {
     await gracefulShutdown(1)
   }
 
+  if (diagnostic.installationType === 'source-wrapper') {
+    const repoRoot = getSourceWrapperRepoRoot()
+    if (!repoRoot) {
+      process.stderr.write(
+        'Error: Could not determine the repo root for this source-wrapper install\n',
+      )
+      await gracefulShutdown(1)
+    }
+
+    const latestVersion = await getLatestVersionFromGcs(channel)
+    if (latestVersion && latestVersion === MACRO.VERSION) {
+      writeToStdout(
+        chalk.green(`CT is up to date (${MACRO.VERSION})`) + '\n',
+      )
+      await gracefulShutdown(0)
+    }
+
+    writeToStdout('\n')
+    writeToStdout('Rebuilding local CT from this repo...\n')
+    const buildResult = await execFileNoThrowWithCwd(
+      'node',
+      ['scripts/build-cli.mjs', '--no-minify'],
+      {
+        cwd: repoRoot,
+        stdin: 'inherit',
+        preserveOutputOnError: true,
+        timeout: 30 * 60 * 1000,
+      },
+    )
+
+    if (buildResult.stdout) {
+      writeToStdout(buildResult.stdout)
+    }
+    if (buildResult.stderr) {
+      process.stderr.write(buildResult.stderr)
+    }
+
+    if (buildResult.code !== 0) {
+      process.stderr.write('Error: Failed to rebuild local CT\n')
+      await gracefulShutdown(1)
+    }
+
+    const packageJsonPath = join(repoRoot, 'source', 'package.json')
+    const repoVersion = await import('fs/promises')
+      .then(fs => fs.readFile(packageJsonPath, 'utf8'))
+      .then(text => JSON.parse(text) as { version?: string })
+      .then(pkg => pkg.version ?? null)
+      .catch(() => null)
+
+    const nextVersion = repoVersion ?? latestVersion ?? MACRO.VERSION
+    writeToStdout(
+      chalk.green(
+        `Successfully rebuilt local CT from ${MACRO.VERSION} to ${nextVersion}`,
+      ) + '\n',
+    )
+    if (nextVersion !== MACRO.VERSION) {
+      await tryPrintUpdateReleaseNotes(MACRO.VERSION, nextVersion)
+    }
+    await gracefulShutdown(0)
+  }
+
   // Check if running from a package manager
   if (diagnostic.installationType === 'package-manager') {
     const packageManager = await getPackageManager()
@@ -162,7 +238,7 @@ export async function update() {
 
     if (packageManager === 'homebrew') {
       writeToStdout('CT is managed by Homebrew.\n')
-      const latest = await getLatestVersion(channel)
+      const latest = await getLatestVersionFromGcs(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
@@ -175,7 +251,7 @@ export async function update() {
       }
     } else if (packageManager === 'winget') {
       writeToStdout('CT is managed by winget.\n')
-      const latest = await getLatestVersion(channel)
+      const latest = await getLatestVersionFromGcs(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')
@@ -188,7 +264,7 @@ export async function update() {
       }
     } else if (packageManager === 'apk') {
       writeToStdout('CT is managed by apk.\n')
-      const latest = await getLatestVersion(channel)
+      const latest = await getLatestVersionFromGcs(channel)
       if (latest && !gte(MACRO.VERSION, latest)) {
         writeToStdout(`Update available: ${MACRO.VERSION} → ${latest}\n`)
         writeToStdout('\n')

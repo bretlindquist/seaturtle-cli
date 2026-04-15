@@ -33,7 +33,10 @@ export async function getStartupUpdateSignal(): Promise<StartupUpdateSignal | nu
       installationType === 'package-manager'
         ? await getPackageManager()
         : undefined
-    const upstreamVersion = await getLatestSeaTurtleUpstreamVersion()
+    const upstreamVersion =
+      installationType === 'source-wrapper'
+        ? await getLatestSeaTurtleUpstreamVersion()
+        : null
     const latestVersion =
       upstreamVersion ??
       (installationType === 'package-manager'
