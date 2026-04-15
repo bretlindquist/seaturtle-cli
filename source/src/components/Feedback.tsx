@@ -11,6 +11,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { Box, Text, useInput } from '../ink.js';
 import { useKeybinding } from '../keybindings/useKeybinding.js';
 import { querySmallFastViaProviderRuntime } from '../services/api/providerHelpers.js';
+import { addProjectFeedbackEntry } from '../services/projectIdentity/projectFeedback.js';
 import { startsWithApiErrorPrefix } from '../services/api/errors.js';
 import type { Message } from '../types/message.js';
 import { checkAndRefreshOAuthTokenIfNeeded } from '../utils/auth.js';
@@ -162,6 +163,7 @@ export function Feedback({
   const [cursorOffset, setCursorOffset] = useState(0);
   const [description, setDescription] = useState(initialDescription ?? '');
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [localFeedbackPath, setLocalFeedbackPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [envInfo, setEnvInfo] = useState<{
     isGit: boolean;
@@ -190,6 +192,7 @@ export function Feedback({
     setStep('submitting');
     setError(null);
     setFeedbackId(null);
+    setLocalFeedbackPath(null);
 
     // Get sanitized errors for the report
     const sanitizedErrors = getSanitizedErrorLogs();
@@ -224,6 +227,20 @@ export function Feedback({
     };
     const [result, t] = await Promise.all([submitFeedback(reportData, abortSignal), generateTitle(description, abortSignal)]);
     setTitle(t);
+    try {
+      const saved = addProjectFeedbackEntry({
+        timestamp: reportData.datetime,
+        status: result.success ? 'submitted' : 'local-only',
+        description,
+        version: MACRO.VERSION,
+        platform: env.platform,
+        terminal: env.terminal,
+        feedbackId: result.feedbackId ?? null
+      });
+      setLocalFeedbackPath(saved.displayPath);
+    } catch (localSaveError) {
+      sanitizeAndLogError(localSaveError);
+    }
     if (result.success) {
       if (result.feedbackId) {
         setFeedbackId(result.feedbackId);
@@ -327,6 +344,7 @@ export function Feedback({
       })} cursorOffset={cursorOffset} onChangeCursorOffset={setCursorOffset} showCursor />
           {error && <Box flexDirection="column" gap={1}>
               <Text color="error">{error}</Text>
+              {localFeedbackPath && <Text dimColor>Saved locally to {localFeedbackPath}</Text>}
               <Text dimColor>
                 Edit and press Enter to retry, or Esc to cancel
               </Text>
@@ -357,6 +375,7 @@ export function Feedback({
                 </Text>
               </Text>}
             <Text>- Current session transcript</Text>
+            <Text>- Local project record in <Text dimColor>.ct/feedback.md</Text></Text>
           </Box>
           <Box marginTop={1}>
             <Text wrap="wrap" dimColor>
@@ -379,6 +398,7 @@ export function Feedback({
       {step === 'done' && <Box flexDirection="column">
           {error ? <Text color="error">{error}</Text> : <Text color="success">Thank you for your report!</Text>}
           {feedbackId && <Text dimColor>Feedback ID: {feedbackId}</Text>}
+          {localFeedbackPath && <Text dimColor>Saved locally to {localFeedbackPath}</Text>}
           <Box marginTop={1}>
             <Text>Press </Text>
             <Text bold>Enter </Text>

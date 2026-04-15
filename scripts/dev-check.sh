@@ -50,6 +50,8 @@ node dist/cli.js auth status --json >/dev/null
 python3 scripts/openai_codex_regression.py --self-test >/dev/null
 bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
+bun scripts/project_feedback_selftest.ts >/dev/null
+bun scripts/feedback_command_local_sink_selftest.ts >/dev/null
 bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/help_docs_surface_selftest.ts >/dev/null
 bun scripts/config_help_selftest.ts >/dev/null
