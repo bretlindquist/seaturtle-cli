@@ -23,72 +23,18 @@ import type { Tools } from '../../Tool.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import type { Options } from './claude.js'
 import { getDefaultGeminiApiKeyProfile } from '../authProfiles/store.js'
-
-export type GeminiModelDefinition = {
-  value: string
-  label: string
-  description: string
-  descriptionForModel: string
-}
-
-export type GeminiModelCapabilities = {
-  supportsFunctionCalling: boolean
-  supportsMultimodalInput: boolean
-  supportsDocuments: boolean
-  supportsWebSearch: boolean
-  supportsFileSearch: boolean
-  supportsRemoteMcp: boolean
-  supportsHostedShell: boolean
-  supportsComputerUse: boolean
-  supportsImageGeneration: boolean
-}
-
-export const GEMINI_MODEL_DEFINITIONS: readonly GeminiModelDefinition[] = [
-  {
-    value: 'gemini-3-flash-preview',
-    label: 'Gemini 3 Flash Preview',
-    description: 'Frontier-class Gemini model for fast agentic work',
-    descriptionForModel:
-      'Gemini 3 Flash Preview - frontier-class Gemini model for fast agentic work',
-  },
-  {
-    value: 'gemini-2.5-pro',
-    label: 'Gemini 2.5 Pro',
-    description: 'Advanced Gemini model for complex reasoning and coding',
-    descriptionForModel:
-      'Gemini 2.5 Pro - advanced Gemini model for complex reasoning and coding',
-  },
-  {
-    value: 'gemini-2.5-flash',
-    label: 'Gemini 2.5 Flash',
-    description: 'Best price-performance Gemini model for low-latency work',
-    descriptionForModel:
-      'Gemini 2.5 Flash - best price-performance Gemini model for low-latency work',
-  },
-  {
-    value: 'gemini-2.5-flash-lite',
-    label: 'Gemini 2.5 Flash-Lite',
-    description: 'Fastest and most budget-friendly Gemini 2.5 model',
-    descriptionForModel:
-      'Gemini 2.5 Flash-Lite - fastest and most budget-friendly Gemini 2.5 model',
-  },
-] as const
-
-const KNOWN_GEMINI_MODELS = new Set(
-  GEMINI_MODEL_DEFINITIONS.map(model => model.value),
-)
-
-const ROUTED_GEMINI_MODEL_CAPABILITIES: GeminiModelCapabilities = {
-  supportsFunctionCalling: true,
-  supportsMultimodalInput: true,
-  supportsDocuments: false,
-  supportsWebSearch: false,
-  supportsFileSearch: false,
-  supportsRemoteMcp: false,
-  supportsHostedShell: false,
-  supportsComputerUse: false,
-  supportsImageGeneration: false,
-}
+import {
+  validateGeminiModel,
+} from './geminiCapabilityConfig.js'
+export {
+  formatGeminiCapabilityLabels,
+  getDocumentedGeminiModelCapabilities,
+  getGeminiMainLoopModelDefinitions as getGeminiModelDefinitions,
+  getRoutedGeminiModelCapabilities,
+  validateGeminiModel,
+  type GeminiModelCapabilities,
+  type GeminiModelDefinition,
+} from './geminiCapabilityConfig.js'
 
 type GeminiChatMessage =
   | {
@@ -147,28 +93,6 @@ type GeminiAuthTarget = {
   source: string
 }
 
-export function getGeminiModelDefinitions(): readonly GeminiModelDefinition[] {
-  return GEMINI_MODEL_DEFINITIONS
-}
-
-export function getDocumentedGeminiModelCapabilities(
-  model: string,
-): GeminiModelCapabilities {
-  return KNOWN_GEMINI_MODELS.has(model)
-    ? ROUTED_GEMINI_MODEL_CAPABILITIES
-    : {
-        ...ROUTED_GEMINI_MODEL_CAPABILITIES,
-        supportsFunctionCalling: false,
-        supportsMultimodalInput: false,
-      }
-}
-
-export function getRoutedGeminiModelCapabilities(
-  model: string,
-): GeminiModelCapabilities {
-  return getDocumentedGeminiModelCapabilities(model)
-}
-
 export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
   const profile = getDefaultGeminiApiKeyProfile()
   if (profile?.apiKey.trim()) {
@@ -195,12 +119,6 @@ export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
       'https://generativelanguage.googleapis.com/v1beta/openai',
     source: 'GEMINI_API_KEY',
   }
-}
-
-export function validateGeminiModel(model: string): string | null {
-  return KNOWN_GEMINI_MODELS.has(model)
-    ? null
-    : `model \`${model}\` is not available through the Gemini runtime in this build. Supported models: ${GEMINI_MODEL_DEFINITIONS.map(item => `\`${item.value}\``).join(', ')}.`
 }
 
 function normalizeBaseUrl(baseUrl: string): string {

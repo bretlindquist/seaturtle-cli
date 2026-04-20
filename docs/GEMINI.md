@@ -24,10 +24,20 @@ SeaTurtle-prefixed variables.
 
 The default Gemini model is `gemini-3-flash-preview`. The model picker exposes:
 
+- `gemini-3.1-pro-preview`
 - `gemini-3-flash-preview`
+- `gemini-3.1-flash-lite-preview`
 - `gemini-2.5-pro`
 - `gemini-2.5-flash`
 - `gemini-2.5-flash-lite`
+
+SeaTurtle also tracks specialized Gemini models in its capability registry for
+later native tool routing. They are not exposed as main-loop chat models:
+
+- image generation/editing: `gemini-3.1-flash-image-preview`,
+  `gemini-3-pro-image-preview`, `gemini-2.5-flash-image`
+- computer use: `gemini-2.5-computer-use-preview-10-2025`
+- file-search embeddings: `gemini-embedding-001`
 
 ## Current Runtime Surface
 
@@ -46,6 +56,10 @@ It supports:
 - local SeaTurtle tools via Gemini function calling
 - image input through OpenAI-compatible `image_url` content
 - `/status` and `ct auth status --json` capability reporting
+
+`/status` reports documented Gemini model support separately from the routed
+SeaTurtle runtime support. A Gemini feature is not considered routed until the
+SeaTurtle runner exists and has validation coverage.
 
 This endpoint is a transitional transport. The production target is native
 Gemini `generateContent` / `streamGenerateContent` with `Content`/`Part`

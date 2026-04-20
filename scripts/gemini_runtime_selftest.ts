@@ -17,6 +17,10 @@ const gemini = readFileSync(
   join(repoRoot, 'source/src/services/api/gemini.ts'),
   'utf8',
 )
+const geminiCapabilityConfig = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiCapabilityConfig.ts'),
+  'utf8',
+)
 const providers = readFileSync(
   join(repoRoot, 'source/src/utils/model/providers.ts'),
   'utf8',
@@ -104,6 +108,36 @@ assertIncludes(
   gemini,
   /tool_calls/,
   'Gemini runtime should translate tool calls',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /documented capabilities/i,
+  'Gemini capability config should explicitly track documented capability truth',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /ROUTED_GEMINI_MODEL_CAPABILITIES/,
+  'Gemini capability config should separately track routed capability truth',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /gemini-3\.1-pro-preview/,
+  'Gemini capability config should include current Gemini 3.1 Pro Preview',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /gemini-3\.1-flash-image-preview/,
+  'Gemini capability config should include Gemini image generation models',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /gemini-2\.5-computer-use-preview-10-2025/,
+  'Gemini capability config should include the current Gemini computer-use model',
+)
+assertIncludes(
+  geminiCapabilityConfig,
+  /gemini-embedding-001/,
+  'Gemini capability config should include the file-search embedding model reference',
 )
 assertIncludes(
   authHandler,

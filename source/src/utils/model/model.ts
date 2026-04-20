@@ -28,6 +28,7 @@ import {
   shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from './providers.js'
+import { DEFAULT_GEMINI_MAIN_LOOP_MODEL } from '../../services/api/geminiCapabilityConfig.js'
 import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
@@ -185,7 +186,7 @@ export function getRuntimeMainLoopModel(params: {
  */
 export function getDefaultMainLoopModelSetting(): ModelName | ModelAlias {
   if (shouldUseGeminiProvider()) {
-    return 'gemini-3-flash-preview'
+    return DEFAULT_GEMINI_MAIN_LOOP_MODEL
   }
 
   if (shouldUseOpenAiCodexProvider()) {

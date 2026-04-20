@@ -10,6 +10,7 @@ import {
   getRoutedOpenAiCodexModelCapabilities,
 } from './openaiCodex.js'
 import {
+  formatGeminiCapabilityLabels,
   getDocumentedGeminiModelCapabilities,
   getGeminiApiKeyAuthTarget,
   getRoutedGeminiModelCapabilities,
@@ -288,44 +289,12 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsOpenAiStyleModels: true,
     documentedOpenAiModelCapabilities: [],
     routedOpenAiModelCapabilities: [],
-    documentedGeminiModelCapabilities: [
-      ...(documentedModelCapabilities.supportsFunctionCalling
-        ? ['function calling']
-        : []),
-      ...(documentedModelCapabilities.supportsMultimodalInput
-        ? ['multimodal input']
-        : []),
-      ...(documentedModelCapabilities.supportsDocuments ? ['documents'] : []),
-      ...(documentedModelCapabilities.supportsWebSearch ? ['web search'] : []),
-      ...(documentedModelCapabilities.supportsFileSearch ? ['file search'] : []),
-      ...(documentedModelCapabilities.supportsRemoteMcp ? ['remote MCP'] : []),
-      ...(documentedModelCapabilities.supportsHostedShell
-        ? ['hosted shell']
-        : []),
-      ...(documentedModelCapabilities.supportsComputerUse
-        ? ['computer use']
-        : []),
-      ...(documentedModelCapabilities.supportsImageGeneration
-        ? ['image generation']
-        : []),
-    ],
-    routedGeminiModelCapabilities: [
-      ...(routedModelCapabilities.supportsFunctionCalling
-        ? ['function calling']
-        : []),
-      ...(routedModelCapabilities.supportsMultimodalInput
-        ? ['multimodal input']
-        : []),
-      ...(routedModelCapabilities.supportsDocuments ? ['documents'] : []),
-      ...(routedModelCapabilities.supportsWebSearch ? ['web search'] : []),
-      ...(routedModelCapabilities.supportsFileSearch ? ['file search'] : []),
-      ...(routedModelCapabilities.supportsRemoteMcp ? ['remote MCP'] : []),
-      ...(routedModelCapabilities.supportsHostedShell ? ['hosted shell'] : []),
-      ...(routedModelCapabilities.supportsComputerUse ? ['computer use'] : []),
-      ...(routedModelCapabilities.supportsImageGeneration
-        ? ['image generation']
-        : []),
-    ],
+    documentedGeminiModelCapabilities: formatGeminiCapabilityLabels(
+      documentedModelCapabilities,
+    ),
+    routedGeminiModelCapabilities: formatGeminiCapabilityLabels(
+      routedModelCapabilities,
+    ),
     supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
     supportsLocalSkills: true,
     supportsLocalComputerUse,
