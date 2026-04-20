@@ -6,6 +6,9 @@ import { Box, color, Text } from '../ink.js';
 import type { MCPServerConnection } from '../services/mcp/types.js';
 import { getMainLoopProviderRuntimeSnapshot } from '../services/api/providerRuntime.js';
 import { getConfiguredOpenAiVectorStoreIds } from '../services/api/openaiCapabilityConfig.js';
+import { getConfiguredGeminiFileSearchStoreNames } from '../services/api/geminiFileSearchConfig.js';
+import { getConfiguredGeminiCachedContent } from '../services/api/geminiCacheConfig.js';
+import { getGeminiModelDefinition } from '../services/api/geminiCapabilityConfig.js';
 import {
   getOpenAiCodexSessionTelemetry,
   type OpenAiCodexUsageWindow,
@@ -19,7 +22,7 @@ import { getAWSRegion, getDefaultVertexRegion, isEnvTruthy } from './envUtils.js
 import { getDisplayPath } from './file.js';
 import { formatNumber } from './format.js';
 import { getIdeClientName, type IDEExtensionInstallationStatus, isJetBrainsIde, toIDEDisplayName } from './ide.js';
-import { getClaudeAiUserDefaultModelDescription, modelDisplayString } from './model/model.js';
+import { getClaudeAiUserDefaultModelDescription, getMainLoopModel, modelDisplayString } from './model/model.js';
 import { getAPIProvider } from './model/providers.js';
 import { getMTLSConfig } from './mtls.js';
 import { checkInstall } from './nativeInstaller/index.js';
@@ -552,16 +555,43 @@ export function buildAPIProviderProperties(): Property[] {
     });
   }
   if (runtimeSnapshot.execution.family === 'gemini') {
+    const configuredGeminiStores = getConfiguredGeminiFileSearchStoreNames();
+    const geminiCachedContent = getConfiguredGeminiCachedContent();
+    const geminiModel = getGeminiModelDefinition(getMainLoopModel());
     const capabilityLabels = [];
     if (runtimeSnapshot.supportsLocalToolSearch) capabilityLabels.push('ToolSearch');
     if (runtimeSnapshot.supportsLocalSkills) capabilityLabels.push('skills');
     if (runtimeSnapshot.supportsLocalComputerUse) capabilityLabels.push('local computer use');
     if (runtimeSnapshot.supportsLocalMcpTools) capabilityLabels.push('local MCP tools');
     if (runtimeSnapshot.supportsAgentTeams) capabilityLabels.push('teams');
+    if (runtimeSnapshot.supportsWebSearch) capabilityLabels.push('web search');
+    if (runtimeSnapshot.supportsHostedFileSearch) capabilityLabels.push('file search');
+    if (runtimeSnapshot.supportsComputerUse) capabilityLabels.push('computer use');
+    if (runtimeSnapshot.supportsHostedShell) capabilityLabels.push('hosted shell');
+    if (runtimeSnapshot.supportsImageGeneration) capabilityLabels.push('image generation');
+    if (runtimeSnapshot.supportsOpenAiBuiltInTools) capabilityLabels.push('built-in tools');
     properties.push({
       label: 'Gemini runtime',
       value: capabilityLabels.length > 0 ? capabilityLabels.join(' · ') : 'Auth required'
     });
+    properties.push({
+      label: 'Gemini file search',
+      value: runtimeSnapshot.supportsHostedFileSearch
+        ? `Routed (${configuredGeminiStores.length} store${configuredGeminiStores.length === 1 ? '' : 's'})`
+        : runtimeSnapshot.hostedFileSearchConfigured
+          ? `Configured (${configuredGeminiStores.length} store${configuredGeminiStores.length === 1 ? '' : 's'}), runtime path pending`
+          : 'Not configured'
+    });
+    properties.push({
+      label: 'Gemini caching',
+      value: geminiCachedContent ? `Configured (${geminiCachedContent})` : 'Not configured'
+    });
+    if (geminiModel) {
+      properties.push({
+        label: 'Gemini limits',
+        value: `${formatNumber(geminiModel.contextWindowTokens ?? 0)} ctx · ${formatNumber(geminiModel.outputTokenLimit ?? 0)} max output · 20 MB inline request cap`
+      });
+    }
     properties.push({
       label: 'Gemini model tools',
       value: runtimeSnapshot.documentedGeminiModelCapabilities.length > 0
@@ -576,7 +606,7 @@ export function buildAPIProviderProperties(): Property[] {
     });
     properties.push({
       label: 'Gemini gates',
-      value: ['provider OAuth', 'provider-hosted tools', 'documents', 'auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
+      value: ['provider OAuth', 'document/PDF upload lifecycle', 'URL context + function-calling combination limits', 'auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
     });
   }
   const proxyUrl = getProxyUrl();

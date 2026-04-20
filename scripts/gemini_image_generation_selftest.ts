@@ -33,6 +33,9 @@ assert.match(imageTool, /runGeminiImageGeneration/)
 assert.match(imageTool, /referenceImages/)
 assert.match(imageTool, /aspectRatio/)
 assert.match(imageTool, /imageSize/)
-assert.match(providerRuntime, /supportsImageGeneration: !!auth/)
+assert.match(
+  providerRuntime,
+  /const supportsImageGeneration =\s*\n\s*!!auth && routedModelCapabilities\.supportsImageGeneration/,
+)
 
 console.log('gemini-image-generation self-test passed')

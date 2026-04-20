@@ -37,15 +37,26 @@ entrypoints.
 
 ## Gemini Runtime Surface
 
-SeaTurtle now has an initial Gemini main-loop scaffold behind
+SeaTurtle now includes a native Gemini runtime behind
 `SEATURTLE_MAIN_PROVIDER=gemini` or `SEATURTLE_USE_GEMINI=1`. It uses
-`GEMINI_API_KEY`, routes chat through Gemini's native `generateContent`
-endpoint, and reports explicit Gemini capability gates in `/status` and
-`ct auth status --json`. Full lossless tool-history conversion, real streaming,
-and built-in Gemini tools are being landed as separate production chunks.
+`GEMINI_API_KEY`, routes chat through Gemini `generateContent` /
+`streamGenerateContent`, preserves Gemini thought signatures for tool replay,
+and reports documented-versus-routed Gemini capability truth in `/status` and
+`ct auth status --json`.
 
-See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, current
-runtime coverage, and intentionally gated surfaces.
+The current Gemini path routes:
+
+- native Gemini text generation and streaming
+- local SeaTurtle tools through Gemini function calling
+- Gemini image generation/editing
+- Gemini Google Search and URL context
+- Gemini provider-hosted code execution
+- Gemini file search when stores are configured
+- Gemini computer use through the guarded local desktop executor
+- Gemini structured outputs plus model/request guardrails
+
+See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, routed
+features, remaining gates, and validation commands.
 
 ## Core SeaTurtle Feature: Context Sanctity
 

@@ -290,8 +290,18 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     !!auth &&
     hostedFileSearchConfigured &&
     routedModelCapabilities.supportsFileSearch
+  const supportsHostedShell =
+    !!auth && routedModelCapabilities.supportsCodeExecution
   const supportsComputerUse =
     !!auth && supportsLocalComputerUse && computerUseModelReady
+  const supportsImageGeneration =
+    !!auth && routedModelCapabilities.supportsImageGeneration
+  const supportsProviderBuiltInTools =
+    supportsWebSearch ||
+    supportsHostedFileSearch ||
+    supportsHostedShell ||
+    supportsComputerUse ||
+    supportsImageGeneration
   const routedGeminiModelCapabilities = formatGeminiCapabilityLabels({
     ...routedModelCapabilities,
     supportsFileSearch: supportsHostedFileSearch,
@@ -317,14 +327,14 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsLocalComputerUse,
     supportsLocalMcpTools: true,
     supportsAgentTeams: readiness.ready || !!process.env.GEMINI_API_KEY?.trim(),
-    supportsOpenAiBuiltInTools: false,
+    supportsOpenAiBuiltInTools: supportsProviderBuiltInTools,
     supportsComputerUse,
     supportsHostedFileSearch,
     hostedFileSearchConfigured,
     supportsRemoteMcp: false,
     supportsWebSearch,
-    supportsHostedShell: false,
-    supportsImageGeneration: !!auth,
+    supportsHostedShell,
+    supportsImageGeneration,
     authState:
       readiness.hasAnyProfile || !!process.env.GEMINI_API_KEY?.trim()
         ? 'ready'

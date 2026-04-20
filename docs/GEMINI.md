@@ -1,28 +1,36 @@
 # Gemini Runtime
 
-SeaTurtle includes an initial Gemini main-loop scaffold. It is separate from the
-OpenAI/Codex runtime selection and is enabled explicitly.
+SeaTurtle ships a native Gemini runtime behind the existing provider seam. It
+does not use the OpenAI-compatible Gemini chat endpoint. Main-loop requests go
+through Gemini `generateContent` / `streamGenerateContent`, with Gemini-native
+`Content`, `Part`, tool declarations, and thought-signature preservation.
 
 ## Enable Gemini
 
-Set a Gemini API key and choose the provider:
+Primary setup:
 
 ```sh
 export GEMINI_API_KEY=...
 export SEATURTLE_MAIN_PROVIDER=gemini
 ```
 
-The SeaTurtle boolean gate also works:
+Boolean provider gate:
 
 ```sh
 export SEATURTLE_USE_GEMINI=1
 ```
 
-Legacy `CLAUDE_CODE_MAIN_PROVIDER=gemini` and `CLAUDE_CODE_USE_GEMINI=1`
-aliases are still accepted for compatibility, but new setup should use the
-SeaTurtle-prefixed variables.
+Compatibility aliases are still accepted:
 
-The default Gemini model is `gemini-3-flash-preview`. The model picker exposes:
+- `CLAUDE_CODE_MAIN_PROVIDER=gemini`
+- `CLAUDE_CODE_USE_GEMINI=1`
+
+SeaTurtle env names take precedence over persisted provider config, which in
+turn takes precedence over the legacy Claude compatibility env names.
+
+## Supported Models
+
+Main-loop Gemini chat models currently exposed in the picker:
 
 - `gemini-3.1-pro-preview`
 - `gemini-3-flash-preview`
@@ -31,65 +39,125 @@ The default Gemini model is `gemini-3-flash-preview`. The model picker exposes:
 - `gemini-2.5-flash`
 - `gemini-2.5-flash-lite`
 
-SeaTurtle also tracks specialized Gemini models in its capability registry for
-later native tool routing. They are not exposed as main-loop chat models:
+Specialized routed Gemini models tracked in the capability registry:
 
-- image generation/editing: `gemini-3.1-flash-image-preview`,
-  `gemini-3-pro-image-preview`, `gemini-2.5-flash-image`
-- computer use: `gemini-2.5-computer-use-preview-10-2025`
-- file-search embeddings: `gemini-embedding-001`
+- image generation/editing:
+  - `gemini-3.1-flash-image-preview`
+  - `gemini-3-pro-image-preview`
+  - `gemini-2.5-flash-image`
+- computer use:
+  - `gemini-2.5-computer-use-preview-10-2025`
+- embeddings / file-search support:
+  - `gemini-embedding-001`
 
-## Current Runtime Surface
+Preview and lifecycle state are carried in the Gemini capability registry and
+shown through the normal model picker/status surfaces.
 
-The current Gemini slice routes the main conversation loop through Gemini's
-native `generateContent` endpoint:
+## Routed Runtime Surface
 
-```text
-https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
+Gemini is routed today for:
+
+- native text generation through `generateContent`
+- native SSE streaming through `streamGenerateContent`
+- native Gemini function calling with thought-signature replay
+- local SeaTurtle tools through Gemini function declarations
+- image input through native `inlineData`
+- Gemini image generation and editing through `ImageGenerationTool`
+- Gemini Google Search grounding through `WebSearchTool`
+- Gemini URL context through `WebFetchTool`
+- Gemini provider-hosted code execution through `HostedShellTool`
+- Gemini file search when store config is present
+- Gemini computer use through the guarded local desktop executor
+- Gemini structured outputs for helper/classifier JSON flows
+- Gemini token counting endpoint support
+- local request guards for model output limits, estimated context overflow, and
+  the 20 MB inline request cap
+- `/status` and `ct auth status --json` reporting of documented Gemini support
+  separately from routed SeaTurtle support
+
+Gemini selection never silently executes Anthropic. If Gemini is selected and
+auth is missing, SeaTurtle fails with Gemini-specific setup guidance.
+
+## Config Surface
+
+Core:
+
+```sh
+export GEMINI_API_KEY=...
+export SEATURTLE_MAIN_PROVIDER=gemini
 ```
 
-It supports:
+Optional Gemini runtime config:
 
-- Gemini API-key auth through `GEMINI_API_KEY`
-- provider selection through `SEATURTLE_MAIN_PROVIDER=gemini`
-- model selection through the existing `/model` flow
-- local SeaTurtle tools via Gemini native function declarations
-- image input through native Gemini `inlineData` parts
-- `/status` and `ct auth status --json` capability reporting
+```sh
+export SEATURTLE_GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
+export SEATURTLE_GEMINI_FILE_SEARCH_STORE_NAMES=store-a,store-b
+export SEATURTLE_GEMINI_FILE_SEARCH_DEFAULT_STORE=store-a
+export SEATURTLE_GEMINI_CACHED_CONTENT=cachedContents/...
+export SEATURTLE_GEMINI_SERVICE_TIER=priority
+```
 
-`/status` reports documented Gemini model support separately from the routed
-SeaTurtle runtime support. A Gemini feature is not considered routed until the
-SeaTurtle runner exists and has validation coverage.
+`SEATURTLE_GEMINI_CACHED_CONTENT` attaches an explicit Gemini cached-content
+prefix to native requests. This is useful when you have already created a cache
+resource and want SeaTurtle to reuse it in repeated flows.
 
-Native `streamGenerateContent`, full lossless `Content`/`Part` conversion, and
-thought-signature preservation are tracked as follow-up production chunks.
+## Capability Truth
 
-## Explicit Gates
+SeaTurtle keeps two Gemini capability views:
 
-These surfaces are intentionally not claimed as routed yet:
+- documented Gemini support: what Google documents for the selected model
+- routed SeaTurtle support: the Gemini features this build actually wires and
+  validates end to end
 
-- Gemini OAuth
-- Gemini provider-hosted tools such as Google Search, file search, code
-  execution, computer use, image generation, and URL context
-- document/PDF input
+`/status` and `ct auth status --json` show these separately. A Gemini feature
+is not considered routed until the SeaTurtle runner exists and has validation
+coverage.
+
+## Operational Limits
+
+Current Gemini guardrails in this build:
+
+- model context and max-output limits come from the Gemini capability registry
+- inline requests are rejected locally above 20 MB
+- oversized text-first requests are rejected locally using an estimated token
+  budget check
+- `countTokens` is available for native Gemini tooling and validation
+- explicit cached content is supported when you provide a cached-content name
+
+Google’s docs also note that:
+
+- explicit cached content defaults to a 1 hour TTL unless set otherwise
+- cached-content minimum token counts vary by model
+- uploaded Files API assets are stored for 48 hours
+
+## Unsupported Or Explicitly Gated
+
+These are still gated or constrained:
+
+- Gemini provider OAuth / Vertex-style Gemini auth is not wired yet
+- full document/PDF upload lifecycle is not yet exposed as a first-class
+  operator flow
+- Gemini URL context has tool-combination limits with function calling
+- provider-hosted remote MCP is not routed on Gemini
 - auto-mode safety classifier
 - permission explainer
 - CT in Chrome lightning
 
-Those should be added as explicit follow-up chunks rather than silently falling
-back to Anthropic or OpenAI/Codex behavior.
-
 ## Validation
 
-Use:
+Offline / fixture checks:
 
 ```sh
 npm run gemini-runtime-check
 npm run dev-check
+npm run openai-codex-check
 ```
 
-For OpenAI/Codex regressions, continue to run:
+Optional live checks. These skip cleanly when `GEMINI_API_KEY` is absent:
 
 ```sh
-npm run openai-codex-check
+npm run gemini-live-text-check
+npm run gemini-live-tool-check
+npm run gemini-live-image-check
+npm run gemini-live-search-check
 ```

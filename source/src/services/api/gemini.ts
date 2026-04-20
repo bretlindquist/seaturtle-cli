@@ -14,6 +14,10 @@ import {
   runGeminiGenerateContent,
   runGeminiStreamGenerateContent,
 } from './geminiClient.js'
+import {
+  getConfiguredGeminiCachedContent,
+  getConfiguredGeminiServiceTier,
+} from './geminiCacheConfig.js'
 import type {
   GeminiGenerateContentRequest,
   GeminiGenerateContentResponse,
@@ -22,6 +26,7 @@ import type {
   GeminiTool,
 } from './geminiTypes.js'
 import { buildGeminiThinkingConfig } from './geminiThinkingConfig.js'
+import { validateGeminiRequestAgainstModelLimits } from './geminiRequestGuards.js'
 import type {
   AssistantMessage,
   Message,
@@ -171,13 +176,25 @@ async function buildGeminiRequest(params: {
         }
       : {}),
   }
+  const cachedContent = getConfiguredGeminiCachedContent()
+  const serviceTier = getConfiguredGeminiServiceTier()
+  const request: GeminiGenerateContentRequest = {
+    contents,
+    ...(systemInstruction ? { systemInstruction } : {}),
+    ...(tools.length > 0 ? { tools } : {}),
+    ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
+    ...(cachedContent ? { cachedContent } : {}),
+    ...(serviceTier ? { serviceTier } : {}),
+  }
+  const guardError = validateGeminiRequestAgainstModelLimits({
+    model: params.options.model,
+    request,
+  })
+  if (guardError) {
+    return { error: guardError }
+  }
   return {
-    request: {
-      contents,
-      ...(systemInstruction ? { systemInstruction } : {}),
-      ...(tools.length > 0 ? { tools } : {}),
-      ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
-    },
+    request,
   }
 }
 

@@ -21,6 +21,8 @@ import { getOauthProfileFromOauthToken } from '../../services/oauth/getOauthProf
 import { OAuthService } from '../../services/oauth/index.js'
 import type { OAuthTokens } from '../../services/oauth/types.js'
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
+import { getConfiguredGeminiCachedContent } from '../../services/api/geminiCacheConfig.js'
+import { getConfiguredGeminiFileSearchStoreNames } from '../../services/api/geminiFileSearchConfig.js'
 import { getConfiguredOpenAiVectorStoreIds } from '../../services/api/openaiCapabilityConfig.js'
 import { getOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodexTelemetry.js'
 import {
@@ -417,6 +419,8 @@ export async function authStatus(opts: {
       ]
     }
     if (runtimeSnapshot.execution.family === 'gemini') {
+      const geminiStoreNames = getConfiguredGeminiFileSearchStoreNames()
+      const geminiCachedContent = getConfiguredGeminiCachedContent()
       output.geminiCapabilities = {
         localToolSearch: runtimeSnapshot.supportsLocalToolSearch,
         localSkills: runtimeSnapshot.supportsLocalSkills,
@@ -431,14 +435,24 @@ export async function authStatus(opts: {
         remoteMcp: runtimeSnapshot.supportsRemoteMcp,
         builtInTools: runtimeSnapshot.supportsOpenAiBuiltInTools,
       }
+      output.geminiCapabilityConfig = {
+        hostedFileSearchConfigured: runtimeSnapshot.hostedFileSearchConfigured,
+        hostedFileSearchRouted: runtimeSnapshot.supportsHostedFileSearch,
+        ...(geminiStoreNames.length > 0
+          ? { hostedFileSearchStoreNames: geminiStoreNames }
+          : {}),
+        ...(geminiCachedContent
+          ? { cachedContent: geminiCachedContent }
+          : {}),
+      }
       output.geminiModelCapabilities =
         runtimeSnapshot.documentedGeminiModelCapabilities
       output.geminiRoutedModelCapabilities =
         runtimeSnapshot.routedGeminiModelCapabilities
       output.geminiKnownGates = [
         'provider_oauth',
-        'provider_hosted_tools',
-        'documents',
+        'document_pdf_upload_lifecycle',
+        'url_context_function_call_combination_limits',
         'auto_mode_classifier',
         'permission_explainer',
         'claude_in_chrome_lightning',
