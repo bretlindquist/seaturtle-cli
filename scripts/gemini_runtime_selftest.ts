@@ -47,6 +47,10 @@ const geminiThoughtSignatures = readFileSync(
   join(repoRoot, 'source/src/services/api/geminiThoughtSignatures.ts'),
   'utf8',
 )
+const geminiToolSchema = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiToolSchema.ts'),
+  'utf8',
+)
 const managedEnvConstants = readFileSync(
   join(repoRoot, 'source/src/utils/managedEnvConstants.ts'),
   'utf8',
@@ -151,6 +155,26 @@ assertIncludes(
   geminiContent,
   /functionResponse/,
   'Gemini content mapper should convert tool results to native functionResponse parts',
+)
+assertIncludes(
+  geminiContent,
+  /buildGeminiFunctionDeclaration/,
+  'Gemini content mapper should use the Gemini-specific tool declaration builder',
+)
+assertNotIncludes(
+  geminiContent,
+  /normalizeOpenAiToolParameterSchema/,
+  'Gemini content mapper must not reuse the OpenAI tool schema normalizer',
+)
+assertIncludes(
+  geminiToolSchema,
+  /normalizeGeminiToolParameterSchema/,
+  'Gemini tool schema normalizer should be provider-specific',
+)
+assertIncludes(
+  geminiToolSchema,
+  /UNSUPPORTED_GEMINI_SCHEMA_KEYS/,
+  'Gemini tool schema normalizer should strip unsupported schema keys',
 )
 assertIncludes(
   geminiContent,

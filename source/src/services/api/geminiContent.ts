@@ -1,9 +1,7 @@
 import type {
   BetaContentBlock,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
-import {
-  normalizeOpenAiToolParameterSchema,
-} from './openaiToolSchema.js'
+import { buildGeminiFunctionDeclaration } from './geminiToolSchema.js'
 import type {
   GeminiContent,
   GeminiGenerateContentResponse,
@@ -269,13 +267,11 @@ export async function buildGeminiTools(params: {
       'inputJSONSchema' in tool && tool.inputJSONSchema
         ? tool.inputJSONSchema
         : zodToJsonSchema(tool.inputSchema)
-    const parameters = normalizeOpenAiToolParameterSchema(schema ?? {})
-
-    functionDeclarations.push({
+    functionDeclarations.push(buildGeminiFunctionDeclaration({
       name: tool.name,
       description: tool.description,
-      parameters,
-    })
+      parameters: schema ?? {},
+    }))
   }
 
   return functionDeclarations.length > 0 ? [{ functionDeclarations }] : []

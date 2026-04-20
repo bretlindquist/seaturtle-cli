@@ -17,6 +17,7 @@ import type {
   GeminiGenerateContentRequest,
   GeminiGenerateContentResponse,
   GeminiPart,
+  GeminiTool,
 } from './geminiTypes.js'
 import type {
   AssistantMessage,
@@ -127,7 +128,12 @@ async function buildGeminiRequest(params: {
     return { error: 'Gemini request is missing input messages.' }
   }
 
-  const tools = await buildGeminiTools({ tools: params.tools })
+  let tools: GeminiTool[]
+  try {
+    tools = await buildGeminiTools({ tools: params.tools })
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) }
+  }
   const systemInstruction = buildGeminiSystemInstruction(params.systemPrompt)
   return {
     request: {
