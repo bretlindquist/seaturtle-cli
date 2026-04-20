@@ -87,13 +87,13 @@ function run(): void {
   )
   assert.match(
     swarmGate,
-    /runtime\.family === 'openai'/,
-    'agent swarm gate should branch on the active OpenAI runtime',
+    /runtime\.family !== 'anthropic'/,
+    'agent swarm gate should branch on provider-native runtimes instead of Anthropic-only assumptions',
   )
   assert.match(
     swarmGate,
     /runtime\.executionEnabled && runtime\.supportsAgentTeams/,
-    'agent swarm gate should require ready OpenAI auth before enabling teams',
+    'agent swarm gate should require ready provider auth before enabling teams',
   )
   assert.doesNotMatch(
     agentTool,

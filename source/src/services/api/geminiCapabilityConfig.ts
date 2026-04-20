@@ -46,6 +46,8 @@ export type GeminiModelCapabilities = {
 }
 
 export const DEFAULT_GEMINI_MAIN_LOOP_MODEL = 'gemini-3-flash-preview'
+export const DEFAULT_GEMINI_COMPUTER_USE_MODEL =
+  'gemini-2.5-computer-use-preview-10-2025'
 
 const EMPTY_GEMINI_MODEL_CAPABILITIES: GeminiModelCapabilities = {
   supportsFunctionCalling: false,
@@ -216,7 +218,7 @@ const GEMINI_MODEL_DEFINITIONS: readonly GeminiModelDefinition[] = [
     thinkingCanBeDisabled: true,
   },
   {
-    value: 'gemini-2.5-computer-use-preview-10-2025',
+    value: DEFAULT_GEMINI_COMPUTER_USE_MODEL,
     label: 'Gemini 2.5 Computer Use Preview',
     description: 'Specialized Gemini computer-use model for browser UI actions',
     descriptionForModel:
@@ -321,6 +323,32 @@ export function validateGeminiModel(model: string): string | null {
   }
   if (!definition.uses.includes('main-loop')) {
     return `model \`${model}\` is a Gemini ${definition.uses.join('/')} model, not a SeaTurtle main-loop model. Supported main-loop models: ${getGeminiMainLoopModelDefinitions().map(item => `\`${item.value}\``).join(', ')}.`
+  }
+  return null
+}
+
+export function getDefaultGeminiComputerUseModel(): string {
+  return (
+    process.env.SEATURTLE_GEMINI_COMPUTER_USE_MODEL?.trim() ||
+    process.env.GEMINI_COMPUTER_USE_MODEL?.trim() ||
+    DEFAULT_GEMINI_COMPUTER_USE_MODEL
+  )
+}
+
+export function validateGeminiComputerUseModel(model: string): string | null {
+  const supportedModels = getGeminiModelDefinitions().filter(
+    item =>
+      item.uses.includes('computer-use') || item.value === 'gemini-3-flash-preview',
+  )
+  const definition = getGeminiModelDefinition(model)
+  if (!definition) {
+    return `Gemini computer use model \`${model}\` is not available in this build. Supported computer-use models: ${supportedModels.map(item => `\`${item.value}\``).join(', ')}.`
+  }
+  if (
+    !definition.uses.includes('computer-use') &&
+    definition.value !== 'gemini-3-flash-preview'
+  ) {
+    return `Gemini computer use model \`${model}\` is not routed for desktop control. Supported computer-use models: ${supportedModels.map(item => `\`${item.value}\``).join(', ')}.`
   }
   return null
 }

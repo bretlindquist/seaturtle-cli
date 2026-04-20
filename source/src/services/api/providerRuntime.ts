@@ -11,11 +11,13 @@ import {
 } from './openaiCodex.js'
 import {
   formatGeminiCapabilityLabels,
+  getDefaultGeminiComputerUseModel,
   getDocumentedGeminiModelCapabilities,
   getGeminiApiKeyAuthTarget,
   getRoutedGeminiModelCapabilities,
   queryGeminiWithStreaming,
   queryGeminiWithoutStreaming,
+  validateGeminiComputerUseModel,
 } from './gemini.js'
 import {
   getDefaultGeminiApiKeyProfile,
@@ -281,13 +283,19 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     getChicagoEnabled()
   const hostedFileSearchConfigured = isGeminiHostedFileSearchConfigured()
   const supportsWebSearch = !!auth && routedModelCapabilities.supportsWebSearch
+  const computerUseModel = getDefaultGeminiComputerUseModel()
+  const computerUseModelReady =
+    validateGeminiComputerUseModel(computerUseModel) === null
   const supportsHostedFileSearch =
     !!auth &&
     hostedFileSearchConfigured &&
     routedModelCapabilities.supportsFileSearch
+  const supportsComputerUse =
+    !!auth && supportsLocalComputerUse && computerUseModelReady
   const routedGeminiModelCapabilities = formatGeminiCapabilityLabels({
     ...routedModelCapabilities,
     supportsFileSearch: supportsHostedFileSearch,
+    supportsComputerUse,
   })
 
   return {
@@ -310,7 +318,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsLocalMcpTools: true,
     supportsAgentTeams: readiness.ready || !!process.env.GEMINI_API_KEY?.trim(),
     supportsOpenAiBuiltInTools: false,
-    supportsComputerUse: false,
+    supportsComputerUse,
     supportsHostedFileSearch,
     hostedFileSearchConfigured,
     supportsRemoteMcp: false,

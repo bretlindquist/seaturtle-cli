@@ -40,10 +40,12 @@ import {
   validateGeminiModel,
 } from './geminiCapabilityConfig.js'
 export {
+  getDefaultGeminiComputerUseModel,
   formatGeminiCapabilityLabels,
   getDocumentedGeminiModelCapabilities,
   getGeminiMainLoopModelDefinitions as getGeminiModelDefinitions,
   getRoutedGeminiModelCapabilities,
+  validateGeminiComputerUseModel,
   validateGeminiModel,
   type GeminiModelCapabilities,
   type GeminiModelDefinition,

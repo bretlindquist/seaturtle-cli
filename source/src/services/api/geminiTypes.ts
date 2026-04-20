@@ -15,6 +15,9 @@ export type GeminiFunctionResponse = {
   id?: string
   name: string
   response: Record<string, unknown>
+  parts?: Array<{
+    inlineData?: GeminiInlineData
+  }>
 }
 
 export type GeminiPart = {

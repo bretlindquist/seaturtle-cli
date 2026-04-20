@@ -1,5 +1,9 @@
 import { z } from 'zod/v4'
 import {
+  runGeminiComputerUse,
+  type GeminiComputerUseResult,
+} from '../../services/api/geminiComputerUse.js'
+import {
   runOpenAiCodexComputerUse,
   type OpenAiCodexComputerUseResult,
 } from '../../services/api/openaiCodex.js'
@@ -42,7 +46,7 @@ const inputSchema = lazySchema(() =>
       .min(1)
       .max(50)
       .optional()
-      .describe('Maximum number of OpenAI computer-use loop iterations before stopping'),
+      .describe('Maximum number of provider-routed computer-use loop iterations before stopping'),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -64,7 +68,7 @@ export type Output = z.infer<OutputSchema>
 
 export const ComputerUseTool = buildTool({
   name: COMPUTER_USE_TOOL_NAME,
-  searchHint: 'use OpenAI computer use against the local desktop',
+  searchHint: 'use provider-routed computer use against the local desktop',
   maxResultSizeChars: 2_000_000,
   shouldDefer: true,
   async description(input) {
@@ -72,10 +76,7 @@ export const ComputerUseTool = buildTool({
   },
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
-    return (
-      runtime.family === 'openai' &&
-      runtime.supportsComputerUse
-    )
+    return runtime.supportsComputerUse
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -103,22 +104,34 @@ export const ComputerUseTool = buildTool({
   },
   async call(input, context) {
     const startTime = performance.now()
-    const result: OpenAiCodexComputerUseResult =
-      await runOpenAiCodexComputerUse({
-        model: context.options.mainLoopModel,
-        task: input.task,
-        apps: input.apps,
-        clipboardRead: input.clipboardRead,
-        clipboardWrite: input.clipboardWrite,
-        systemKeyCombos: input.systemKeyCombos,
-        maxSteps: input.maxSteps,
-        signal: context.abortController.signal,
-        options: {
-          ...context.options,
-          model: context.options.mainLoopModel,
-        },
-        toolUseContext: context,
-      })
+    const runtime = getMainLoopProviderRuntime()
+    const result: OpenAiCodexComputerUseResult | GeminiComputerUseResult =
+      runtime.family === 'gemini'
+        ? await runGeminiComputerUse({
+            task: input.task,
+            apps: input.apps,
+            clipboardRead: input.clipboardRead,
+            clipboardWrite: input.clipboardWrite,
+            systemKeyCombos: input.systemKeyCombos,
+            maxSteps: input.maxSteps,
+            signal: context.abortController.signal,
+            toolUseContext: context,
+          })
+        : await runOpenAiCodexComputerUse({
+            model: context.options.mainLoopModel,
+            task: input.task,
+            apps: input.apps,
+            clipboardRead: input.clipboardRead,
+            clipboardWrite: input.clipboardWrite,
+            systemKeyCombos: input.systemKeyCombos,
+            maxSteps: input.maxSteps,
+            signal: context.abortController.signal,
+            options: {
+              ...context.options,
+              model: context.options.mainLoopModel,
+            },
+            toolUseContext: context,
+          })
 
     return {
       data: {
