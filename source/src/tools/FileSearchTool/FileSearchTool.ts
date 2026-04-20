@@ -1,5 +1,9 @@
 import { z } from 'zod/v4'
 import {
+  runGeminiFileSearch,
+  type GeminiFileSearchResult,
+} from '../../services/api/geminiFileSearch.js'
+import {
   runOpenAiCodexFileSearch,
   type OpenAiCodexFileSearchResult,
 } from '../../services/api/openaiCodex.js'
@@ -51,7 +55,10 @@ export const FileSearchTool = buildTool({
   },
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
-    return runtime.family === 'openai' && runtime.supportsHostedFileSearch
+    return (
+      (runtime.family === 'openai' && runtime.supportsHostedFileSearch) ||
+      (runtime.family === 'gemini' && runtime.supportsHostedFileSearch)
+    )
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -80,15 +87,23 @@ export const FileSearchTool = buildTool({
   },
   async call(input, context) {
     const startTime = performance.now()
-    const result: OpenAiCodexFileSearchResult = await runOpenAiCodexFileSearch({
-      model: context.options.mainLoopModel,
-      query: input.query,
-      signal: context.abortController.signal,
-      options: {
-        ...context.options,
-        model: context.options.mainLoopModel,
-      },
-    })
+    const runtime = getMainLoopProviderRuntime()
+    const result: OpenAiCodexFileSearchResult | GeminiFileSearchResult =
+      runtime.family === 'gemini'
+        ? await runGeminiFileSearch({
+            model: context.options.mainLoopModel,
+            query: input.query,
+            signal: context.abortController.signal,
+          })
+        : await runOpenAiCodexFileSearch({
+            model: context.options.mainLoopModel,
+            query: input.query,
+            signal: context.abortController.signal,
+            options: {
+              ...context.options,
+              model: context.options.mainLoopModel,
+            },
+          })
 
     return {
       data: {

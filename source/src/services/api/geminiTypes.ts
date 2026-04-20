@@ -86,6 +86,18 @@ export type GeminiGroundingMetadata = {
       uri?: string
       title?: string
     }
+    retrievedContext?: {
+      text?: string
+      title?: string
+      uri?: string
+      customMetadata?: unknown[]
+    }
+    retrieved_context?: {
+      text?: string
+      title?: string
+      uri?: string
+      custom_metadata?: unknown[]
+    }
   }>
   groundingSupports?: Array<{
     groundingChunkIndices?: number[]

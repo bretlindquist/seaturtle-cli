@@ -30,6 +30,7 @@ import {
   isOpenAiHostedFileSearchConfigured,
   isOpenAiRemoteMcpConfigured,
 } from './openaiCapabilityConfig.js'
+import { isGeminiHostedFileSearchConfigured } from './geminiFileSearchConfig.js'
 import {
   type APIProvider,
   getAPIProvider,
@@ -278,7 +279,16 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     feature('CHICAGO_MCP') &&
     getPlatform() === 'macos' &&
     getChicagoEnabled()
+  const hostedFileSearchConfigured = isGeminiHostedFileSearchConfigured()
   const supportsWebSearch = !!auth && routedModelCapabilities.supportsWebSearch
+  const supportsHostedFileSearch =
+    !!auth &&
+    hostedFileSearchConfigured &&
+    routedModelCapabilities.supportsFileSearch
+  const routedGeminiModelCapabilities = formatGeminiCapabilityLabels({
+    ...routedModelCapabilities,
+    supportsFileSearch: supportsHostedFileSearch,
+  })
 
   return {
     family: 'gemini',
@@ -293,9 +303,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     documentedGeminiModelCapabilities: formatGeminiCapabilityLabels(
       documentedModelCapabilities,
     ),
-    routedGeminiModelCapabilities: formatGeminiCapabilityLabels(
-      routedModelCapabilities,
-    ),
+    routedGeminiModelCapabilities,
     supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
     supportsLocalSkills: true,
     supportsLocalComputerUse,
@@ -303,8 +311,8 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsAgentTeams: readiness.ready || !!process.env.GEMINI_API_KEY?.trim(),
     supportsOpenAiBuiltInTools: false,
     supportsComputerUse: false,
-    supportsHostedFileSearch: false,
-    hostedFileSearchConfigured: false,
+    supportsHostedFileSearch,
+    hostedFileSearchConfigured,
     supportsRemoteMcp: false,
     supportsWebSearch,
     supportsHostedShell: false,
