@@ -84,9 +84,11 @@ const MAIN_LOOP_DOCUMENTED_CAPABILITIES: GeminiModelCapabilities = {
 
 const ROUTED_GEMINI_MODEL_CAPABILITIES: GeminiModelCapabilities = {
   ...EMPTY_GEMINI_MODEL_CAPABILITIES,
-  // Wave 2 truth: only the current transitional Gemini scaffold is routed.
+  // Routed capabilities reflect native SeaTurtle runners that are actually wired.
   supportsFunctionCalling: true,
   supportsMultimodalInput: true,
+  supportsWebSearch: true,
+  supportsUrlContext: true,
 }
 
 const GEMINI_3_MAIN_LOOP_DOCUMENTED_CAPABILITIES: GeminiModelCapabilities = {

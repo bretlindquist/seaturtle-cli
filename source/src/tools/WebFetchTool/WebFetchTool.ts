@@ -1,4 +1,6 @@
 import { z } from 'zod/v4'
+import { runGeminiUrlContext } from '../../services/api/geminiUrlContext.js'
+import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 import { formatFileSize } from '../../utils/format.js'
@@ -207,9 +209,41 @@ ${DESCRIPTION}`
   renderToolResultMessage,
   async call(
     { url, prompt },
-    { abortController, options: { isNonInteractiveSession } },
+    { abortController, options },
   ) {
     const start = Date.now()
+    const runtime = getMainLoopProviderRuntime()
+
+    if (runtime.family === 'gemini') {
+      const result = await runGeminiUrlContext({
+        model: options.mainLoopModel,
+        prompt,
+        urls: [url],
+        signal: abortController.signal,
+      })
+      const providerNotes =
+        result.retrievedUrls.length > 0
+          ? `\n\n[Gemini URL context retrieval: ${result.retrievedUrls
+              .map(
+                entry =>
+                  `${entry.retrievedUrl} (${entry.urlRetrievalStatus ?? 'unknown'})`,
+              )
+              .join('; ')}]`
+          : ''
+
+      return {
+        data: {
+          bytes: Buffer.byteLength(result.outputText),
+          code: 200,
+          codeText: 'Gemini URL Context',
+          result: `${result.outputText}${providerNotes}`.trim(),
+          durationMs: Date.now() - start,
+          url,
+        },
+      }
+    }
+
+    const { isNonInteractiveSession } = options
 
     const response = await getURLMarkdownContent(url, abortController)
 

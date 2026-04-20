@@ -80,12 +80,38 @@ export type GeminiGenerateContentRequest = {
   serviceTier?: string
 }
 
-export type GeminiGroundingMetadata = Record<string, unknown>
+export type GeminiGroundingMetadata = {
+  groundingChunks?: Array<{
+    web?: {
+      uri?: string
+      title?: string
+    }
+  }>
+  groundingSupports?: Array<{
+    groundingChunkIndices?: number[]
+  }>
+  webSearchQueries?: string[]
+  searchEntryPoint?: Record<string, unknown>
+  retrievalMetadata?: Record<string, unknown>
+}
+
+export type GeminiUrlContextMetadata = {
+  urlMetadata?: Array<{
+    retrievedUrl?: string
+    urlRetrievalStatus?: string
+  }>
+  url_metadata?: Array<{
+    retrieved_url?: string
+    url_retrieval_status?: string
+  }>
+}
 
 export type GeminiCandidate = {
   content?: GeminiContent
   finishReason?: string
   groundingMetadata?: GeminiGroundingMetadata
+  urlContextMetadata?: GeminiUrlContextMetadata
+  url_context_metadata?: GeminiUrlContextMetadata
 }
 
 export type GeminiUsageMetadata = Record<string, unknown>

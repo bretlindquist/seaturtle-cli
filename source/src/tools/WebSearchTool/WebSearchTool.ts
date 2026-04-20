@@ -7,6 +7,7 @@ import type { PermissionResult } from 'src/utils/permissions/PermissionResult.js
 import { z } from 'zod/v4'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { queryModelWithStreaming } from '../../services/api/claude.js'
+import { runGeminiWebSearch } from '../../services/api/geminiWebSearch.js'
 import { runOpenAiCodexWebSearch } from '../../services/api/openaiCodex.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
@@ -169,7 +170,7 @@ export const WebSearchTool = buildTool({
   },
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
-    if (runtime.family === 'openai') {
+    if (runtime.family === 'openai' || runtime.family === 'gemini') {
       return runtime.supportsWebSearch
     }
 
@@ -265,6 +266,17 @@ export const WebSearchTool = buildTool({
         errorCode: 3,
       }
     }
+    if (
+      runtime.family === 'gemini' &&
+      (allowed_domains?.length || blocked_domains?.length)
+    ) {
+      return {
+        result: false,
+        message:
+          'Error: Gemini web search routing in SeaTurtle does not yet support allowed_domains or blocked_domains filters.',
+        errorCode: 4,
+      }
+    }
     return { result: true }
   },
   async call(input, context, _canUseTool, _parentMessage, onProgress) {
@@ -315,6 +327,57 @@ export const WebSearchTool = buildTool({
       if (result.sources.length > 0) {
         results.push({
           tool_use_id: 'openai-web-search',
+          content: result.sources,
+        })
+      }
+
+      return {
+        data: {
+          query,
+          results,
+          durationSeconds,
+        },
+      }
+    }
+
+    if (runtime.family === 'gemini') {
+      if (onProgress) {
+        onProgress({
+          toolUseID: 'search-progress-1',
+          data: {
+            type: 'query_update',
+            query,
+          },
+        })
+      }
+
+      const result = await runGeminiWebSearch({
+        model: context.options.mainLoopModel,
+        query,
+        signal: context.abortController.signal,
+      })
+
+      if (onProgress) {
+        onProgress({
+          toolUseID: 'search-progress-2',
+          data: {
+            type: 'search_results_received',
+            resultCount: result.sources.length,
+            query,
+          },
+        })
+      }
+
+      const durationSeconds = (performance.now() - startTime) / 1000
+      const results: (SearchResult | string)[] = []
+
+      if (result.outputText.length > 0) {
+        results.push(result.outputText)
+      }
+
+      if (result.sources.length > 0) {
+        results.push({
+          tool_use_id: 'gemini-web-search',
           content: result.sources,
         })
       }

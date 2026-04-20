@@ -278,6 +278,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     feature('CHICAGO_MCP') &&
     getPlatform() === 'macos' &&
     getChicagoEnabled()
+  const supportsWebSearch = !!auth && routedModelCapabilities.supportsWebSearch
 
   return {
     family: 'gemini',
@@ -305,7 +306,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsHostedFileSearch: false,
     hostedFileSearchConfigured: false,
     supportsRemoteMcp: false,
-    supportsWebSearch: false,
+    supportsWebSearch,
     supportsHostedShell: false,
     supportsImageGeneration: !!auth,
     authState:
