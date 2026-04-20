@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a SeaTurtle CLI bug or broken behavior
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. If you used `/feedback`, CT also saved a local record in `.ct/feedback.md`.
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: Bug description
+      description: What happened, and what did you expect instead?
+      placeholder: Describe the bug clearly and concretely.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Steps, commands, or prompts needed to reproduce the issue
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. Observe ...
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, terminal, version, auth/runtime context, or any other relevant environment detail
+  - type: textarea
+    id: extra-context
+    attributes:
+      label: Extra context
+      description: Logs, screenshots, or anything else that would help debug this
