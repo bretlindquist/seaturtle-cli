@@ -1,4 +1,5 @@
 import type {
+  BetaJSONOutputFormat,
   BetaContentBlock,
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID } from 'crypto'
@@ -148,12 +149,26 @@ async function buildGeminiRequest(params: {
   if ('error' in thinking) {
     return { error: thinking.error }
   }
+  const structuredOutput = buildGeminiStructuredOutputConfig(
+    params.options.outputFormat,
+  )
+  if (structuredOutput && 'error' in structuredOutput) {
+    return { error: structuredOutput.error }
+  }
   const generationConfig: GeminiGenerationConfig = {
     ...(params.options.maxOutputTokensOverride
       ? { maxOutputTokens: params.options.maxOutputTokensOverride }
       : {}),
     ...(thinking.thinkingConfig
       ? { thinkingConfig: thinking.thinkingConfig }
+      : {}),
+    ...(structuredOutput
+      ? {
+          responseMimeType: structuredOutput.responseMimeType,
+          ...(structuredOutput.responseJsonSchema
+            ? { responseJsonSchema: structuredOutput.responseJsonSchema }
+            : {}),
+        }
       : {}),
   }
   return {
@@ -172,6 +187,31 @@ function getGeminiAuthOrError(): GeminiAuthTarget | string {
     auth ??
     'Gemini auth is not configured. Set GEMINI_API_KEY, then retry with `SEATURTLE_MAIN_PROVIDER=gemini`.'
   )
+}
+
+function buildGeminiStructuredOutputConfig(
+  outputFormat: BetaJSONOutputFormat | undefined,
+):
+  | {
+      responseMimeType: string
+      responseJsonSchema?: unknown
+    }
+  | { error: string }
+  | null {
+  if (!outputFormat) {
+    return null
+  }
+
+  if (outputFormat.type !== 'json_schema') {
+    return {
+      error: `Gemini structured output does not support output format \`${outputFormat.type}\` in this build.`,
+    }
+  }
+
+  return {
+    responseMimeType: 'application/json',
+    responseJsonSchema: outputFormat.schema,
+  }
 }
 
 async function runGeminiPlainText(params: {

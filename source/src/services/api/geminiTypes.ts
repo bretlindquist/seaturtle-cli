@@ -66,6 +66,7 @@ export type GeminiGenerationConfig = {
   responseModalities?: string[]
   responseMimeType?: string
   responseSchema?: unknown
+  responseJsonSchema?: unknown
   thinkingConfig?: Record<string, unknown>
   imageConfig?: Record<string, unknown>
 }
@@ -130,6 +131,13 @@ export type GeminiCandidate = {
 }
 
 export type GeminiUsageMetadata = Record<string, unknown>
+
+export type GeminiCountTokensResponse = {
+  totalTokens?: number
+  cachedContentTokenCount?: number
+  promptTokensDetails?: unknown[]
+  cacheTokensDetails?: unknown[]
+}
 
 export type GeminiGenerateContentResponse = {
   candidates?: GeminiCandidate[]

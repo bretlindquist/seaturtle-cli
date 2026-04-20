@@ -1,5 +1,6 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { CONTEXT_1M_BETA_HEADER } from '../constants/betas.js'
+import { getGeminiModelDefinition } from '../services/api/geminiCapabilityConfig.js'
 import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
@@ -52,6 +53,14 @@ export function getContextWindowForModel(
   model: string,
   betas?: string[],
 ): number {
+  const geminiModel = getGeminiModelDefinition(model)
+  if (
+    geminiModel?.contextWindowTokens &&
+    geminiModel.contextWindowTokens >= MODEL_CONTEXT_WINDOW_DEFAULT
+  ) {
+    return geminiModel.contextWindowTokens
+  }
+
   // Allow override via environment variable (ant-only)
   // This takes precedence over all other context window resolution, including 1M detection,
   // so users can cap the effective context window for local decisions (auto-compact, etc.)
@@ -150,6 +159,14 @@ export function getModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
+  const geminiModel = getGeminiModelDefinition(model)
+  if (geminiModel?.outputTokenLimit && geminiModel.outputTokenLimit >= 4_096) {
+    return {
+      default: Math.min(MAX_OUTPUT_TOKENS_DEFAULT, geminiModel.outputTokenLimit),
+      upperLimit: geminiModel.outputTokenLimit,
+    }
+  }
+
   let defaultTokens: number
   let upperLimit: number
 

@@ -1,5 +1,6 @@
 import { API_ERROR_MESSAGE_PREFIX } from './errors.js'
 import type {
+  GeminiCountTokensResponse,
   GeminiGenerateContentRequest,
   GeminiGenerateContentResponse,
 } from './geminiTypes.js'
@@ -31,6 +32,13 @@ export function buildGeminiStreamGenerateContentEndpoint(params: {
   model: string
 }): string {
   return `${normalizeBaseUrl(params.baseUrl)}/models/${encodeModelForPath(params.model)}:streamGenerateContent?alt=sse`
+}
+
+export function buildGeminiCountTokensEndpoint(params: {
+  baseUrl: string
+  model: string
+}): string {
+  return `${normalizeBaseUrl(params.baseUrl)}/models/${encodeModelForPath(params.model)}:countTokens`
 }
 
 export function formatGeminiHttpError(params: {
@@ -162,4 +170,40 @@ export async function* runGeminiStreamGenerateContent(params: {
   } finally {
     reader.releaseLock()
   }
+}
+
+export async function runGeminiCountTokens(params: {
+  auth: GeminiNativeAuthTarget
+  model: string
+  request: { generateContentRequest: GeminiGenerateContentRequest }
+  signal: AbortSignal
+}): Promise<GeminiCountTokensResponse> {
+  const response = await fetch(
+    buildGeminiCountTokensEndpoint({
+      baseUrl: params.auth.baseUrl,
+      model: params.model,
+    }),
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': params.auth.apiKey,
+      },
+      body: JSON.stringify(params.request),
+      signal: params.signal,
+    },
+  )
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      formatGeminiHttpError({
+        status: response.status,
+        statusText: response.statusText,
+        body,
+      }),
+    )
+  }
+
+  return (await response.json()) as GeminiCountTokensResponse
 }
