@@ -37,11 +37,12 @@ entrypoints.
 
 ## Gemini Runtime Surface
 
-SeaTurtle now has an initial native Gemini main-loop runtime behind
-`CLAUDE_CODE_MAIN_PROVIDER=gemini` or `CLAUDE_CODE_USE_GEMINI=1`. It uses
+SeaTurtle now has an initial Gemini main-loop scaffold behind
+`SEATURTLE_MAIN_PROVIDER=gemini` or `SEATURTLE_USE_GEMINI=1`. It uses
 `GEMINI_API_KEY`, routes chat and local tool calls through Gemini's
-OpenAI-compatible chat completions endpoint, and reports explicit Gemini
-capability gates in `/status` and `ct auth status --json`.
+OpenAI-compatible chat completions endpoint as a transitional transport, and
+reports explicit Gemini capability gates in `/status` and
+`ct auth status --json`.
 
 See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, current
 runtime coverage, and intentionally gated surfaces.

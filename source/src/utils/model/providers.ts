@@ -3,8 +3,29 @@ import { getGlobalConfig } from '../config.js'
 import { isEnvTruthy } from '../envUtils.js'
 
 export type APIProvider = 'firstParty' | 'bedrock' | 'vertex' | 'foundry'
+export type MainRuntimeProvider = 'anthropic' | 'openai-codex' | 'gemini'
 
-function getConfiguredMainProvider(): 'anthropic' | 'openai-codex' | 'gemini' | null {
+function normalizeMainProvider(value: string | undefined): MainRuntimeProvider | null {
+  const normalized = value?.trim()
+  switch (normalized) {
+    case 'anthropic':
+    case 'openai-codex':
+    case 'gemini':
+      return normalized
+    default:
+      return null
+  }
+}
+
+function getSeaTurtleMainProviderEnv(): MainRuntimeProvider | null {
+  return normalizeMainProvider(process.env.SEATURTLE_MAIN_PROVIDER)
+}
+
+function getLegacyMainProviderEnv(): MainRuntimeProvider | null {
+  return normalizeMainProvider(process.env.CLAUDE_CODE_MAIN_PROVIDER)
+}
+
+function getConfiguredMainProvider(): MainRuntimeProvider | null {
   try {
     return getGlobalConfig().preferredMainProvider ?? null
   } catch {
@@ -12,19 +33,31 @@ function getConfiguredMainProvider(): 'anthropic' | 'openai-codex' | 'gemini' | 
   }
 }
 
+export function getPreferredMainRuntimeProvider(): MainRuntimeProvider | null {
+  return (
+    getSeaTurtleMainProviderEnv() ??
+    getConfiguredMainProvider() ??
+    getLegacyMainProviderEnv()
+  )
+}
+
 export function shouldUseOpenAiCodexProvider(): boolean {
   return (
+    isEnvTruthy(process.env.SEATURTLE_USE_OPENAI_CODEX) ||
+    getSeaTurtleMainProviderEnv() === 'openai-codex' ||
+    getConfiguredMainProvider() === 'openai-codex' ||
     isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX) ||
-    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'openai-codex' ||
-    getConfiguredMainProvider() === 'openai-codex'
+    getLegacyMainProviderEnv() === 'openai-codex'
   )
 }
 
 export function shouldUseGeminiProvider(): boolean {
   return (
+    isEnvTruthy(process.env.SEATURTLE_USE_GEMINI) ||
+    getSeaTurtleMainProviderEnv() === 'gemini' ||
+    getConfiguredMainProvider() === 'gemini' ||
     isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
-    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'gemini' ||
-    getConfiguredMainProvider() === 'gemini'
+    getLegacyMainProviderEnv() === 'gemini'
   )
 }
 

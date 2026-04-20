@@ -1,7 +1,7 @@
 # Gemini Runtime
 
-SeaTurtle includes an initial native Gemini main-loop runtime. It is separate
-from the OpenAI/Codex runtime selection and is enabled explicitly.
+SeaTurtle includes an initial Gemini main-loop scaffold. It is separate from the
+OpenAI/Codex runtime selection and is enabled explicitly.
 
 ## Enable Gemini
 
@@ -9,14 +9,18 @@ Set a Gemini API key and choose the provider:
 
 ```sh
 export GEMINI_API_KEY=...
-export CLAUDE_CODE_MAIN_PROVIDER=gemini
+export SEATURTLE_MAIN_PROVIDER=gemini
 ```
 
-The legacy-style boolean gate also works:
+The SeaTurtle boolean gate also works:
 
 ```sh
-export CLAUDE_CODE_USE_GEMINI=1
+export SEATURTLE_USE_GEMINI=1
 ```
+
+Legacy `CLAUDE_CODE_MAIN_PROVIDER=gemini` and `CLAUDE_CODE_USE_GEMINI=1`
+aliases are still accepted for compatibility, but new setup should use the
+SeaTurtle-prefixed variables.
 
 The default Gemini model is `gemini-3-flash-preview`. The model picker exposes:
 
@@ -27,8 +31,8 @@ The default Gemini model is `gemini-3-flash-preview`. The model picker exposes:
 
 ## Current Runtime Surface
 
-The first Gemini slice routes the main conversation loop through Gemini's
-OpenAI-compatible chat completions endpoint at:
+The first Gemini slice currently routes the main conversation loop through
+Gemini's OpenAI-compatible chat completions endpoint at:
 
 ```text
 https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
@@ -37,11 +41,15 @@ https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
 It supports:
 
 - Gemini API-key auth through `GEMINI_API_KEY`
-- provider selection through `CLAUDE_CODE_MAIN_PROVIDER=gemini`
+- provider selection through `SEATURTLE_MAIN_PROVIDER=gemini`
 - model selection through the existing `/model` flow
 - local SeaTurtle tools via Gemini function calling
 - image input through OpenAI-compatible `image_url` content
 - `/status` and `ct auth status --json` capability reporting
+
+This endpoint is a transitional transport. The production target is native
+Gemini `generateContent` / `streamGenerateContent` with `Content`/`Part`
+conversion and thought-signature preservation.
 
 ## Explicit Gates
 

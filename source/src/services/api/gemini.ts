@@ -518,7 +518,7 @@ async function runGeminiPlainText(params: {
   if (!auth) {
     return createAssistantAPIErrorMessage({
       content:
-        'Gemini auth is not configured. Set GEMINI_API_KEY, then retry with `CLAUDE_CODE_MAIN_PROVIDER=gemini`.',
+        'Gemini auth is not configured. Set GEMINI_API_KEY, then retry with `SEATURTLE_MAIN_PROVIDER=gemini`.',
     })
   }
 

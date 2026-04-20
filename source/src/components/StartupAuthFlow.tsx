@@ -39,7 +39,7 @@ function persistPreferredMainProvider(
       preferredMainProvider: provider,
     }
   })
-  process.env.CLAUDE_CODE_MAIN_PROVIDER = provider
+  process.env.SEATURTLE_MAIN_PROVIDER = provider
 }
 
 export function StartupAuthFlow({ onDone }: Props): React.ReactNode {

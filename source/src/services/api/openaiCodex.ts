@@ -2014,7 +2014,7 @@ async function runOpenAiCodexPlainText(params: {
   if (!auth) {
     return createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     })
   }
 
@@ -2074,7 +2074,7 @@ export async function runOpenAiCodexWebSearch(params: {
   const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     throw new Error(
-      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     )
   }
 
@@ -2232,7 +2232,7 @@ export async function runOpenAiCodexFileSearch(params: {
   const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     throw new Error(
-      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     )
   }
 
@@ -2318,7 +2318,7 @@ export async function runOpenAiCodexImageGeneration(params: {
   const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     throw new Error(
-      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     )
   }
 
@@ -2383,7 +2383,7 @@ export async function runOpenAiCodexHostedShell(params: {
   const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     throw new Error(
-      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     )
   }
 
@@ -2480,7 +2480,7 @@ export async function runOpenAiCodexComputerUse(params: {
   const auth = await getResolvedOpenAiCodexAuth()
   if (!auth) {
     throw new Error(
-      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     )
   }
 
@@ -2688,7 +2688,7 @@ export async function* queryOpenAiCodexWithStreaming(params: {
   if (!auth) {
     yield createAssistantAPIErrorMessage({
       content:
-        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `CLAUDE_CODE_USE_OPENAI_CODEX=1`.',
+        'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
     })
     return
   }

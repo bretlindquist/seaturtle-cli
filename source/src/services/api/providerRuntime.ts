@@ -431,7 +431,7 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     : shouldPreferOpenAiCodexMainLoop()
       ? openAiCodex
       : anthropic
-  const execution = preferred.executionEnabled ? preferred : anthropic
+  const execution = preferred
   const available = [anthropic]
 
   if (openAiCodex.authState !== 'not-configured') {
@@ -492,8 +492,7 @@ export function getMainLoopProviderRuntime(
 ): MainLoopProviderRuntime {
   const anthropic = buildAnthropicMainLoopRuntime(apiProvider)
   if (shouldPreferGeminiMainLoop()) {
-    const gemini = buildGeminiMainLoopRuntime()
-    return gemini.executionEnabled ? gemini : anthropic
+    return buildGeminiMainLoopRuntime()
   }
 
   if (!shouldPreferOpenAiCodexMainLoop()) {
@@ -501,7 +500,7 @@ export function getMainLoopProviderRuntime(
   }
 
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
-  return openAiCodex.executionEnabled ? openAiCodex : anthropic
+  return openAiCodex
 }
 
 export async function getResolvedMainLoopOpenAiCodexAuthSource(): Promise<string | null> {
