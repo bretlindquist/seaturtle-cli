@@ -29,6 +29,10 @@ const authHandler = readFileSync(
   join(repoRoot, 'source/src/cli/handlers/auth.ts'),
   'utf8',
 )
+const geminiClient = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiClient.ts'),
+  'utf8',
+)
 const managedEnvConstants = readFileSync(
   join(repoRoot, 'source/src/utils/managedEnvConstants.ts'),
   'utf8',
@@ -66,8 +70,8 @@ assertIncludes(
 )
 assertIncludes(
   providerRuntime,
-  /gemini-chat-completions/,
-  'provider runtime should define a Gemini wire API',
+  /gemini-generate-content/,
+  'provider runtime should define a native Gemini generateContent wire API',
 )
 assertIncludes(
   providerRuntime,
@@ -106,8 +110,38 @@ assertIncludes(
 )
 assertIncludes(
   gemini,
-  /tool_calls/,
-  'Gemini runtime should translate tool calls',
+  /functionCall/,
+  'Gemini runtime should translate native Gemini function calls',
+)
+assertIncludes(
+  gemini,
+  /runGeminiGenerateContent/,
+  'Gemini runtime should use the native generateContent client',
+)
+assertIncludes(
+  gemini,
+  /systemInstruction/,
+  'Gemini runtime should send native Gemini systemInstruction fields',
+)
+assertIncludes(
+  gemini,
+  /inlineData/,
+  'Gemini runtime should send image input through native Gemini inlineData parts',
+)
+assertIncludes(
+  geminiClient,
+  /x-goog-api-key/,
+  'Gemini native client should use x-goog-api-key auth',
+)
+assertIncludes(
+  geminiClient,
+  /:generateContent/,
+  'Gemini native client should call the generateContent endpoint',
+)
+assertIncludes(
+  geminiClient,
+  /:streamGenerateContent/,
+  'Gemini native client should define the streamGenerateContent endpoint for Wave 5',
 )
 assertIncludes(
   geminiCapabilityConfig,

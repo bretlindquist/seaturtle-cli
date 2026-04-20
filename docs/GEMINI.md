@@ -41,11 +41,11 @@ later native tool routing. They are not exposed as main-loop chat models:
 
 ## Current Runtime Surface
 
-The first Gemini slice currently routes the main conversation loop through
-Gemini's OpenAI-compatible chat completions endpoint at:
+The current Gemini slice routes the main conversation loop through Gemini's
+native `generateContent` endpoint:
 
 ```text
-https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent
 ```
 
 It supports:
@@ -53,17 +53,16 @@ It supports:
 - Gemini API-key auth through `GEMINI_API_KEY`
 - provider selection through `SEATURTLE_MAIN_PROVIDER=gemini`
 - model selection through the existing `/model` flow
-- local SeaTurtle tools via Gemini function calling
-- image input through OpenAI-compatible `image_url` content
+- local SeaTurtle tools via Gemini native function declarations
+- image input through native Gemini `inlineData` parts
 - `/status` and `ct auth status --json` capability reporting
 
 `/status` reports documented Gemini model support separately from the routed
 SeaTurtle runtime support. A Gemini feature is not considered routed until the
 SeaTurtle runner exists and has validation coverage.
 
-This endpoint is a transitional transport. The production target is native
-Gemini `generateContent` / `streamGenerateContent` with `Content`/`Part`
-conversion and thought-signature preservation.
+Native `streamGenerateContent`, full lossless `Content`/`Part` conversion, and
+thought-signature preservation are tracked as follow-up production chunks.
 
 ## Explicit Gates
 

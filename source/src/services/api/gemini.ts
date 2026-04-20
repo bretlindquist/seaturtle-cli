@@ -4,8 +4,14 @@ import type {
 import { API_ERROR_MESSAGE_PREFIX } from './errors.js'
 import {
   normalizeOpenAiToolParameterSchema,
-  shouldUseStrictOpenAiToolSchema,
 } from './openaiToolSchema.js'
+import { runGeminiGenerateContent } from './geminiClient.js'
+import type {
+  GeminiContent,
+  GeminiGenerateContentResponse,
+  GeminiPart,
+  GeminiTool,
+} from './geminiTypes.js'
 import type {
   AssistantMessage,
   Message,
@@ -36,57 +42,6 @@ export {
   type GeminiModelDefinition,
 } from './geminiCapabilityConfig.js'
 
-type GeminiChatMessage =
-  | {
-      role: 'system' | 'user'
-      content: string | GeminiChatContentPart[]
-    }
-  | {
-      role: 'assistant'
-      content: string | null
-      tool_calls?: GeminiChatToolCall[]
-    }
-  | {
-      role: 'tool'
-      tool_call_id: string
-      content: string
-    }
-
-type GeminiChatContentPart =
-  | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string } }
-
-type GeminiChatTool = {
-  type: 'function'
-  function: {
-    name: string
-    description?: string
-    parameters: unknown
-    strict?: boolean
-  }
-}
-
-type GeminiChatToolCall = {
-  id: string
-  type: 'function'
-  function: {
-    name: string
-    arguments: string
-  }
-}
-
-type GeminiChatCompletionResponse = {
-  choices?: Array<{
-    message?: {
-      content?: unknown
-      tool_calls?: unknown
-    }
-  }>
-  error?: {
-    message?: string
-  }
-}
-
 type GeminiAuthTarget = {
   baseUrl: string
   apiKey: string
@@ -102,7 +57,7 @@ export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
         typeof profile.metadata?.baseUrl === 'string' &&
         profile.metadata.baseUrl.trim()
           ? profile.metadata.baseUrl.trim()
-          : 'https://generativelanguage.googleapis.com/v1beta/openai',
+          : 'https://generativelanguage.googleapis.com/v1beta',
       source: 'provider-api-key-profile',
     }
   }
@@ -115,37 +70,23 @@ export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
   return {
     apiKey,
     baseUrl:
-      process.env.GEMINI_OPENAI_BASE_URL?.trim() ||
-      'https://generativelanguage.googleapis.com/v1beta/openai',
+      process.env.GEMINI_BASE_URL?.trim() ||
+      'https://generativelanguage.googleapis.com/v1beta',
     source: 'GEMINI_API_KEY',
   }
-}
-
-function normalizeBaseUrl(baseUrl: string): string {
-  return baseUrl.replace(/\/+$/, '')
-}
-
-function buildGeminiChatCompletionsEndpoint(baseUrl: string): string {
-  return `${normalizeBaseUrl(baseUrl)}/chat/completions`
 }
 
 function buildInstructions(systemPrompt: SystemPrompt): string {
   return systemPrompt.filter(Boolean).join('\n\n')
 }
 
-function buildDataUrl(mediaType: string, data: string): string {
-  return `data:${mediaType};base64,${data}`
-}
-
-function convertUserContentPart(block: Record<string, unknown>):
-  | GeminiChatContentPart
-  | null {
+function convertUserContentPart(block: Record<string, unknown>): GeminiPart | null {
   const type = block.type
   if (
     typeof block.text === 'string' &&
     (type === 'text' || type === 'input_text')
   ) {
-    return { type: 'text', text: block.text }
+    return { text: block.text }
   }
 
   const source =
@@ -164,9 +105,9 @@ function convertUserContentPart(block: Record<string, unknown>):
   }
 
   return {
-    type: 'image_url',
-    image_url: {
-      url: buildDataUrl(mediaType, data),
+    inlineData: {
+      mimeType: mediaType,
+      data,
     },
   }
 }
@@ -194,15 +135,14 @@ function convertToolResultContent(content: unknown): string {
     .join('\n')
 }
 
-function convertMessage(message: UserMessage | AssistantMessage): GeminiChatMessage[] {
+function convertMessage(message: UserMessage | AssistantMessage): GeminiContent[] {
   const role = message.type === 'assistant' ? 'assistant' : 'user'
   const contentBlocks = Array.isArray(message.message.content)
     ? message.message.content
     : [{ type: 'text', text: message.message.content }]
 
   if (role === 'assistant') {
-    const textParts: string[] = []
-    const toolCalls: GeminiChatToolCall[] = []
+    const parts: GeminiPart[] = []
 
     for (const block of contentBlocks) {
       if (!block || typeof block !== 'object') {
@@ -210,7 +150,7 @@ function convertMessage(message: UserMessage | AssistantMessage): GeminiChatMess
       }
       const type = (block as { type?: unknown }).type
       if (type === 'text' && typeof (block as { text?: unknown }).text === 'string') {
-        textParts.push((block as { text: string }).text)
+        parts.push({ text: (block as { text: string }).text })
       } else if (type === 'tool_use') {
         const id =
           typeof (block as { id?: unknown }).id === 'string'
@@ -220,37 +160,34 @@ function convertMessage(message: UserMessage | AssistantMessage): GeminiChatMess
           typeof (block as { name?: unknown }).name === 'string'
             ? (block as { name: string }).name
             : 'unknown_tool'
-        toolCalls.push({
-          id,
-          type: 'function',
-          function: {
+        parts.push({
+          functionCall: {
+            id,
             name,
-            arguments: JSON.stringify(
+            args:
               typeof (block as { input?: unknown }).input === 'object' &&
-                (block as { input?: unknown }).input !== null
-                ? (block as { input: unknown }).input
+              (block as { input?: unknown }).input !== null
+                ? ((block as { input: Record<string, unknown> }).input)
                 : {},
-            ),
           },
         })
       }
     }
 
-    if (textParts.length === 0 && toolCalls.length === 0) {
+    if (parts.length === 0) {
       return []
     }
 
     return [
       {
-        role: 'assistant',
-        content: textParts.join('\n\n') || null,
-        ...(toolCalls.length > 0 ? { tool_calls: toolCalls } : {}),
+        role: 'model',
+        parts,
       },
     ]
   }
 
-  const converted: GeminiChatContentPart[] = []
-  const toolMessages: GeminiChatMessage[] = []
+  const converted: GeminiPart[] = []
+  const toolContents: GeminiContent[] = []
 
   for (const block of contentBlocks) {
     if (!block || typeof block !== 'object') {
@@ -263,10 +200,23 @@ function convertMessage(message: UserMessage | AssistantMessage): GeminiChatMess
         typeof (block as { tool_use_id?: unknown }).tool_use_id === 'string'
           ? (block as { tool_use_id: string }).tool_use_id
           : 'missing_tool_result_id'
-      toolMessages.push({
-        role: 'tool',
-        tool_call_id: toolCallId,
-        content: convertToolResultContent((block as { content?: unknown }).content),
+      toolContents.push({
+        role: 'user',
+        parts: [
+          {
+            functionResponse: {
+              id: toolCallId,
+              // Wave 4 will preserve the original function name; this transitional
+              // native transport keeps the response tied to the function-call id.
+              name: toolCallId,
+              response: {
+                content: convertToolResultContent(
+                  (block as { content?: unknown }).content,
+                ),
+              },
+            },
+          },
+        ],
       })
       continue
     }
@@ -277,40 +227,39 @@ function convertMessage(message: UserMessage | AssistantMessage): GeminiChatMess
     }
   }
 
-  const messages: GeminiChatMessage[] = []
-  if (converted.length === 1 && converted[0]?.type === 'text') {
-    messages.push({ role: 'user', content: converted[0].text })
-  } else if (converted.length > 0) {
-    messages.push({ role: 'user', content: converted })
+  const messages: GeminiContent[] = []
+  if (converted.length > 0) {
+    messages.push({ role: 'user', parts: converted })
   }
-  messages.push(...toolMessages)
+  messages.push(...toolContents)
   return messages
 }
 
-function collectGeminiChatMessages(params: {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-}): GeminiChatMessage[] {
-  const messages: GeminiChatMessage[] = []
-  const instructions = buildInstructions(params.systemPrompt)
-  if (instructions) {
-    messages.push({ role: 'system', content: instructions })
-  }
+function buildGeminiSystemInstruction(
+  systemPrompt: SystemPrompt,
+): GeminiContent | undefined {
+  const instructions = buildInstructions(systemPrompt)
+  return instructions ? { parts: [{ text: instructions }] } : undefined
+}
 
+function collectGeminiContents(params: {
+  messages: Message[]
+}): GeminiContent[] {
+  const contents: GeminiContent[] = []
   for (const message of params.messages) {
     if (message.type !== 'user' && message.type !== 'assistant') {
       continue
     }
-    messages.push(...convertMessage(message))
+    contents.push(...convertMessage(message))
   }
 
-  return messages
+  return contents
 }
 
 async function buildGeminiTools(params: {
   tools: Tools
-}): Promise<GeminiChatTool[]> {
-  const convertedTools: GeminiChatTool[] = []
+}): Promise<GeminiTool[]> {
+  const functionDeclarations: NonNullable<GeminiTool['functionDeclarations']> = []
 
   for (const tool of params.tools) {
     if (typeof tool.name !== 'string' || !tool.name) {
@@ -323,105 +272,44 @@ async function buildGeminiTools(params: {
         : zodToJsonSchema(tool.inputSchema)
     const parameters = normalizeOpenAiToolParameterSchema(schema ?? {})
 
-    convertedTools.push({
-      type: 'function',
-      function: {
-        name: tool.name,
-        description: tool.description,
-        parameters,
-        ...(shouldUseStrictOpenAiToolSchema(tool.name) ? { strict: true } : {}),
-      },
+    functionDeclarations.push({
+      name: tool.name,
+      description: tool.description,
+      parameters,
     })
   }
 
-  return convertedTools
+  return functionDeclarations.length > 0 ? [{ functionDeclarations }] : []
 }
 
-function parseToolCallInput(raw: string): unknown {
-  if (!raw.trim()) {
-    return {}
-  }
-
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return {}
-  }
-}
-
-function parseAssistantContent(response: GeminiChatCompletionResponse): BetaContentBlock[] {
-  const message = response.choices?.[0]?.message
-  if (!message) {
+function parseAssistantContent(response: GeminiGenerateContentResponse): BetaContentBlock[] {
+  const parts = response.candidates?.[0]?.content?.parts
+  if (!Array.isArray(parts)) {
     return []
   }
 
   const content: BetaContentBlock[] = []
-  if (typeof message.content === 'string' && message.content.length > 0) {
-    content.push({
-      type: 'text',
-      text: message.content,
-    } as BetaContentBlock)
-  }
-
-  if (Array.isArray(message.tool_calls)) {
-    for (const rawToolCall of message.tool_calls) {
-      if (!rawToolCall || typeof rawToolCall !== 'object') {
-        continue
-      }
-      const toolCall = rawToolCall as {
-        id?: unknown
-        function?: {
-          name?: unknown
-          arguments?: unknown
-        }
-      }
+  for (const part of parts) {
+    if (typeof part.text === 'string' && part.text.length > 0) {
+      content.push({
+        type: 'text',
+        text: part.text,
+      } as BetaContentBlock)
+    }
+    if (part.functionCall) {
       content.push({
         type: 'tool_use',
-        id: typeof toolCall.id === 'string' ? toolCall.id : 'missing_tool_id',
-        name:
-          typeof toolCall.function?.name === 'string'
-            ? toolCall.function.name
-            : 'unknown_tool',
-        input:
-          typeof toolCall.function?.arguments === 'string'
-            ? parseToolCallInput(toolCall.function.arguments)
-            : {},
+        id:
+          typeof part.functionCall.id === 'string'
+            ? part.functionCall.id
+            : 'missing_tool_id',
+        name: part.functionCall.name,
+        input: part.functionCall.args ?? {},
       } as BetaContentBlock)
     }
   }
 
   return content
-}
-
-function formatGeminiHttpError(params: {
-  status: number
-  statusText: string
-  body: string
-}): string {
-  try {
-    const parsed = JSON.parse(params.body) as GeminiChatCompletionResponse
-    const message = parsed.error?.message
-    if (typeof message === 'string' && message.trim()) {
-      return `${API_ERROR_MESSAGE_PREFIX}: ${params.status} ${params.statusText} · ${message.trim()}`
-    }
-  } catch {
-    // Fall through to raw body.
-  }
-
-  return `${API_ERROR_MESSAGE_PREFIX}: ${params.status} ${params.statusText}${params.body ? ` · ${params.body}` : ''}`
-}
-
-function buildGeminiReasoningEffort(options: Options):
-  | 'low'
-  | 'medium'
-  | 'high'
-  | undefined {
-  const effort = resolveGeminiEffort(options)
-  return effort === 'xhigh' ? 'high' : effort
-}
-
-function resolveGeminiEffort(options: Options): Options['effortValue'] {
-  return options.effortValue
 }
 
 async function runGeminiPlainText(params: {
@@ -445,51 +333,36 @@ async function runGeminiPlainText(params: {
     return createAssistantAPIErrorMessage({ content: modelError })
   }
 
-  const messages = collectGeminiChatMessages({
+  const contents = collectGeminiContents({
     messages: params.messages,
-    systemPrompt: params.systemPrompt,
   })
-  if (messages.length === 0) {
+  if (contents.length === 0) {
     return createAssistantAPIErrorMessage({
       content: 'Gemini request is missing input messages.',
     })
   }
 
   const tools = await buildGeminiTools({ tools: params.tools })
-  const reasoningEffort = buildGeminiReasoningEffort(params.options)
+  const systemInstruction = buildGeminiSystemInstruction(params.systemPrompt)
 
   try {
-    const response = await fetch(buildGeminiChatCompletionsEndpoint(auth.baseUrl), {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${auth.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: params.model,
-        messages,
-        ...(tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
-        ...(reasoningEffort ? { reasoning_effort: reasoningEffort } : {}),
+    const payload = await runGeminiGenerateContent({
+      auth,
+      model: params.model,
+      request: {
+        contents,
+        ...(systemInstruction ? { systemInstruction } : {}),
+        ...(tools.length > 0 ? { tools } : {}),
         ...(params.options.maxOutputTokensOverride
-          ? { max_completion_tokens: params.options.maxOutputTokensOverride }
+          ? {
+              generationConfig: {
+                maxOutputTokens: params.options.maxOutputTokensOverride,
+              },
+            }
           : {}),
-        stream: false,
-      }),
+      },
       signal: params.signal,
     })
-
-    if (!response.ok) {
-      const body = await response.text()
-      throw new Error(
-        formatGeminiHttpError({
-          status: response.status,
-          statusText: response.statusText,
-          body,
-        }),
-      )
-    }
-
-    const payload = (await response.json()) as GeminiChatCompletionResponse
     const content = parseAssistantContent(payload)
     if (content.length === 0) {
       throw new Error('Gemini backend returned no assistant content')

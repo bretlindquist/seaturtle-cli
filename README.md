@@ -39,10 +39,10 @@ entrypoints.
 
 SeaTurtle now has an initial Gemini main-loop scaffold behind
 `SEATURTLE_MAIN_PROVIDER=gemini` or `SEATURTLE_USE_GEMINI=1`. It uses
-`GEMINI_API_KEY`, routes chat and local tool calls through Gemini's
-OpenAI-compatible chat completions endpoint as a transitional transport, and
-reports explicit Gemini capability gates in `/status` and
-`ct auth status --json`.
+`GEMINI_API_KEY`, routes chat through Gemini's native `generateContent`
+endpoint, and reports explicit Gemini capability gates in `/status` and
+`ct auth status --json`. Full lossless tool-history conversion, real streaming,
+and built-in Gemini tools are being landed as separate production chunks.
 
 See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, current
 runtime coverage, and intentionally gated surfaces.

@@ -52,7 +52,7 @@ export type MainLoopProviderRuntimeId =
 export type MainLoopProviderWireApi =
   | 'anthropic-messages'
   | 'openai-codex-responses'
-  | 'gemini-chat-completions'
+  | 'gemini-generate-content'
 
 export type MainLoopProviderRuntime = {
   family: 'anthropic' | 'openai' | 'gemini'
@@ -284,7 +284,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     provider: 'gemini',
     displayName: 'Google Gemini',
     apiProvider: null,
-    wireApi: 'gemini-chat-completions',
+    wireApi: 'gemini-generate-content',
     supportsProviderOwnedOAuth: false,
     supportsOpenAiStyleModels: true,
     documentedOpenAiModelCapabilities: [],
@@ -487,7 +487,7 @@ export function queryModelWithStreamingViaProviderRuntime(
       return queryModelWithStreaming(...args)
     case 'openai-codex-responses':
       return queryOpenAiCodexWithStreaming(...args)
-    case 'gemini-chat-completions':
+    case 'gemini-generate-content':
       return queryGeminiWithStreaming(...args)
   }
 }
@@ -502,7 +502,7 @@ export function queryModelWithoutStreamingViaProviderRuntime(
       return queryModelWithoutStreaming(...args)
     case 'openai-codex-responses':
       return queryOpenAiCodexWithoutStreaming(...args)
-    case 'gemini-chat-completions':
+    case 'gemini-generate-content':
       return queryGeminiWithoutStreaming(...args)
   }
 }
