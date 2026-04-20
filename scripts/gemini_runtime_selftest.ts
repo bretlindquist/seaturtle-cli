@@ -51,6 +51,10 @@ const geminiToolSchema = readFileSync(
   join(repoRoot, 'source/src/services/api/geminiToolSchema.ts'),
   'utf8',
 )
+const geminiThinkingConfig = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiThinkingConfig.ts'),
+  'utf8',
+)
 const managedEnvConstants = readFileSync(
   join(repoRoot, 'source/src/utils/managedEnvConstants.ts'),
   'utf8',
@@ -240,6 +244,26 @@ assertNotIncludes(
   gemini,
   /yield await queryGeminiWithoutStreaming\(params\)/,
   'Gemini streaming must not fake streaming by yielding the non-streaming result',
+)
+assertIncludes(
+  gemini,
+  /buildGeminiThinkingConfig/,
+  'Gemini runtime should map effort through Gemini-native thinking config',
+)
+assertIncludes(
+  geminiThinkingConfig,
+  /thinkingLevel/,
+  'Gemini 3 thinking should use thinkingLevel',
+)
+assertIncludes(
+  geminiThinkingConfig,
+  /thinkingBudget/,
+  'Gemini 2.5 thinking should use thinkingBudget',
+)
+assertNotIncludes(
+  gemini,
+  /reasoning_effort/,
+  'Gemini native requests must not send OpenAI-style reasoning_effort',
 )
 assertIncludes(
   geminiCapabilityConfig,

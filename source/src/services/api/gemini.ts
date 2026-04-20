@@ -16,9 +16,11 @@ import {
 import type {
   GeminiGenerateContentRequest,
   GeminiGenerateContentResponse,
+  GeminiGenerationConfig,
   GeminiPart,
   GeminiTool,
 } from './geminiTypes.js'
+import { buildGeminiThinkingConfig } from './geminiThinkingConfig.js'
 import type {
   AssistantMessage,
   Message,
@@ -111,6 +113,7 @@ export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
 async function buildGeminiRequest(params: {
   messages: Message[]
   systemPrompt: SystemPrompt
+  thinkingConfig: ThinkingConfig
   tools: Tools
   options: Options
 }): Promise<
@@ -135,18 +138,28 @@ async function buildGeminiRequest(params: {
     return { error: error instanceof Error ? error.message : String(error) }
   }
   const systemInstruction = buildGeminiSystemInstruction(params.systemPrompt)
+  const thinking = buildGeminiThinkingConfig({
+    model: params.options.model,
+    effortValue: params.options.effortValue,
+    thinkingConfig: params.thinkingConfig,
+  })
+  if ('error' in thinking) {
+    return { error: thinking.error }
+  }
+  const generationConfig: GeminiGenerationConfig = {
+    ...(params.options.maxOutputTokensOverride
+      ? { maxOutputTokens: params.options.maxOutputTokensOverride }
+      : {}),
+    ...(thinking.thinkingConfig
+      ? { thinkingConfig: thinking.thinkingConfig }
+      : {}),
+  }
   return {
     request: {
       contents,
       ...(systemInstruction ? { systemInstruction } : {}),
       ...(tools.length > 0 ? { tools } : {}),
-      ...(params.options.maxOutputTokensOverride
-        ? {
-            generationConfig: {
-              maxOutputTokens: params.options.maxOutputTokensOverride,
-            },
-          }
-        : {}),
+      ...(Object.keys(generationConfig).length > 0 ? { generationConfig } : {}),
     },
   }
 }
@@ -162,6 +175,7 @@ function getGeminiAuthOrError(): GeminiAuthTarget | string {
 async function runGeminiPlainText(params: {
   messages: Message[]
   systemPrompt: SystemPrompt
+  thinkingConfig: ThinkingConfig
   signal: AbortSignal
   model: string
   tools: Tools
@@ -492,6 +506,7 @@ export async function queryGeminiWithoutStreaming(params: {
   return runGeminiPlainText({
     messages: params.messages,
     systemPrompt: params.systemPrompt,
+    thinkingConfig: params.thinkingConfig,
     signal: params.signal,
     model: params.options.model,
     tools: params.tools,
@@ -525,6 +540,7 @@ export async function* queryGeminiWithStreaming(params: {
   const request = await buildGeminiRequest({
     messages: params.messages,
     systemPrompt: params.systemPrompt,
+    thinkingConfig: params.thinkingConfig,
     tools: params.tools,
     options: params.options,
   })
