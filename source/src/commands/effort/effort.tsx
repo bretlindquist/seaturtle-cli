@@ -5,7 +5,7 @@ import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEve
 import { useAppState, useSetAppState } from '../../state/AppState.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import { type EffortValue, getDisplayedEffortLevel, getEffortEnvOverride, getEffortValueDescription, isEffortLevel, modelSupportsMaxEffort, toPersistableEffort } from '../../utils/effort.js';
-import { shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
+import { shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
 import { updateSettingsForSource } from '../../utils/settings/settings.js';
 const COMMON_HELP_ARGS = ['help', '-h', '--help'];
 type EffortCommandResult = {
@@ -18,7 +18,7 @@ function formatEffortLabel(value: EffortValue): string {
   if (typeof value === 'number') {
     return String(value);
   }
-  if (shouldUseOpenAiCodexProvider() && value === 'max') {
+  if ((shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()) && value === 'max') {
     return 'extra high';
   }
   return value;
@@ -31,7 +31,8 @@ function normalizeEffortInput(value: string): string {
   return normalized;
 }
 function setEffortValue(effortValue: EffortValue, model: string): EffortCommandResult {
-  if (shouldUseOpenAiCodexProvider() && effortValue === 'max' && !modelSupportsMaxEffort(model)) {
+  const usesProviderReasoning = shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider();
+  if (usesProviderReasoning && effortValue === 'max' && !modelSupportsMaxEffort(model)) {
     return {
       message: `Extra high reasoning is not supported for ${model}. Use low, medium, or high instead.`
     };
@@ -50,7 +51,7 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
   logEvent('tengu_effort_command', {
     effort: effortValue as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
   });
-  if (shouldUseOpenAiCodexProvider()) {
+  if (usesProviderReasoning) {
     const description = getEffortValueDescription(effortValue);
     const label = formatEffortLabel(effortValue);
     const suffix = persistable !== undefined ? '' : ' (this session only)';
@@ -95,7 +96,7 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
 export function showCurrentEffort(appStateEffort: EffortValue | undefined, model: string): EffortCommandResult {
   const envOverride = getEffortEnvOverride();
   const effectiveValue = envOverride === null ? undefined : envOverride ?? appStateEffort;
-  if (shouldUseOpenAiCodexProvider()) {
+  if (shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()) {
     const displayedLevel = formatEffortLabel(getDisplayedEffortLevel(model, appStateEffort));
     if (effectiveValue === undefined) {
       return {
@@ -130,7 +131,7 @@ function unsetEffortLevel(): EffortCommandResult {
   logEvent('tengu_effort_command', {
     effort: 'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
   });
-  if (shouldUseOpenAiCodexProvider()) {
+  if (shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()) {
     return {
       message: 'Reasoning level set to auto.',
       effortUpdate: {
@@ -164,7 +165,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   }
   if (!isEffortLevel(normalized)) {
     return {
-      message: shouldUseOpenAiCodexProvider() ? `Invalid argument: ${args}. Valid options are: low, medium, high, extra high, auto` : `Invalid argument: ${args}. Valid options are: low, medium, high, max, auto`
+      message: shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider() ? `Invalid argument: ${args}. Valid options are: low, medium, high, extra high, auto` : `Invalid argument: ${args}. Valid options are: low, medium, high, max, auto`
     };
   }
   return setEffortValue(normalized, model);
@@ -233,7 +234,7 @@ function ExecuteEffortAndClose(t0) {
 export async function call(onDone: LocalJSXCommandOnDone, _context: unknown, args?: string): Promise<React.ReactNode> {
   args = args?.trim() || '';
   if (COMMON_HELP_ARGS.includes(args)) {
-    onDone(shouldUseOpenAiCodexProvider() ? 'Usage: /effort [low|medium|high|extra-high|auto]\n\nOpenAI/Codex reasoning levels:\n- low: Fast responses with lighter reasoning\n- medium: Balances speed and reasoning depth for everyday tasks\n- high: Greater reasoning depth for complex problems\n- extra high: Extra high reasoning depth for complex problems\n- auto: Use the default reasoning level for your model' : 'Usage: /effort [low|medium|high|max|auto]\n\nEffort levels:\n- low: Quick, straightforward implementation\n- medium: Balanced approach with standard testing\n- high: Comprehensive implementation with extensive testing\n- max: Maximum capability with deepest reasoning (Opus 4.6 only)\n- auto: Use the default effort level for your model');
+    onDone(shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider() ? 'Usage: /effort [low|medium|high|extra-high|auto]\n\nProvider reasoning levels:\n- low: Fast responses with lighter reasoning\n- medium: Balances speed and reasoning depth for everyday tasks\n- high: Greater reasoning depth for complex problems\n- extra high: Extra high reasoning depth for complex problems\n- auto: Use the default reasoning level for your model' : 'Usage: /effort [low|medium|high|max|auto]\n\nEffort levels:\n- low: Quick, straightforward implementation\n- medium: Balanced approach with standard testing\n- high: Comprehensive implementation with extensive testing\n- max: Maximum capability with deepest reasoning (Opus 4.6 only)\n- auto: Use the default effort level for your model');
     return;
   }
   if (!args || args === 'current' || args === 'status') {

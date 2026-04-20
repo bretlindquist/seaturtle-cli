@@ -246,8 +246,14 @@ export async function authStatus(opts: {
   const subscriptionType = getSubscriptionType()
   const using3P = isUsing3PServices()
   const hasOpenAiCodexAuth = runtimeSnapshot.openAiCodexAuthReady
+  const hasGeminiAuth = runtimeSnapshot.geminiAuthReady
   const loggedIn =
-    hasToken || apiKeySource !== 'none' || hasApiKeyEnvVar || using3P || hasOpenAiCodexAuth
+    hasToken ||
+    apiKeySource !== 'none' ||
+    hasApiKeyEnvVar ||
+    using3P ||
+    hasOpenAiCodexAuth ||
+    hasGeminiAuth
 
   // Determine auth method
   let authMethod: string = 'none'
@@ -263,12 +269,16 @@ export async function authStatus(opts: {
     authMethod = 'api_key'
   } else if (apiKeySource === '/login managed key') {
     authMethod = 'claude.ai'
+  } else if (hasGeminiAuth && runtimeSnapshot.execution.family === 'gemini') {
+    authMethod = 'gemini_api_key'
   } else if (hasOpenAiCodexAuth) {
     authMethod =
       runtimeSnapshot.openAiCodexAuthSource === 'OPENAI_API_KEY' ||
       runtimeSnapshot.openAiCodexAuthSource === 'provider-api-key-profile'
         ? 'openai_codex_api_key'
         : 'openai_codex_oauth'
+  } else if (hasGeminiAuth) {
+    authMethod = 'gemini_api_key'
   }
 
   if (opts.text) {
@@ -318,6 +328,8 @@ export async function authStatus(opts: {
       openAiCodexNativeAuthReady: runtimeSnapshot.openAiCodexNativeAuthReady,
       openAiCodexApiKeyReady: runtimeSnapshot.openAiCodexApiKeyReady,
       openAiCodexCliFallbackReady: runtimeSnapshot.openAiCodexCliFallbackReady,
+      geminiAuthReady: runtimeSnapshot.geminiAuthReady,
+      geminiApiKeyReady: runtimeSnapshot.geminiApiKeyReady,
     }
     if (runtimeSnapshot.openAiCodexAuthSource) {
       output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource
@@ -327,6 +339,9 @@ export async function authStatus(opts: {
     }
     if (runtimeSnapshot.openAiCodexPlanLabel) {
       output.openAiCodexPlan = runtimeSnapshot.openAiCodexPlanLabel
+    }
+    if (runtimeSnapshot.geminiAuthSource) {
+      output.geminiAuthSource = runtimeSnapshot.geminiAuthSource
     }
     if (codexTelemetry.collaborationMode) {
       output.openAiCodexCollaborationMode =
@@ -396,6 +411,34 @@ export async function authStatus(opts: {
       output.openAiCodexRoutedModelCapabilities =
         runtimeSnapshot.routedOpenAiModelCapabilities
       output.openAiCodexKnownGates = [
+        'auto_mode_classifier',
+        'permission_explainer',
+        'claude_in_chrome_lightning',
+      ]
+    }
+    if (runtimeSnapshot.execution.family === 'gemini') {
+      output.geminiCapabilities = {
+        localToolSearch: runtimeSnapshot.supportsLocalToolSearch,
+        localSkills: runtimeSnapshot.supportsLocalSkills,
+        localComputerUse: runtimeSnapshot.supportsLocalComputerUse,
+        localMcpTools: runtimeSnapshot.supportsLocalMcpTools,
+        teams: runtimeSnapshot.supportsAgentTeams,
+        webSearch: runtimeSnapshot.supportsWebSearch,
+        fileSearch: runtimeSnapshot.supportsHostedFileSearch,
+        computerUse: runtimeSnapshot.supportsComputerUse,
+        hostedShell: runtimeSnapshot.supportsHostedShell,
+        imageGeneration: runtimeSnapshot.supportsImageGeneration,
+        remoteMcp: runtimeSnapshot.supportsRemoteMcp,
+        builtInTools: runtimeSnapshot.supportsOpenAiBuiltInTools,
+      }
+      output.geminiModelCapabilities =
+        runtimeSnapshot.documentedGeminiModelCapabilities
+      output.geminiRoutedModelCapabilities =
+        runtimeSnapshot.routedGeminiModelCapabilities
+      output.geminiKnownGates = [
+        'provider_oauth',
+        'provider_hosted_tools',
+        'documents',
         'auto_mode_classifier',
         'permission_explainer',
         'claude_in_chrome_lightning',

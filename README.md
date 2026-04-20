@@ -35,6 +35,17 @@ See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for the provider contract
 and [`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md) for the command/doc
 entrypoints.
 
+## Gemini Runtime Surface
+
+SeaTurtle now has an initial native Gemini main-loop runtime behind
+`CLAUDE_CODE_MAIN_PROVIDER=gemini` or `CLAUDE_CODE_USE_GEMINI=1`. It uses
+`GEMINI_API_KEY`, routes chat and local tool calls through Gemini's
+OpenAI-compatible chat completions endpoint, and reports explicit Gemini
+capability gates in `/status` and `ct auth status --json`.
+
+See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, current
+runtime coverage, and intentionally gated surfaces.
+
 ## Core SeaTurtle Feature: Context Sanctity
 
 One of SeaTurtle's strongest product features is that it does not treat every

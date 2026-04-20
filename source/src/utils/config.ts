@@ -244,7 +244,7 @@ export type GlobalConfig = {
     startupMode?: 'off' | 'rare'
     lastShownAt?: number
   }
-  preferredMainProvider?: 'anthropic' | 'openai-codex'
+  preferredMainProvider?: 'anthropic' | 'openai-codex' | 'gemini'
   telegramProfiles?: Record<string, TelegramBotProfileMeta>
   /**
    * @deprecated Use projects[projectPath].telegram and telegramProfiles instead.

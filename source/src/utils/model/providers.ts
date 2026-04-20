@@ -4,7 +4,7 @@ import { isEnvTruthy } from '../envUtils.js'
 
 export type APIProvider = 'firstParty' | 'bedrock' | 'vertex' | 'foundry'
 
-function getConfiguredMainProvider(): 'anthropic' | 'openai-codex' | null {
+function getConfiguredMainProvider(): 'anthropic' | 'openai-codex' | 'gemini' | null {
   try {
     return getGlobalConfig().preferredMainProvider ?? null
   } catch {
@@ -17,6 +17,14 @@ export function shouldUseOpenAiCodexProvider(): boolean {
     isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX) ||
     process.env.CLAUDE_CODE_MAIN_PROVIDER === 'openai-codex' ||
     getConfiguredMainProvider() === 'openai-codex'
+  )
+}
+
+export function shouldUseGeminiProvider(): boolean {
+  return (
+    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
+    process.env.CLAUDE_CODE_MAIN_PROVIDER === 'gemini' ||
+    getConfiguredMainProvider() === 'gemini'
   )
 }
 

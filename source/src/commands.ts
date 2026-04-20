@@ -185,6 +185,7 @@ import memoize from 'lodash-es/memoize.js'
 import { isUsing3PServices, isClaudeAISubscriber } from './utils/auth.js'
 import {
   isFirstPartyAnthropicBaseUrl,
+  shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from './utils/model/providers.js'
 import env from './commands/env/index.js'
@@ -467,6 +468,9 @@ export function meetsAvailabilityRequirement(cmd: Command): boolean {
         break
       case 'openai-codex':
         if (shouldUseOpenAiCodexProvider()) return true
+        break
+      case 'gemini':
+        if (shouldUseGeminiProvider()) return true
         break
       default: {
         const _exhaustive: never = a

@@ -29,11 +29,11 @@ export function isAgentSwarmsEnabled(): boolean {
     return true
   }
 
-  // OpenAI/Codex: expose SeaTurtle's local teammate runtime whenever the
-  // active provider runtime is OpenAI and auth is ready. The local swarm/team
-  // machinery is provider-owned by CT, not an Anthropic-only entitlement.
+  // Provider runtimes: expose SeaTurtle's local teammate runtime whenever the
+  // active provider runtime is auth-ready and declares team support. The local
+  // swarm/team machinery is provider-owned by CT, not an Anthropic-only entitlement.
   const runtime = getMainLoopProviderRuntime()
-  if (runtime.family === 'openai') {
+  if (runtime.family !== 'anthropic') {
     return runtime.executionEnabled && runtime.supportsAgentTeams
   }
 

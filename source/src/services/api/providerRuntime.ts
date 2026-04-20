@@ -10,8 +10,17 @@ import {
   getRoutedOpenAiCodexModelCapabilities,
 } from './openaiCodex.js'
 import {
+  getDocumentedGeminiModelCapabilities,
+  getGeminiApiKeyAuthTarget,
+  getRoutedGeminiModelCapabilities,
+  queryGeminiWithStreaming,
+  queryGeminiWithoutStreaming,
+} from './gemini.js'
+import {
+  getDefaultGeminiApiKeyProfile,
   getDefaultOpenAiCodexApiKeyProfile,
   getDefaultOpenAiCodexOAuthProfile,
+  getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
 } from '../authProfiles/store.js'
 import { maybeAdoptExternalCodexCliAuthProfile } from '../authProfiles/openaiCodexOAuth.js'
@@ -23,6 +32,7 @@ import {
 import {
   type APIProvider,
   getAPIProvider,
+  shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from '../../utils/model/providers.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
@@ -36,13 +46,15 @@ export type MainLoopProviderRuntimeId =
   | 'anthropic-vertex'
   | 'anthropic-foundry'
   | 'openai-codex'
+  | 'gemini'
 
 export type MainLoopProviderWireApi =
   | 'anthropic-messages'
   | 'openai-codex-responses'
+  | 'gemini-chat-completions'
 
 export type MainLoopProviderRuntime = {
-  family: 'anthropic' | 'openai'
+  family: 'anthropic' | 'openai' | 'gemini'
   provider: MainLoopProviderRuntimeId
   displayName: string
   apiProvider: APIProvider | null
@@ -51,6 +63,8 @@ export type MainLoopProviderRuntime = {
   supportsOpenAiStyleModels: boolean
   documentedOpenAiModelCapabilities: string[]
   routedOpenAiModelCapabilities: string[]
+  documentedGeminiModelCapabilities: string[]
+  routedGeminiModelCapabilities: string[]
   supportsLocalToolSearch: boolean
   supportsLocalSkills: boolean
   supportsLocalComputerUse: boolean
@@ -108,6 +122,8 @@ function buildAnthropicMainLoopRuntime(
     supportsOpenAiStyleModels: false,
     documentedOpenAiModelCapabilities: [],
     routedOpenAiModelCapabilities: [],
+    documentedGeminiModelCapabilities: [],
+    routedGeminiModelCapabilities: [],
     supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
     supportsLocalSkills: true,
     supportsLocalComputerUse,
@@ -223,6 +239,8 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
         ? ['image generation']
         : []),
     ],
+    documentedGeminiModelCapabilities: [],
+    routedGeminiModelCapabilities: [],
     supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
     supportsLocalSkills: true,
     supportsLocalComputerUse,
@@ -246,8 +264,96 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
   }
 }
 
+function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
+  const readiness = getGeminiAuthReadiness()
+  const auth = getGeminiApiKeyAuthTarget()
+  const routedModelCapabilities = getRoutedGeminiModelCapabilities(
+    getMainLoopModel(),
+  )
+  const documentedModelCapabilities = getDocumentedGeminiModelCapabilities(
+    getMainLoopModel(),
+  )
+  const supportsLocalComputerUse =
+    feature('CHICAGO_MCP') &&
+    getPlatform() === 'macos' &&
+    getChicagoEnabled()
+
+  return {
+    family: 'gemini',
+    provider: 'gemini',
+    displayName: 'Google Gemini',
+    apiProvider: null,
+    wireApi: 'gemini-chat-completions',
+    supportsProviderOwnedOAuth: false,
+    supportsOpenAiStyleModels: true,
+    documentedOpenAiModelCapabilities: [],
+    routedOpenAiModelCapabilities: [],
+    documentedGeminiModelCapabilities: [
+      ...(documentedModelCapabilities.supportsFunctionCalling
+        ? ['function calling']
+        : []),
+      ...(documentedModelCapabilities.supportsMultimodalInput
+        ? ['multimodal input']
+        : []),
+      ...(documentedModelCapabilities.supportsDocuments ? ['documents'] : []),
+      ...(documentedModelCapabilities.supportsWebSearch ? ['web search'] : []),
+      ...(documentedModelCapabilities.supportsFileSearch ? ['file search'] : []),
+      ...(documentedModelCapabilities.supportsRemoteMcp ? ['remote MCP'] : []),
+      ...(documentedModelCapabilities.supportsHostedShell
+        ? ['hosted shell']
+        : []),
+      ...(documentedModelCapabilities.supportsComputerUse
+        ? ['computer use']
+        : []),
+      ...(documentedModelCapabilities.supportsImageGeneration
+        ? ['image generation']
+        : []),
+    ],
+    routedGeminiModelCapabilities: [
+      ...(routedModelCapabilities.supportsFunctionCalling
+        ? ['function calling']
+        : []),
+      ...(routedModelCapabilities.supportsMultimodalInput
+        ? ['multimodal input']
+        : []),
+      ...(routedModelCapabilities.supportsDocuments ? ['documents'] : []),
+      ...(routedModelCapabilities.supportsWebSearch ? ['web search'] : []),
+      ...(routedModelCapabilities.supportsFileSearch ? ['file search'] : []),
+      ...(routedModelCapabilities.supportsRemoteMcp ? ['remote MCP'] : []),
+      ...(routedModelCapabilities.supportsHostedShell ? ['hosted shell'] : []),
+      ...(routedModelCapabilities.supportsComputerUse ? ['computer use'] : []),
+      ...(routedModelCapabilities.supportsImageGeneration
+        ? ['image generation']
+        : []),
+    ],
+    supportsLocalToolSearch: isToolSearchEnabledOptimistic(),
+    supportsLocalSkills: true,
+    supportsLocalComputerUse,
+    supportsLocalMcpTools: true,
+    supportsAgentTeams: readiness.ready || !!process.env.GEMINI_API_KEY?.trim(),
+    supportsOpenAiBuiltInTools: false,
+    supportsComputerUse: false,
+    supportsHostedFileSearch: false,
+    hostedFileSearchConfigured: false,
+    supportsRemoteMcp: false,
+    supportsWebSearch: false,
+    supportsHostedShell: false,
+    supportsImageGeneration: false,
+    authState:
+      readiness.hasAnyProfile || !!process.env.GEMINI_API_KEY?.trim()
+        ? 'ready'
+        : 'not-configured',
+    authSource: auth?.source ?? null,
+    executionEnabled: !!auth,
+  }
+}
+
 function shouldPreferOpenAiCodexMainLoop(): boolean {
   return shouldUseOpenAiCodexProvider()
+}
+
+function shouldPreferGeminiMainLoop(): boolean {
+  return shouldUseGeminiProvider()
 }
 
 export type MainLoopProviderRuntimeSnapshot = {
@@ -263,6 +369,11 @@ export type MainLoopProviderRuntimeSnapshot = {
   openAiCodexPlanLabel: string | null
   documentedOpenAiModelCapabilities: string[]
   routedOpenAiModelCapabilities: string[]
+  geminiAuthReady: boolean
+  geminiApiKeyReady: boolean
+  geminiAuthSource: string | null
+  documentedGeminiModelCapabilities: string[]
+  routedGeminiModelCapabilities: string[]
   supportsLocalToolSearch: boolean
   supportsLocalSkills: boolean
   supportsLocalComputerUse: boolean
@@ -311,14 +422,23 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
   const anthropic = buildAnthropicMainLoopRuntime(getAPIProvider())
   const openAiReadiness = getOpenAiCodexAuthReadiness()
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
+  const gemini = buildGeminiMainLoopRuntime()
   const openAiProfile = getDefaultOpenAiCodexOAuthProfile()
   const openAiApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
-  const preferred = shouldPreferOpenAiCodexMainLoop() ? openAiCodex : anthropic
+  const geminiApiKeyProfile = getDefaultGeminiApiKeyProfile()
+  const preferred = shouldPreferGeminiMainLoop()
+    ? gemini
+    : shouldPreferOpenAiCodexMainLoop()
+      ? openAiCodex
+      : anthropic
   const execution = preferred.executionEnabled ? preferred : anthropic
   const available = [anthropic]
 
   if (openAiCodex.authState !== 'not-configured') {
     available.push(openAiCodex)
+  }
+  if (gemini.authState !== 'not-configured') {
+    available.push(gemini)
   }
 
   return {
@@ -344,6 +464,13 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     documentedOpenAiModelCapabilities:
       execution.documentedOpenAiModelCapabilities,
     routedOpenAiModelCapabilities: execution.routedOpenAiModelCapabilities,
+    geminiAuthReady: gemini.authState !== 'not-configured',
+    geminiApiKeyReady:
+      !!geminiApiKeyProfile || !!process.env.GEMINI_API_KEY?.trim(),
+    geminiAuthSource: gemini.authSource,
+    documentedGeminiModelCapabilities:
+      execution.documentedGeminiModelCapabilities,
+    routedGeminiModelCapabilities: execution.routedGeminiModelCapabilities,
     supportsLocalToolSearch: execution.supportsLocalToolSearch,
     supportsLocalSkills: execution.supportsLocalSkills,
     supportsLocalComputerUse: execution.supportsLocalComputerUse,
@@ -364,6 +491,11 @@ export function getMainLoopProviderRuntime(
   apiProvider: APIProvider = getAPIProvider(),
 ): MainLoopProviderRuntime {
   const anthropic = buildAnthropicMainLoopRuntime(apiProvider)
+  if (shouldPreferGeminiMainLoop()) {
+    const gemini = buildGeminiMainLoopRuntime()
+    return gemini.executionEnabled ? gemini : anthropic
+  }
+
   if (!shouldPreferOpenAiCodexMainLoop()) {
     return anthropic
   }
@@ -387,6 +519,8 @@ export function queryModelWithStreamingViaProviderRuntime(
       return queryModelWithStreaming(...args)
     case 'openai-codex-responses':
       return queryOpenAiCodexWithStreaming(...args)
+    case 'gemini-chat-completions':
+      return queryGeminiWithStreaming(...args)
   }
 }
 
@@ -400,5 +534,7 @@ export function queryModelWithoutStreamingViaProviderRuntime(
       return queryModelWithoutStreaming(...args)
     case 'openai-codex-responses':
       return queryOpenAiCodexWithoutStreaming(...args)
+    case 'gemini-chat-completions':
+      return queryGeminiWithoutStreaming(...args)
   }
 }

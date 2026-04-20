@@ -177,6 +177,8 @@ export type CommandAvailability =
   | 'console'
   // OpenAI Codex OAuth user (ChatGPT-backed Codex provider)
   | 'openai-codex'
+  // Google Gemini provider user
+  | 'gemini'
 
 export type CommandBase = {
   availability?: CommandAvailability[]

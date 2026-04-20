@@ -16,6 +16,7 @@ import type {
 
 export const ANTHROPIC_CLAUDE_AI_PROFILE_ID = 'anthropic:claude-ai'
 export const OPENAI_CODEX_PROVIDER = 'openai-codex'
+export const GEMINI_PROVIDER = 'gemini'
 
 export type ProviderAuthReadiness = {
   provider: string
@@ -52,6 +53,12 @@ export type OpenAiCodexApiKeyCredentialFields = {
   label?: string
   organizationId?: string
   projectId?: string
+  baseUrl?: string
+}
+
+export type GeminiApiKeyCredentialFields = {
+  apiKey: string
+  label?: string
   baseUrl?: string
 }
 
@@ -179,6 +186,28 @@ export function buildOpenAiCodexApiKeyProfile(
       source: 'openai_api_key',
       organizationId: params.organizationId ?? null,
       projectId: params.projectId ?? null,
+      baseUrl: params.baseUrl ?? null,
+    },
+    updatedAt: Date.now(),
+  }
+}
+
+export function buildGeminiApiKeyProfile(
+  params: GeminiApiKeyCredentialFields,
+): ProviderApiKeyProfile {
+  const label = params.label?.trim() || 'Gemini API key'
+
+  return {
+    profileId: `${GEMINI_PROVIDER}:api-key:${label
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'default'}`,
+    provider: GEMINI_PROVIDER,
+    mode: 'api_key',
+    apiKey: params.apiKey,
+    label,
+    metadata: {
+      source: 'gemini_api_key',
       baseUrl: params.baseUrl ?? null,
     },
     updatedAt: Date.now(),
@@ -375,6 +404,10 @@ export function getOpenAiCodexAuthReadiness(): ProviderAuthReadiness {
   return getProviderAuthReadiness(OPENAI_CODEX_PROVIDER)
 }
 
+export function getGeminiAuthReadiness(): ProviderAuthReadiness {
+  return getProviderAuthReadiness(GEMINI_PROVIDER)
+}
+
 export function getDefaultOpenAiCodexOAuthProfile():
   | ProviderOAuthProfile
   | undefined {
@@ -385,6 +418,12 @@ export function getDefaultOpenAiCodexApiKeyProfile():
   | ProviderApiKeyProfile
   | undefined {
   return getDefaultProviderApiKeyProfile(OPENAI_CODEX_PROVIDER)
+}
+
+export function getDefaultGeminiApiKeyProfile():
+  | ProviderApiKeyProfile
+  | undefined {
+  return getDefaultProviderApiKeyProfile(GEMINI_PROVIDER)
 }
 
 export function saveProviderAuthProfileStore(

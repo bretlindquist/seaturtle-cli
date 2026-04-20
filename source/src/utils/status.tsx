@@ -479,6 +479,20 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Codex CLI fallback',
     value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
   });
+  const geminiAuthSourceLabel = runtimeSnapshot.geminiAuthSource === 'provider-api-key-profile' ? 'Provider API key profile' : runtimeSnapshot.geminiAuthSource === 'GEMINI_API_KEY' ? 'GEMINI_API_KEY' : 'Not configured';
+  const geminiStatusLabel = runtimeSnapshot.execution.family === 'gemini' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'gemini' ? 'Preferred but not active' : runtimeSnapshot.geminiAuthReady ? 'Available' : 'Not configured';
+  properties.push({
+    label: 'Gemini status',
+    value: geminiStatusLabel
+  });
+  properties.push({
+    label: 'Gemini auth',
+    value: geminiAuthSourceLabel
+  });
+  properties.push({
+    label: 'Gemini API key',
+    value: runtimeSnapshot.geminiApiKeyReady ? 'Ready' : 'Not detected'
+  });
   if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
     const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
     properties.push({
@@ -535,6 +549,34 @@ export function buildAPIProviderProperties(): Property[] {
     properties.push({
       label: 'OpenAI/Codex gates',
       value: ['auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
+    });
+  }
+  if (runtimeSnapshot.execution.family === 'gemini') {
+    const capabilityLabels = [];
+    if (runtimeSnapshot.supportsLocalToolSearch) capabilityLabels.push('ToolSearch');
+    if (runtimeSnapshot.supportsLocalSkills) capabilityLabels.push('skills');
+    if (runtimeSnapshot.supportsLocalComputerUse) capabilityLabels.push('local computer use');
+    if (runtimeSnapshot.supportsLocalMcpTools) capabilityLabels.push('local MCP tools');
+    if (runtimeSnapshot.supportsAgentTeams) capabilityLabels.push('teams');
+    properties.push({
+      label: 'Gemini runtime',
+      value: capabilityLabels.length > 0 ? capabilityLabels.join(' · ') : 'Auth required'
+    });
+    properties.push({
+      label: 'Gemini model tools',
+      value: runtimeSnapshot.documentedGeminiModelCapabilities.length > 0
+        ? runtimeSnapshot.documentedGeminiModelCapabilities
+        : 'No documented Gemini tool support loaded'
+    });
+    properties.push({
+      label: 'Gemini routed tools',
+      value: runtimeSnapshot.routedGeminiModelCapabilities.length > 0
+        ? runtimeSnapshot.routedGeminiModelCapabilities
+        : 'No Gemini tool routing enabled'
+    });
+    properties.push({
+      label: 'Gemini gates',
+      value: ['provider OAuth', 'provider-hosted tools', 'documents', 'auto-mode safety classifier', 'permission explainer', 'CT in Chrome lightning']
     });
   }
   const proxyUrl = getProxyUrl();

@@ -35,7 +35,7 @@ export type TextQueryHelperOptions = Pick<
 
 function getProviderAwareSmallFastModel(): string {
   const runtime = getMainLoopProviderRuntime()
-  return runtime.family === 'openai' ? getMainLoopModel() : getSmallFastModel()
+  return runtime.family === 'anthropic' ? getSmallFastModel() : getMainLoopModel()
 }
 
 export async function querySmallFastViaProviderRuntime({

@@ -3,7 +3,11 @@ import { isUltrathinkEnabled } from './thinking.js'
 import { getInitialSettings } from './settings/settings.js'
 import { isProSubscriber, isMaxSubscriber, isTeamSubscriber } from './auth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
-import { getAPIProvider, shouldUseOpenAiCodexProvider } from './model/providers.js'
+import {
+  getAPIProvider,
+  shouldUseGeminiProvider,
+  shouldUseOpenAiCodexProvider,
+} from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { isEnvTruthy } from './envUtils.js'
 import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
@@ -46,8 +50,16 @@ export function isOpenAiCodexReasoningModel(model: string): boolean {
   return OPENAI_CODEX_REASONING_MODELS.has(normalizeModelForOpenAiCodex(model))
 }
 
+function isGeminiReasoningModel(model: string): boolean {
+  return model.trim().toLowerCase().startsWith('gemini-')
+}
+
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports the effort parameter.
 export function modelSupportsEffort(model: string): boolean {
+  if (shouldUseGeminiProvider()) {
+    return isGeminiReasoningModel(model)
+  }
+
   if (shouldUseOpenAiCodexProvider()) {
     return isOpenAiCodexReasoningModel(model)
   }
@@ -82,6 +94,10 @@ export function modelSupportsEffort(model: string): boolean {
 // @[MODEL LAUNCH]: Add the new model to the allowlist if it supports 'max' effort.
 // Per API docs, 'max' is Opus 4.6 only for public models — other models return an error.
 export function modelSupportsMaxEffort(model: string): boolean {
+  if (shouldUseGeminiProvider()) {
+    return false
+  }
+
   if (shouldUseOpenAiCodexProvider()) {
     return OPENAI_CODEX_XHIGH_MODELS.has(normalizeModelForOpenAiCodex(model))
   }
@@ -264,17 +280,18 @@ export function convertEffortValueToLevel(value: EffortValue): EffortLevel {
  * @returns Human-readable description
  */
 export function getEffortLevelDescription(level: EffortLevel): string {
+  const usesProviderReasoning = shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()
   switch (level) {
     case 'low':
-      return shouldUseOpenAiCodexProvider()
+      return usesProviderReasoning
         ? 'Fast responses with lighter reasoning'
         : 'Quick, straightforward implementation with minimal overhead'
     case 'medium':
-      return shouldUseOpenAiCodexProvider()
+      return usesProviderReasoning
         ? 'Balances speed and reasoning depth for everyday tasks'
         : 'Balanced approach with standard implementation and testing'
     case 'high':
-      return shouldUseOpenAiCodexProvider()
+      return usesProviderReasoning
         ? 'Greater reasoning depth for complex problems'
         : 'Comprehensive implementation with extensive testing and documentation'
     case 'max':
@@ -329,6 +346,10 @@ export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
 export function getDefaultEffortForModel(
   model: string,
 ): EffortValue | undefined {
+  if (shouldUseGeminiProvider() && isGeminiReasoningModel(model)) {
+    return 'medium'
+  }
+
   if (shouldUseOpenAiCodexProvider() && isOpenAiCodexReasoningModel(model)) {
     return 'medium'
   }

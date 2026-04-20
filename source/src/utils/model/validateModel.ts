@@ -5,6 +5,7 @@ import { getAPIProvider } from './providers.js'
 import { sideQuery } from '../sideQuery.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { validateOpenAiCodexModel } from '../../services/api/openaiCodex.js'
+import { validateGeminiModel } from '../../services/api/gemini.js'
 import {
   NotFoundError,
   APIError,
@@ -56,6 +57,14 @@ export async function validateModel(
   const runtime = getMainLoopProviderRuntime()
   if (runtime.family === 'openai') {
     const modelError = validateOpenAiCodexModel(normalizedModel)
+    if (modelError) {
+      return { valid: false, error: modelError }
+    }
+    validModelCache.set(normalizedModel, true)
+    return { valid: true }
+  }
+  if (runtime.family === 'gemini') {
+    const modelError = validateGeminiModel(normalizedModel)
     if (modelError) {
       return { valid: false, error: modelError }
     }

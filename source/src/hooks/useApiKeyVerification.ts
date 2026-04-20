@@ -24,7 +24,7 @@ export type ApiKeyVerificationResult = {
 
 export function useApiKeyVerification(): ApiKeyVerificationResult {
   const [status, setStatus] = useState<VerificationStatus>(() => {
-    if (getMainLoopProviderRuntime().family === 'openai') {
+    if (getMainLoopProviderRuntime().family !== 'anthropic') {
       return 'valid'
     }
     if (!isAnthropicAuthEnabled() || isClaudeAISubscriber()) {
@@ -45,7 +45,7 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
   const [error, setError] = useState<Error | null>(null)
 
   const verify = useCallback(async (): Promise<void> => {
-    if (getMainLoopProviderRuntime().family === 'openai') {
+    if (getMainLoopProviderRuntime().family !== 'anthropic') {
       setStatus('valid')
       setError(null)
       return

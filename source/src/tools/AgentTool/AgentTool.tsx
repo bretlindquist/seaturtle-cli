@@ -262,7 +262,7 @@ export const AgentTool = buildTool({
     // Check if user is trying to use agent teams without access
     if (team_name && !isAgentSwarmsEnabled()) {
       const runtime = getMainLoopProviderRuntime();
-      throw new Error(runtime.family === 'openai' ? 'SeaTurtle teams are not available for the current OpenAI/Codex runtime state. Finish OpenAI auth or use a standard subagent/fork instead.' : 'SeaTurtle teams are not available for the current Anthropic runtime state. Enable teammate support for this runtime or use a standard subagent instead.');
+      throw new Error(runtime.family !== 'anthropic' ? `SeaTurtle teams are not available for the current ${runtime.displayName} runtime state. Finish provider auth or use a standard subagent/fork instead.` : 'SeaTurtle teams are not available for the current Anthropic runtime state. Enable teammate support for this runtime or use a standard subagent instead.');
     }
 
     // Teammates (in-process or tmux) passing `name` would trigger spawnTeammate()
