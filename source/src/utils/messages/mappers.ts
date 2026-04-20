@@ -23,6 +23,13 @@ import stripAnsi from 'strip-ansi'
 import { createAssistantMessage } from '../messages.js'
 import { getPlan } from '../plans.js'
 
+function stripProviderMetadataFromBlock(block: BetaContentBlock): BetaContentBlock {
+  const { providerMetadata: _providerMetadata, ...rest } = block as BetaContentBlock & {
+    providerMetadata?: unknown
+  }
+  return rest as BetaContentBlock
+}
+
 export function toInternalMessages(
   messages: readonly DeepImmutable<SDKMessage>[],
 ): Message[] {
@@ -267,20 +274,20 @@ function normalizeAssistantMessageForSDK(
 
   const normalizedContent = content.map((block): BetaContentBlock => {
     if (block.type !== 'tool_use') {
-      return block
+      return stripProviderMetadataFromBlock(block)
     }
 
     if (block.name === EXIT_PLAN_MODE_V2_TOOL_NAME) {
       const plan = getPlan()
       if (plan) {
-        return {
+        return stripProviderMetadataFromBlock({
           ...block,
           input: { ...(block.input as Record<string, unknown>), plan },
-        }
+        } as BetaContentBlock)
       }
     }
 
-    return block
+    return stripProviderMetadataFromBlock(block)
   })
 
   return {

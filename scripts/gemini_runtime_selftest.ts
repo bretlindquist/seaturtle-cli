@@ -33,6 +33,14 @@ const geminiClient = readFileSync(
   join(repoRoot, 'source/src/services/api/geminiClient.ts'),
   'utf8',
 )
+const geminiContent = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiContent.ts'),
+  'utf8',
+)
+const geminiThoughtSignatures = readFileSync(
+  join(repoRoot, 'source/src/services/api/geminiThoughtSignatures.ts'),
+  'utf8',
+)
 const managedEnvConstants = readFileSync(
   join(repoRoot, 'source/src/utils/managedEnvConstants.ts'),
   'utf8',
@@ -109,9 +117,14 @@ assertIncludes(
   'Gemini auth setup guidance should use the SeaTurtle provider env var',
 )
 assertIncludes(
-  gemini,
+  geminiContent,
   /functionCall/,
   'Gemini runtime should translate native Gemini function calls',
+)
+assertIncludes(
+  gemini,
+  /parseGeminiAssistantContent/,
+  'Gemini runtime should parse native Gemini responses through the content mapper',
 )
 assertIncludes(
   gemini,
@@ -124,9 +137,29 @@ assertIncludes(
   'Gemini runtime should send native Gemini systemInstruction fields',
 )
 assertIncludes(
-  gemini,
+  geminiContent,
   /inlineData/,
   'Gemini runtime should send image input through native Gemini inlineData parts',
+)
+assertIncludes(
+  geminiContent,
+  /functionResponse/,
+  'Gemini content mapper should convert tool results to native functionResponse parts',
+)
+assertIncludes(
+  geminiContent,
+  /thoughtSignature/,
+  'Gemini content mapper should preserve thought signatures on native parts',
+)
+assertIncludes(
+  geminiThoughtSignatures,
+  /providerMetadata/,
+  'Gemini thought signatures should be stored in hidden provider metadata',
+)
+assertIncludes(
+  geminiThoughtSignatures,
+  /requiresThoughtSignature/,
+  'Gemini thought-signature metadata should mark required replay signatures',
 )
 assertIncludes(
   geminiClient,

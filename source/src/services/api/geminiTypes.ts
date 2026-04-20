@@ -22,6 +22,14 @@ export type GeminiPart = {
   inlineData?: GeminiInlineData
   functionCall?: GeminiFunctionCall
   functionResponse?: GeminiFunctionResponse
+  executableCode?: {
+    language?: string
+    code?: string
+  }
+  codeExecutionResult?: {
+    outcome?: string
+    output?: string
+  }
   thoughtSignature?: string
 }
 
