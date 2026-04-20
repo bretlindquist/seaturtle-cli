@@ -1,5 +1,9 @@
 import { z } from 'zod/v4'
 import {
+  runGeminiCodeExecution,
+  type GeminiCodeExecutionResult,
+} from '../../services/api/geminiCodeExecution.js'
+import {
   runOpenAiCodexHostedShell,
   type OpenAiCodexHostedShellResult,
 } from '../../services/api/openaiCodex.js'
@@ -40,6 +44,14 @@ const outputSchema = lazySchema(() =>
     task: z.string(),
     summary: z.string(),
     outputs: z.array(shellOutputSchema),
+    images: z
+      .array(
+        z.object({
+          mediaType: z.string(),
+          imageBase64: z.string(),
+        }),
+      )
+      .optional(),
     durationSeconds: z.number(),
   }),
 )
@@ -58,8 +70,9 @@ export const HostedShellTool = buildTool({
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
     return (
-      runtime.family === 'openai' &&
-      runtime.supportsHostedShell
+      (runtime.family === 'openai' && runtime.supportsHostedShell) ||
+      (runtime.family === 'gemini' &&
+        runtime.routedGeminiModelCapabilities.includes('code execution'))
     )
   },
   get inputSchema(): InputSchema {
@@ -88,23 +101,34 @@ export const HostedShellTool = buildTool({
   },
   async call(input, context) {
     const startTime = performance.now()
-    const result: OpenAiCodexHostedShellResult =
-      await runOpenAiCodexHostedShell({
-        model: context.options.mainLoopModel,
-        task: input.task,
-        allowedDomains: input.allowed_domains,
-        signal: context.abortController.signal,
-        options: {
-          ...context.options,
-          model: context.options.mainLoopModel,
-        },
-      })
+    const runtime = getMainLoopProviderRuntime()
+    const result: OpenAiCodexHostedShellResult | GeminiCodeExecutionResult =
+      runtime.family === 'gemini'
+        ? await runGeminiCodeExecution({
+            model: context.options.mainLoopModel,
+            task: input.task,
+            signal: context.abortController.signal,
+          })
+        : await runOpenAiCodexHostedShell({
+            model: context.options.mainLoopModel,
+            task: input.task,
+            allowedDomains: input.allowed_domains,
+            signal: context.abortController.signal,
+            options: {
+              ...context.options,
+              model: context.options.mainLoopModel,
+            },
+          })
 
     return {
       data: {
         task: input.task,
-        summary: result.outputText,
+        summary:
+          'outputText' in result
+            ? result.outputText
+            : result.summary,
         outputs: result.outputs,
+        images: 'images' in result ? result.images : [],
         durationSeconds: (performance.now() - startTime) / 1000,
       },
     }
@@ -113,7 +137,27 @@ export const HostedShellTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: jsonStringify(content),
+      content: [
+        {
+          type: 'text' as const,
+          text: jsonStringify({
+            ...content,
+            images:
+              content.images?.map(image => ({
+                mediaType: image.mediaType,
+                imageBase64Length: image.imageBase64.length,
+              })) ?? [],
+          }),
+        },
+        ...((content.images ?? []).map(image => ({
+          type: 'image' as const,
+          source: {
+            type: 'base64' as const,
+            media_type: image.mediaType,
+            data: image.imageBase64,
+          },
+        })) ?? []),
+      ],
     }
   },
 } satisfies ToolDef<InputSchema, Output>)

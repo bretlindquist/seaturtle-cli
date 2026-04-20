@@ -26,7 +26,7 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
     <Box justifyContent="space-between" width="100%">
       <MessageResponse height={1}>
         <Text>
-          Hosted shell completed in {timeDisplay}
+          Hosted execution completed in {timeDisplay}
         </Text>
       </MessageResponse>
     </Box>

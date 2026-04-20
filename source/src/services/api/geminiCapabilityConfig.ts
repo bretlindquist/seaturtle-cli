@@ -89,6 +89,7 @@ const ROUTED_GEMINI_MODEL_CAPABILITIES: GeminiModelCapabilities = {
   supportsMultimodalInput: true,
   supportsWebSearch: true,
   supportsUrlContext: true,
+  supportsCodeExecution: true,
 }
 
 const GEMINI_3_MAIN_LOOP_DOCUMENTED_CAPABILITIES: GeminiModelCapabilities = {
