@@ -9,6 +9,12 @@ function assertIncludes(haystack: string, needle: RegExp, message: string) {
   }
 }
 
+function assertNotIncludes(haystack: string, needle: RegExp, message: string) {
+  if (needle.test(haystack)) {
+    throw new Error(message)
+  }
+}
+
 const providerRuntime = readFileSync(
   join(repoRoot, 'source/src/services/api/providerRuntime.ts'),
   'utf8',
@@ -175,6 +181,41 @@ assertIncludes(
   geminiClient,
   /:streamGenerateContent/,
   'Gemini native client should define the streamGenerateContent endpoint for Wave 5',
+)
+assertIncludes(
+  geminiClient,
+  /alt=sse/,
+  'Gemini streaming endpoint should request SSE responses',
+)
+assertIncludes(
+  geminiClient,
+  /runGeminiStreamGenerateContent/,
+  'Gemini native client should expose a real streaming request path',
+)
+assertIncludes(
+  gemini,
+  /runGeminiStreamGenerateContent/,
+  'Gemini runtime should call the native streaming client',
+)
+assertIncludes(
+  gemini,
+  /text_delta/,
+  'Gemini streaming should emit text deltas',
+)
+assertIncludes(
+  gemini,
+  /input_json_delta/,
+  'Gemini streaming should emit tool input JSON deltas',
+)
+assertIncludes(
+  gemini,
+  /message_stop/,
+  'Gemini streaming should emit message_stop events',
+)
+assertNotIncludes(
+  gemini,
+  /yield await queryGeminiWithoutStreaming\(params\)/,
+  'Gemini streaming must not fake streaming by yielding the non-streaming result',
 )
 assertIncludes(
   geminiCapabilityConfig,

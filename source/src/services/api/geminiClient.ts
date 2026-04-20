@@ -3,6 +3,7 @@ import type {
   GeminiGenerateContentRequest,
   GeminiGenerateContentResponse,
 } from './geminiTypes.js'
+import { parseGeminiStreamSseEvents } from './geminiStreamParser.js'
 
 export type GeminiNativeAuthTarget = {
   baseUrl: string
@@ -29,7 +30,7 @@ export function buildGeminiStreamGenerateContentEndpoint(params: {
   baseUrl: string
   model: string
 }): string {
-  return `${normalizeBaseUrl(params.baseUrl)}/models/${encodeModelForPath(params.model)}:streamGenerateContent`
+  return `${normalizeBaseUrl(params.baseUrl)}/models/${encodeModelForPath(params.model)}:streamGenerateContent?alt=sse`
 }
 
 export function formatGeminiHttpError(params: {
@@ -84,4 +85,81 @@ export async function runGeminiGenerateContent(params: {
   }
 
   return (await response.json()) as GeminiGenerateContentResponse
+}
+
+export async function* runGeminiStreamGenerateContent(params: {
+  auth: GeminiNativeAuthTarget
+  model: string
+  request: GeminiGenerateContentRequest
+  signal: AbortSignal
+}): AsyncGenerator<GeminiGenerateContentResponse, void> {
+  const response = await fetch(
+    buildGeminiStreamGenerateContentEndpoint({
+      baseUrl: params.auth.baseUrl,
+      model: params.model,
+    }),
+    {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-goog-api-key': params.auth.apiKey,
+      },
+      body: JSON.stringify(params.request),
+      signal: params.signal,
+    },
+  )
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      formatGeminiHttpError({
+        status: response.status,
+        statusText: response.statusText,
+        body,
+      }),
+    )
+  }
+
+  if (!response.body) {
+    throw new Error(`${API_ERROR_MESSAGE_PREFIX}: Gemini streaming response had no body`)
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      if (params.signal.aborted) {
+        throw params.signal.reason instanceof Error
+          ? params.signal.reason
+          : new Error('Gemini streaming request was aborted')
+      }
+
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      buffer += decoder.decode(value, { stream: true })
+      const parsed = parseGeminiStreamSseEvents(buffer)
+      buffer = parsed.remainder
+      for (const event of parsed.events) {
+        yield event
+      }
+    }
+
+    buffer += decoder.decode()
+    const parsed = parseGeminiStreamSseEvents(`${buffer}\n\n`)
+    for (const event of parsed.events) {
+      yield event
+    }
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`${API_ERROR_MESSAGE_PREFIX}: malformed Gemini stream event`)
+    }
+    throw error
+  } finally {
+    reader.releaseLock()
+  }
 }
