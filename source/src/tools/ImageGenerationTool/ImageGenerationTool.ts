@@ -19,6 +19,20 @@ const inputSchema = lazySchema(() =>
       .string()
       .min(8)
       .describe('A concrete prompt describing the image to generate'),
+    referenceImages: z
+      .array(
+        z.object({
+          mediaType: z.string(),
+          imageBase64: z.string(),
+        }),
+      )
+      .optional(),
+    aspectRatio: z.string().optional(),
+    imageSize: z.string().optional(),
+    mode: z
+      .enum(['generate', 'edit', 'inpaint', 'product', 'text_rendering'])
+      .optional(),
+    outputCount: z.number().int().positive().optional(),
   }),
 )
 type InputSchema = ReturnType<typeof inputSchema>
@@ -36,6 +50,11 @@ type OutputSchema = ReturnType<typeof outputSchema>
 
 export type Output = z.infer<OutputSchema>
 
+type GeminiReferenceImageInput = {
+  mediaType: string
+  imageBase64: string
+}
+
 export const ImageGenerationTool = buildTool({
   name: IMAGE_GENERATION_TOOL_NAME,
   searchHint: 'generate a new image from a prompt',
@@ -47,8 +66,9 @@ export const ImageGenerationTool = buildTool({
   isEnabled() {
     const runtime = getMainLoopProviderRuntime()
     return (
-      runtime.family === 'openai' &&
-      runtime.routedOpenAiModelCapabilities.includes('image generation')
+      (runtime.family === 'openai' &&
+        runtime.routedOpenAiModelCapabilities.includes('image generation')) ||
+      (runtime.family === 'gemini' && runtime.supportsImageGeneration)
     )
   },
   get inputSchema(): InputSchema {
@@ -77,16 +97,36 @@ export const ImageGenerationTool = buildTool({
   },
   async call(input, context) {
     const startTime = performance.now()
+    const runtime = getMainLoopProviderRuntime()
     const result: OpenAiCodexImageGenerationResult =
-      await runOpenAiCodexImageGeneration({
-        model: context.options.mainLoopModel,
-        prompt: input.prompt,
-        signal: context.abortController.signal,
-        options: {
-          ...context.options,
-          model: context.options.mainLoopModel,
-        },
-      })
+      runtime.family === 'gemini'
+        ? await (async () => {
+            const { runGeminiImageGeneration } = await import(
+              '../../services/api/geminiImageGeneration.js'
+            )
+            return runGeminiImageGeneration({
+              input: {
+                prompt: input.prompt,
+                referenceImages: input.referenceImages as
+                  | GeminiReferenceImageInput[]
+                  | undefined,
+                aspectRatio: input.aspectRatio,
+                imageSize: input.imageSize,
+                mode: input.mode,
+                outputCount: input.outputCount,
+              },
+              signal: context.abortController.signal,
+            })
+          })()
+        : await runOpenAiCodexImageGeneration({
+            model: context.options.mainLoopModel,
+            prompt: input.prompt,
+            signal: context.abortController.signal,
+            options: {
+              ...context.options,
+              model: context.options.mainLoopModel,
+            },
+          })
 
     return {
       data: {

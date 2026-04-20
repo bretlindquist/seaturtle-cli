@@ -307,7 +307,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsRemoteMcp: false,
     supportsWebSearch: false,
     supportsHostedShell: false,
-    supportsImageGeneration: false,
+    supportsImageGeneration: !!auth,
     authState:
       readiness.hasAnyProfile || !!process.env.GEMINI_API_KEY?.trim()
         ? 'ready'
