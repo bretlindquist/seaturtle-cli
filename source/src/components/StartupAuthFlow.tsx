@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
-import { getOpenAiCodexAuthReadiness } from '../services/authProfiles/store.js'
+import {
+  getGeminiAuthReadiness,
+  getOpenAiCodexAuthReadiness,
+} from '../services/authProfiles/store.js'
+import {
+  saveGeminiApiKeyProfile,
+} from '../services/authProfiles/geminiAuth.js'
 import {
   importExternalCodexCliAuthProfile,
   loginWithOpenAiCodexOAuth,
@@ -22,13 +28,16 @@ type Props = {
 type Screen =
   | { state: 'choose' }
   | { state: 'platform' }
+  | { state: 'gemini-options' }
+  | { state: 'gemini-api-key' }
+  | { state: 'gemini-error'; message: string }
   | { state: 'openai-options' }
   | { state: 'openai-login' }
   | { state: 'openai-error'; message: string }
   | { state: 'anthropic'; loginMethod: 'claudeai' | 'console' }
 
 function persistPreferredMainProvider(
-  provider: 'anthropic' | 'openai-codex',
+  provider: 'anthropic' | 'openai-codex' | 'gemini',
 ): void {
   saveGlobalConfig(current => {
     if (current.preferredMainProvider === provider) {
@@ -55,7 +64,11 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     null,
   )
   const [openAiManualCode, setOpenAiManualCode] = useState('')
+  const [geminiApiKey, setGeminiApiKey] = useState('')
+  const [geminiCursorOffset, setGeminiCursorOffset] = useState(0)
   const openAiReadiness = useMemo(() => getOpenAiCodexAuthReadiness(), [screen])
+  const geminiReadiness = useMemo(() => getGeminiAuthReadiness(), [screen])
+  const hasGeminiEnvKey = !!process.env.GEMINI_API_KEY?.trim()
 
   useKeybinding(
     'confirm:no',
@@ -66,6 +79,9 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
       context: 'Confirmation',
       isActive:
         screen.state === 'platform' ||
+        screen.state === 'gemini-options' ||
+        screen.state === 'gemini-api-key' ||
+        screen.state === 'gemini-error' ||
         screen.state === 'openai-options' ||
         screen.state === 'openai-error',
     },
@@ -168,6 +184,30 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     openAiManualPromptResolverRef.current = null
   }
 
+  function submitGeminiApiKey(): void {
+    const saveResult = saveGeminiApiKeyProfile({
+      apiKey: geminiApiKey,
+    })
+
+    if (!saveResult.success) {
+      setScreen({
+        state: 'gemini-error',
+        message:
+          saveResult.warning ??
+          'CT could not save the Gemini API key in secure storage.',
+      })
+      return
+    }
+
+    setGeminiApiKey('')
+    setGeminiCursorOffset(0)
+    persistPreferredMainProvider('gemini')
+    logEvent('tengu_gemini_api_key_saved', {
+      source: 'provider-api-key-profile',
+    })
+    onDone()
+  }
+
   if (screen.state === 'anthropic') {
     return (
       <ConsoleOAuthFlow
@@ -217,6 +257,117 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             </Text>
           </Box>
         </Box>
+      </Box>
+    )
+  }
+
+  if (screen.state === 'gemini-options') {
+    const hasCtStoredAuth = geminiReadiness.hasAnyProfile
+
+    return (
+      <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
+        <Text bold>Gemini API key</Text>
+        <Text>Select how to continue:</Text>
+        <Box>
+          <Select
+            options={[
+              {
+                label: (
+                  <Text>
+                    Use existing Gemini auth ·{' '}
+                    <Text dimColor>Detected in CT secure storage</Text>
+                    {'\n'}
+                  </Text>
+                ),
+                value: 'existing-profile',
+                disabled: !hasCtStoredAuth,
+              },
+              {
+                label: (
+                  <Text>
+                    Use existing Gemini env key ·{' '}
+                    <Text dimColor>Detected in GEMINI_API_KEY</Text>
+                    {'\n'}
+                  </Text>
+                ),
+                value: 'existing-env',
+                disabled: !hasGeminiEnvKey,
+              },
+              {
+                label: (
+                  <Text>
+                    Enter Gemini API key now ·{' '}
+                    <Text dimColor>Save in CT secure storage</Text>
+                    {'\n'}
+                  </Text>
+                ),
+                value: 'enter-api-key',
+              },
+            ]}
+            onChange={value => {
+              if (value === 'existing-profile') {
+                logEvent('tengu_gemini_existing_profile_selected', {})
+                persistPreferredMainProvider('gemini')
+                onDone()
+                return
+              }
+
+              if (value === 'existing-env') {
+                logEvent('tengu_gemini_env_auth_selected', {})
+                persistPreferredMainProvider('gemini')
+                onDone()
+                return
+              }
+
+              logEvent('tengu_gemini_api_key_entry_selected', {})
+              setGeminiApiKey('')
+              setGeminiCursorOffset(0)
+              setScreen({ state: 'gemini-api-key' })
+            }}
+          />
+        </Box>
+        <Text dimColor>
+          Press <Text bold>Enter</Text> to go back to login options.
+        </Text>
+      </Box>
+    )
+  }
+
+  if (screen.state === 'gemini-api-key') {
+    return (
+      <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
+        <Text bold>Enter Gemini API key</Text>
+        <Text dimColor>
+          CT will save this key in secure storage and set Gemini as the
+          preferred main provider.
+        </Text>
+        <TextInput
+          value={geminiApiKey}
+          onChange={value => {
+            setGeminiApiKey(value)
+            setGeminiCursorOffset(value.length)
+          }}
+          onSubmit={submitGeminiApiKey}
+          placeholder="Paste Gemini API key"
+          mask="*"
+          cursorOffset={geminiCursorOffset}
+          onChangeCursorOffset={setGeminiCursorOffset}
+        />
+        <Text dimColor>
+          Press <Text bold>Enter</Text> to save, or <Text bold>Esc</Text> to go
+          back.
+        </Text>
+      </Box>
+    )
+  }
+
+  if (screen.state === 'gemini-error') {
+    return (
+      <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
+        <Text color="error">Gemini setup error: {screen.message}</Text>
+        <Text dimColor>
+          Press <Text bold>Enter</Text> to go back to login options.
+        </Text>
       </Box>
     )
   }
@@ -365,7 +516,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
       </Text>
       <Text>
         CT supports Anthropic subscription access, billed API access,
-        3rd-party Anthropic platforms, and OpenAI Codex OAuth.
+        3rd-party Anthropic platforms, Gemini API-key setup, and OpenAI Codex
+        OAuth.
       </Text>
       <Text>Select provider:</Text>
       <Box>
@@ -406,6 +558,18 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             {
               label: (
                 <Text>
+                  Gemini API key ·{' '}
+                  <Text dimColor>
+                    Direct Gemini runtime with CT-managed secure storage
+                  </Text>
+                  {'\n'}
+                </Text>
+              ),
+              value: 'gemini',
+            },
+            {
+              label: (
+                <Text>
                   OpenAI Codex OAuth ·{' '}
                   <Text dimColor>
                     Native CT OAuth with Codex CLI fallback
@@ -426,6 +590,12 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             if (value === 'openai') {
               logEvent('tengu_oauth_openai_selected', {})
               setScreen({ state: 'openai-options' })
+              return
+            }
+
+            if (value === 'gemini') {
+              logEvent('tengu_gemini_selected', {})
+              setScreen({ state: 'gemini-options' })
               return
             }
 
