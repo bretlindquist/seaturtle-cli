@@ -196,11 +196,54 @@ const enabledBundleFeatures = new Set([
   'CHICAGO_MCP',
 ]);
 
-main();
+let activeBuildTicker = null;
 
 function logBuildStep(message) {
+  stopBuildTicker();
   console.log(`[SeaTurtle CT build] ${message}`);
 }
+
+function startBuildTicker(label) {
+  if (!process.stdout.isTTY) {
+    return;
+  }
+
+  stopBuildTicker();
+
+  const frames = [1, 2, 3, 4, 5, 6];
+  let index = 0;
+  const render = () => {
+    const dotCount = frames[index % frames.length];
+    const dots = '.'.repeat(dotCount);
+    const padding = ' '.repeat(frames[frames.length - 1] - dotCount);
+    process.stdout.write(`\r[SeaTurtle CT build] ${label} ${dots}${padding}🐢`);
+    index += 1;
+  };
+
+  render();
+  activeBuildTicker = setInterval(render, 250);
+}
+
+function stopBuildTicker() {
+  if (activeBuildTicker !== null) {
+    clearInterval(activeBuildTicker);
+    activeBuildTicker = null;
+    if (process.stdout.isTTY) {
+      process.stdout.write('\r\x1b[K');
+    }
+  }
+}
+
+function withBuildTicker(label, fn) {
+  startBuildTicker(label);
+  try {
+    return fn();
+  } finally {
+    stopBuildTicker();
+  }
+}
+
+main();
 
 function main() {
   for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -210,16 +253,22 @@ function main() {
       logBuildStep(`Retrying build after fixing generated workspace issues (${attempt + 1}/6)`)
     }
 
-    prepareWorkspace(getOverlayPackages());
+    withBuildTicker('Preparing workspace', () =>
+      prepareWorkspace(getOverlayPackages()),
+    );
     ensureOverlayDependencies(getOverlayPackages());
     logBuildStep('Refreshing generated workspace shims and bundled source overlays')
-    generateWorkspaceAugmentations();
+    withBuildTicker('Refreshing workspace overlays', () =>
+      generateWorkspaceAugmentations(),
+    );
 
     logBuildStep('Bundling CLI with Bun')
-    const buildResult = runBunBuild();
+    const buildResult = withBuildTicker('Bundling CT runtime', () =>
+      runBunBuild(),
+    );
     if (buildResult.status === 0) {
       logBuildStep('Finalizing wrapper output')
-      finalizeBuild();
+      withBuildTicker('Finalizing local wrapper output', () => finalizeBuild());
       return;
     }
 
