@@ -5,7 +5,6 @@ import { setupTerminal, shouldOfferTerminalSetup } from '../commands/terminalSet
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js';
 import { Box, Link, Newline, Text, useTheme } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
-import { isAnthropicAuthEnabled } from '../utils/auth.js';
 import { normalizeApiKeyForConfig } from '../utils/authPortable.js';
 import { getCustomApiKeyStatus } from '../utils/config.js';
 import { env } from '../utils/env.js';
@@ -40,7 +39,7 @@ export function Onboarding({
 }: Props): React.ReactNode {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [skipOAuth, setSkipOAuth] = useState(false);
-  const [oauthEnabled] = useState(() => !isBareMode() || isAnthropicAuthEnabled());
+  const [authEnabled] = useState(() => !isBareMode());
   const [theme, setTheme] = useTheme();
   const [shouldShowCtIdentityStep] = useState(
     () =>
@@ -49,15 +48,15 @@ export function Onboarding({
   )
   useEffect(() => {
     logEvent('tengu_began_setup', {
-      oauthEnabled
+      authEnabled
     });
-  }, [oauthEnabled]);
+  }, [authEnabled]);
   function goToNextStep() {
     if (currentStepIndex < steps.length - 1) {
       const nextIndex = currentStepIndex + 1;
       setCurrentStepIndex(nextIndex);
       logEvent('tengu_onboarding_step', {
-        oauthEnabled,
+        authEnabled,
         stepId: steps[nextIndex]?.id as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
     } else {
@@ -117,7 +116,7 @@ export function Onboarding({
       <PressEnterToContinue />
     </Box>;
   const preflightStep = <PreflightStep onSuccess={goToNextStep} />;
-  // Create the steps array - determine which steps to include based on reAuth and oauthEnabled
+  // Create the steps array - determine which steps to include based on auth availability
   const apiKeyNeedingApproval = useMemo(() => {
     // Add API key step if needed
     // On homespace, ANTHROPIC_API_KEY is preserved in process.env for child
@@ -137,7 +136,7 @@ export function Onboarding({
     goToNextStep();
   }
   const stepIds = buildOnboardingStepIds({
-    oauthEnabled,
+    authEnabled,
     shouldShowCtIdentityBootstrap: shouldShowCtIdentityStep,
     hasApiKeyNeedingApproval: Boolean(apiKeyNeedingApproval),
     shouldOfferTerminalSetupStep: shouldOfferTerminalSetup(),
@@ -147,7 +146,7 @@ export function Onboarding({
     'ct-identity': ctIdentityStep,
     theme: themeStep,
     'api-key': <ApproveApiKey customApiKeyTruncated={apiKeyNeedingApproval} onDone={handleApiKeyDone} />,
-    oauth: <SkippableStep skip={skipOAuth} onSkip={goToNextStep}>
+    auth: <SkippableStep skip={skipOAuth} onSkip={goToNextStep}>
         <StartupAuthFlow onDone={goToNextStep} />
       </SkippableStep>,
     security: securityStep,
@@ -194,10 +193,10 @@ export function Onboarding({
     } else {
       goToNextStep();
     }
-  }, [currentStepIndex, steps.length, oauthEnabled, onDone]);
+  }, [currentStepIndex, steps.length, authEnabled, onDone]);
   const handleTerminalSetupSkip = useCallback(() => {
     goToNextStep();
-  }, [currentStepIndex, steps.length, oauthEnabled, onDone]);
+  }, [currentStepIndex, steps.length, authEnabled, onDone]);
   useKeybindings({
     'confirm:yes': handleSecurityContinue
   }, {

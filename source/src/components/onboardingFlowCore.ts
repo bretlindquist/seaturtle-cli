@@ -2,20 +2,20 @@ export type OnboardingStepId =
   | 'preflight'
   | 'ct-identity'
   | 'theme'
-  | 'oauth'
+  | 'auth'
   | 'api-key'
   | 'security'
   | 'terminal-setup'
 
 export function buildOnboardingStepIds(input: {
-  oauthEnabled: boolean
+  authEnabled: boolean
   shouldShowCtIdentityBootstrap: boolean
   hasApiKeyNeedingApproval: boolean
   shouldOfferTerminalSetupStep: boolean
 }): OnboardingStepId[] {
   const steps: OnboardingStepId[] = []
 
-  if (input.oauthEnabled) {
+  if (input.authEnabled) {
     steps.push('preflight')
   }
 
@@ -29,8 +29,8 @@ export function buildOnboardingStepIds(input: {
     steps.push('api-key')
   }
 
-  if (input.oauthEnabled) {
-    steps.push('oauth')
+  if (input.authEnabled) {
+    steps.push('auth')
   }
 
   steps.push('security')

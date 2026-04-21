@@ -48,7 +48,7 @@ function run(): void {
 
   assert.deepEqual(
     buildOnboardingStepIds({
-      oauthEnabled: true,
+      authEnabled: true,
       shouldShowCtIdentityBootstrap: true,
       hasApiKeyNeedingApproval: true,
       shouldOfferTerminalSetupStep: true,
@@ -58,7 +58,7 @@ function run(): void {
       'ct-identity',
       'theme',
       'api-key',
-      'oauth',
+      'auth',
       'security',
       'terminal-setup',
     ],
@@ -67,7 +67,7 @@ function run(): void {
 
   assert.deepEqual(
     buildOnboardingStepIds({
-      oauthEnabled: false,
+      authEnabled: false,
       shouldShowCtIdentityBootstrap: false,
       hasApiKeyNeedingApproval: false,
       shouldOfferTerminalSetupStep: false,

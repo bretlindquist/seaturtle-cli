@@ -19,8 +19,8 @@ Current operator truth:
 - direct Gemini setup in this build is API-key based
 - `/status` and `ct auth status --json` show whether Gemini is active,
   preferred, or merely available
-- the interactive `/login` path is being expanded toward first-class Gemini
-  setup, but the env/API-key path remains the current baseline
+- `/login` supports first-class Gemini API-key setup through CT secure storage,
+  while the env/API-key path remains available for explicit operator control
 
 Boolean provider gate:
 
