@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { builtinModules } from 'node:module';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -243,9 +243,43 @@ function withBuildTicker(label, fn) {
   }
 }
 
-main();
+function formatElapsedMs(elapsedMs) {
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+}
 
-function main() {
+function runChildWithHeartbeat(command, args, options) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const child = spawn(command, args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdio: 'inherit',
+    });
+
+    const heartbeat = setInterval(() => {
+      logBuildStep(
+        `${options.heartbeatLabel} (${formatElapsedMs(Date.now() - startedAt)} elapsed)`,
+      );
+    }, 15000);
+
+    child.on('error', error => {
+      clearInterval(heartbeat);
+      reject(error);
+    });
+
+    child.on('exit', code => {
+      clearInterval(heartbeat);
+      resolve(code ?? 1);
+    });
+  });
+}
+
+await main();
+
+async function main() {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     if (attempt === 0) {
       logBuildStep(`Preparing workspace for SeaTurtle CLI ${packageJson.version}`)
@@ -256,7 +290,7 @@ function main() {
     withBuildTicker('Preparing workspace', () =>
       prepareWorkspace(getOverlayPackages()),
     );
-    ensureOverlayDependencies(getOverlayPackages());
+    await ensureOverlayDependencies(getOverlayPackages());
     logBuildStep('Refreshing generated workspace shims and bundled source overlays')
     withBuildTicker('Refreshing workspace overlays', () =>
       generateWorkspaceAugmentations(),
@@ -359,7 +393,7 @@ function prepareWorkspace(overlayPackages) {
   );
 }
 
-function ensureOverlayDependencies(packageNames) {
+async function ensureOverlayDependencies(packageNames) {
   const stamp = readJsonIfExists(overlayStampPath);
   const desiredKey = JSON.stringify(packageNames);
   const installedPackages = parseOverlayPackagesKey(stamp?.packagesKey);
@@ -392,13 +426,14 @@ function ensureOverlayDependencies(packageNames) {
     '--legacy-peer-deps',
     ...packageNames.map(getOverlayPackageSpec),
   ];
-  const install = spawnSync('npm', installArgs, {
+  const installStatus = await runChildWithHeartbeat('npm', installArgs, {
     cwd: workspaceRoot,
-    stdio: 'inherit',
+    heartbeatLabel:
+      'Still installing overlay dependencies with npm. First-time installs can take several minutes',
   });
 
-  if (install.status !== 0) {
-    process.exit(install.status ?? 1);
+  if (installStatus !== 0) {
+    process.exit(installStatus);
   }
 
   logBuildStep('Overlay dependency install complete')
