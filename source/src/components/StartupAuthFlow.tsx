@@ -317,6 +317,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
         </Text>
         <ModelPicker
           initial={initialModel}
+          provider={screen.provider}
           onSelect={model => handleModelSelected(screen.provider, model)}
           onCancel={() => setScreen({ state: 'choose' })}
           isStandaloneCommand={true}

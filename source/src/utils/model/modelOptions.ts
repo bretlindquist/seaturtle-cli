@@ -16,6 +16,8 @@ import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 import {
   getAPIProvider,
+  getPreferredMainRuntimeProvider,
+  type MainRuntimeProvider,
   shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from './providers.js'
@@ -49,8 +51,19 @@ export type ModelOption = {
   descriptionForModel?: string
 }
 
-export function getDefaultOptionForUser(fastMode = false): ModelOption {
-  if (shouldUseGeminiProvider()) {
+function resolveMainRuntimeProvider(
+  provider?: MainRuntimeProvider,
+): MainRuntimeProvider | null {
+  return provider ?? getPreferredMainRuntimeProvider()
+}
+
+export function getDefaultOptionForUser(
+  fastMode = false,
+  provider?: MainRuntimeProvider,
+): ModelOption {
+  const mainRuntimeProvider = resolveMainRuntimeProvider(provider)
+
+  if (mainRuntimeProvider === 'gemini') {
     return {
       value: null,
       label: 'Default (recommended)',
@@ -61,7 +74,7 @@ export function getDefaultOptionForUser(fastMode = false): ModelOption {
     }
   }
 
-  if (shouldUseOpenAiCodexProvider()) {
+  if (mainRuntimeProvider === 'openai-codex') {
     return {
       value: null,
       label: 'Default (recommended)',
@@ -313,13 +326,21 @@ function getOpusPlanOption(): ModelOption {
 
 // @[MODEL LAUNCH]: Update the model picker lists below to include/reorder options for the new model.
 // Each user tier (ant, Max/Team Premium, Pro/Team Standard/Enterprise, PAYG 1P, PAYG 3P) has its own list.
-function getModelOptionsBase(fastMode = false): ModelOption[] {
-  if (shouldUseGeminiProvider()) {
-    return [getDefaultOptionForUser(), ...getGeminiOptions()]
+function getModelOptionsBase(
+  fastMode = false,
+  provider?: MainRuntimeProvider,
+): ModelOption[] {
+  const mainRuntimeProvider = resolveMainRuntimeProvider(provider)
+
+  if (mainRuntimeProvider === 'gemini') {
+    return [getDefaultOptionForUser(fastMode, provider), ...getGeminiOptions()]
   }
 
-  if (shouldUseOpenAiCodexProvider()) {
-    return [getDefaultOptionForUser(), ...getOpenAiCodexOptions()]
+  if (mainRuntimeProvider === 'openai-codex') {
+    return [
+      getDefaultOptionForUser(fastMode, provider),
+      ...getOpenAiCodexOptions(),
+    ]
   }
 
   if (isAntRuntimeEnabled()) {
@@ -331,7 +352,7 @@ function getModelOptionsBase(fastMode = false): ModelOption[] {
     }))
 
     return [
-      getDefaultOptionForUser(),
+      getDefaultOptionForUser(fastMode, provider),
       ...antModelOptions,
       getMergedOpus1MOption(fastMode),
       getSonnet46Option(),
@@ -511,10 +532,14 @@ function getKnownModelOption(model: string): ModelOption | null {
   }
 }
 
-export function getModelOptions(fastMode = false): ModelOption[] {
-  const options = getModelOptionsBase(fastMode)
+export function getModelOptions(
+  fastMode = false,
+  provider?: MainRuntimeProvider,
+): ModelOption[] {
+  const mainRuntimeProvider = resolveMainRuntimeProvider(provider)
+  const options = getModelOptionsBase(fastMode, provider)
 
-  if (shouldUseOpenAiCodexProvider()) {
+  if (mainRuntimeProvider === 'openai-codex') {
     return filterModelOptionsByAllowlist(options)
   }
 

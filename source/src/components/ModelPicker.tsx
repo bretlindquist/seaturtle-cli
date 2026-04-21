@@ -11,7 +11,7 @@ import { useAppState, useSetAppState } from '../state/AppState.js';
 import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, modelSupportsEffort, modelSupportsMaxEffort, resolvePickerEffortPersistence, toPersistableEffort } from '../utils/effort.js';
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
 import { getModelOptions } from '../utils/model/modelOptions.js';
-import { shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../utils/model/providers.js';
+import type { MainRuntimeProvider } from '../utils/model/providers.js';
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
@@ -35,6 +35,8 @@ export type Props = {
    * install.ts) and should not leak to the user's global ~/.claude/settings.
    */
   skipSettingsWrite?: boolean;
+  /** Optional explicit provider override for provider-aware model selection flows. */
+  provider?: MainRuntimeProvider;
 };
 const NO_PREFERENCE = '__NO_PREFERENCE__';
 export function ModelPicker(t0) {
@@ -47,7 +49,8 @@ export function ModelPicker(t0) {
     isStandaloneCommand,
     showFastModeNotice,
     headerText,
-    skipSettingsWrite
+    skipSettingsWrite,
+    provider
   } = t0;
   const setAppState = useSetAppState();
   const exitState = useExitOnCtrlCDWithKeybindings();
@@ -66,15 +69,7 @@ export function ModelPicker(t0) {
   }
   const [effort, setEffort] = useState(t1);
   const t2 = isFastMode ?? false;
-  let t3;
-  if ($[2] !== t2) {
-    t3 = getModelOptions(t2);
-    $[2] = t2;
-    $[3] = t3;
-  } else {
-    t3 = $[3];
-  }
-  const modelOptions = t3;
+  const modelOptions = getModelOptions(t2, provider);
   let t4;
   bb0: {
     if (initial !== null && !modelOptions.some(opt => opt.value === initial)) {
