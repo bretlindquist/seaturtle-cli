@@ -8,9 +8,11 @@ import { resetOpenAiCodexSessionTelemetry } from '../../services/api/openaiCodex
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js'
 import {
   clearProviderAuthProfiles,
+  getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
   OPENAI_CODEX_PROVIDER,
 } from '../../services/authProfiles/store.js'
+import { clearGeminiApiKeyProfiles } from '../../services/authProfiles/geminiAuth.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource, getClaudeAIOAuthTokens, removeApiKey } from '../../utils/auth.js'
 import { clearBetasCaches } from '../../utils/betas.js'
 import { saveGlobalConfig } from '../../utils/config.js'
@@ -25,7 +27,7 @@ import { clearPolicyLimitsCache } from '../../services/policyLimits/index.js'
 import { clearRemoteManagedSettingsCache } from '../../services/remoteManagedSettings/index.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 
-type LogoutTarget = 'anthropic' | 'openai-codex' | 'all'
+type LogoutTarget = 'anthropic' | 'openai-codex' | 'gemini' | 'all'
 
 function hasAnthropicAuthConfigured(): boolean {
   const { hasToken } = getAuthTokenSource()
@@ -35,8 +37,20 @@ function hasAnthropicAuthConfigured(): boolean {
   return hasToken || apiKeySource !== 'none'
 }
 
-function shouldPreferOpenAiCodexAfterAnthropicLogout(): boolean {
-  return getOpenAiCodexAuthReadiness().ready
+function getFallbackPreferredMainProvider(params?: {
+  exclude?: Array<'anthropic' | 'openai-codex' | 'gemini'>
+}): 'anthropic' | 'openai-codex' | 'gemini' {
+  const exclude = new Set(params?.exclude ?? [])
+  const openAiReady = !exclude.has('openai-codex') && getOpenAiCodexAuthReadiness().ready
+  const geminiReady = !exclude.has('gemini') && getGeminiAuthReadiness().ready
+
+  if (openAiReady) {
+    return 'openai-codex'
+  }
+  if (geminiReady) {
+    return 'gemini'
+  }
+  return 'anthropic'
 }
 
 function updateConfigAfterLogout({
@@ -46,7 +60,7 @@ function updateConfigAfterLogout({
 }: {
   clearOnboarding: boolean
   clearAnthropicAccount: boolean
-  nextPreferredMainProvider: 'anthropic' | 'openai-codex'
+  nextPreferredMainProvider: 'anthropic' | 'openai-codex' | 'gemini'
 }): void {
   saveGlobalConfig(current => {
     const updated = {
@@ -61,7 +75,9 @@ function updateConfigAfterLogout({
     }
 
     const hasAnyLinkedAuth =
-      hasAnthropicAuthConfigured() || nextPreferredMainProvider === 'openai-codex'
+      hasAnthropicAuthConfigured() ||
+      nextPreferredMainProvider === 'openai-codex' ||
+      nextPreferredMainProvider === 'gemini'
 
     if (clearOnboarding && !hasAnyLinkedAuth) {
       updated.hasCompletedOnboarding = false
@@ -114,9 +130,9 @@ export async function performAnthropicLogout({
   updateConfigAfterLogout({
     clearOnboarding,
     clearAnthropicAccount: true,
-    nextPreferredMainProvider: shouldPreferOpenAiCodexAfterAnthropicLogout()
-      ? 'openai-codex'
-      : 'anthropic',
+    nextPreferredMainProvider: getFallbackPreferredMainProvider({
+      exclude: ['anthropic'],
+    }),
   })
 }
 
@@ -131,7 +147,26 @@ export async function performOpenAiCodexLogout({
   updateConfigAfterLogout({
     clearOnboarding,
     clearAnthropicAccount: false,
-    nextPreferredMainProvider: 'anthropic',
+    nextPreferredMainProvider: getFallbackPreferredMainProvider({
+      exclude: ['openai-codex'],
+    }),
+  })
+}
+
+export async function performGeminiLogout({
+  clearOnboarding = false,
+}: {
+  clearOnboarding?: boolean
+} = {}): Promise<void> {
+  await flushTelemetryBeforeLogout()
+  clearGeminiApiKeyProfiles()
+  await clearAuthRelatedCaches()
+  updateConfigAfterLogout({
+    clearOnboarding,
+    clearAnthropicAccount: false,
+    nextPreferredMainProvider: getFallbackPreferredMainProvider({
+      exclude: ['gemini'],
+    }),
   })
 }
 
@@ -165,6 +200,7 @@ type LogoutOption = {
 function buildLogoutOptions(): LogoutOption[] {
   const anthropicConfigured = hasAnthropicAuthConfigured()
   const openAiReadiness = getOpenAiCodexAuthReadiness()
+  const geminiReadiness = getGeminiAuthReadiness()
 
   const options: LogoutOption[] = []
 
@@ -197,14 +233,29 @@ function buildLogoutOptions(): LogoutOption[] {
     })
   }
 
-  if (anthropicConfigured && openAiReadiness.ready) {
+  if (geminiReadiness.readyViaProfile) {
+    options.push({
+      value: 'gemini',
+      label: (
+        <Text>
+          Gemini API key{'\n'}
+          <Text dimColor>
+            Remove CT&apos;s stored Gemini API key linkage and switch away from
+            the Gemini provider
+          </Text>
+        </Text>
+      ),
+    })
+  }
+
+  if (anthropicConfigured || openAiReadiness.ready || geminiReadiness.readyViaProfile) {
     options.push({
       value: 'all',
       label: (
         <Text>
           All configured providers{'\n'}
           <Text dimColor>
-            Clear Anthropic auth and CT&apos;s OpenAI Codex linkage
+            Clear Anthropic auth and CT-managed OpenAI/Gemini provider linkage
           </Text>
         </Text>
       ),
@@ -222,6 +273,13 @@ function getDefaultLogoutTarget(options: LogoutOption[]): LogoutTarget {
     options.some(option => option.value === 'openai-codex')
   ) {
     return 'openai-codex'
+  }
+
+  if (
+    runtimeSnapshot.preferred.family === 'gemini' &&
+    options.some(option => option.value === 'gemini')
+  ) {
+    return 'gemini'
   }
 
   if (options.some(option => option.value === 'anthropic')) {
@@ -242,9 +300,15 @@ async function executeLogout(target: LogoutTarget): Promise<string> {
     return "Removed CT's native OpenAI/Codex OAuth profile. Existing Codex CLI auth was left intact."
   }
 
+  if (target === 'gemini') {
+    await performGeminiLogout({ clearOnboarding: true })
+    return "Removed CT's stored Gemini API key profile. Existing GEMINI_API_KEY environment config was left intact."
+  }
+
   await performAnthropicLogout({ clearOnboarding: false })
   await performOpenAiCodexLogout({ clearOnboarding: true })
-  return 'Cleared Anthropic auth and CT’s OpenAI Codex linkage.'
+  await performGeminiLogout({ clearOnboarding: true })
+  return 'Cleared Anthropic auth and CT-managed OpenAI/Gemini provider linkage.'
 }
 
 function LogoutCommand({
@@ -332,6 +396,10 @@ function LogoutCommand({
         <Text dimColor>
           OpenAI logout removes CT&apos;s native local linkage. If you also
           want to sign out of Codex itself, run <Text bold>codex logout</Text>.
+        </Text>
+        <Text dimColor>
+          Gemini logout removes CT&apos;s stored Gemini API key. If you are
+          using <Text bold>GEMINI_API_KEY</Text>, unset it separately.
         </Text>
       </Box>
     </Dialog>
