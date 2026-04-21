@@ -199,39 +199,57 @@ const enabledBundleFeatures = new Set([
 let activeBuildTicker = null;
 
 function logBuildStep(message) {
-  stopBuildTicker();
+  if (process.stdout.isTTY) {
+    setBuildTickerLabel(message);
+    return;
+  }
+
   console.log(`[SeaTurtle CT build] ${message}`);
 }
 
-function startBuildTicker(label, options = {}) {
+function startBuildTicker(label) {
   if (!process.stdout.isTTY) {
     return;
   }
 
-  stopBuildTicker();
+  if (activeBuildTicker !== null) {
+    activeBuildTicker.label = label;
+    activeBuildTicker.frame = 0;
+    activeBuildTicker.render();
+    return;
+  }
 
-  const frames = [1, 2, 3, 4, 5, 6];
-  let index = 0;
-  const startedAt = options.startedAt ?? Date.now();
-  const render = () => {
-    const dotCount = frames[index % frames.length];
-    const dots = '.'.repeat(dotCount);
-    const padding = ' '.repeat(frames[frames.length - 1] - dotCount);
-    const elapsedSuffix =
-      options.showElapsed === true ? ` (${formatElapsedMs(Date.now() - startedAt)} elapsed)` : '';
-    process.stdout.write(
-      `\r[SeaTurtle CT build] ${label} ${dots}${padding}🐢${elapsedSuffix}`,
-    );
-    index += 1;
+  const ticker = {
+    frame: 0,
+    interval: null,
+    label,
+    render: () => {
+      const prefix = `[SeaTurtle CT build] ${ticker.label} `;
+      const availableWidth = Math.max(12, (process.stdout.columns ?? 80) - prefix.length - 2);
+      const trailLength = (ticker.frame % availableWidth) + 1;
+      const trail = '.'.repeat(trailLength);
+      const padding = ' '.repeat(Math.max(0, availableWidth - trailLength));
+      process.stdout.write(`\r${prefix}${trail}${padding}🐢`);
+      ticker.frame = (ticker.frame + 1) % availableWidth;
+    },
   };
 
-  render();
-  activeBuildTicker = setInterval(render, 250);
+  ticker.render();
+  ticker.interval = setInterval(ticker.render, 120);
+  activeBuildTicker = ticker;
+}
+
+function setBuildTickerLabel(label) {
+  if (!process.stdout.isTTY) {
+    return;
+  }
+
+  startBuildTicker(label);
 }
 
 function stopBuildTicker() {
   if (activeBuildTicker !== null) {
-    clearInterval(activeBuildTicker);
+    clearInterval(activeBuildTicker.interval);
     activeBuildTicker = null;
     if (process.stdout.isTTY) {
       process.stdout.write('\r\x1b[K');
@@ -240,28 +258,13 @@ function stopBuildTicker() {
 }
 
 function withBuildTicker(label, fn) {
-  startBuildTicker(label);
-  try {
-    return fn();
-  } finally {
-    stopBuildTicker();
-  }
-}
-
-function formatElapsedMs(elapsedMs) {
-  const totalSeconds = Math.floor(elapsedMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+  setBuildTickerLabel(label);
+  return fn();
 }
 
 function runChildWithHeartbeat(command, args, options) {
   return new Promise((resolve, reject) => {
-    const startedAt = Date.now();
-    startBuildTicker(options.tickerLabel ?? options.heartbeatLabel, {
-      startedAt,
-      showElapsed: options.showElapsed === true,
-    });
+    setBuildTickerLabel(options.tickerLabel ?? options.heartbeatLabel);
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
@@ -269,12 +272,10 @@ function runChildWithHeartbeat(command, args, options) {
     });
 
     child.on('error', error => {
-      stopBuildTicker();
       reject(error);
     });
 
     child.on('exit', code => {
-      stopBuildTicker();
       resolve(code ?? 1);
     });
   });
@@ -283,42 +284,48 @@ function runChildWithHeartbeat(command, args, options) {
 await main();
 
 async function main() {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    if (attempt === 0) {
-      logBuildStep(`Preparing workspace for SeaTurtle CLI ${packageJson.version}`)
-    } else {
-      logBuildStep(`Retrying build after fixing generated workspace issues (${attempt + 1}/6)`)
+  try {
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (attempt === 0) {
+        logBuildStep(`Preparing workspace for SeaTurtle CLI ${packageJson.version}`);
+      } else {
+        logBuildStep(`Retrying build after fixing generated workspace issues (${attempt + 1}/6)`);
+      }
+
+      withBuildTicker('Preparing workspace', () =>
+        prepareWorkspace(getOverlayPackages()),
+      );
+      await ensureOverlayDependencies(getOverlayPackages());
+      logBuildStep('Refreshing generated workspace shims and bundled source overlays');
+      withBuildTicker('Refreshing workspace overlays', () =>
+        generateWorkspaceAugmentations(),
+      );
+
+      logBuildStep('Bundling CLI with Bun');
+      const buildResult = withBuildTicker('Bundling CT runtime', () =>
+        runBunBuild(),
+      );
+      if (buildResult.status === 0) {
+        logBuildStep('Finalizing wrapper output');
+        withBuildTicker('Finalizing local wrapper output', () => finalizeBuild());
+        return;
+      }
+
+      const changed = reconcileBuildErrors(buildResult.stderr);
+      if (!changed) {
+        if (buildResult.stdout) process.stdout.write(buildResult.stdout);
+        if (buildResult.stderr) process.stderr.write(buildResult.stderr);
+        stopBuildTicker();
+        process.exit(buildResult.status ?? 1);
+      }
     }
 
-    withBuildTicker('Preparing workspace', () =>
-      prepareWorkspace(getOverlayPackages()),
-    );
-    await ensureOverlayDependencies(getOverlayPackages());
-    logBuildStep('Refreshing generated workspace shims and bundled source overlays')
-    withBuildTicker('Refreshing workspace overlays', () =>
-      generateWorkspaceAugmentations(),
-    );
-
-    logBuildStep('Bundling CLI with Bun')
-    const buildResult = withBuildTicker('Bundling CT runtime', () =>
-      runBunBuild(),
-    );
-    if (buildResult.status === 0) {
-      logBuildStep('Finalizing wrapper output')
-      withBuildTicker('Finalizing local wrapper output', () => finalizeBuild());
-      return;
-    }
-
-    const changed = reconcileBuildErrors(buildResult.stderr);
-    if (!changed) {
-      if (buildResult.stdout) process.stdout.write(buildResult.stdout);
-      if (buildResult.stderr) process.stderr.write(buildResult.stderr);
-      process.exit(buildResult.status ?? 1);
-    }
+    stopBuildTicker();
+    console.error('Build failed after exhausting retry attempts.');
+    process.exit(1);
+  } finally {
+    stopBuildTicker();
   }
-
-  console.error('Build failed after exhausting retry attempts.');
-  process.exit(1);
 }
 
 function getOverlayPackages() {
@@ -433,7 +440,6 @@ async function ensureOverlayDependencies(packageNames) {
     cwd: workspaceRoot,
     tickerLabel: 'Installing overlay dependencies with npm',
     heartbeatLabel: 'Installing overlay dependencies with npm',
-    showElapsed: true,
   });
 
   if (installStatus !== 0) {
