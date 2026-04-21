@@ -2,9 +2,8 @@ import { useEffect, useReducer } from 'react'
 import { onGrowthBookRefresh } from '../services/analytics/growthbook.js'
 import { useAppState } from '../state/AppState.js'
 import {
-  getDefaultMainLoopModelSetting,
   type ModelName,
-  parseUserSpecifiedModel,
+  getResolvedMainLoopModelForActiveProvider,
 } from '../utils/model/model.js'
 
 // The value of the selector is a full model name that can be used directly in
@@ -25,10 +24,8 @@ export function useMainLoopModel(): ModelName {
   const [, forceRerender] = useReducer(x => x + 1, 0)
   useEffect(() => onGrowthBookRefresh(forceRerender), [])
 
-  const model = parseUserSpecifiedModel(
-    mainLoopModelForSession ??
-      mainLoopModel ??
-      getDefaultMainLoopModelSetting(),
+  const model = getResolvedMainLoopModelForActiveProvider(
+    mainLoopModelForSession ?? mainLoopModel,
   )
   return model
 }

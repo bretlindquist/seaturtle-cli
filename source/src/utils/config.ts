@@ -245,6 +245,9 @@ export type GlobalConfig = {
     lastShownAt?: number
   }
   preferredMainProvider?: 'anthropic' | 'openai-codex' | 'gemini'
+  rememberedAnthropicMainModel?: string
+  rememberedOpenAiCodexMainModel?: string
+  rememberedGeminiMainModel?: string
   telegramProfiles?: Record<string, TelegramBotProfileMeta>
   /**
    * @deprecated Use projects[projectPath].telegram and telegramProfiles instead.
@@ -703,6 +706,10 @@ export const GLOBAL_CONFIG_KEYS = [
   'autoUpdatesProtectedForNative',
   'theme',
   'verbose',
+  'preferredMainProvider',
+  'rememberedAnthropicMainModel',
+  'rememberedOpenAiCodexMainModel',
+  'rememberedGeminiMainModel',
   'preferredNotifChannel',
   'shiftEnterKeyBindingInstalled',
   'editorMode',

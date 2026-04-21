@@ -8,6 +8,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { toError } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
 import { applyConfigEnvironmentVariables } from '../utils/managedEnv.js'
+import { getPreferredMainRuntimeProvider } from '../utils/model/providers.js'
 import {
   permissionModeFromString,
   toExternalPermissionMode,
@@ -19,6 +20,25 @@ import {
 } from '../utils/sessionState.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import type { AppState } from './AppStateStore.js'
+
+function getRememberedMainModelField(
+  provider: ReturnType<typeof getPreferredMainRuntimeProvider>,
+):
+  | 'rememberedAnthropicMainModel'
+  | 'rememberedOpenAiCodexMainModel'
+  | 'rememberedGeminiMainModel'
+  | null {
+  switch (provider) {
+    case 'anthropic':
+      return 'rememberedAnthropicMainModel'
+    case 'openai-codex':
+      return 'rememberedOpenAiCodexMainModel'
+    case 'gemini':
+      return 'rememberedGeminiMainModel'
+    default:
+      return null
+  }
+}
 
 // Inverse of the push below — restore on worker restart.
 export function externalMetadataToAppState(
@@ -109,6 +129,24 @@ export function onChangeAppState({
     // Save to settings
     updateSettingsForSource('userSettings', { model: newState.mainLoopModel })
     setMainLoopModelOverride(newState.mainLoopModel)
+  }
+
+  if (
+    newState.mainLoopModel !== oldState.mainLoopModel &&
+    newState.mainLoopModel !== null
+  ) {
+    const preferredProvider = getPreferredMainRuntimeProvider()
+    const rememberedField = getRememberedMainModelField(preferredProvider)
+    if (
+      rememberedField &&
+      getGlobalConfig()[rememberedField] !== newState.mainLoopModel
+    ) {
+      const rememberedModel = newState.mainLoopModel
+      saveGlobalConfig(current => ({
+        ...current,
+        [rememberedField]: rememberedModel,
+      }))
+    }
   }
 
   // expandedView → persist as showExpandedTodos + showSpinnerTree for backwards compat

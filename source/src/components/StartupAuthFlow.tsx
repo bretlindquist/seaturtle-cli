@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
 import { PRODUCT_GEMINI_API_KEY_URL } from '../constants/product.js'
-import { validateGeminiModel } from '../services/api/gemini.js'
-import { validateOpenAiCodexModel } from '../services/api/openaiCodex.js'
 import {
   getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
@@ -20,7 +18,9 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useSetAppState } from '../state/AppState.js'
 import { saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
-import { getDefaultMainLoopModel } from '../utils/model/model.js'
+import {
+  getResolvedMainLoopModelForProvider,
+} from '../utils/model/model.js'
 import { openBrowser } from '../utils/browser.js'
 import { ModelPicker } from './ModelPicker.js'
 import { Select } from './CustomSelect/select.js'
@@ -59,22 +59,6 @@ function persistPreferredMainProvider(
     }
   })
   process.env.SEATURTLE_MAIN_PROVIDER = provider
-}
-
-function isModelCompatibleWithProvider(
-  provider: ProviderChoice,
-  model: string,
-): boolean {
-  if (provider === 'gemini') {
-    return validateGeminiModel(model) === null
-  }
-
-  if (provider === 'openai-codex') {
-    return validateOpenAiCodexModel(model) === null
-  }
-
-  const lower = model.toLowerCase()
-  return !lower.startsWith('gpt-') && !lower.startsWith('gemini-')
 }
 
 export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
@@ -246,12 +230,10 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     provider: ProviderChoice,
     model: string | null,
   ): void {
-    const resolvedModel =
-      model ??
-      (currentMainLoopModel &&
-      isModelCompatibleWithProvider(provider, currentMainLoopModel)
-        ? currentMainLoopModel
-        : getDefaultMainLoopModel())
+    const resolvedModel = getResolvedMainLoopModelForProvider({
+      provider,
+      preferredModel: model ?? currentMainLoopModel ?? undefined,
+    })
 
     setAppState(prev => ({
       ...prev,
@@ -315,11 +297,10 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   }
 
   if (screen.state === 'choose-model') {
-    const initialModel =
-      currentMainLoopModel &&
-      isModelCompatibleWithProvider(screen.provider, currentMainLoopModel)
-        ? currentMainLoopModel
-        : getDefaultMainLoopModel()
+    const initialModel = getResolvedMainLoopModelForProvider({
+      provider: screen.provider,
+      preferredModel: currentMainLoopModel ?? undefined,
+    })
 
     return (
       <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>

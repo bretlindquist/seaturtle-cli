@@ -25,6 +25,8 @@ import { getSettings_DEPRECATED } from '../settings/settings.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
 import {
   getAPIProvider,
+  getPreferredMainRuntimeProvider,
+  type MainRuntimeProvider,
   shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from './providers.js'
@@ -33,10 +35,105 @@ import { LIGHTNING_BOLT } from '../../constants/figures.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { type ModelAlias, isModelAlias } from './aliases.js'
 import { capitalize } from '../stringUtils.js'
+import { getGlobalConfig } from '../config.js'
+import { validateGeminiModel } from '../../services/api/gemini.js'
+import { validateOpenAiCodexModel } from '../../services/api/openaiCodex.js'
 
 export type ModelShortName = string
 export type ModelName = string
 export type ModelSetting = ModelName | ModelAlias | null
+
+function isModelCompatibleWithProvider(
+  provider: MainRuntimeProvider,
+  model: string,
+): boolean {
+  if (provider === 'gemini') {
+    return validateGeminiModel(model) === null
+  }
+
+  if (provider === 'openai-codex') {
+    return validateOpenAiCodexModel(model) === null
+  }
+
+  const lower = model.toLowerCase()
+  return !lower.startsWith('gpt-') && !lower.startsWith('gemini-')
+}
+
+function getRememberedMainLoopModelSettingForProvider(
+  provider: MainRuntimeProvider,
+): ModelSetting | undefined {
+  const config = getGlobalConfig()
+  const remembered =
+    provider === 'gemini'
+      ? config.rememberedGeminiMainModel
+      : provider === 'openai-codex'
+        ? config.rememberedOpenAiCodexMainModel
+        : config.rememberedAnthropicMainModel
+
+  if (!remembered || !isModelAllowed(remembered)) {
+    return undefined
+  }
+
+  return remembered
+}
+
+export function getRememberedMainLoopModelSettingForActiveProvider():
+  | ModelSetting
+  | undefined {
+  const provider = getPreferredMainRuntimeProvider()
+  if (!provider) {
+    return undefined
+  }
+
+  return getRememberedMainLoopModelSettingForProvider(provider)
+}
+
+export function getResolvedMainLoopModelForProvider(params: {
+  provider: MainRuntimeProvider
+  preferredModel?: ModelSetting | undefined
+}): ModelName {
+  const preferred = params.preferredModel
+  if (preferred !== undefined && preferred !== null) {
+    const parsed = parseUserSpecifiedModel(preferred)
+    if (isModelCompatibleWithProvider(params.provider, parsed)) {
+      return parsed
+    }
+  }
+
+  const remembered = getRememberedMainLoopModelSettingForProvider(params.provider)
+  if (remembered !== undefined && remembered !== null) {
+    const parsedRemembered = parseUserSpecifiedModel(remembered)
+    if (isModelCompatibleWithProvider(params.provider, parsedRemembered)) {
+      return parsedRemembered
+    }
+  }
+
+  if (params.provider === 'gemini') {
+    return DEFAULT_GEMINI_MAIN_LOOP_MODEL
+  }
+
+  if (params.provider === 'openai-codex') {
+    return 'gpt-5.4'
+  }
+
+  return parseUserSpecifiedModel(getDefaultMainLoopModelSetting())
+}
+
+export function getResolvedMainLoopModelForActiveProvider(
+  preferredModel?: ModelSetting | undefined,
+): ModelName {
+  const provider = getPreferredMainRuntimeProvider()
+  if (!provider) {
+    return parseUserSpecifiedModel(
+      preferredModel ?? getDefaultMainLoopModelSetting(),
+    )
+  }
+
+  return getResolvedMainLoopModelForProvider({
+    provider,
+    preferredModel,
+  })
+}
 
 export function getSmallFastModel(): ModelName {
   return process.env.ANTHROPIC_SMALL_FAST_MODEL || getDefaultHaikuModel()
@@ -95,15 +192,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting | undefined {
  * @returns The resolved model name to use
  */
 export function getMainLoopModel(): ModelName {
-  const model = getUserSpecifiedModelSetting()
-  if (model !== undefined && model !== null) {
-    const parsed = parseUserSpecifiedModel(model)
-    if (shouldUseGeminiProvider() && !parsed.toLowerCase().startsWith('gemini-')) {
-      return getDefaultMainLoopModel()
-    }
-    return parsed
-  }
-  return getDefaultMainLoopModel()
+  return getResolvedMainLoopModelForActiveProvider(getUserSpecifiedModelSetting())
 }
 
 export function getBestModel(): ModelName {
