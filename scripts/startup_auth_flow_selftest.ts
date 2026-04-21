@@ -15,6 +15,31 @@ function run(): void {
 
   assert.match(
     startupAuthFlow,
+    /state: 'choose-model'/,
+    'Startup auth flow should define a post-auth model selection screen.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /Pick the model CT should use with/,
+    'Startup auth flow should explain why model selection happens after auth.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /advanceToModelSelection\('gemini'\)/,
+    'Gemini existing-auth paths should route through model selection.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /advanceToModelSelection\('openai-codex'\)/,
+    'OpenAI existing-auth paths should route through model selection.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /setScreen\(\{ state: 'choose-model', provider: 'anthropic' \}\)/,
+    'Anthropic login completion should route through model selection.',
+  )
+  assert.match(
+    startupAuthFlow,
     /state: 'gemini-options'/,
     'Startup auth flow should define a Gemini options screen.',
   )

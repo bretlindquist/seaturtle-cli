@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
 import { PRODUCT_GEMINI_API_KEY_URL } from '../constants/product.js'
+import { validateGeminiModel } from '../services/api/gemini.js'
+import { validateOpenAiCodexModel } from '../services/api/openaiCodex.js'
 import {
   getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
@@ -12,11 +14,15 @@ import {
   importExternalCodexCliAuthProfile,
   loginWithOpenAiCodexOAuth,
 } from '../services/authProfiles/openaiCodexOAuth.js'
+import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
 import { Box, Link, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
+import { useSetAppState } from '../state/AppState.js'
 import { saveGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
+import { getDefaultMainLoopModel } from '../utils/model/model.js'
 import { openBrowser } from '../utils/browser.js'
+import { ModelPicker } from './ModelPicker.js'
 import { Select } from './CustomSelect/select.js'
 import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
 import { Spinner } from './Spinner.js'
@@ -26,9 +32,12 @@ type Props = {
   onDone(): void
 }
 
+type ProviderChoice = 'anthropic' | 'openai-codex' | 'gemini'
+
 type Screen =
   | { state: 'choose' }
   | { state: 'platform' }
+  | { state: 'choose-model'; provider: ProviderChoice }
   | { state: 'gemini-options' }
   | { state: 'gemini-api-key' }
   | { state: 'gemini-error'; message: string }
@@ -38,7 +47,7 @@ type Screen =
   | { state: 'anthropic'; loginMethod: 'claudeai' | 'console' }
 
 function persistPreferredMainProvider(
-  provider: 'anthropic' | 'openai-codex' | 'gemini',
+  provider: ProviderChoice,
 ): void {
   saveGlobalConfig(current => {
     if (current.preferredMainProvider === provider) {
@@ -50,6 +59,22 @@ function persistPreferredMainProvider(
     }
   })
   process.env.SEATURTLE_MAIN_PROVIDER = provider
+}
+
+function isModelCompatibleWithProvider(
+  provider: ProviderChoice,
+  model: string,
+): boolean {
+  if (provider === 'gemini') {
+    return validateGeminiModel(model) === null
+  }
+
+  if (provider === 'openai-codex') {
+    return validateOpenAiCodexModel(model) === null
+  }
+
+  const lower = model.toLowerCase()
+  return !lower.startsWith('gpt-') && !lower.startsWith('gemini-')
 }
 
 export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
@@ -67,6 +92,8 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   const [openAiManualCode, setOpenAiManualCode] = useState('')
   const [geminiApiKey, setGeminiApiKey] = useState('')
   const [geminiCursorOffset, setGeminiCursorOffset] = useState(0)
+  const currentMainLoopModel = useMainLoopModel()
+  const setAppState = useSetAppState()
   const openAiReadiness = useMemo(() => getOpenAiCodexAuthReadiness(), [screen])
   const geminiReadiness = useMemo(() => getGeminiAuthReadiness(), [screen])
   const hasGeminiEnvKey = !!process.env.GEMINI_API_KEY?.trim()
@@ -80,6 +107,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
       context: 'Confirmation',
       isActive:
         screen.state === 'platform' ||
+        screen.state === 'choose-model' ||
         screen.state === 'gemini-options' ||
         screen.state === 'gemini-api-key' ||
         screen.state === 'gemini-error' ||
@@ -152,7 +180,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
         logEvent('tengu_openai_codex_login_success', {
           source: 'provider-auth-profile',
         })
-        onDone()
+        setScreen({ state: 'choose-model', provider: 'openai-codex' })
       } catch (error) {
         logError(error)
         if (cancelled) {
@@ -206,13 +234,37 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     logEvent('tengu_gemini_api_key_saved', {
       source: 'provider-api-key-profile',
     })
+    setScreen({ state: 'choose-model', provider: 'gemini' })
+  }
+
+  function advanceToModelSelection(provider: ProviderChoice): void {
+    persistPreferredMainProvider(provider)
+    setScreen({ state: 'choose-model', provider })
+  }
+
+  function handleModelSelected(
+    provider: ProviderChoice,
+    model: string | null,
+  ): void {
+    const resolvedModel =
+      model ??
+      (currentMainLoopModel &&
+      isModelCompatibleWithProvider(provider, currentMainLoopModel)
+        ? currentMainLoopModel
+        : getDefaultMainLoopModel())
+
+    setAppState(prev => ({
+      ...prev,
+      mainLoopModel: resolvedModel,
+      mainLoopModelForSession: null,
+    }))
     onDone()
   }
 
   if (screen.state === 'anthropic') {
     return (
       <ConsoleOAuthFlow
-        onDone={onDone}
+        onDone={() => setScreen({ state: 'choose-model', provider: 'anthropic' })}
         forceLoginMethod={screen.loginMethod}
       />
     )
@@ -258,6 +310,36 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             </Text>
           </Box>
         </Box>
+      </Box>
+    )
+  }
+
+  if (screen.state === 'choose-model') {
+    const initialModel =
+      currentMainLoopModel &&
+      isModelCompatibleWithProvider(screen.provider, currentMainLoopModel)
+        ? currentMainLoopModel
+        : getDefaultMainLoopModel()
+
+    return (
+      <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
+        <Text bold>Choose model</Text>
+        <Text dimColor>
+          Pick the model CT should use with{' '}
+          {screen.provider === 'anthropic'
+            ? 'Anthropic'
+            : screen.provider === 'gemini'
+              ? 'Gemini'
+              : 'OpenAI/Codex'}
+          . This avoids carrying an incompatible model over from another
+          provider.
+        </Text>
+        <ModelPicker
+          initial={initialModel}
+          onSelect={model => handleModelSelected(screen.provider, model)}
+          onCancel={() => setScreen({ state: 'choose' })}
+          isStandaloneCommand={true}
+        />
       </Box>
     )
   }
@@ -317,15 +399,13 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             onChange={value => {
               if (value === 'existing-profile') {
                 logEvent('tengu_gemini_existing_profile_selected', {})
-                persistPreferredMainProvider('gemini')
-                onDone()
+                advanceToModelSelection('gemini')
                 return
               }
 
               if (value === 'existing-env') {
                 logEvent('tengu_gemini_env_auth_selected', {})
-                persistPreferredMainProvider('gemini')
-                onDone()
+                advanceToModelSelection('gemini')
                 return
               }
 
@@ -438,8 +518,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
                 void (async () => {
                   try {
                     logEvent('tengu_openai_codex_existing_selected', {})
-                    persistPreferredMainProvider('openai-codex')
-                    onDone()
+                    advanceToModelSelection('openai-codex')
                   } catch (error) {
                     logError(error)
                     setScreen({
@@ -463,8 +542,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
                       )
                     }
 
-                    persistPreferredMainProvider('openai-codex')
-                    onDone()
+                    advanceToModelSelection('openai-codex')
                   } catch (error) {
                     logError(error)
                     setScreen({

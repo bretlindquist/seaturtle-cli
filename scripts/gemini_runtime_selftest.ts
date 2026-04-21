@@ -82,8 +82,8 @@ assertIncludes(
 )
 assertIncludes(
   providers,
-  /getSeaTurtleMainProviderEnv\(\) \?\?\s*getConfiguredMainProvider\(\) \?\?\s*getLegacyMainProviderEnv\(\)/,
-  'main-provider precedence should be SeaTurtle env, then persisted config, then legacy Claude env',
+  /getSeaTurtleMainProviderEnv\(\)\s*\?\?\s*getSeaTurtleBooleanProviderEnv\(\)\s*\?\?\s*getConfiguredMainProvider\(\)\s*\?\?\s*getLegacyMainProviderEnv\(\)\s*\?\?\s*getLegacyBooleanProviderEnv\(\)/,
+  'main-provider precedence should be SeaTurtle main env, SeaTurtle boolean env, persisted config, legacy main env, then legacy boolean env',
 )
 assertIncludes(
   managedEnvConstants,

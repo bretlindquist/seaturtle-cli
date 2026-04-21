@@ -220,7 +220,11 @@ def run_step(step: Step, env: dict[str, str]) -> None:
 
 def run_self_tests() -> int:
     env = os.environ.copy()
+    env["SEATURTLE_MAIN_PROVIDER"] = "openai-codex"
+    env["SEATURTLE_USE_OPENAI_CODEX"] = "1"
+    env["SEATURTLE_USE_GEMINI"] = "0"
     env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
+    env["CLAUDE_CODE_USE_GEMINI"] = "0"
 
     def assert_contains(expected: str) -> Callable[[str, str], None]:
         def inner(stdout: str, _stderr: str) -> None:
@@ -459,7 +463,11 @@ def main() -> int:
         return run_self_tests()
 
     env = os.environ.copy()
+    env["SEATURTLE_MAIN_PROVIDER"] = "openai-codex"
+    env["SEATURTLE_USE_OPENAI_CODEX"] = "1"
+    env["SEATURTLE_USE_GEMINI"] = "0"
     env["CLAUDE_CODE_USE_OPENAI_CODEX"] = "1"
+    env["CLAUDE_CODE_USE_GEMINI"] = "0"
 
     started = time.time()
     harness_timeout_s = resolve_harness_timeout_s()

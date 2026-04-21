@@ -21,8 +21,28 @@ function getSeaTurtleMainProviderEnv(): MainRuntimeProvider | null {
   return normalizeMainProvider(process.env.SEATURTLE_MAIN_PROVIDER)
 }
 
+function getSeaTurtleBooleanProviderEnv(): MainRuntimeProvider | null {
+  if (isEnvTruthy(process.env.SEATURTLE_USE_OPENAI_CODEX)) {
+    return 'openai-codex'
+  }
+  if (isEnvTruthy(process.env.SEATURTLE_USE_GEMINI)) {
+    return 'gemini'
+  }
+  return null
+}
+
 function getLegacyMainProviderEnv(): MainRuntimeProvider | null {
   return normalizeMainProvider(process.env.CLAUDE_CODE_MAIN_PROVIDER)
+}
+
+function getLegacyBooleanProviderEnv(): MainRuntimeProvider | null {
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX)) {
+    return 'openai-codex'
+  }
+  if (isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI)) {
+    return 'gemini'
+  }
+  return null
 }
 
 function getConfiguredMainProvider(): MainRuntimeProvider | null {
@@ -36,29 +56,19 @@ function getConfiguredMainProvider(): MainRuntimeProvider | null {
 export function getPreferredMainRuntimeProvider(): MainRuntimeProvider | null {
   return (
     getSeaTurtleMainProviderEnv() ??
+    getSeaTurtleBooleanProviderEnv() ??
     getConfiguredMainProvider() ??
-    getLegacyMainProviderEnv()
+    getLegacyMainProviderEnv() ??
+    getLegacyBooleanProviderEnv()
   )
 }
 
 export function shouldUseOpenAiCodexProvider(): boolean {
-  return (
-    isEnvTruthy(process.env.SEATURTLE_USE_OPENAI_CODEX) ||
-    getSeaTurtleMainProviderEnv() === 'openai-codex' ||
-    getConfiguredMainProvider() === 'openai-codex' ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_OPENAI_CODEX) ||
-    getLegacyMainProviderEnv() === 'openai-codex'
-  )
+  return getPreferredMainRuntimeProvider() === 'openai-codex'
 }
 
 export function shouldUseGeminiProvider(): boolean {
-  return (
-    isEnvTruthy(process.env.SEATURTLE_USE_GEMINI) ||
-    getSeaTurtleMainProviderEnv() === 'gemini' ||
-    getConfiguredMainProvider() === 'gemini' ||
-    isEnvTruthy(process.env.CLAUDE_CODE_USE_GEMINI) ||
-    getLegacyMainProviderEnv() === 'gemini'
-  )
+  return getPreferredMainRuntimeProvider() === 'gemini'
 }
 
 export function getAPIProvider(): APIProvider {
