@@ -534,9 +534,9 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
         Sign in with your provider to use CT.
       </Text>
       <Text>
-        CT supports Anthropic subscription access, billed API access,
-        3rd-party Anthropic platforms, Gemini API-key setup, and OpenAI Codex
-        OAuth.
+        CT supports Anthropic subscription access, Anthropic Console API usage
+        billing, 3rd-party Anthropic platforms, Gemini API-key setup, and
+        OpenAI Codex OAuth.
       </Text>
       <Text>Select provider:</Text>
       <Box>
@@ -545,7 +545,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
             {
               label: (
                 <Text>
-                  Subscription account ·{' '}
+                  Anthropic subscription account ·{' '}
                   <Text dimColor>Pro, Max, Team, or Enterprise</Text>
                   {'\n'}
                 </Text>

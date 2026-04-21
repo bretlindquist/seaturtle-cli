@@ -60,6 +60,16 @@ function run(): void {
   )
   assert.match(
     startupAuthFlow,
+    /Anthropic subscription access,\s+Anthropic Console API usage\s+billing,/,
+    'Startup auth flow should describe the Anthropic provider options explicitly.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /Anthropic subscription account ·/,
+    'Startup auth flow should label the first Anthropic option explicitly.',
+  )
+  assert.match(
+    startupAuthFlow,
     /Gemini API key ·/,
     'Startup auth flow should expose Gemini in the provider picker.',
   )
