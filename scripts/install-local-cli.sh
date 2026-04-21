@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,16 +13,20 @@ MIN_NODE_MAJOR=18
 choose_default_prefix() {
   local path_entry
   local fallback="${HOME}/.local/bin"
+  local old_ifs="$IFS"
 
-  for path_entry in ${(s/:/)PATH}; do
+  IFS=':'
+  for path_entry in ${PATH:-}; do
     [[ -z "$path_entry" ]] && continue
     if [[ "$path_entry" == "$HOME"/* || "$path_entry" == "$HOME/.local/bin" ]]; then
       if [[ -d "$path_entry" && -w "$path_entry" ]]; then
+        IFS="$old_ifs"
         printf '%s\n' "$path_entry"
         return 0
       fi
     fi
   done
+  IFS="$old_ifs"
 
   printf '%s\n' "$fallback"
 }
