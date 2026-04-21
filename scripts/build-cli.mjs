@@ -198,14 +198,27 @@ const enabledBundleFeatures = new Set([
 
 main();
 
+function logBuildStep(message) {
+  console.log(`[build-cli] ${message}`);
+}
+
 function main() {
   for (let attempt = 0; attempt < 6; attempt += 1) {
+    if (attempt === 0) {
+      logBuildStep(`Preparing workspace for SeaTurtle CLI ${packageJson.version}`)
+    } else {
+      logBuildStep(`Retrying build after fixing generated workspace issues (${attempt + 1}/6)`)
+    }
+
     prepareWorkspace(getOverlayPackages());
     ensureOverlayDependencies(getOverlayPackages());
+    logBuildStep('Refreshing generated workspace shims and bundled source overlays')
     generateWorkspaceAugmentations();
 
+    logBuildStep('Bundling CLI with Bun')
     const buildResult = runBunBuild();
     if (buildResult.status === 0) {
+      logBuildStep('Finalizing wrapper output')
       finalizeBuild();
       return;
     }
@@ -309,12 +322,17 @@ function ensureOverlayDependencies(packageNames) {
     packageNames.every(packageName => installedPackages.has(packageName));
 
   if ((stamp?.packagesKey === desiredKey || stampSatisfiesDesired) && allPresent) {
+    logBuildStep(`Reusing cached overlay dependencies (${packageNames.length} packages)`)
     return;
   }
 
   fs.mkdirSync(workspaceRoot, { recursive: true });
   writeWorkspacePackageJson(new Set([path.join(workspaceRoot, 'package.json')]));
   removePath(path.join(workspaceRoot, 'node_modules'));
+
+  logBuildStep(
+    `Installing overlay dependencies with npm (${packageNames.length} packages, this can take a bit on first build)`,
+  )
 
   const installArgs = [
     'install',
@@ -336,6 +354,8 @@ function ensureOverlayDependencies(packageNames) {
     if (install.stderr) process.stderr.write(install.stderr);
     process.exit(install.status ?? 1);
   }
+
+  logBuildStep('Overlay dependency install complete')
 
   fs.writeFileSync(
     overlayStampPath,
