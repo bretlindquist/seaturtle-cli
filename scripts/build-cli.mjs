@@ -203,7 +203,7 @@ function logBuildStep(message) {
   console.log(`[SeaTurtle CT build] ${message}`);
 }
 
-function startBuildTicker(label) {
+function startBuildTicker(label, options = {}) {
   if (!process.stdout.isTTY) {
     return;
   }
@@ -212,11 +212,16 @@ function startBuildTicker(label) {
 
   const frames = [1, 2, 3, 4, 5, 6];
   let index = 0;
+  const startedAt = options.startedAt ?? Date.now();
   const render = () => {
     const dotCount = frames[index % frames.length];
     const dots = '.'.repeat(dotCount);
     const padding = ' '.repeat(frames[frames.length - 1] - dotCount);
-    process.stdout.write(`\r[SeaTurtle CT build] ${label} ${dots}${padding}🐢`);
+    const elapsedSuffix =
+      options.showElapsed === true ? ` (${formatElapsedMs(Date.now() - startedAt)} elapsed)` : '';
+    process.stdout.write(
+      `\r[SeaTurtle CT build] ${label} ${dots}${padding}🐢${elapsedSuffix}`,
+    );
     index += 1;
   };
 
@@ -253,25 +258,23 @@ function formatElapsedMs(elapsedMs) {
 function runChildWithHeartbeat(command, args, options) {
   return new Promise((resolve, reject) => {
     const startedAt = Date.now();
+    startBuildTicker(options.tickerLabel ?? options.heartbeatLabel, {
+      startedAt,
+      showElapsed: options.showElapsed === true,
+    });
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
       stdio: 'inherit',
     });
 
-    const heartbeat = setInterval(() => {
-      logBuildStep(
-        `${options.heartbeatLabel} (${formatElapsedMs(Date.now() - startedAt)} elapsed)`,
-      );
-    }, 15000);
-
     child.on('error', error => {
-      clearInterval(heartbeat);
+      stopBuildTicker();
       reject(error);
     });
 
     child.on('exit', code => {
-      clearInterval(heartbeat);
+      stopBuildTicker();
       resolve(code ?? 1);
     });
   });
@@ -428,8 +431,9 @@ async function ensureOverlayDependencies(packageNames) {
   ];
   const installStatus = await runChildWithHeartbeat('npm', installArgs, {
     cwd: workspaceRoot,
-    heartbeatLabel:
-      'Still installing overlay dependencies with npm. First-time installs can take several minutes',
+    tickerLabel: 'Installing overlay dependencies with npm',
+    heartbeatLabel: 'Installing overlay dependencies with npm',
+    showElapsed: true,
   });
 
   if (installStatus !== 0) {
