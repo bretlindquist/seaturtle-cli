@@ -149,7 +149,9 @@ export async function runGeminiImageGeneration(params: {
 }): Promise<GeminiImageGenerationResult> {
   const auth = getGeminiImageAuthTarget()
   if (!auth) {
-    throw new Error('Gemini auth is not configured. Set GEMINI_API_KEY.')
+    throw new Error(
+      'Gemini auth is not configured. Use /login to link Gemini in CT, or set GEMINI_API_KEY.',
+    )
   }
   const validationError = validateGeminiImageInput(params.input)
   if (validationError) {

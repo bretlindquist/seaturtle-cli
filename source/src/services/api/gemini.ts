@@ -185,7 +185,7 @@ function getGeminiAuthOrError(): GeminiAuthTarget | string {
   const auth = getGeminiApiKeyAuthTarget()
   return (
     auth ??
-    'Gemini auth is not configured. Set GEMINI_API_KEY, then retry with `SEATURTLE_MAIN_PROVIDER=gemini`.'
+    'Gemini auth is not configured. Use /login to link Gemini in CT, or set GEMINI_API_KEY for an explicit env-driven setup, then retry with `SEATURTLE_MAIN_PROVIDER=gemini`.'
   )
 }
 
