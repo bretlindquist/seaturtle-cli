@@ -482,8 +482,8 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Codex CLI fallback',
     value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
   });
-  const geminiAuthSourceLabel = runtimeSnapshot.geminiAuthSource === 'provider-api-key-profile' ? 'Provider API key profile' : runtimeSnapshot.geminiAuthSource === 'GEMINI_API_KEY' ? 'GEMINI_API_KEY' : 'Not configured';
-  const geminiStatusLabel = runtimeSnapshot.execution.family === 'gemini' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'gemini' ? 'Preferred but not active' : runtimeSnapshot.geminiAuthReady ? 'Available' : 'Not configured';
+  const geminiAuthSourceLabel = runtimeSnapshot.geminiAuthSource === 'provider-api-key-profile' ? 'CT secure storage' : runtimeSnapshot.geminiAuthSource === 'GEMINI_API_KEY' ? 'GEMINI_API_KEY env' : 'Not configured';
+  const geminiStatusLabel = runtimeSnapshot.execution.family === 'gemini' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'gemini' ? 'Preferred but not active' : runtimeSnapshot.geminiAuthReady ? 'Available to activate' : 'Not configured';
   properties.push({
     label: 'Gemini status',
     value: geminiStatusLabel
