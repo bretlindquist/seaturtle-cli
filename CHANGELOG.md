@@ -4,6 +4,9 @@
 
 - Fixed the local installer so it works under Bash and Git Bash instead of relying on a zsh-only PATH expansion.
 - Improved local install UX with clearer SeaTurtle CT build copy and visible build-phase progress during source installs.
+- Hardened the overlay dependency install path so npm output is surfaced, idle stalls fail with recovery steps, and cold-build retries no longer corrupt the workspace by overlapping overlay reinstalls.
+- Fixed package-subpath shim generation for real directory subpaths such as `@google/genai/node`, which was breaking cold Docker installs during build retries.
+- Updated install docs and success copy so the public source-build path is explicit and provider setup points at Anthropic, Gemini, and OpenAI/Codex correctly.
 - Made `source/package.json` the single shipped version source of truth and removed the redundant root package version field.
 
 ## 1.08 - 2026-04-21

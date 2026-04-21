@@ -994,11 +994,6 @@ function reconcileBuildErrors(stderrText) {
     }
   }
 
-  if (changed) {
-    ensureOverlayDependencies(getOverlayPackages());
-    generateWorkspaceAugmentations();
-  }
-
   return changed;
 }
 
@@ -1277,7 +1272,7 @@ function generatePackageSubpathShims(keepPaths) {
     if (specialPackageTargets.has(specifier)) {
       const target = path.join(workspaceRoot, specialPackageTargets.get(specifier));
       const proxy = packageSubpathProxyPath(specifier);
-      keepPaths.add(proxy);
+      keepPaths.add(isDirectory(proxy) ? path.join(proxy, 'index.js') : proxy);
       writeProxyModule(proxy, target);
       continue;
     }
@@ -1312,7 +1307,7 @@ function generatePackageSubpathShims(keepPaths) {
     }
 
     const proxy = packageSubpathProxyPath(specifier);
-    keepPaths.add(proxy);
+    keepPaths.add(isDirectory(proxy) ? path.join(proxy, 'index.js') : proxy);
     writeProxyModule(proxy, target);
   }
 }
@@ -1443,6 +1438,11 @@ function writeWorkspaceTsconfig(keepPaths) {
 }
 
 function writeProxyModule(proxyPath, targetPath) {
+  if (isDirectory(proxyPath)) {
+    writeProxyModule(path.join(proxyPath, 'index.js'), targetPath);
+    return;
+  }
+
   fs.mkdirSync(path.dirname(proxyPath), { recursive: true });
   const relativeTarget = ensureDotPath(toPosix(path.relative(path.dirname(proxyPath), targetPath)));
   const shouldExportDefault = targetHasDefaultExport(targetPath);

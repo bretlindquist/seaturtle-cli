@@ -215,16 +215,23 @@ ready on OpenAI/Codex, the app should say so directly.
 
 ### 1. Install local wrappers
 
+Fresh clone:
+
+```bash
+git clone https://github.com/bretlindquist/seaturtle-cli.git
+cd seaturtle-cli
+```
+
 ```bash
 ./scripts/install-local-cli.sh --build
 ```
 
 That installer:
 
-- builds the repo with the development bundle
+- builds SeaTurtle CT from the current source checkout
 - installs `ct`, `seaturtle`, and `ct-dev`
 - checks for the build prerequisites it needs
-- explains the next step instead of dumping raw downstream errors
+- stops with recovery steps instead of leaving long dependency installs hanging silently
 
 ### 2. Start CT
 

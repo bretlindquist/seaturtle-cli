@@ -247,10 +247,10 @@ Step 1: Local commands were linked into:
   $prefix
 
 Step 2: Available commands:
-  ct         Start CT with OpenAI/Codex enabled
+  ct         Start SeaTurtle CT
   seaturtle  Same as ct, alternate branded entrypoint
   ct-dev     Run the repo-local development wrapper
-  buildct    Rebuild and reinstall local CT wrappers (use buildct -dev for dev-type)
+  buildct    Rebuild and reinstall local CT wrappers
 EOF
 
 if (( install_default_claude )); then
@@ -289,7 +289,8 @@ show_optional_codex_note
 cat <<EOF
 
 Step 5: Inside CT, pick the next setup step you need:
-  /login      Connect Anthropic or OpenAI/Codex auth
+  /login      Connect Anthropic, Gemini, or OpenAI/Codex
+  /model      Choose the provider model you want to use
   /telegram   Pair a Telegram bot for this project
   /status     Check runtime, auth, and Telegram readiness
 EOF
