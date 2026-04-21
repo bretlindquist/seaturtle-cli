@@ -8,6 +8,9 @@ const UNSUPPORTED_GEMINI_SCHEMA_KEYS = new Set([
   'definitions',
   'dependentRequired',
   'dependentSchemas',
+  'exclusiveMaximum',
+  'exclusiveMinimum',
+  'allOf',
   'patternProperties',
   'propertyNames',
   'unevaluatedProperties',
@@ -77,7 +80,7 @@ function normalizeGeminiNestedSchema(schema: unknown): unknown {
       if (enumValues.length > 0 && enumValues.length === variants.length) {
         normalized.enum = Array.from(new Set(enumValues))
       } else {
-        normalized[key] = variants
+        normalized.anyOf = variants
       }
       continue
     }

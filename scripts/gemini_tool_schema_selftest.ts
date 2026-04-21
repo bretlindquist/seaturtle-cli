@@ -67,6 +67,39 @@ const mcpSchema = normalizeGeminiToolParameterSchema({
   additionalProperties: true,
 })
 assert.deepEqual(mcpSchema, { type: 'object', properties: {} })
+
+const boundedIntegerSchema = normalizeGeminiToolParameterSchema({
+  type: 'object',
+  properties: {
+    limit: {
+      type: 'integer',
+      minimum: 1,
+      exclusiveMinimum: 0,
+      maximum: 10,
+      exclusiveMaximum: 11,
+    },
+    choice: {
+      oneOf: [
+        { type: 'string', enum: ['a'] },
+        { type: 'string', enum: ['b'] },
+      ],
+    },
+  },
+  required: ['limit'],
+})
+assert.equal(
+  'exclusiveMinimum' in ((boundedIntegerSchema.properties as never).limit as never),
+  false,
+)
+assert.equal(
+  'exclusiveMaximum' in ((boundedIntegerSchema.properties as never).limit as never),
+  false,
+)
+assert.deepEqual(
+  ((boundedIntegerSchema.properties as never).choice as never).enum,
+  ['a', 'b'],
+)
+
 assert.equal(validateGeminiFunctionName('mcp__server__tool'), null)
 assert.match(validateGeminiFunctionName('bad-tool') ?? '', /invalid/)
 
