@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { logEvent } from 'src/services/analytics/index.js'
+import { PRODUCT_GEMINI_API_KEY_URL } from '../constants/product.js'
 import {
   getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
@@ -267,6 +268,15 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
     return (
       <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
         <Text bold>Gemini API key</Text>
+        <Text dimColor>
+          New to Gemini keys? Open Google AI Studio:{' '}
+          <Link url={PRODUCT_GEMINI_API_KEY_URL}>
+            {PRODUCT_GEMINI_API_KEY_URL}
+          </Link>
+        </Text>
+        <Text dimColor>1. Sign in to Google AI Studio.</Text>
+        <Text dimColor>2. Create or copy a Gemini API key.</Text>
+        <Text dimColor>3. Come back here and save it in CT.</Text>
         <Text>Select how to continue:</Text>
         <Box>
           <Select
@@ -341,6 +351,15 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
           CT will save this key in secure storage and set Gemini as the
           preferred main provider.
         </Text>
+        <Text dimColor>
+          Need a key? Open Google AI Studio:{' '}
+          <Link url={PRODUCT_GEMINI_API_KEY_URL}>
+            {PRODUCT_GEMINI_API_KEY_URL}
+          </Link>
+        </Text>
+        <Text dimColor>1. Sign in to Google AI Studio.</Text>
+        <Text dimColor>2. Create or copy a Gemini API key.</Text>
+        <Text dimColor>3. Paste it here and press Enter.</Text>
         <TextInput
           value={geminiApiKey}
           onChange={value => {

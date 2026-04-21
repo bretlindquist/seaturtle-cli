@@ -4,6 +4,7 @@ export const PRODUCT_OPENAI_DOCS_URL =
   `${PRODUCT_URL}/blob/master/docs/OPENAI-CODEX.md`
 export const PRODUCT_GEMINI_DOCS_URL =
   `${PRODUCT_URL}/blob/master/docs/GEMINI.md`
+export const PRODUCT_GEMINI_API_KEY_URL = 'https://ai.google.dev/aistudio'
 
 // Claude Code Remote session URLs
 export const CLAUDE_AI_BASE_URL = 'https://claude.ai'

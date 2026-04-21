@@ -40,6 +40,26 @@ function run(): void {
   )
   assert.match(
     startupAuthFlow,
+    /PRODUCT_GEMINI_API_KEY_URL/,
+    'Startup auth flow should link users to the Gemini API key setup page.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /1\. Sign in to Google AI Studio\./,
+    'Startup auth flow should explain the first Gemini API key setup step.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /2\. Create or copy a Gemini API key\./,
+    'Startup auth flow should explain how to obtain a Gemini API key.',
+  )
+  assert.match(
+    startupAuthFlow,
+    /3\. Paste it here and press Enter\./,
+    'Startup auth flow should explain how to finish Gemini API key setup.',
+  )
+  assert.match(
+    startupAuthFlow,
     /Gemini API key ·/,
     'Startup auth flow should expose Gemini in the provider picker.',
   )
