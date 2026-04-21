@@ -199,7 +199,7 @@ const enabledBundleFeatures = new Set([
 main();
 
 function logBuildStep(message) {
-  console.log(`[build-cli] ${message}`);
+  console.log(`[SeaTurtle CT build] ${message}`);
 }
 
 function main() {
