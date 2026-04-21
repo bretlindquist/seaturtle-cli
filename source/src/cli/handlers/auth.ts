@@ -47,6 +47,12 @@ import {
   buildAccountProperties,
   buildAPIProviderProperties,
 } from '../../utils/status.js'
+import {
+  getProviderModelDiscoverySnapshot,
+} from '../../services/models/providerModelDiscovery.js'
+import {
+  getProviderModelRegistrySnapshot,
+} from '../../services/models/providerModelRegistry.js'
 
 /**
  * Shared post-token-acquisition logic. Saves tokens, fetches profile/roles,
@@ -332,6 +338,22 @@ export async function authStatus(opts: {
       openAiCodexCliFallbackReady: runtimeSnapshot.openAiCodexCliFallbackReady,
       geminiAuthReady: runtimeSnapshot.geminiAuthReady,
       geminiApiKeyReady: runtimeSnapshot.geminiApiKeyReady,
+      providerModelRegistry: {
+        anthropic: getProviderModelRegistrySnapshot('anthropic'),
+        openAiCodex: getProviderModelRegistrySnapshot('openai-codex'),
+        gemini: getProviderModelRegistrySnapshot('gemini'),
+      },
+      providerModelDiscovery: {
+        anthropic: getProviderModelDiscoverySnapshot('anthropic', true),
+        openAiCodex: getProviderModelDiscoverySnapshot(
+          'openai-codex',
+          runtimeSnapshot.openAiCodexAuthReady,
+        ),
+        gemini: getProviderModelDiscoverySnapshot(
+          'gemini',
+          runtimeSnapshot.geminiAuthReady,
+        ),
+      },
     }
     if (runtimeSnapshot.openAiCodexAuthSource) {
       output.openAiCodexAuthSource = runtimeSnapshot.openAiCodexAuthSource

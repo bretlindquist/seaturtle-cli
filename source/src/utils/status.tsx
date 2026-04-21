@@ -40,6 +40,12 @@ import { getCurrentUsage } from './tokens.js';
 import { formatResetTime } from './format.js';
 import { ProgressBar } from '../components/design-system/ProgressBar.js';
 import { getChicagoAvailabilitySnapshot, getChicagoEnablementSummary } from './computerUse/gates.js';
+import {
+  getProviderModelDiscoverySnapshot,
+} from '../services/models/providerModelDiscovery.js';
+import {
+  getProviderModelRegistrySnapshot,
+} from '../services/models/providerModelRegistry.js';
 export type Property = {
   label?: string;
   value: React.ReactNode | Array<string>;
@@ -347,6 +353,12 @@ export function buildAPIProviderProperties(): Property[] {
   const apiProvider = getAPIProvider();
   const runtimeSnapshot = getMainLoopProviderRuntimeSnapshot();
   const codexTelemetry = getOpenAiCodexSessionTelemetry();
+  const anthropicModelRegistry = getProviderModelRegistrySnapshot('anthropic');
+  const anthropicModelDiscovery = getProviderModelDiscoverySnapshot('anthropic', true);
+  const codexModelRegistry = getProviderModelRegistrySnapshot('openai-codex');
+  const codexModelDiscovery = getProviderModelDiscoverySnapshot('openai-codex', runtimeSnapshot.openAiCodexAuthReady);
+  const geminiModelRegistry = getProviderModelRegistrySnapshot('gemini');
+  const geminiModelDiscovery = getProviderModelDiscoverySnapshot('gemini', runtimeSnapshot.geminiAuthReady);
   const properties: Property[] = [];
   if (apiProvider !== 'firstParty') {
     const providerLabel = {
@@ -433,6 +445,14 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Main model runtime',
     value: runtimeSnapshot.execution.displayName
   });
+  properties.push({
+    label: 'Anthropic model registry',
+    value: `${anthropicModelRegistry.curatedSelectableModelCount} curated selectable · recommended ${anthropicModelRegistry.recommendedMainModel}`
+  });
+  properties.push({
+    label: 'Anthropic model discovery',
+    value: anthropicModelDiscovery.refreshStatus === 'ready' ? `${anthropicModelDiscovery.endpoint.path} ready` : `${anthropicModelDiscovery.endpoint.path} auth required`
+  });
   if (runtimeSnapshot.openAiCodexAccountLabel) {
     const codexAccountLabel = runtimeSnapshot.openAiCodexPlanLabel ? `${runtimeSnapshot.openAiCodexAccountLabel} (${runtimeSnapshot.openAiCodexPlanLabel})` : runtimeSnapshot.openAiCodexAccountLabel;
     properties.push({
@@ -482,6 +502,14 @@ export function buildAPIProviderProperties(): Property[] {
     label: 'Codex CLI fallback',
     value: runtimeSnapshot.openAiCodexCliFallbackReady ? 'Ready' : 'Not detected'
   });
+  properties.push({
+    label: 'Codex model registry',
+    value: `${codexModelRegistry.curatedSelectableModelCount} curated selectable · recommended ${codexModelRegistry.recommendedMainModel}`
+  });
+  properties.push({
+    label: 'Codex model discovery',
+    value: codexModelDiscovery.refreshStatus === 'ready' ? `${codexModelDiscovery.endpoint.path} ready` : `${codexModelDiscovery.endpoint.path} auth required`
+  });
   const geminiAuthSourceLabel = runtimeSnapshot.geminiAuthSource === 'provider-api-key-profile' ? 'CT secure storage' : runtimeSnapshot.geminiAuthSource === 'GEMINI_API_KEY' ? 'GEMINI_API_KEY env' : 'Not configured';
   const geminiStatusLabel = runtimeSnapshot.execution.family === 'gemini' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'gemini' ? 'Preferred but not active' : runtimeSnapshot.geminiAuthReady ? 'Available to activate' : 'Not configured';
   properties.push({
@@ -495,6 +523,14 @@ export function buildAPIProviderProperties(): Property[] {
   properties.push({
     label: 'Gemini API key',
     value: runtimeSnapshot.geminiApiKeyReady ? 'Ready' : 'Not detected'
+  });
+  properties.push({
+    label: 'Gemini model registry',
+    value: `${geminiModelRegistry.curatedSelectableModelCount} curated selectable · recommended ${geminiModelRegistry.recommendedMainModel}`
+  });
+  properties.push({
+    label: 'Gemini model discovery',
+    value: geminiModelDiscovery.refreshStatus === 'ready' ? `${geminiModelDiscovery.endpoint.path} ready` : `${geminiModelDiscovery.endpoint.path} auth required`
   });
   if (runtimeSnapshot.preferred.provider !== runtimeSnapshot.execution.provider) {
     const preferredSuffix = runtimeSnapshot.preferred.authState === 'not-configured' ? 'auth not configured' : runtimeSnapshot.preferred.executionEnabled ? 'ready' : 'auth ready, execution pending transport work';
