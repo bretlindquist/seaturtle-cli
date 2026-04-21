@@ -10,7 +10,7 @@ output="$(
   ./bin/ct --version 2>&1 || true
 )"
 
-if [[ "$output" != *"Local CT build is stale: built 1.05, repo 1.06."* ]]; then
+if [[ "$output" != *"Local CT version is outdated: installed 1.05, current 1.06."* ]]; then
   echo "expected stale local build notice from bin/ct" >&2
   echo "$output" >&2
   exit 1
@@ -30,7 +30,7 @@ quit_output="$(
   ./bin/ct 2>&1 || true
 )"
 
-if [[ "$quit_output" != *"Choose: [b] rebuild now, [c] continue with stale build, [q] quit"* ]]; then
+if [[ "$quit_output" != *"Choose: [u] update now, [c] continue with current installed version, [q] quit"* ]]; then
   echo "expected stale interactive prompt from bin/ct" >&2
   echo "$quit_output" >&2
   exit 1

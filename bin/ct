@@ -24,13 +24,18 @@ is_interactive_launch() {
   [[ $# -eq 0 && -t 0 && -t 1 ]]
 }
 
+get_update_command_display() {
+  print -r -- "node ${cli_path:q} update"
+}
+
 handle_stale_build() {
   local stale_message
-  stale_message="Local CT build is stale: built $built_version, repo $repo_version."
+  stale_message="Local CT version is outdated: installed $built_version, current $repo_version."
+  local update_command
+  update_command="$(get_update_command_display)"
 
   echo "$stale_message" >&2
-  echo "Rebuild with: node scripts/build-cli.mjs --no-minify" >&2
-  echo "Or rerun: ./scripts/install-local-cli.sh --build" >&2
+  echo "Update with: $update_command" >&2
 
   if [[ "${CT_LOCAL_WRAPPER_ASSUME_INTERACTIVE:-0}" == "1" ]]; then
     :
@@ -39,7 +44,7 @@ handle_stale_build() {
   fi
 
   echo >&2
-  echo "Choose: [b] rebuild now, [c] continue with stale build, [q] quit" >&2
+  echo "Choose: [u] update now, [c] continue with current installed version, [q] quit" >&2
 
   local action="${CT_LOCAL_WRAPPER_STALE_ACTION:-}"
   if [[ -z "$action" ]]; then
@@ -48,8 +53,11 @@ handle_stale_build() {
   fi
 
   case "${action:l}" in
-    b|build|rebuild)
-      exec ./scripts/install-local-cli.sh --build "$@"
+    u|update|b|build|rebuild)
+      if ! node "$cli_path" update; then
+        exit 1
+      fi
+      exec node "$cli_path" "$@"
       ;;
     c|continue)
       return 0

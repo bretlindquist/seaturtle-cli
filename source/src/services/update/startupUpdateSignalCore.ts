@@ -35,8 +35,8 @@ export function getStartupUpdateAction(
 ): StartupUpdateAction {
   if (installationType === 'source-wrapper') {
     return {
-      label: 'Rebuild local CT',
-      command: 'node scripts/build-cli.mjs --no-minify',
+      label: 'Update local CT',
+      command: 'ct update',
     }
   }
 

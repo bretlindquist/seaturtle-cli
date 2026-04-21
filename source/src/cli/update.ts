@@ -188,7 +188,7 @@ export async function update() {
     }
 
     writeToStdout('\n')
-    writeToStdout('Rebuilding local CT from this repo...\n')
+    writeToStdout('Updating local CT from this repo...\n')
     const buildResult = await execFileNoThrowWithCwd(
       'node',
       ['scripts/build-cli.mjs', '--no-minify'],
@@ -208,7 +208,7 @@ export async function update() {
     }
 
     if (buildResult.code !== 0) {
-      process.stderr.write('Error: Failed to rebuild local CT\n')
+      process.stderr.write('Error: Failed to update local CT\n')
       await gracefulShutdown(1)
     }
 
@@ -222,7 +222,7 @@ export async function update() {
     const nextVersion = repoVersion ?? latestVersion ?? MACRO.VERSION
     writeToStdout(
       chalk.green(
-        `Successfully rebuilt local CT from ${MACRO.VERSION} to ${nextVersion}`,
+        `Successfully updated local CT from ${MACRO.VERSION} to ${nextVersion}`,
       ) + '\n',
     )
     if (nextVersion !== MACRO.VERSION) {

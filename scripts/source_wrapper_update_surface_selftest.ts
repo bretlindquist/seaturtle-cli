@@ -7,8 +7,8 @@ import {
 const neverSkip = () => false
 
 assert.deepEqual(getStartupUpdateAction('source-wrapper'), {
-  label: 'Rebuild local CT',
-  command: 'node scripts/build-cli.mjs --no-minify',
+  label: 'Update local CT',
+  command: 'ct update',
 })
 
 const signal = buildStartupUpdateSignal({
@@ -21,7 +21,7 @@ const signal = buildStartupUpdateSignal({
 })
 
 assert(signal, 'expected startup update signal for source-wrapper installs')
-assert.equal(signal?.action.label, 'Rebuild local CT')
-assert.equal(signal?.action.command, 'node scripts/build-cli.mjs --no-minify')
+assert.equal(signal?.action.label, 'Update local CT')
+assert.equal(signal?.action.command, 'ct update')
 
 console.log('source_wrapper_update_surface_selftest: ok')

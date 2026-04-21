@@ -67,8 +67,8 @@ function run(): void {
   )
   assert(
     getStartupUpdateAction('source-wrapper').command ===
-      'node scripts/build-cli.mjs --no-minify',
-    'expected source-wrapper installs to route users to a local rebuild command',
+      'ct update',
+    'expected source-wrapper installs to route users to the supported update command',
   )
   assert(
     getStartupUpdateAction('package-manager', 'homebrew').command ===
@@ -122,8 +122,8 @@ function run(): void {
   })
   assert(
     sourceWrapperSignal?.action.command ===
-      'node scripts/build-cli.mjs --no-minify',
-    'expected source-wrapper startup update signal to recommend rebuilding the local dist',
+      'ct update',
+    'expected source-wrapper startup update signal to recommend the supported update command',
   )
 
   assert(
