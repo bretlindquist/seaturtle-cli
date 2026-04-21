@@ -50,9 +50,9 @@ export function SeaTurtleMark({
   const lines = size === 'hero' ? HERO_SEA_TURTLE : COMPACT_SEA_TURTLE
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexShrink={0}>
       {lines.map((line, index) => (
-        <Text key={`${size}-${index}`} color={color}>
+        <Text key={`${size}-${index}`} color={color} wrap="truncate-end">
           {line}
         </Text>
       ))}
