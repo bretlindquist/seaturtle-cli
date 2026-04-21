@@ -1,5 +1,11 @@
 # SeaTurtle Changelog
 
+## 1.09 - 2026-04-21
+
+- Fixed the local installer so it works under Bash and Git Bash instead of relying on a zsh-only PATH expansion.
+- Improved local install UX with clearer SeaTurtle CT build copy and visible build-phase progress during source installs.
+- Made `source/package.json` the single shipped version source of truth and removed the redundant root package version field.
+
 ## 1.08 - 2026-04-21
 
 - Shipped the native Gemini production wave across the provider seam, including native `generateContent` / `streamGenerateContent`, tool replay with thought signatures, image generation/editing, Google Search, URL context, hosted code execution, file search, and guarded computer use.
