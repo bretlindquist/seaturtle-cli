@@ -104,6 +104,9 @@ export const ImageGenerationTool = buildTool({
             const { runGeminiImageGeneration } = await import(
               '../../services/api/geminiImageGeneration.js'
             )
+            // Gemini image generation is provider-hosted and uses the
+            // provider's dedicated image-model routing, not the main-loop
+            // chat model selected for the session.
             return runGeminiImageGeneration({
               input: {
                 prompt: input.prompt,

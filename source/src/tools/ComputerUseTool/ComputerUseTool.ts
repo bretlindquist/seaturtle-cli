@@ -107,6 +107,9 @@ export const ComputerUseTool = buildTool({
     const runtime = getMainLoopProviderRuntime()
     const result: OpenAiCodexComputerUseResult | GeminiComputerUseResult =
       runtime.family === 'gemini'
+        // Gemini computer use runs through the provider's dedicated
+        // computer-use model loop. It follows the active provider family, but
+        // not the session's main-loop chat model string.
         ? await runGeminiComputerUse({
             task: input.task,
             apps: input.apps,
