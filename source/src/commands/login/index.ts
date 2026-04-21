@@ -8,7 +8,7 @@ export default () =>
     name: 'login',
     description: hasAnthropicApiKeyAuth()
       ? 'Switch provider account'
-      : 'Sign in with your provider (OpenAI, Anthropic, etc)',
+      : 'Set up or switch CT provider auth',
     isEnabled: () => !isEnvTruthy(process.env.DISABLE_LOGIN_COMMAND),
     load: () => import('./login.js'),
   }) satisfies Command

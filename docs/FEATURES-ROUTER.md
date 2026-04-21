@@ -25,17 +25,19 @@ Architecture reference:
 
 - [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md)
 
-## OpenAI / Codex / Auth
+## Provider Auth / OpenAI / Gemini
 
 Keywords:
 
 - openai
 - codex
+- gemini
 - ct
 - seaturtle
 - oauth
 - api key
 - OPENAI_API_KEY
+- GEMINI_API_KEY
 - chatgpt login
 - login
 - logout
@@ -49,10 +51,12 @@ Keywords:
 
 Next steps:
 
-- Use `/login` to choose Anthropic or OpenAI Codex OAuth
+- Use `/login` for CT's interactive provider setup flow
 - Set `OPENAI_API_KEY` when you need the explicit OpenAI Responses API path
-- Use `/logout` to clear Anthropic and/or OpenAI Codex auth
+- Set `GEMINI_API_KEY` when you need the direct Gemini env path today
+- Use `/logout` to clear CT-managed provider auth
 - Use `/model` to switch supported OpenAI/Codex models
+- Use `/model` to switch supported Gemini models when Gemini is active
 - Use `/effort` to adjust reasoning level
 - Use `/status` or `auth status --json` to inspect active provider/runtime
 - Use `/status` to inspect the `OpenAI computer use` row when you need the concrete enablement path
@@ -61,12 +65,15 @@ Next steps:
 Deep doc:
 
 - [`docs/OPENAI-CODEX.md`](./OPENAI-CODEX.md)
+- [`docs/GEMINI.md`](./GEMINI.md)
 
 Important truth:
 
 - OpenAI/Codex local runtime works in SeaTurtle
+- Gemini native runtime works in SeaTurtle
 - native SeaTurtle-owned OpenAI/Codex OAuth is now the preferred auth path
 - `OPENAI_API_KEY` is supported as an explicit operator/automation auth path
+- Gemini currently uses API-key setup rather than a SeaTurtle-owned OAuth flow
 - legacy `codex-cli` auth is still supported as a compatibility fallback
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs

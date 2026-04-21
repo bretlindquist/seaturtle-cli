@@ -2,6 +2,8 @@ export const PRODUCT_URL = 'https://github.com/bretlindquist/seaturtle-cli'
 export const PRODUCT_DOCS_URL = `${PRODUCT_URL}/blob/master/docs/FEATURES-ROUTER.md`
 export const PRODUCT_OPENAI_DOCS_URL =
   `${PRODUCT_URL}/blob/master/docs/OPENAI-CODEX.md`
+export const PRODUCT_GEMINI_DOCS_URL =
+  `${PRODUCT_URL}/blob/master/docs/GEMINI.md`
 
 // Claude Code Remote session URLs
 export const CLAUDE_AI_BASE_URL = 'https://claude.ai'

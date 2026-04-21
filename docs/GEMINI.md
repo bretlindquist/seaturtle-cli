@@ -14,6 +14,14 @@ export GEMINI_API_KEY=...
 export SEATURTLE_MAIN_PROVIDER=gemini
 ```
 
+Current operator truth:
+
+- direct Gemini setup in this build is API-key based
+- `/status` and `ct auth status --json` show whether Gemini is active,
+  preferred, or merely available
+- the interactive `/login` path is being expanded toward first-class Gemini
+  setup, but the env/API-key path remains the current baseline
+
 Boolean provider gate:
 
 ```sh

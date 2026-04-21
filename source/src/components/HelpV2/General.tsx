@@ -2,45 +2,47 @@ import { c as _c } from "react/compiler-runtime";
 import * as React from 'react';
 import { getMainLoopProviderRuntimeSnapshot } from '../../services/api/providerRuntime.js';
 import { Box, Link, Text } from '../../ink.js';
-import { PRODUCT_DOCS_URL, PRODUCT_OPENAI_DOCS_URL } from '../../constants/product.js';
+import { PRODUCT_DOCS_URL, PRODUCT_GEMINI_DOCS_URL, PRODUCT_OPENAI_DOCS_URL } from '../../constants/product.js';
 import { PromptInputHelpMenu } from '../PromptInput/PromptInputHelpMenu.js';
 export function General() {
-  const $ = _c(9);
+  const $ = _c(10);
   const runtime = getMainLoopProviderRuntimeSnapshot();
   const openAiRuntimeActive = runtime.execution.family === 'openai';
+  const geminiRuntimeActive = runtime.execution.family === 'gemini';
   const openAiCapabilities = runtime.execution.family === 'openai' ? runtime.routedOpenAiModelCapabilities.join(', ') : '';
   let t0;
-  if ($[0] !== openAiCapabilities || $[1] !== openAiRuntimeActive) {
-    t0 = <Box><Text>{openAiRuntimeActive ? `OpenAI/Codex runtime is active here. Use /status to inspect the live tool surface for this session${openAiCapabilities ? `: ${openAiCapabilities}` : ''}.` : 'CT understands your codebase, makes edits with your permission, and executes commands right from your terminal.'}</Text></Box>;
-    $[0] = openAiCapabilities;
-    $[1] = openAiRuntimeActive;
-    $[2] = t0;
+  if ($[0] !== geminiRuntimeActive || $[1] !== openAiCapabilities || $[2] !== openAiRuntimeActive) {
+    t0 = <Box><Text>{openAiRuntimeActive ? `OpenAI/Codex runtime is active here. Use /status to inspect the live tool surface for this session${openAiCapabilities ? `: ${openAiCapabilities}` : ''}.` : geminiRuntimeActive ? 'Gemini runtime is active here. Use /status to inspect the live tool surface and auth source for this session.' : 'CT understands your codebase, makes edits with your permission, and executes commands right from your terminal.'}</Text></Box>;
+    $[0] = geminiRuntimeActive;
+    $[1] = openAiCapabilities;
+    $[2] = openAiRuntimeActive;
+    $[3] = t0;
   } else {
-    t0 = $[2];
+    t0 = $[3];
   }
   let t1;
-  if ($[3] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = <Box flexDirection="column" gap={1}><Box><Text bold={true}>Docs</Text></Box><Box><Text>/status for live runtime truth · /login for auth · /model for model selection · /mcp for integrations</Text></Box><Box><Text>Feature router: <Link url={PRODUCT_DOCS_URL} /></Text></Box><Box><Text>OpenAI runtime guide: <Link url={PRODUCT_OPENAI_DOCS_URL} /></Text></Box></Box>;
-    $[3] = t1;
+  if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
+    t1 = <Box flexDirection="column" gap={1}><Box><Text bold={true}>Docs</Text></Box><Box><Text>/status for live runtime truth · /login for interactive auth setup · /model for model selection · /mcp for integrations</Text></Box><Box><Text>Feature router: <Link url={PRODUCT_DOCS_URL} /></Text></Box><Box><Text>OpenAI runtime guide: <Link url={PRODUCT_OPENAI_DOCS_URL} /></Text></Box><Box><Text>Gemini runtime guide: <Link url={PRODUCT_GEMINI_DOCS_URL} /></Text></Box></Box>;
+    $[4] = t1;
   } else {
-    t1 = $[3];
+    t1 = $[4];
   }
   let t2;
-  if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
+  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
     t2 = <Box flexDirection="column"><Box><Text bold={true}>Shortcuts</Text></Box><PromptInputHelpMenu gap={2} fixedWidth={true} /></Box>;
-    $[4] = t2;
+    $[5] = t2;
   } else {
-    t2 = $[4];
+    t2 = $[5];
   }
   let t3;
-  if ($[5] !== t0 || $[6] !== t1 || $[7] !== t2) {
+  if ($[6] !== t0 || $[7] !== t1 || $[8] !== t2) {
     t3 = <Box flexDirection="column" paddingY={1} gap={1}>{t0}{t1}{t2}</Box>;
-    $[5] = t0;
-    $[6] = t1;
-    $[7] = t2;
-    $[8] = t3;
+    $[6] = t0;
+    $[7] = t1;
+    $[8] = t2;
+    $[9] = t3;
   } else {
-    t3 = $[8];
+    t3 = $[9];
   }
   return t3;
 }

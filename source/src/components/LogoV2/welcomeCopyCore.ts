@@ -11,7 +11,7 @@ export function getWelcomeBodyLines(mode: WelcomeMode): string[] {
   }
 
   return [
-    'Start with /login, /ct, or /telegram and CT will guide the next step.',
+    'Start with /login, /status, /ct, or /telegram depending on what you need first.',
     'If you want to slow down first, ask for a research pass or a surgical plan.',
     getSessionResumeAffordanceText(),
   ]
