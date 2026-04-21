@@ -345,13 +345,10 @@ function ensureOverlayDependencies(packageNames) {
   ];
   const install = spawnSync('npm', installArgs, {
     cwd: workspaceRoot,
-    encoding: 'utf8',
-    maxBuffer: 256 * 1024 * 1024,
+    stdio: 'inherit',
   });
 
   if (install.status !== 0) {
-    if (install.stdout) process.stdout.write(install.stdout);
-    if (install.stderr) process.stderr.write(install.stderr);
     process.exit(install.status ?? 1);
   }
 

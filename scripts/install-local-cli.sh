@@ -188,7 +188,11 @@ if (( should_build )); then
   require_command npm "The build overlay installs runtime dependencies with npm."
   require_command bun "The build pipeline bundles the CLI with Bun."
 
-  echo "Building local CLI..."
+  cat <<'EOF'
+Building SeaTurtle CT from source...
+This prepares the local build workspace, installs the bundled dependency overlay when needed,
+and then packages the CT runtime. The first build can take a few minutes.
+EOF
   node scripts/build-cli.mjs --no-minify
 elif [[ ! -f "$repo_root/dist/cli.js" ]]; then
   cat <<'EOF'
