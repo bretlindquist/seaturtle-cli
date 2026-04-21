@@ -1,5 +1,11 @@
 # SeaTurtle Changelog
 
+## 1.08 - 2026-04-21
+
+- Shipped the native Gemini production wave across the provider seam, including native `generateContent` / `streamGenerateContent`, tool replay with thought signatures, image generation/editing, Google Search, URL context, hosted code execution, file search, and guarded computer use.
+- Added Gemini request guards, status/auth capability truth, and live/offline validation commands so operator-facing Gemini setup is explicit and repeatable.
+- Updated the repo docs and short-form SeaTurtle routing docs so Gemini setup and Gemini-specific questions resolve to the right commands and references quickly.
+
 ## 1.06 - 2026-04-14
 
 - Fixed duplicate submitted image rows so inline `[Image #N]` references no longer render a second attachment line underneath.

@@ -1,6 +1,6 @@
 {
   "name": "@seaturtle/ct",
-  "version": "1.06",
+  "version": "1.08",
   "bin": {
     "ct": "cli.js",
     "seaturtle": "cli.js"

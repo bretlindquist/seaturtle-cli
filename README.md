@@ -58,6 +58,29 @@ The current Gemini path routes:
 See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, routed
 features, remaining gates, and validation commands.
 
+### Gemini Shorthand
+
+If you want the shortest operator path for Gemini:
+
+```bash
+export GEMINI_API_KEY=...
+export SEATURTLE_MAIN_PROVIDER=gemini
+ct
+```
+
+Inside CT, the Gemini-first commands are:
+
+- `/status` to confirm Gemini is the active main-loop runtime
+- `/model` to pick a Gemini model
+- `/effort` to control Gemini reasoning behavior
+
+If you ask SeaTurtle how to use Gemini, the short answer should route you to:
+
+1. set `GEMINI_API_KEY`
+2. set `SEATURTLE_MAIN_PROVIDER=gemini`
+3. run `/status`
+4. use [`docs/GEMINI.md`](./docs/GEMINI.md) for the full capability and validation surface
+
 ## Core SeaTurtle Feature: Context Sanctity
 
 One of SeaTurtle's strongest product features is that it does not treat every
