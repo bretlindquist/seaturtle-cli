@@ -21,6 +21,8 @@ Current operator truth:
   preferred, or merely available
 - `/login` supports first-class Gemini API-key setup through CT secure storage,
   while the env/API-key path remains available for explicit operator control
+- after Gemini auth completes, SeaTurtle moves the operator onto a Gemini-valid
+  main-loop model instead of leaving a stale Anthropic/OpenAI model selected
 
 Boolean provider gate:
 
@@ -60,6 +62,11 @@ Specialized routed Gemini models tracked in the capability registry:
 
 Preview and lifecycle state are carried in the Gemini capability registry and
 shown through the normal model picker/status surfaces.
+
+SeaTurtle keeps the Gemini picker curated. Official provider discovery is
+tracked separately from the routed picker list so upstream model-list changes do
+not automatically claim support in CT before the local runtime is classified
+and validated.
 
 ## Routed Runtime Surface
 
@@ -116,6 +123,12 @@ SeaTurtle keeps two Gemini capability views:
 - documented Gemini support: what Google documents for the selected model
 - routed SeaTurtle support: the Gemini features this build actually wires and
   validates end to end
+
+SeaTurtle also keeps two Gemini model views:
+
+- curated shipped registry: what CT intentionally exposes and recommends
+- official discovery readiness: whether this install can query Google's model
+  listing API for advisory freshness
 
 `/status` and `ct auth status --json` show these separately. A Gemini feature
 is not considered routed until the SeaTurtle runner exists and has validation

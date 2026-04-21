@@ -58,6 +58,29 @@ The current Gemini path routes:
 See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, routed
 features, remaining gates, and validation commands.
 
+## Provider-Aware Model Selection
+
+SeaTurtle now treats model selection as provider-scoped product state rather
+than one global string.
+
+- finishing `/login` leaves the session on a valid model for the selected
+  provider
+- switching providers restores that provider's remembered main-loop model
+- the main picker stays curated instead of dumping raw upstream model catalogs
+- provider-hosted feature models stay explicit: image generation, computer use,
+  and other provider-hosted paths can follow the active provider without
+  pretending they reuse the chat model string
+
+Current Anthropic defaults in this build:
+
+- Max and Team Premium: Claude Opus 4.7 on first-party Anthropic, with explicit
+  third-party lag handling kept separate
+- other Anthropic users: Claude Sonnet 4.6
+
+`/status` and `ct auth status --json` now surface both the curated provider
+model registry and the official model-discovery endpoint readiness for
+Anthropic, OpenAI/Codex, and Gemini.
+
 ### Gemini Shorthand
 
 If you want the shortest operator path for Gemini:
@@ -78,8 +101,9 @@ If you ask SeaTurtle how to use Gemini, the short answer should route you to:
 
 1. set `GEMINI_API_KEY`
 2. set `SEATURTLE_MAIN_PROVIDER=gemini`
-3. run `/status`
-4. use [`docs/GEMINI.md`](./docs/GEMINI.md) for the full capability and validation surface
+3. complete `/login` or launch `ct`, then pick a Gemini model when prompted
+4. run `/status`
+5. use [`docs/GEMINI.md`](./docs/GEMINI.md) for the full capability and validation surface
 
 ## Core SeaTurtle Feature: Context Sanctity
 
