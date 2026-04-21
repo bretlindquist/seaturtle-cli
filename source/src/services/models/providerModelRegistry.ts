@@ -44,10 +44,19 @@ export type ProviderModelRegistrySnapshot = {
 const ANTHROPIC_MODEL_DEFINITIONS: readonly ProviderModelRegistryEntry[] = [
   {
     provider: 'anthropic',
+    value: 'claude-opus-4-7',
+    label: 'Claude Opus 4.7',
+    description: 'Most capable Anthropic model currently documented by Anthropic',
+    lifecycle: 'stable',
+    uses: ['main-loop'],
+    selectableInModelPicker: true,
+  },
+  {
+    provider: 'anthropic',
     value: 'claude-opus-4-6',
     label: 'Claude Opus 4.6',
-    description: 'Most capable Anthropic model currently routed in this build',
-    lifecycle: 'stable',
+    description: 'Previous Anthropic frontier model kept for compatibility',
+    lifecycle: 'legacy',
     uses: ['main-loop'],
     selectableInModelPicker: true,
   },
@@ -133,7 +142,7 @@ export function getRecommendedMainModelForProvider(
 ): string {
   switch (provider) {
     case 'anthropic':
-      return 'claude-sonnet-4-6'
+      return 'claude-opus-4-7'
     case 'openai-codex':
       return 'gpt-5.4'
     case 'gemini':
