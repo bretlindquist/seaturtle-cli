@@ -41,7 +41,7 @@ import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import type { Tools } from '../../Tool.js'
 import type { Options } from './claude.js'
-import { getDefaultGeminiApiKeyProfile } from '../authProfiles/store.js'
+import { getResolvedGeminiApiKeyAuth } from '../authProfiles/geminiAuth.js'
 import {
   validateGeminiModel,
 } from './geminiCapabilityConfig.js'
@@ -91,31 +91,14 @@ const ZERO_USAGE = {
 }
 
 export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
-  const profile = getDefaultGeminiApiKeyProfile()
-  if (profile?.apiKey.trim()) {
-    return {
-      apiKey: profile.apiKey.trim(),
-      baseUrl:
-        typeof profile.metadata?.baseUrl === 'string' &&
-        profile.metadata.baseUrl.trim()
-          ? profile.metadata.baseUrl.trim()
-          : 'https://generativelanguage.googleapis.com/v1beta',
-      source: 'provider-api-key-profile',
-    }
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY?.trim()
-  if (!apiKey) {
-    return null
-  }
-
-  return {
-    apiKey,
-    baseUrl:
-      process.env.GEMINI_BASE_URL?.trim() ||
-      'https://generativelanguage.googleapis.com/v1beta',
-    source: 'GEMINI_API_KEY',
-  }
+  const auth = getResolvedGeminiApiKeyAuth()
+  return auth
+    ? {
+        apiKey: auth.apiKey,
+        baseUrl: auth.baseUrl,
+        source: auth.source,
+      }
+    : null
 }
 
 async function buildGeminiRequest(params: {

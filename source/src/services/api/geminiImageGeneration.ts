@@ -1,6 +1,6 @@
 import { runGeminiGenerateContent } from './geminiClient.js'
 import type { GeminiGenerateContentRequest, GeminiPart } from './geminiTypes.js'
-import { getDefaultGeminiApiKeyProfile } from '../authProfiles/store.js'
+import { getResolvedGeminiApiKeyAuth } from '../authProfiles/geminiAuth.js'
 
 export type GeminiReferenceImage = {
   mediaType: string
@@ -48,27 +48,12 @@ function getGeminiImageAuthTarget(): {
   apiKey: string
   source: string
 } | null {
-  const profile = getDefaultGeminiApiKeyProfile()
-  if (profile?.apiKey.trim()) {
-    return {
-      apiKey: profile.apiKey.trim(),
-      baseUrl:
-        typeof profile.metadata?.baseUrl === 'string' &&
-        profile.metadata.baseUrl.trim()
-          ? profile.metadata.baseUrl.trim()
-          : 'https://generativelanguage.googleapis.com/v1beta',
-      source: 'provider-api-key-profile',
-    }
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY?.trim()
-  return apiKey
+  const auth = getResolvedGeminiApiKeyAuth()
+  return auth
     ? {
-        apiKey,
-        baseUrl:
-          process.env.GEMINI_BASE_URL?.trim() ||
-          'https://generativelanguage.googleapis.com/v1beta',
-        source: 'GEMINI_API_KEY',
+        apiKey: auth.apiKey,
+        baseUrl: auth.baseUrl,
+        source: auth.source,
       }
     : null
 }
