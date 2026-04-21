@@ -14,6 +14,7 @@ const authHandler = read('source/src/cli/handlers/auth.ts')
 const status = read('source/src/utils/status.tsx')
 const readme = read('README.md')
 const geminiDocs = read('docs/GEMINI.md')
+const featureRouter = read('docs/FEATURES-ROUTER.md')
 
 assert.match(
   authHandler,
@@ -59,6 +60,16 @@ assert.match(
   geminiDocs,
   /gemini-live-text-check/,
   'Gemini docs should list the live validation commands',
+)
+assert.match(
+  featureRouter,
+  /Use `\/login` to set up Gemini in CT for interactive work/,
+  'feature router should present /login as the primary interactive Gemini path',
+)
+assert.match(
+  featureRouter,
+  /GEMINI_API_KEY.*env-driven control or automation/,
+  'feature router should keep GEMINI_API_KEY framed as explicit operator control, not the default interactive path',
 )
 assert.match(
   readme,

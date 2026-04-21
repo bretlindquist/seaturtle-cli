@@ -53,7 +53,8 @@ Next steps:
 
 - Use `/login` for CT's interactive provider setup flow
 - Set `OPENAI_API_KEY` when you need the explicit OpenAI Responses API path
-- Set `GEMINI_API_KEY` when you need the direct Gemini env path today
+- Use `/login` to set up Gemini in CT for interactive work
+- Set `GEMINI_API_KEY` when you need explicit Gemini env-driven control or automation
 - Use `/logout` to clear CT-managed provider auth
 - Use `/model` to switch supported OpenAI/Codex models
 - Use `/model` to switch supported Gemini models when Gemini is active
