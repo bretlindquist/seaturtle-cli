@@ -192,8 +192,17 @@ if (( should_build )); then
 Building SeaTurtle CT from source...
 This prepares the local build workspace, installs the bundled dependency overlay when needed,
 and then packages the CT runtime. The first build can take a few minutes.
+If dependency installation stalls, SeaTurtle will stop and print the exact npm recovery steps.
 EOF
-  node scripts/build-cli.mjs --no-minify
+  if ! node scripts/build-cli.mjs --no-minify; then
+    cat <<'EOF' >&2
+
+SeaTurtle CT build did not complete.
+Review the npm output above, follow the printed recovery steps, and then rerun:
+  ./scripts/install-local-cli.sh --build
+EOF
+    exit 1
+  fi
 elif [[ ! -f "$repo_root/dist/cli.js" ]]; then
   cat <<'EOF'
 CT is not built yet.

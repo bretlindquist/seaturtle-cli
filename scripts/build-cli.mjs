@@ -17,6 +17,8 @@ const workspaceRoot = path.join(versionRoot, '.cache', 'workspace');
 const markerPath = path.join(workspaceRoot, '.prepared.json');
 const overlayStampPath = path.join(workspaceRoot, '.overlay-install.json');
 const builderVersion = 7;
+const overlayInstallIdleTimeoutMs = 360000;
+const overlayInstallIdleCheckIntervalMs = 5000;
 
 const sourceExtensions = ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs'];
 const assetExtensions = ['.md', '.txt'];
@@ -223,7 +225,12 @@ function startBuildTicker(label) {
     frame: 0,
     interval: null,
     label,
+    suppressedUntil: 0,
     render: () => {
+      if (Date.now() < ticker.suppressedUntil) {
+        return;
+      }
+
       const prefix = `[SeaTurtle CT build] ${ticker.label} `;
       const availableWidth = Math.max(12, (process.stdout.columns ?? 80) - prefix.length - 2);
       const trailLength = (ticker.frame % availableWidth) + 1;
@@ -247,6 +254,15 @@ function setBuildTickerLabel(label) {
   startBuildTicker(label);
 }
 
+function suppressBuildTicker(ms = 1000) {
+  if (!process.stdout.isTTY || activeBuildTicker === null) {
+    return;
+  }
+
+  activeBuildTicker.suppressedUntil = Date.now() + ms;
+  process.stdout.write('\r\x1b[K');
+}
+
 function stopBuildTicker() {
   if (activeBuildTicker !== null) {
     clearInterval(activeBuildTicker.interval);
@@ -265,17 +281,69 @@ function withBuildTicker(label, fn) {
 function runChildWithHeartbeat(command, args, options) {
   return new Promise((resolve, reject) => {
     setBuildTickerLabel(options.tickerLabel ?? options.heartbeatLabel);
+    let idleTimedOut = false;
+    let lastOutputAt = Date.now();
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: 'inherit',
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
+    const forwardOutput = (stream, chunk) => {
+      lastOutputAt = Date.now();
+      suppressBuildTicker();
+      stream.write(chunk);
+    };
+
+    child.stdout.on('data', chunk => {
+      forwardOutput(process.stdout, chunk);
+    });
+
+    child.stderr.on('data', chunk => {
+      forwardOutput(process.stderr, chunk);
+    });
+
+    const idleCheck = setInterval(() => {
+      if (Date.now() - lastOutputAt < overlayInstallIdleTimeoutMs || idleTimedOut) {
+        return;
+      }
+
+      idleTimedOut = true;
+      suppressBuildTicker(0);
+      process.stderr.write(
+        [
+          '',
+          `[SeaTurtle CT build] ${options.idleTimeoutLabel ?? 'Overlay dependency install stalled.'}`,
+          'SeaTurtle did not receive any npm output for 6 minutes, so the build is stopping instead of waiting indefinitely.',
+          'Likely causes: registry/network trouble, npm auth/config, or a bad local npm cache.',
+          'Next steps:',
+          '  1. npm config get registry',
+          '  2. npm ping',
+          '  3. npm cache verify',
+          '  4. Retry: ./scripts/install-local-cli.sh --build',
+          '',
+        ].join('\n'),
+      );
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!child.killed) {
+          child.kill('SIGKILL');
+        }
+      }, 5000).unref();
+    }, overlayInstallIdleCheckIntervalMs);
+
     child.on('error', error => {
+      clearInterval(idleCheck);
       reject(error);
     });
 
     child.on('exit', code => {
+      clearInterval(idleCheck);
+      if (idleTimedOut) {
+        resolve(1);
+        return;
+      }
+
       resolve(code ?? 1);
     });
   });
@@ -433,13 +501,19 @@ async function ensureOverlayDependencies(packageNames) {
     '--ignore-scripts',
     '--no-audit',
     '--no-fund',
+    '--loglevel=notice',
     '--legacy-peer-deps',
     ...packageNames.map(getOverlayPackageSpec),
   ];
   const installStatus = await runChildWithHeartbeat('npm', installArgs, {
     cwd: workspaceRoot,
+    env: {
+      ...process.env,
+      npm_config_progress: 'true',
+    },
     tickerLabel: 'Installing overlay dependencies with npm',
     heartbeatLabel: 'Installing overlay dependencies with npm',
+    idleTimeoutLabel: 'Overlay dependency install stalled.',
   });
 
   if (installStatus !== 0) {
