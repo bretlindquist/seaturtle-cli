@@ -11,7 +11,10 @@ export type StartupUpdateAction = {
 export type StartupUpdateSignal = {
   currentVersion: string
   latestVersion: string
-  versionSource: 'seaturtle-upstream' | 'legacy-package-source'
+  versionSource:
+    | 'seaturtle-upstream'
+    | 'legacy-package-source'
+    | 'github-release'
   channel: ReleaseChannel
   installationType: InstallationType
   packageManager?: PackageManager
@@ -36,6 +39,13 @@ export function getStartupUpdateAction(
   if (installationType === 'source-wrapper') {
     return {
       label: 'Update local CT',
+      command: 'ct update',
+    }
+  }
+
+  if (installationType === 'github-release') {
+    return {
+      label: 'Update installed SeaTurtle',
       command: 'ct update',
     }
   }

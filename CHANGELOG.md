@@ -2,6 +2,9 @@
 
 ## 1.09 - 2026-04-21
 
+- Added a production release installer path that installs SeaTurtle from published release artifacts instead of forcing a source build for normal users.
+- Added standalone Bun release-artifact packaging and wired bundled release installs to update through `ct update`.
+- Split the docs and source installer copy so contributor source builds stay available without being confused for the product install path.
 - Fixed the local installer so it works under Bash and Git Bash instead of relying on a zsh-only PATH expansion.
 - Improved local install UX with clearer SeaTurtle CT build copy and visible build-phase progress during source installs.
 - Hardened the overlay dependency install path so npm output is surfaced, idle stalls fail with recovery steps, and cold-build retries no longer corrupt the workspace by overlapping overlay reinstalls.

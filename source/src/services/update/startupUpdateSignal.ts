@@ -6,6 +6,7 @@ import {
 } from '../../utils/autoUpdater.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { getCurrentInstallationType } from '../../utils/doctorDiagnostic.js'
+import { getLatestSeaTurtleReleaseVersion } from '../../utils/githubReleaseInstall.js'
 import { getPackageManager } from '../../utils/nativeInstaller/packageManagers.js'
 import { isAutoUpdaterDisabled } from '../../utils/config.js'
 import type { ReleaseChannel } from '../../utils/config.js'
@@ -33,11 +34,16 @@ export async function getStartupUpdateSignal(): Promise<StartupUpdateSignal | nu
       installationType === 'package-manager'
         ? await getPackageManager()
         : undefined
+    const githubReleaseVersion =
+      installationType === 'github-release'
+        ? await getLatestSeaTurtleReleaseVersion()
+        : null
     const upstreamVersion =
       installationType === 'source-wrapper'
         ? await getLatestSeaTurtleUpstreamVersion()
         : null
     const latestVersion =
+      githubReleaseVersion ??
       upstreamVersion ??
       (installationType === 'package-manager'
         ? await getLatestVersionFromGcs(channel)
@@ -49,6 +55,8 @@ export async function getStartupUpdateSignal(): Promise<StartupUpdateSignal | nu
       latestVersion,
       versionSource: upstreamVersion
         ? 'seaturtle-upstream'
+        : githubReleaseVersion
+          ? 'github-release'
         : 'legacy-package-source',
       maxVersion,
       channel,

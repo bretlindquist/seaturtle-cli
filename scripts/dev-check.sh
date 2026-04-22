@@ -65,6 +65,7 @@ bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_surface_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_command_selftest.ts >/dev/null
+bun scripts/github_release_install_selftest.ts >/dev/null
 bun scripts/startup_welcome_copy_selftest.ts >/dev/null
 bun scripts/ct_identity_bootstrap_prompt_selftest.ts >/dev/null
 bun scripts/ct_greeting_selftest.ts >/dev/null
@@ -105,6 +106,7 @@ bun scripts/telegram_runtime_contract_selftest.ts >/dev/null
 bun scripts/telegram_env_alias_selftest.ts >/dev/null
 bash scripts/repl-paste-smoke.sh >/dev/null
 bash scripts/local_wrapper_version_notice_selftest.sh >/dev/null
+bash scripts/release-installer-smoke.sh >/dev/null
 
 echo
 echo "[3/3] Lint"

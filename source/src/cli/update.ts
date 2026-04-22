@@ -18,6 +18,10 @@ import { getDoctorDiagnostic } from 'src/utils/doctorDiagnostic.js'
 import { execFileNoThrowWithCwd } from 'src/utils/execFileNoThrow.js'
 import { gracefulShutdown } from 'src/utils/gracefulShutdown.js'
 import {
+  getLatestSeaTurtleReleaseVersion,
+  installGitHubReleaseBinary,
+} from 'src/utils/githubReleaseInstall.js'
+import {
   getLocalInstallDirDisplayPath,
   installOrUpdateClaudePackage,
   localInstallationExists,
@@ -229,6 +233,39 @@ export async function update() {
       await tryPrintUpdateReleaseNotes(MACRO.VERSION, nextVersion)
     }
     await gracefulShutdown(0)
+  }
+
+  if (diagnostic.installationType === 'github-release') {
+    const latestVersion = await getLatestSeaTurtleReleaseVersion()
+    if (latestVersion && latestVersion === MACRO.VERSION) {
+      writeToStdout(
+        chalk.green(`CT is up to date (${MACRO.VERSION})`) + '\n',
+      )
+      await gracefulShutdown(0)
+    }
+
+    writeToStdout('\n')
+    writeToStdout('Updating installed SeaTurtle CT...\n')
+
+    try {
+      const nextVersion = await installGitHubReleaseBinary({
+        version: latestVersion ?? undefined,
+      })
+      writeToStdout(
+        chalk.green(
+          `Successfully updated installed CT from ${MACRO.VERSION} to ${nextVersion}`,
+        ) + '\n',
+      )
+      if (nextVersion !== MACRO.VERSION) {
+        await tryPrintUpdateReleaseNotes(MACRO.VERSION, nextVersion)
+      }
+      await gracefulShutdown(0)
+    } catch (error) {
+      process.stderr.write(
+        `Error: Failed to update installed CT: ${String(error)}\n`,
+      )
+      await gracefulShutdown(1)
+    }
   }
 
   // Check if running from a package manager

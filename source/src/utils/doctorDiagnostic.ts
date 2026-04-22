@@ -4,6 +4,7 @@ import { homedir } from 'os'
 import { delimiter, join, posix, win32 } from 'path'
 import { checkGlobalInstallPermissions } from './autoUpdater.js'
 import { isInBundledMode } from './bundledMode.js'
+import { isRunningFromGitHubReleaseInstall } from './githubReleaseInstall.js'
 import {
   formatAutoUpdaterDisabledReason,
   getAutoUpdaterDisabledReason,
@@ -49,6 +50,7 @@ export type InstallationType =
   | 'npm-global'
   | 'npm-local'
   | 'source-wrapper'
+  | 'github-release'
   | 'native'
   | 'package-manager'
   | 'development'
@@ -129,6 +131,9 @@ export async function getCurrentInstallationType(): Promise<InstallationType> {
       (await detectApk())
     ) {
       return 'package-manager'
+    }
+    if (await isRunningFromGitHubReleaseInstall()) {
+      return 'github-release'
     }
     return 'native'
   }

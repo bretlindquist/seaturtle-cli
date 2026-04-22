@@ -24,4 +24,9 @@ assert(signal, 'expected startup update signal for source-wrapper installs')
 assert.equal(signal?.action.label, 'Update local CT')
 assert.equal(signal?.action.command, 'ct update')
 
+assert.deepEqual(getStartupUpdateAction('github-release'), {
+  label: 'Update installed SeaTurtle',
+  command: 'ct update',
+})
+
 console.log('source_wrapper_update_surface_selftest: ok')

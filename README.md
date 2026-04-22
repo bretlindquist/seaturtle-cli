@@ -213,25 +213,18 @@ ready on OpenAI/Codex, the app should say so directly.
 
 ## Quick Start
 
-### 1. Install local wrappers
-
-Fresh clone:
+### 1. Install SeaTurtle
 
 ```bash
-git clone https://github.com/bretlindquist/seaturtle-cli.git
-cd seaturtle-cli
-```
-
-```bash
-./scripts/install-local-cli.sh --build
+curl -fsSL https://raw.githubusercontent.com/bretlindquist/seaturtle-cli/master/scripts/install-release-cli.sh | bash
 ```
 
 That installer:
 
-- builds SeaTurtle CT from the current source checkout
-- installs `ct`, `seaturtle`, and `ct-dev`
-- checks for the build prerequisites it needs
-- stops with recovery steps instead of leaving long dependency installs hanging silently
+- downloads the published SeaTurtle release artifact for this machine
+- verifies the release checksum before installing it
+- installs `ct` and `seaturtle` into your user bin directory
+- does not require cloning the repo or running the contributor source build
 
 ### 2. Start CT
 
@@ -251,6 +244,7 @@ At startup, CT can guide you through:
 
 - Anthropic account auth
 - Anthropic Console auth
+- Gemini API-key setup
 - OpenAI Codex OAuth
 
 For OpenAI mode, CT now prefers native SeaTurtle-owned OpenAI/Codex OAuth
@@ -602,6 +596,20 @@ These store a short project-local reminder and surface it after responses.
 
 ## Build And Development
 
+### Production Release Artifact
+
+The production install path is artifact-first. Build the current platform's
+release artifact with:
+
+```bash
+node scripts/build-release-artifact.mjs
+```
+
+Output:
+
+- `dist/release/seaturtle-<platform>.tar.gz`
+- `dist/release/seaturtle-<platform>.tar.gz.sha256`
+
 ### Build
 
 Production bundle:
@@ -836,7 +844,9 @@ bin/ct                          — primary branded wrapper
 bin/seaturtle                   — alias wrapper
 bin/ct-dev                      — development wrapper
 scripts/build-cli.mjs           — build pipeline
-scripts/install-local-cli.sh    — local installer
+scripts/build-release-artifact.mjs — production release packager
+scripts/install-release-cli.sh  — production release installer
+scripts/install-local-cli.sh    — contributor source installer
 source/cli.js.map               — recovered source map
 source/native-addons/           — packaged native addons
 source/src/                     — main recovered source overlay

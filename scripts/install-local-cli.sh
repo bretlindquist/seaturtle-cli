@@ -35,7 +35,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/install-local-cli.sh [--build] [--prefix DIR] [--as-default-claude]
 
-Installs local branded wrappers for this fork:
+Install SeaTurtle contributor wrappers from this source checkout:
   ct
   seaturtle
   ct-dev
@@ -210,6 +210,9 @@ CT is not built yet.
 Next step:
   Rerun this installer with:
     ./scripts/install-local-cli.sh --build
+
+For a normal product install, use the published release installer instead:
+  ./scripts/install-release-cli.sh
 EOF
   exit 1
 fi
@@ -241,13 +244,13 @@ if command -v ct >/dev/null 2>&1; then
 fi
 
 cat <<EOF
-CT wrappers installed.
+SeaTurtle contributor wrappers installed.
 
-Step 1: Local commands were linked into:
+Step 1: Repo-local commands were linked into:
   $prefix
 
 Step 2: Available commands:
-  ct         Start SeaTurtle CT
+  ct         Start SeaTurtle CT from this source checkout
   seaturtle  Same as ct, alternate branded entrypoint
   ct-dev     Run the repo-local development wrapper
   buildct    Rebuild and reinstall local CT wrappers
