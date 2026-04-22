@@ -35,6 +35,15 @@ See [`docs/OPENAI-CODEX.md`](./docs/OPENAI-CODEX.md) for the provider contract
 and [`docs/FEATURES-ROUTER.md`](./docs/FEATURES-ROUTER.md) for the command/doc
 entrypoints.
 
+## Install Paths
+
+SeaTurtle now has two explicit install modes:
+
+- normal product install: published release artifact
+- contributor install: source build from this repo
+
+The production path is documented in [`docs/RELEASE-INSTALL.md`](./docs/RELEASE-INSTALL.md).
+
 ## Gemini Runtime Surface
 
 SeaTurtle now includes a native Gemini runtime behind
@@ -225,6 +234,13 @@ That installer:
 - verifies the release checksum before installing it
 - installs `ct` and `seaturtle` into your user bin directory
 - does not require cloning the repo or running the contributor source build
+
+Current published release-artifact matrix:
+
+- `darwin-arm64`
+- `darwin-x64`
+- `linux-arm64`
+- `linux-x64`
 
 ### 2. Start CT
 
@@ -609,6 +625,11 @@ Output:
 
 - `dist/release/seaturtle-<platform>.tar.gz`
 - `dist/release/seaturtle-<platform>.tar.gz.sha256`
+
+Published GitHub release assets are produced with:
+
+- `node scripts/build-release-artifact.mjs`
+- `scripts/publish-release-assets.sh <tag>`
 
 ### Build
 
