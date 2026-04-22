@@ -12,6 +12,7 @@ import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, 
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
 import { getModelOptions } from '../utils/model/modelOptions.js';
 import type { MainRuntimeProvider } from '../utils/model/providers.js';
+import { shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../utils/model/providers.js';
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
@@ -261,7 +262,8 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const t16 = headerText ?? (shouldUseGeminiProvider() ? "Switch between the Gemini models currently supported by this build. Applies to this session and future CT sessions." : shouldUseOpenAiCodexProvider() ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future CT sessions." : "Switch between the models currently supported by this build. Applies to this session and future CT sessions. For other/previous model names, specify with --model.");
+  const activeProvider = provider ?? (shouldUseGeminiProvider() ? 'gemini' : shouldUseOpenAiCodexProvider() ? 'openai-codex' : 'anthropic');
+  const t16 = headerText ?? (activeProvider === 'gemini' ? "Switch between the Gemini models currently supported by this build. Applies to this session and future CT sessions." : activeProvider === 'openai-codex' ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future CT sessions." : "Switch between the models currently supported by this build. Applies to this session and future CT sessions. For other/previous model names, specify with --model.");
   let t17;
   if ($[42] !== t16) {
     t17 = <Text dimColor={true}>{t16}</Text>;
