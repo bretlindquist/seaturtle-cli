@@ -199,6 +199,49 @@ const enabledBundleFeatures = new Set([
 ]);
 
 let activeBuildTicker = null;
+const buildPhaseMetrics = [];
+
+function formatDurationMs(ms) {
+  if (ms < 1000) {
+    return `${ms}ms`;
+  }
+
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function recordBuildPhase(name, startedAt, detail) {
+  buildPhaseMetrics.push({
+    name,
+    durationMs: Date.now() - startedAt,
+    detail,
+  });
+}
+
+function printBuildPhaseSummary() {
+  const totalMs = buildPhaseMetrics.reduce((sum, phase) => sum + phase.durationMs, 0);
+  console.log('[SeaTurtle CT build] Phase summary');
+  for (const phase of buildPhaseMetrics) {
+    const suffix = phase.detail ? ` (${phase.detail})` : '';
+    console.log(
+      `[SeaTurtle CT build] - ${phase.name}: ${formatDurationMs(phase.durationMs)}${suffix}`,
+    );
+  }
+  console.log(`[SeaTurtle CT build] - total: ${formatDurationMs(totalMs)}`);
+}
+
+function withMeasuredPhase(name, detail, fn) {
+  const startedAt = Date.now();
+  const result = fn();
+  recordBuildPhase(name, startedAt, detail);
+  return result;
+}
+
+async function withMeasuredAsyncPhase(name, detail, fn) {
+  const startedAt = Date.now();
+  const result = await fn();
+  recordBuildPhase(name, startedAt, detail);
+  return result;
+}
 
 function logBuildStep(message) {
   if (process.stdout.isTTY) {
@@ -361,21 +404,36 @@ async function main() {
       }
 
       withBuildTicker('Preparing workspace', () =>
-        prepareWorkspace(getOverlayPackages()),
+        withMeasuredPhase(
+          'workspace prepare',
+          `attempt ${attempt + 1}`,
+          () => prepareWorkspace(getOverlayPackages()),
+        ),
       );
-      await ensureOverlayDependencies(getOverlayPackages());
+      await ensureOverlayDependencies(getOverlayPackages(), attempt + 1);
       logBuildStep('Refreshing generated workspace shims and bundled source overlays');
       withBuildTicker('Refreshing workspace overlays', () =>
-        generateWorkspaceAugmentations(),
+        withMeasuredPhase(
+          'workspace augmentation',
+          `attempt ${attempt + 1}`,
+          () => generateWorkspaceAugmentations(),
+        ),
       );
 
       logBuildStep('Bundling CLI with Bun');
       const buildResult = withBuildTicker('Bundling CT runtime', () =>
-        runBunBuild(),
+        withMeasuredPhase('bundle', `attempt ${attempt + 1}`, () =>
+          runBunBuild(),
+        ),
       );
       if (buildResult.status === 0) {
         logBuildStep('Finalizing wrapper output');
-        withBuildTicker('Finalizing local wrapper output', () => finalizeBuild());
+        withBuildTicker('Finalizing local wrapper output', () =>
+          withMeasuredPhase('finalize', `attempt ${attempt + 1}`, () =>
+            finalizeBuild(),
+          ),
+        );
+        printBuildPhaseSummary();
         return;
       }
 
@@ -471,7 +529,7 @@ function prepareWorkspace(overlayPackages) {
   );
 }
 
-async function ensureOverlayDependencies(packageNames) {
+async function ensureOverlayDependencies(packageNames, attemptNumber) {
   const stamp = readJsonIfExists(overlayStampPath);
   const desiredKey = JSON.stringify(packageNames);
   const installedPackages = parseOverlayPackagesKey(stamp?.packagesKey);
@@ -484,6 +542,11 @@ async function ensureOverlayDependencies(packageNames) {
 
   if ((stamp?.packagesKey === desiredKey || stampSatisfiesDesired) && allPresent) {
     logBuildStep(`Reusing cached overlay dependencies (${packageNames.length} packages)`)
+    recordBuildPhase(
+      'overlay dependencies',
+      Date.now(),
+      `reused ${packageNames.length} packages on attempt ${attemptNumber}`,
+    );
     return;
   }
 
@@ -505,16 +568,21 @@ async function ensureOverlayDependencies(packageNames) {
     '--legacy-peer-deps',
     ...packageNames.map(getOverlayPackageSpec),
   ];
-  const installStatus = await runChildWithHeartbeat('npm', installArgs, {
-    cwd: workspaceRoot,
-    env: {
-      ...process.env,
-      npm_config_progress: 'true',
-    },
-    tickerLabel: 'Installing overlay dependencies with npm',
-    heartbeatLabel: 'Installing overlay dependencies with npm',
-    idleTimeoutLabel: 'Overlay dependency install stalled.',
-  });
+  const installStatus = await withMeasuredAsyncPhase(
+    'overlay dependencies',
+    `installed ${packageNames.length} packages on attempt ${attemptNumber}`,
+    () =>
+      runChildWithHeartbeat('npm', installArgs, {
+        cwd: workspaceRoot,
+        env: {
+          ...process.env,
+          npm_config_progress: 'true',
+        },
+        tickerLabel: 'Installing overlay dependencies with npm',
+        heartbeatLabel: 'Installing overlay dependencies with npm',
+        idleTimeoutLabel: 'Overlay dependency install stalled.',
+      }),
+  );
 
   if (installStatus !== 0) {
     process.exit(installStatus);
