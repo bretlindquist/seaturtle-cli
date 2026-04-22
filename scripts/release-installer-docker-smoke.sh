@@ -56,7 +56,7 @@ docker run --rm \
     XDG_DATA_HOME="/tmp/xdg-data" \
     bash scripts/install-release-cli.sh --prefix /tmp/bin >/dev/null
 
-    /tmp/bin/ct --version | grep -q "1.09 (CT)"
+    /tmp/bin/ct --version | grep -q "1.10 (CT)"
     test -f /tmp/xdg-data/seaturtle/install.json
   '
 

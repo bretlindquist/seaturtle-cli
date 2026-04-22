@@ -23,7 +23,7 @@ assert.equal(
 )
 assert.equal(
   runtimePackage.version,
-  '1.09',
+  '1.10',
   'source/package.json should carry the shipped CT version',
 )
 assert.match(

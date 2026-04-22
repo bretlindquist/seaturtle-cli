@@ -55,7 +55,7 @@ SEATURTLE_RELEASE_WEB_BASE_URL="http://127.0.0.1:8765" \
 XDG_DATA_HOME="$data_home" \
 bash scripts/install-release-cli.sh --prefix "$install_prefix" >/dev/null
 
-"$install_prefix/ct" --version | grep -q '1.09 (CT)'
+"$install_prefix/ct" --version | grep -q '1.10 (CT)'
 test -L "$install_prefix/seaturtle"
 test -f "$data_home/seaturtle/install.json"
 

@@ -20,7 +20,7 @@ Expected artifacts:
 Typical flow:
   node scripts/build-cli.mjs --no-minify
   node scripts/build-release-artifact.mjs
-  scripts/publish-release-assets.sh v1.09
+  scripts/publish-release-assets.sh v1.10
 EOF
   exit 1
 fi

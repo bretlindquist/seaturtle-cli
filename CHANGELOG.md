@@ -1,5 +1,12 @@
 # SeaTurtle Changelog
 
+## 1.10 - 2026-04-22
+
+- Added OpenAI hosted code interpreter as a first-class SeaTurtle tool with routed capability gating, status/auth exposure, self-tests, and live validation.
+- Fixed the OpenAI hosted shell helper to use the streaming transport the current backend requires, so provider-hosted shell execution works again in the built CLI.
+- Hardened OpenAI model and operator truth across `/status`, auth JSON, and the picker so hosted-tool availability is described per model instead of flattened or implied.
+- Added an auth-aware OpenAI model-discovery audit path for maintainers so curated picker models can be checked against the official upstream `/v1/models` catalog without pretending ChatGPT OAuth can refresh that endpoint.
+
 ## 1.09 - 2026-04-21
 
 - Added a production release installer path that installs SeaTurtle from published release artifacts instead of forcing a source build for normal users.
