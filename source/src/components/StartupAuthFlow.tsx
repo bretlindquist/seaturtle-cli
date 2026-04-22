@@ -13,6 +13,17 @@ import {
   loginWithOpenAiCodexOAuth,
 } from '../services/authProfiles/openaiCodexOAuth.js'
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
+import {
+  convertEffortValueToLevel,
+  getDefaultEffortForModel,
+  getEffortLevelDescription,
+  getRememberedEffortSettingForProvider,
+  modelSupportsEffort,
+  modelSupportsMaxEffort,
+  saveRememberedEffortSettingForProvider,
+  toPersistableEffort,
+  type EffortLevel,
+} from '../utils/effort.js'
 import { Box, Link, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
 import { useSetAppState } from '../state/AppState.js'
@@ -22,6 +33,7 @@ import {
   getResolvedMainLoopModelForProvider,
 } from '../utils/model/model.js'
 import { openBrowser } from '../utils/browser.js'
+import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { ModelPicker } from './ModelPicker.js'
 import { Select } from './CustomSelect/select.js'
 import { ConsoleOAuthFlow } from './ConsoleOAuthFlow.js'
@@ -38,6 +50,12 @@ type Screen =
   | { state: 'choose' }
   | { state: 'platform' }
   | { state: 'choose-model'; provider: ProviderChoice }
+  | {
+      state: 'choose-effort'
+      provider: ProviderChoice
+      model: string
+      initialEffort: EffortLevel
+    }
   | { state: 'gemini-options' }
   | { state: 'gemini-api-key' }
   | { state: 'gemini-error'; message: string }
@@ -92,6 +110,7 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
       isActive:
         screen.state === 'platform' ||
         screen.state === 'choose-model' ||
+        screen.state === 'choose-effort' ||
         screen.state === 'gemini-options' ||
         screen.state === 'gemini-api-key' ||
         screen.state === 'gemini-error' ||
@@ -229,16 +248,47 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
   function handleModelSelected(
     provider: ProviderChoice,
     model: string | null,
+    effort: EffortLevel | undefined,
   ): void {
     const resolvedModel = getResolvedMainLoopModelForProvider({
       provider,
       preferredModel: model ?? currentMainLoopModel ?? undefined,
     })
 
+    if (!modelSupportsEffort(resolvedModel)) {
+      finishProviderSetup(provider, resolvedModel, undefined)
+      return
+    }
+
+    const initialEffort =
+      effort ??
+      getRememberedEffortSettingForProvider(provider) ??
+      convertEffortValueToLevel(getDefaultEffortForModel(resolvedModel) ?? 'high')
+
+    setScreen({
+      state: 'choose-effort',
+      provider,
+      model: resolvedModel,
+      initialEffort,
+    })
+  }
+
+  function finishProviderSetup(
+    provider: ProviderChoice,
+    model: string,
+    effort: EffortLevel | undefined,
+  ): void {
+    saveRememberedEffortSettingForProvider(provider, effort)
+    if (provider === 'anthropic') {
+      updateSettingsForSource('userSettings', {
+        effortLevel: toPersistableEffort(effort),
+      })
+    }
     setAppState(prev => ({
       ...prev,
-      mainLoopModel: resolvedModel,
+      mainLoopModel: model,
       mainLoopModelForSession: null,
+      effortValue: effort,
     }))
     onDone()
   }
@@ -315,13 +365,106 @@ export function StartupAuthFlow({ onDone }: Props): React.ReactNode {
           . This avoids carrying an incompatible model over from another
           provider.
         </Text>
+        <Text dimColor>
+          After choosing the model, CT will ask for the default{' '}
+          {screen.provider === 'anthropic' ? 'effort' : 'reasoning'} level for
+          that provider.
+        </Text>
         <ModelPicker
           initial={initialModel}
           provider={screen.provider}
-          onSelect={model => handleModelSelected(screen.provider, model)}
+          onSelect={(model, effort) =>
+            handleModelSelected(screen.provider, model, effort)
+          }
           onCancel={() => setScreen({ state: 'choose' })}
           isStandaloneCommand={true}
+          skipSettingsWrite={true}
         />
+      </Box>
+    )
+  }
+
+  if (screen.state === 'choose-effort') {
+    const effortLabel =
+      screen.provider === 'anthropic' ? 'effort' : 'reasoning level'
+    const effortOptions = [
+      {
+        label: (
+          <Text>
+            Low · <Text dimColor>{getEffortLevelDescription('low')}</Text>
+            {'\n'}
+          </Text>
+        ),
+        value: 'low',
+      },
+      {
+        label: (
+          <Text>
+            Medium · <Text dimColor>{getEffortLevelDescription('medium')}</Text>
+            {'\n'}
+          </Text>
+        ),
+        value: 'medium',
+      },
+      {
+        label: (
+          <Text>
+            High · <Text dimColor>{getEffortLevelDescription('high')}</Text>
+            {'\n'}
+          </Text>
+        ),
+        value: 'high',
+      },
+      ...(modelSupportsMaxEffort(screen.model)
+        ? [
+            {
+              label: (
+                <Text>
+                  {screen.provider === 'anthropic' ? 'Max' : 'Extra high'} ·{' '}
+                  <Text dimColor>{getEffortLevelDescription('max')}</Text>
+                  {'\n'}
+                </Text>
+              ),
+              value: 'max',
+            },
+          ]
+        : []),
+    ]
+
+    return (
+      <Box flexDirection="column" gap={1} marginTop={1} paddingLeft={1}>
+        <Text bold>
+          Choose default {effortLabel}
+        </Text>
+        <Text dimColor>
+          Pick the default {effortLabel} CT should use with{' '}
+          {screen.provider === 'anthropic'
+            ? 'Anthropic'
+            : screen.provider === 'gemini'
+              ? 'Gemini'
+              : 'OpenAI/Codex'}
+          . You can change it later with /effort.
+        </Text>
+        <Box>
+          <Select
+            defaultValue={screen.initialEffort}
+            defaultFocusValue={screen.initialEffort}
+            options={effortOptions}
+            onChange={value =>
+              finishProviderSetup(
+                screen.provider,
+                screen.model,
+                value as EffortLevel,
+              )
+            }
+            onCancel={() =>
+              setScreen({
+                state: 'choose-model',
+                provider: screen.provider,
+              })
+            }
+          />
+        </Box>
       </Box>
     )
   }

@@ -3,8 +3,11 @@ import { isUltrathinkEnabled } from './thinking.js'
 import { getInitialSettings } from './settings/settings.js'
 import { isProSubscriber, isMaxSubscriber, isTeamSubscriber } from './auth.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from 'src/services/analytics/growthbook.js'
+import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import {
   getAPIProvider,
+  getPreferredMainRuntimeProvider,
+  type MainRuntimeProvider,
   shouldUseGeminiProvider,
   shouldUseOpenAiCodexProvider,
 } from './model/providers.js'
@@ -22,6 +25,11 @@ export const EFFORT_LEVELS = [
 ] as const satisfies readonly EffortLevel[]
 
 export type EffortValue = EffortLevel | number
+
+type RememberedEffortField =
+  | 'rememberedAnthropicEffortLevel'
+  | 'rememberedOpenAiCodexEffortLevel'
+  | 'rememberedGeminiEffortLevel'
 
 const OPENAI_CODEX_REASONING_MODELS = new Set([
   'gpt-5.4',
@@ -163,9 +171,78 @@ export function toPersistableEffort(
 }
 
 export function getInitialEffortSetting(): EffortLevel | undefined {
+  const preferredProvider = getPreferredMainRuntimeProvider()
+  if (preferredProvider) {
+    const remembered = getRememberedEffortSettingForProvider(preferredProvider)
+    if (remembered !== undefined) {
+      return remembered
+    }
+    if (preferredProvider !== 'anthropic') {
+      return undefined
+    }
+  }
+
   // toPersistableEffort filters 'max' for non-ants on read, so a manually
   // edited settings.json doesn't leak session-scoped max into a fresh session.
   return toPersistableEffort(getInitialSettings().effortLevel)
+}
+
+function getRememberedEffortField(
+  provider: MainRuntimeProvider,
+): RememberedEffortField {
+  switch (provider) {
+    case 'openai-codex':
+      return 'rememberedOpenAiCodexEffortLevel'
+    case 'gemini':
+      return 'rememberedGeminiEffortLevel'
+    default:
+      return 'rememberedAnthropicEffortLevel'
+  }
+}
+
+export function getRememberedEffortSettingForProvider(
+  provider: MainRuntimeProvider,
+): EffortLevel | undefined {
+  const value = getGlobalConfig()[getRememberedEffortField(provider)]
+  return value !== undefined && isEffortLevel(value) ? value : undefined
+}
+
+export function getRememberedEffortSettingForActiveProvider():
+  | EffortLevel
+  | undefined {
+  const provider = getPreferredMainRuntimeProvider()
+  if (!provider) {
+    return undefined
+  }
+
+  return getRememberedEffortSettingForProvider(provider)
+}
+
+export function saveRememberedEffortSettingForProvider(
+  provider: MainRuntimeProvider,
+  effort: EffortLevel | undefined,
+): void {
+  const field = getRememberedEffortField(provider)
+  saveGlobalConfig(current => {
+    if (current[field] === effort) {
+      return current
+    }
+    return {
+      ...current,
+      [field]: effort,
+    }
+  })
+}
+
+export function saveRememberedEffortSettingForActiveProvider(
+  effort: EffortLevel | undefined,
+): void {
+  const provider = getPreferredMainRuntimeProvider()
+  if (!provider) {
+    return
+  }
+
+  saveRememberedEffortSettingForProvider(provider, effort)
 }
 
 /**

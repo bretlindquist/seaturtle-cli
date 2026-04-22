@@ -4,8 +4,8 @@ import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
 import { type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, logEvent } from '../../services/analytics/index.js';
 import { useAppState, useSetAppState } from '../../state/AppState.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
-import { type EffortValue, getDisplayedEffortLevel, getEffortEnvOverride, getEffortValueDescription, isEffortLevel, modelSupportsMaxEffort, toPersistableEffort } from '../../utils/effort.js';
-import { shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
+import { type EffortValue, getDisplayedEffortLevel, getEffortEnvOverride, getEffortValueDescription, isEffortLevel, modelSupportsEffort, modelSupportsMaxEffort, saveRememberedEffortSettingForActiveProvider, toPersistableEffort } from '../../utils/effort.js';
+import { getPreferredMainRuntimeProvider, shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
 import { updateSettingsForSource } from '../../utils/settings/settings.js';
 const COMMON_HELP_ARGS = ['help', '-h', '--help'];
 type EffortCommandResult = {
@@ -31,16 +31,23 @@ function normalizeEffortInput(value: string): string {
   return normalized;
 }
 function setEffortValue(effortValue: EffortValue, model: string): EffortCommandResult {
+  const activeProvider = getPreferredMainRuntimeProvider() ?? 'anthropic';
   const usesProviderReasoning = shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider();
+  if (!modelSupportsEffort(model)) {
+    return {
+      message: usesProviderReasoning ? `Reasoning levels are not supported for ${model}. Choose a supported model with /model first.` : `Effort levels are not supported for ${model}. Choose a supported model with /model first.`
+    };
+  }
   if (usesProviderReasoning && effortValue === 'max' && !modelSupportsMaxEffort(model)) {
     return {
       message: `Extra high reasoning is not supported for ${model}. Use low, medium, or high instead.`
     };
   }
-  const persistable = toPersistableEffort(effortValue);
-  if (persistable !== undefined) {
+  const rememberedEffort = typeof effortValue === 'string' ? effortValue : undefined;
+  saveRememberedEffortSettingForActiveProvider(rememberedEffort);
+  if (activeProvider === 'anthropic') {
     const result = updateSettingsForSource('userSettings', {
-      effortLevel: persistable
+      effortLevel: toPersistableEffort(effortValue)
     });
     if (result.error) {
       return {
@@ -54,7 +61,7 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
   if (usesProviderReasoning) {
     const description = getEffortValueDescription(effortValue);
     const label = formatEffortLabel(effortValue);
-    const suffix = persistable !== undefined ? '' : ' (this session only)';
+    const suffix = rememberedEffort !== undefined ? '' : ' (this session only)';
     return {
       message: `Set reasoning level to ${label}${suffix}: ${description}`,
       effortUpdate: {
@@ -69,7 +76,7 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
   const envOverride = getEffortEnvOverride();
   if (envOverride !== undefined && envOverride !== effortValue) {
     const envRaw = process.env.CLAUDE_CODE_EFFORT_LEVEL;
-    if (persistable === undefined) {
+    if (rememberedEffort === undefined) {
       return {
         message: `Not applied: CLAUDE_CODE_EFFORT_LEVEL=${envRaw} overrides effort this session, and ${effortValue} is session-only (nothing saved)`,
         effortUpdate: {
@@ -85,7 +92,7 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
     };
   }
   const description = getEffortValueDescription(effortValue);
-  const suffix = persistable !== undefined ? '' : ' (this session only)';
+  const suffix = rememberedEffort !== undefined ? '' : ' (this session only)';
   return {
     message: `Set effort level to ${effortValue}${suffix}: ${description}`,
     effortUpdate: {
@@ -96,6 +103,11 @@ function setEffortValue(effortValue: EffortValue, model: string): EffortCommandR
 export function showCurrentEffort(appStateEffort: EffortValue | undefined, model: string): EffortCommandResult {
   const envOverride = getEffortEnvOverride();
   const effectiveValue = envOverride === null ? undefined : envOverride ?? appStateEffort;
+  if (!modelSupportsEffort(model)) {
+    return {
+      message: shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider() ? `Reasoning levels are not available for ${model}. Choose a supported model with /model.` : `Effort levels are not available for ${model}. Choose a supported model with /model.`
+    };
+  }
   if (shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()) {
     const displayedLevel = formatEffortLabel(getDisplayedEffortLevel(model, appStateEffort));
     if (effectiveValue === undefined) {
@@ -120,13 +132,17 @@ export function showCurrentEffort(appStateEffort: EffortValue | undefined, model
   };
 }
 function unsetEffortLevel(): EffortCommandResult {
-  const result = updateSettingsForSource('userSettings', {
-    effortLevel: undefined
-  });
-  if (result.error) {
-    return {
-      message: `Failed to set effort level: ${result.error.message}`
-    };
+  const activeProvider = getPreferredMainRuntimeProvider() ?? 'anthropic';
+  saveRememberedEffortSettingForActiveProvider(undefined);
+  if (activeProvider === 'anthropic') {
+    const result = updateSettingsForSource('userSettings', {
+      effortLevel: undefined
+    });
+    if (result.error) {
+      return {
+        message: `Failed to set effort level: ${result.error.message}`
+      };
+    }
   }
   logEvent('tengu_effort_command', {
     effort: 'auto' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS

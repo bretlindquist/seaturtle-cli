@@ -46,6 +46,7 @@ const ccrAutoConnect = feature('CCR_AUTO_CONNECT')
 
 /* eslint-enable @typescript-eslint/no-require-imports */
 import type { ImageDimensions } from './imageResizer.js'
+import type { EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import type { ModelOption } from './model/modelOptions.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 
@@ -248,6 +249,9 @@ export type GlobalConfig = {
   rememberedAnthropicMainModel?: string
   rememberedOpenAiCodexMainModel?: string
   rememberedGeminiMainModel?: string
+  rememberedAnthropicEffortLevel?: EffortLevel
+  rememberedOpenAiCodexEffortLevel?: EffortLevel
+  rememberedGeminiEffortLevel?: EffortLevel
   telegramProfiles?: Record<string, TelegramBotProfileMeta>
   /**
    * @deprecated Use projects[projectPath].telegram and telegramProfiles instead.
@@ -710,6 +714,9 @@ export const GLOBAL_CONFIG_KEYS = [
   'rememberedAnthropicMainModel',
   'rememberedOpenAiCodexMainModel',
   'rememberedGeminiMainModel',
+  'rememberedAnthropicEffortLevel',
+  'rememberedOpenAiCodexEffortLevel',
+  'rememberedGeminiEffortLevel',
   'preferredNotifChannel',
   'shiftEnterKeyBindingInstalled',
   'editorMode',

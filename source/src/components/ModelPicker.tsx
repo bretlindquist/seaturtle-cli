@@ -8,7 +8,7 @@ import { FAST_MODE_MODEL_DISPLAY, isFastModeAvailable, isFastModeCooldown, isFas
 import { Box, Text } from '../ink.js';
 import { useKeybindings } from '../keybindings/useKeybinding.js';
 import { useAppState, useSetAppState } from '../state/AppState.js';
-import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, modelSupportsEffort, modelSupportsMaxEffort, resolvePickerEffortPersistence, toPersistableEffort } from '../utils/effort.js';
+import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, getRememberedEffortSettingForProvider, modelSupportsEffort, modelSupportsMaxEffort, resolvePickerEffortPersistence, saveRememberedEffortSettingForProvider, toPersistableEffort } from '../utils/effort.js';
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
 import { getModelOptions } from '../utils/model/modelOptions.js';
 import type { MainRuntimeProvider } from '../utils/model/providers.js';
@@ -197,6 +197,7 @@ export function ModelPicker(t0) {
     t11 = $[31];
   }
   const handleCycleEffort = t11;
+  const activeProvider = provider ?? (shouldUseGeminiProvider() ? 'gemini' : shouldUseOpenAiCodexProvider() ? 'openai-codex' : 'anthropic');
   let t12;
   if ($[32] !== handleCycleEffort) {
     t12 = {
@@ -219,15 +220,17 @@ export function ModelPicker(t0) {
   }
   useKeybindings(t12, t13);
   let t14;
-  if ($[35] !== effort || $[36] !== hasToggledEffort || $[37] !== onSelect || $[38] !== setAppState || $[39] !== skipSettingsWrite) {
+  if ($[35] !== activeProvider || $[36] !== effort || $[37] !== hasToggledEffort || $[38] !== onSelect || $[39] !== skipSettingsWrite) {
     t14 = function handleSelect(value_0) {
       logEvent("tengu_model_command_menu_effort", {
         effort: effort as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
       });
       if (!skipSettingsWrite) {
-        const effortLevel = resolvePickerEffortPersistence(effort, getDefaultEffortLevelForOption(value_0), getSettingsForSource("userSettings")?.effortLevel, hasToggledEffort);
-        const persistable = toPersistableEffort(effortLevel);
-        if (persistable !== undefined) {
+        const priorPersisted = getRememberedEffortSettingForProvider(activeProvider) ?? (activeProvider === 'anthropic' ? getSettingsForSource("userSettings")?.effortLevel : undefined);
+        const effortLevel = resolvePickerEffortPersistence(effort, getDefaultEffortLevelForOption(value_0), priorPersisted, hasToggledEffort);
+        saveRememberedEffortSettingForProvider(activeProvider, effortLevel);
+        if (activeProvider === 'anthropic') {
+          const persistable = toPersistableEffort(effortLevel);
           updateSettingsForSource("userSettings", {
             effortLevel: persistable
           });
@@ -245,10 +248,10 @@ export function ModelPicker(t0) {
       }
       onSelect(value_0, selectedEffort);
     };
-    $[35] = effort;
-    $[36] = hasToggledEffort;
-    $[37] = onSelect;
-    $[38] = setAppState;
+    $[35] = activeProvider;
+    $[36] = effort;
+    $[37] = hasToggledEffort;
+    $[38] = onSelect;
     $[39] = skipSettingsWrite;
     $[40] = t14;
   } else {
@@ -262,7 +265,6 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const activeProvider = provider ?? (shouldUseGeminiProvider() ? 'gemini' : shouldUseOpenAiCodexProvider() ? 'openai-codex' : 'anthropic');
   const t16 = headerText ?? (activeProvider === 'gemini' ? "Switch between the Gemini models currently supported by this build. Applies to this session and future CT sessions." : activeProvider === 'openai-codex' ? "Switch between the OpenAI/Codex models currently supported by this build. Applies to this session and future CT sessions." : "Switch between the models currently supported by this build. Applies to this session and future CT sessions. For other/previous model names, specify with --model.");
   let t17;
   if ($[42] !== t16) {
@@ -323,7 +325,7 @@ export function ModelPicker(t0) {
   }
   let t24;
   if ($[62] !== displayEffort || $[63] !== focusedDefaultEffort || $[64] !== focusedModelName || $[65] !== focusedSupportsEffort) {
-    t24 = <Box marginBottom={1} flexDirection="column">{focusedSupportsEffort ? <Text dimColor={true}><EffortLevelIndicator effort={displayEffort} />{" "}{capitalize(displayEffort)} effort{displayEffort === focusedDefaultEffort ? " (default)" : ""}{" "}<Text color="subtle">← → to adjust</Text></Text> : <Text color="subtle"><EffortLevelIndicator effort={undefined} /> Effort not supported{focusedModelName ? ` for ${focusedModelName}` : ""}</Text>}</Box>;
+    t24 = <Box marginBottom={1} flexDirection="column">{focusedSupportsEffort ? <Text dimColor={true}><EffortLevelIndicator effort={displayEffort} />{" "}{getEffortDisplayLabel(activeProvider, displayEffort)} {activeProvider === 'anthropic' ? 'effort' : 'reasoning'}{displayEffort === focusedDefaultEffort ? " (default)" : ""}{" "}<Text color="subtle">← → to adjust</Text></Text> : <Text color="subtle"><EffortLevelIndicator effort={undefined} /> Effort not supported{focusedModelName ? ` for ${focusedModelName}` : ""}</Text>}</Box>;
     $[62] = displayEffort;
     $[63] = focusedDefaultEffort;
     $[64] = focusedModelName;
@@ -399,6 +401,10 @@ function _temp(s) {
 function resolveOptionModel(value?: string): string | undefined {
   if (!value) return undefined;
   return value === NO_PREFERENCE ? getDefaultMainLoopModel() : parseUserSpecifiedModel(value);
+}
+function getEffortDisplayLabel(provider: MainRuntimeProvider, effort: EffortLevel | undefined): string {
+  const normalized = provider !== 'anthropic' && effort === 'max' ? 'extra high' : effort ?? 'low';
+  return capitalize(normalized);
 }
 function EffortLevelIndicator(t0) {
   const $ = _c(5);

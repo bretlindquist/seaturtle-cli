@@ -14,6 +14,7 @@ import { MODEL_ALIASES } from '../../utils/model/aliases.js';
 import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js';
 import { getDefaultMainLoopModelSetting, isOpus1mMergeEnabled, renderDefaultModelSetting } from '../../utils/model/model.js';
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js';
+import { shouldUseGeminiProvider, shouldUseOpenAiCodexProvider } from '../../utils/model/providers.js';
 import { validateModel } from '../../utils/model/validateModel.js';
 function ModelPickerWrapper(t0) {
   const $ = _c(17);
@@ -57,7 +58,7 @@ function ModelPickerWrapper(t0) {
       }));
       let message = `Set model to ${chalk.bold(renderModelLabel(model))}`;
       if (effort !== undefined) {
-        message = message + ` with ${chalk.bold(effort)} effort`;
+        message = message + ` with ${chalk.bold(renderEffortLabel(effort))} ${usesProviderReasoning() ? 'reasoning' : 'effort'}`;
       }
       let wasFastModeToggledOn = undefined;
       if (isFastModeEnabled()) {
@@ -243,6 +244,12 @@ function isSonnet1mUnavailable(model: string): boolean {
   // a different access criteria.
   return !checkSonnet1mAccess() && (m.includes('sonnet[1m]') || m.includes('sonnet-4-6[1m]'));
 }
+function usesProviderReasoning(): boolean {
+  return shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider();
+}
+function renderEffortLabel(effort: EffortLevel): string {
+  return usesProviderReasoning() && effort === 'max' ? 'extra high' : effort;
+}
 function ShowModelAndClose(t0) {
   const {
     onDone
@@ -251,7 +258,7 @@ function ShowModelAndClose(t0) {
   const mainLoopModelForSession = useAppState(_temp8);
   const effortValue = useAppState(_temp9);
   const displayModel = renderModelLabel(mainLoopModel);
-  const effortInfo = effortValue !== undefined ? ` (effort: ${effortValue})` : "";
+  const effortInfo = effortValue !== undefined ? ` (${usesProviderReasoning() ? 'reasoning' : 'effort'}: ${renderEffortLabel(effortValue)})` : "";
   if (mainLoopModelForSession) {
     onDone(`Current model: ${chalk.bold(renderModelLabel(mainLoopModelForSession))} (session override from plan mode)\nBase model: ${displayModel}${effortInfo}`);
   } else {
