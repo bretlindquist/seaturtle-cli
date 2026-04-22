@@ -76,6 +76,13 @@ export const OPENAI_CODEX_MODEL_DEFINITIONS: readonly OpenAiCodexModelDefinition
         'GPT-5.4 Mini - smaller frontier agentic coding model',
     },
     {
+      value: 'gpt-5.4-nano',
+      label: 'GPT-5.4 Nano',
+      description: 'Fastest GPT-5.4-class model for lightweight subagent work',
+      descriptionForModel:
+        'GPT-5.4 Nano - fastest GPT-5.4-class model for lightweight subagent work',
+    },
+    {
       value: 'gpt-5.3-codex',
       label: 'GPT-5.3 Codex',
       description: 'Frontier Codex-optimized agentic coding model',
@@ -119,54 +126,12 @@ export function getOpenAiCodexModelDefinitions(): readonly OpenAiCodexModelDefin
   return OPENAI_CODEX_MODEL_DEFINITIONS
 }
 
-const FULL_OPENAI_TOOLSTACK_MODELS = new Set(['gpt-5.4', 'gpt-5.4-mini'])
-const CODEX_FAMILY_MODELS = new Set([
-  'gpt-5.3-codex',
-  'gpt-5.2-codex',
-  'gpt-5.1-codex-max',
-  'gpt-5.1-codex-mini',
-])
-
-const ROUTED_OPENAI_CODEX_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities = {
-  supportsWebSearch: true,
-  supportsFileSearch: true,
-  supportsMcp: true,
-  supportsToolSearch: false,
-  supportsHostedShell: true,
-  supportsApplyPatch: false,
-  supportsComputerUse: true,
-  supportsSkills: false,
-  supportsCodeInterpreter: false,
-  supportsImageGeneration: true,
+type OpenAiCodexModelCapabilityRecord = {
+  documented: OpenAiCodexModelCapabilities
+  routed: OpenAiCodexModelCapabilities
 }
 
-const FULL_OPENAI_CODEX_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities = {
-  supportsWebSearch: true,
-  supportsFileSearch: true,
-  supportsMcp: true,
-  supportsToolSearch: true,
-  supportsHostedShell: true,
-  supportsApplyPatch: true,
-  supportsComputerUse: true,
-  supportsSkills: true,
-  supportsCodeInterpreter: true,
-  supportsImageGeneration: true,
-}
-
-const DOC_VERIFIED_FULL_OPENAI_CODEX_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities = {
-  supportsWebSearch: true,
-  supportsFileSearch: true,
-  supportsMcp: true,
-  supportsToolSearch: true,
-  supportsHostedShell: true,
-  supportsApplyPatch: true,
-  supportsComputerUse: true,
-  supportsSkills: true,
-  supportsCodeInterpreter: true,
-  supportsImageGeneration: true,
-}
-
-const DOC_VERIFIED_CODEX_FAMILY_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities = {
+const NO_OPENAI_CODEX_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities = {
   supportsWebSearch: false,
   supportsFileSearch: false,
   supportsMcp: false,
@@ -179,28 +144,153 @@ const DOC_VERIFIED_CODEX_FAMILY_MODEL_CAPABILITIES: OpenAiCodexModelCapabilities
   supportsImageGeneration: false,
 }
 
+const OPENAI_ROUTED_5_4_FAMILY_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  supportsWebSearch: true,
+  supportsFileSearch: true,
+  supportsMcp: true,
+  supportsToolSearch: false,
+  supportsHostedShell: true,
+  supportsApplyPatch: false,
+  supportsComputerUse: true,
+  supportsSkills: false,
+  supportsCodeInterpreter: false,
+  supportsImageGeneration: true,
+}
+
+const OPENAI_DOCUMENTED_5_4_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  supportsWebSearch: true,
+  supportsFileSearch: true,
+  supportsMcp: true,
+  supportsToolSearch: true,
+  supportsHostedShell: true,
+  supportsApplyPatch: true,
+  supportsComputerUse: true,
+  supportsSkills: true,
+  supportsCodeInterpreter: true,
+  supportsImageGeneration: true,
+}
+
+const OPENAI_DOCUMENTED_5_4_MINI_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  supportsWebSearch: true,
+  supportsFileSearch: true,
+  supportsMcp: false,
+  supportsToolSearch: false,
+  supportsHostedShell: true,
+  supportsApplyPatch: true,
+  supportsComputerUse: true,
+  supportsSkills: true,
+  supportsCodeInterpreter: true,
+  supportsImageGeneration: true,
+}
+
+const OPENAI_ROUTED_5_4_MINI_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  ...OPENAI_DOCUMENTED_5_4_MINI_CAPABILITIES,
+  supportsApplyPatch: false,
+  supportsSkills: false,
+  supportsCodeInterpreter: false,
+}
+
+const OPENAI_DOCUMENTED_5_4_NANO_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  supportsWebSearch: true,
+  supportsFileSearch: true,
+  supportsMcp: true,
+  supportsToolSearch: false,
+  supportsHostedShell: true,
+  supportsApplyPatch: true,
+  supportsComputerUse: false,
+  supportsSkills: true,
+  supportsCodeInterpreter: true,
+  supportsImageGeneration: true,
+}
+
+const OPENAI_ROUTED_5_4_NANO_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  ...OPENAI_DOCUMENTED_5_4_NANO_CAPABILITIES,
+  supportsApplyPatch: false,
+  supportsSkills: false,
+  supportsCodeInterpreter: false,
+}
+
+// The current GPT-5.2 model page snapshot does not expose the same detailed
+// tool matrix as GPT-5.4. Keep this conservative and limited to the older
+// GPT-5-class hosted tools that SeaTurtle already routes confidently.
+const OPENAI_DOCUMENTED_5_2_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  supportsWebSearch: true,
+  supportsFileSearch: true,
+  supportsMcp: true,
+  supportsToolSearch: false,
+  supportsHostedShell: false,
+  supportsApplyPatch: false,
+  supportsComputerUse: false,
+  supportsSkills: false,
+  supportsCodeInterpreter: false,
+  supportsImageGeneration: true,
+}
+
+const OPENAI_ROUTED_5_2_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  ...OPENAI_DOCUMENTED_5_2_CAPABILITIES,
+}
+
+const OPENAI_CODEX_MODEL_CAPABILITY_REGISTRY: Readonly<
+  Record<string, OpenAiCodexModelCapabilityRecord>
+> = {
+  'gpt-5.4': {
+    documented: OPENAI_DOCUMENTED_5_4_CAPABILITIES,
+    routed: OPENAI_ROUTED_5_4_FAMILY_CAPABILITIES,
+  },
+  'gpt-5.4-mini': {
+    documented: OPENAI_DOCUMENTED_5_4_MINI_CAPABILITIES,
+    routed: OPENAI_ROUTED_5_4_MINI_CAPABILITIES,
+  },
+  'gpt-5.4-nano': {
+    documented: OPENAI_DOCUMENTED_5_4_NANO_CAPABILITIES,
+    routed: OPENAI_ROUTED_5_4_NANO_CAPABILITIES,
+  },
+  'gpt-5.2': {
+    documented: OPENAI_DOCUMENTED_5_2_CAPABILITIES,
+    routed: OPENAI_ROUTED_5_2_CAPABILITIES,
+  },
+  'gpt-5.3-codex': {
+    documented: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+    routed: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+  },
+  'gpt-5.2-codex': {
+    documented: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+    routed: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+  },
+  'gpt-5.1-codex-max': {
+    documented: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+    routed: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+  },
+  'gpt-5.1-codex-mini': {
+    documented: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+    routed: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+  },
+} as const
+
+const DEFAULT_OPENAI_CODEX_MODEL_CAPABILITY_RECORD: OpenAiCodexModelCapabilityRecord = {
+  documented: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+  routed: NO_OPENAI_CODEX_MODEL_CAPABILITIES,
+}
+
+export function getOpenAiCodexModelCapabilityRecord(
+  model: string,
+): OpenAiCodexModelCapabilityRecord {
+  return (
+    OPENAI_CODEX_MODEL_CAPABILITY_REGISTRY[model] ??
+    DEFAULT_OPENAI_CODEX_MODEL_CAPABILITY_RECORD
+  )
+}
+
 export function getDocumentedOpenAiCodexModelCapabilities(
   model: string,
 ): OpenAiCodexModelCapabilities {
-  if (FULL_OPENAI_TOOLSTACK_MODELS.has(model)) {
-    return DOC_VERIFIED_FULL_OPENAI_CODEX_MODEL_CAPABILITIES
-  }
-
-  if (CODEX_FAMILY_MODELS.has(model)) {
-    return DOC_VERIFIED_CODEX_FAMILY_MODEL_CAPABILITIES
-  }
-
-  return DOC_VERIFIED_CODEX_FAMILY_MODEL_CAPABILITIES
+  return getOpenAiCodexModelCapabilityRecord(model).documented
 }
 
 export function getRoutedOpenAiCodexModelCapabilities(
   model: string,
 ): OpenAiCodexModelCapabilities {
-  if (FULL_OPENAI_TOOLSTACK_MODELS.has(model) || CODEX_FAMILY_MODELS.has(model)) {
-    return ROUTED_OPENAI_CODEX_MODEL_CAPABILITIES
-  }
-
-  return DOC_VERIFIED_CODEX_FAMILY_MODEL_CAPABILITIES
+  return getOpenAiCodexModelCapabilityRecord(model).routed
 }
 
 type OpenAiCodexReasoningPayload = {
