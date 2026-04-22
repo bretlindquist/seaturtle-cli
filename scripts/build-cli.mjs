@@ -113,8 +113,10 @@ const telemetryOverlayDependencyPackages = [
 ];
 
 const transitiveRuntimeOverlayDependencyPackages = [
+  '@aws-sdk/client-sso',
   '@smithy/core',
   '@smithy/node-http-handler',
+  'punycode',
 ];
 
 const baseOverlayDependencyPackages = [

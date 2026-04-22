@@ -25,7 +25,6 @@ for (const groupName of [
 }
 
 for (const removedPackage of [
-  '@aws-sdk/client-sso',
   '@azure/msal-node',
   '@azure/msal-common',
   '@smithy/eventstream-serde-node',
@@ -48,6 +47,16 @@ for (const removedPackage of [
     overlaySection,
     new RegExp(`'${removedPackage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}'`),
     `build-cli should not keep ${removedPackage} in the default explicit overlay set`,
+  )
+}
+
+for (const transitivePackage of ['@aws-sdk/client-sso', 'punycode']) {
+  assert.match(
+    source,
+    new RegExp(
+      `const transitiveRuntimeOverlayDependencyPackages = \\[[\\s\\S]*'${transitivePackage.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}'`,
+    ),
+    `build-cli should keep ${transitivePackage} in the transitive runtime overlay group`,
   )
 }
 
