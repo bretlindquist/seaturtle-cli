@@ -86,6 +86,7 @@ bun scripts/openai_helper_transport_selftest.ts >/dev/null
 bun scripts/openai_builtin_input_shape_selftest.ts >/dev/null
 bun scripts/user_image_render_selftest.ts >/dev/null
 bun scripts/dev_runtime_overrides_selftest.ts >/dev/null
+bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/teammate_mode_snapshot_selftest.ts >/dev/null
 bun scripts/transcript_search_close_refresh_selftest.ts >/dev/null
 bun scripts/openai_web_fetch_error_selftest.ts >/dev/null

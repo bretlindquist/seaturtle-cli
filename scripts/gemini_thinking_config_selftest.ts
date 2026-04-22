@@ -55,6 +55,14 @@ assert.deepEqual(
   { thinkingConfig: { thinkingBudget: 0 } },
 )
 
+assert.deepEqual(
+  buildGeminiThinkingConfig({
+    model: 'gemini-2.5-pro',
+    thinkingConfig: { type: 'disabled' },
+  }),
+  {},
+)
+
 const gemini3 = buildGeminiThinkingConfig({
   model: 'gemini-3-flash-preview',
   effortValue: 'high',

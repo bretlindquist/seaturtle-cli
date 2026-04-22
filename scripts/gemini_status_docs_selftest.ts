@@ -28,6 +28,11 @@ assert.match(
 )
 assert.match(
   authHandler,
+  /urlContext:/,
+  'auth status JSON should expose Gemini URL context capability truth',
+)
+assert.match(
+  authHandler,
   /url_context_function_call_combination_limits/,
   'auth status JSON should expose the Gemini URL context combination gate',
 )
@@ -53,6 +58,21 @@ assert.doesNotMatch(
 )
 assert.match(
   geminiDocs,
+  /does not require a separate Google Search API key/i,
+  'Gemini docs should state that routed Gemini web access does not require a second Search API key',
+)
+assert.match(
+  geminiDocs,
+  /falls back[\s\S]*WebFetch path/i,
+  'Gemini docs should explain the local WebFetch fallback for unsupported URL-context targets',
+)
+assert.match(
+  geminiDocs,
+  /validated Gemini 3[\s\S]*routed path/i,
+  'Gemini docs should explain that SeaTurtle currently routes URL context on the validated Gemini 3 path',
+)
+assert.match(
+  geminiDocs,
   /documented Gemini support[\s\S]*routed SeaTurtle support/i,
   'Gemini docs should explain documented versus routed capability truth',
 )
@@ -75,6 +95,16 @@ assert.match(
   readme,
   /native Gemini runtime/,
   'README should describe Gemini as a native runtime, not an initial scaffold',
+)
+assert.match(
+  readme,
+  /does not require a separate Google[\s\S]*Search API key/i,
+  'README should state that Gemini web access does not require a second Search API key',
+)
+assert.match(
+  readme,
+  /validated Gemini 3[\s\S]*routed path/i,
+  'README should explain the current routed Gemini URL-context scope',
 )
 
 console.log('gemini-status-docs self-test passed')

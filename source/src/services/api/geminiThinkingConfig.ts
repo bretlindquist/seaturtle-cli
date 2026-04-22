@@ -1,4 +1,5 @@
 import type { ThinkingConfig } from '../../utils/thinking.js'
+import { getGeminiModelDefinition } from './geminiCapabilityConfig.js'
 
 type GeminiEffortValue = 'low' | 'medium' | 'high' | 'max' | number
 
@@ -65,10 +66,15 @@ function buildGemini3ThinkingConfig(params: {
 }
 
 function buildGemini25ThinkingConfig(params: {
+  model: string
   effortValue?: GeminiEffortValue
   thinkingConfig: ThinkingConfig
 }): GeminiThinkingConfigResult {
   if (params.thinkingConfig.type === 'disabled') {
+    const definition = getGeminiModelDefinition(params.model)
+    if (definition && !definition.thinkingCanBeDisabled) {
+      return {}
+    }
     return { thinkingConfig: { thinkingBudget: 0 } }
   }
   if (params.thinkingConfig.type === 'enabled') {

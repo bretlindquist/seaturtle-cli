@@ -90,9 +90,13 @@ const ROUTED_GEMINI_MODEL_CAPABILITIES: GeminiModelCapabilities = {
   supportsFunctionCalling: true,
   supportsMultimodalInput: true,
   supportsWebSearch: true,
-  supportsUrlContext: true,
+  supportsUrlContext: false,
   supportsCodeExecution: true,
 }
+
+const ROUTED_GEMINI_URL_CONTEXT_MODELS = new Set<string>([
+  'gemini-3-flash-preview',
+])
 
 const GEMINI_3_MAIN_LOOP_DOCUMENTED_CAPABILITIES: GeminiModelCapabilities = {
   ...MAIN_LOOP_DOCUMENTED_CAPABILITIES,
@@ -331,7 +335,10 @@ export function getRoutedGeminiModelCapabilities(
   if (!definition?.uses.includes('main-loop')) {
     return EMPTY_GEMINI_MODEL_CAPABILITIES
   }
-  return ROUTED_GEMINI_MODEL_CAPABILITIES
+  return {
+    ...ROUTED_GEMINI_MODEL_CAPABILITIES,
+    supportsUrlContext: ROUTED_GEMINI_URL_CONTEXT_MODELS.has(definition.value),
+  }
 }
 
 export function validateGeminiModel(model: string): string | null {

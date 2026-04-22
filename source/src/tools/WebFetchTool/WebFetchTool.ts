@@ -1,5 +1,7 @@
 import { z } from 'zod/v4'
 import { runGeminiUrlContext } from '../../services/api/geminiUrlContext.js'
+import { validateGeminiUrlContextUrls } from '../../services/api/geminiGrounding.js'
+import { getRoutedGeminiModelCapabilities } from '../../services/api/geminiCapabilityConfig.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
@@ -213,8 +215,27 @@ ${DESCRIPTION}`
   ) {
     const start = Date.now()
     const runtime = getMainLoopProviderRuntime()
+    const geminiUrlContextRouted =
+      runtime.family === 'gemini'
+        ? getRoutedGeminiModelCapabilities(options.mainLoopModel)
+            .supportsUrlContext
+        : false
+    const geminiUrlContextValidationError =
+      runtime.family === 'gemini' && geminiUrlContextRouted
+        ? validateGeminiUrlContextUrls([url])
+        : null
+    const geminiLocalFallbackNote =
+      runtime.family === 'gemini' && !geminiUrlContextRouted
+        ? `[Gemini URL context is not routed for model ${options.mainLoopModel} in this SeaTurtle build; SeaTurtle used the local WebFetch path instead.]`
+        : runtime.family === 'gemini' && geminiUrlContextValidationError
+          ? `[Gemini URL context unavailable for this URL; SeaTurtle used the local WebFetch path instead: ${geminiUrlContextValidationError}]`
+        : ''
 
-    if (runtime.family === 'gemini') {
+    if (
+      runtime.family === 'gemini' &&
+      geminiUrlContextRouted &&
+      !geminiUrlContextValidationError
+    ) {
       const result = await runGeminiUrlContext({
         model: options.mainLoopModel,
         prompt,
@@ -267,12 +288,15 @@ Status: ${response.statusCode} ${statusText}
 To complete your request, I need to fetch content from the redirected URL. Please use WebFetch again with these parameters:
 - url: "${response.redirectUrl}"
 - prompt: "${prompt}"`
+      const result = geminiLocalFallbackNote
+        ? `${message}\n\n${geminiLocalFallbackNote}`
+        : message
 
       const output: Output = {
-        bytes: Buffer.byteLength(message),
+        bytes: Buffer.byteLength(result),
         code: response.statusCode,
         codeText: statusText,
-        result: message,
+        result,
         durationMs: Date.now() - start,
         url,
       }
@@ -316,6 +340,9 @@ To complete your request, I need to fetch content from the redirected URL. Pleas
     // if the Haiku summary above isn't enough.
     if (persistedPath) {
       result += `\n\n[Binary content (${contentType}, ${formatFileSize(persistedSize ?? bytes)}) also saved to ${persistedPath}]`
+    }
+    if (geminiLocalFallbackNote) {
+      result += `\n\n${geminiLocalFallbackNote}`
     }
 
     const output: Output = {

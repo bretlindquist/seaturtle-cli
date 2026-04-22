@@ -23,6 +23,9 @@ Current operator truth:
   while the env/API-key path remains available for explicit operator control
 - after Gemini auth completes, SeaTurtle moves the operator onto a Gemini-valid
   main-loop model instead of leaving a stale Anthropic/OpenAI model selected
+- Gemini Search and Gemini URL context both use the same Gemini API key in this
+  build; SeaTurtle does not require a separate Google Search API key for routed
+  Gemini web access
 
 Boolean provider gate:
 
@@ -90,6 +93,21 @@ Gemini is routed today for:
 - `/status` and `ct auth status --json` reporting of documented Gemini support
   separately from routed SeaTurtle support
 
+Current Gemini web routing in SeaTurtle:
+
+- `WebSearch` uses Gemini built-in `googleSearch`
+- `WebFetch` uses Gemini built-in `urlContext` only on the validated Gemini 3
+  routed path
+- when the current Gemini model is not routed for URL context, or when a target
+  URL is outside Gemini URL-context support, SeaTurtle falls back to its local
+  WebFetch path and notes that routing choice in the tool result
+
+Google documents URL context support across Gemini 2.5 and Gemini 3 model
+families. SeaTurtle keeps documented capability truth separate from routed
+capability truth, and currently routes URL context only on the validated Gemini
+3 path for production reliability. Gemini 2.5 models still retain Gemini web
+search, but `WebFetch` uses the local SeaTurtle fetch path instead.
+
 Gemini selection never silently executes Anthropic. If Gemini is selected and
 auth is missing, SeaTurtle fails with Gemini-specific setup guidance.
 
@@ -150,6 +168,8 @@ Google’s docs also note that:
 - explicit cached content defaults to a 1 hour TTL unless set otherwise
 - cached-content minimum token counts vary by model
 - uploaded Files API assets are stored for 48 hours
+- URL context is limited to public `http`/`https` URLs, up to 20 URLs per
+  request, and does not handle login-gated or paywalled pages
 
 ## Unsupported Or Explicitly Gated
 
@@ -182,3 +202,9 @@ npm run gemini-live-tool-check
 npm run gemini-live-image-check
 npm run gemini-live-search-check
 ```
+
+CT secure-storage note:
+
+- `/login` Gemini API-key setup stores the key in CT secure storage, so the
+  Gemini runtime can be auth-ready even when `GEMINI_API_KEY` is not exported in
+  the current shell

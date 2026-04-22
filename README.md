@@ -53,6 +53,13 @@ SeaTurtle now includes a native Gemini runtime behind
 and reports documented-versus-routed Gemini capability truth in `/status` and
 `ct auth status --json`.
 
+Gemini web access in this build uses the same Gemini API key for both built-in
+Google Search and URL context. SeaTurtle does not require a separate Google
+Search API key. `WebSearch` routes Gemini `googleSearch`, and `WebFetch` uses
+Gemini URL context on the validated Gemini 3 routed path while falling back to
+CT's local fetch path when the current Gemini model is not URL-context routed
+or when a target URL is outside Gemini URL-context support.
+
 The current Gemini path routes:
 
 - native Gemini text generation and streaming

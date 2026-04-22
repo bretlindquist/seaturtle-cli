@@ -71,14 +71,34 @@ assertMatch(
   'WebFetchTool should route Gemini URL context',
 )
 assertMatch(
+  webFetchToolSource,
+  /validateGeminiUrlContextUrls/,
+  'WebFetchTool should validate Gemini URL context eligibility before routing',
+)
+assertMatch(
+  webFetchToolSource,
+  /getRoutedGeminiModelCapabilities/,
+  'WebFetchTool should gate Gemini URL context by routed model capability truth',
+)
+assertMatch(
+  webFetchToolSource,
+  /SeaTurtle used the local WebFetch path instead/,
+  'WebFetchTool should explain when Gemini falls back to the local WebFetch path',
+)
+assertMatch(
   capabilitySource,
   /supportsWebSearch:\s*true/,
   'Gemini routed capabilities should include web search',
 )
 assertMatch(
   capabilitySource,
-  /supportsUrlContext:\s*true/,
-  'Gemini routed capabilities should include URL context',
+  /ROUTED_GEMINI_URL_CONTEXT_MODELS/,
+  'Gemini routed URL context should be constrained to an explicit validated model set',
+)
+assertMatch(
+  capabilitySource,
+  /supportsUrlContext:\s*ROUTED_GEMINI_URL_CONTEXT_MODELS\.has\(definition\.value\)/,
+  'Gemini routed capabilities should derive URL context support from the validated routed model set',
 )
 assertMatch(
   providerRuntimeSource,

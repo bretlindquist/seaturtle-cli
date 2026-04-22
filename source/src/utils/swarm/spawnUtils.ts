@@ -94,6 +94,17 @@ export function buildInheritedCliFlags(options?: {
  * parent's env, so we forward any that are set in the current process.
  */
 const TEAMMATE_ENV_VARS = [
+  // SeaTurtle main runtime selection
+  'SEATURTLE_MAIN_PROVIDER',
+  'SEATURTLE_USE_GEMINI',
+  'SEATURTLE_USE_OPENAI_CODEX',
+  // Legacy compatibility provider selection
+  'CLAUDE_CODE_MAIN_PROVIDER',
+  'CLAUDE_CODE_USE_GEMINI',
+  'CLAUDE_CODE_USE_OPENAI_CODEX',
+  // Gemini auth
+  'GEMINI_API_KEY',
+  'GOOGLE_API_KEY',
   // API provider selection — without these, teammates default to firstParty
   // and send requests to the wrong endpoint (GitHub issue #23561)
   'CLAUDE_CODE_USE_BEDROCK',

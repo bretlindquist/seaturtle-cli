@@ -200,8 +200,8 @@ function run(): void {
   )
   assert.match(
     exploreAgent,
-    /isAntRuntimeEnabled\(\)/,
-    'explore-agent runtime defaults should honor the centralized ant runtime helper',
+    /model:\s*'inherit'/,
+    'explore-agent runtime defaults should inherit the leader model to stay provider-safe',
   )
   assert.match(
     loadAgentsDir,

@@ -450,6 +450,9 @@ export async function authStatus(opts: {
         localMcpTools: runtimeSnapshot.supportsLocalMcpTools,
         teams: runtimeSnapshot.supportsAgentTeams,
         webSearch: runtimeSnapshot.supportsWebSearch,
+        urlContext: runtimeSnapshot.routedGeminiModelCapabilities.includes(
+          'URL context',
+        ),
         fileSearch: runtimeSnapshot.supportsHostedFileSearch,
         computerUse: runtimeSnapshot.supportsComputerUse,
         hostedShell: runtimeSnapshot.supportsHostedShell,
