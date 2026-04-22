@@ -1,6 +1,6 @@
 import figures from 'figures';
 import * as React from 'react';
-import { useEffect, useState, type RefObject } from 'react';
+import { useDeferredValue, useEffect, useState, type RefObject } from 'react';
 import { Box, Text, useTerminalFocus, useTerminalTitle } from '../../ink.js';
 import { useSearchInput } from '../../hooks/useSearchInput.js';
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js';
@@ -99,6 +99,7 @@ export function TranscriptSearchBar({
     onExit: () => onClose(query),
     onCancel,
   })
+  const appliedQuery = useDeferredValue(query)
 
   const [indexStatus, setIndexStatus] = useState<'building' | { ms: number } | null>(
     'building',
@@ -132,9 +133,9 @@ export function TranscriptSearchBar({
   const warmDone = indexStatus !== 'building'
   useEffect(() => {
     if (!warmDone) return
-    jumpRef.current?.setSearchQuery(query)
+    jumpRef.current?.setSearchQuery(appliedQuery)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [query, warmDone])
+  }, [appliedQuery, warmDone])
 
   const cursorChar = cursorOffset < query.length ? query[cursorOffset] : ' '
 
