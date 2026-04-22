@@ -44,13 +44,28 @@ assert.match(
 )
 assert.match(
   discoveryFile,
-  /refreshStatus: authReady \? 'ready' : 'auth-required'/,
-  'discovery snapshots should honestly gate auto-refresh on auth readiness',
+  /provider === 'openai-codex'/,
+  'discovery snapshots should special-case OpenAI model refresh when the current auth source cannot call the official model-list endpoint',
+)
+assert.match(
+  discoveryFile,
+  /api-key-required/,
+  'discovery snapshots should expose an explicit API-key-required status for OpenAI model refresh',
+)
+assert.match(
+  discoveryFile,
+  /refreshStatus,/,
+  'discovery snapshots should derive refresh status explicitly instead of assuming every auth source can refresh upstream model lists',
 )
 assert.match(
   statusFile,
   /Codex model discovery/,
-  'status should surface OpenAI\/Codex model discovery readiness',
+  'status should surface OpenAI/Codex model discovery readiness',
+)
+assert.match(
+  statusFile,
+  /requires OpenAI API key auth/,
+  'status should explain when OpenAI upstream model discovery requires API-key auth instead of pretending OAuth can refresh the official model endpoint',
 )
 assert.match(
   statusFile,

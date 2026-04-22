@@ -348,6 +348,7 @@ export async function authStatus(opts: {
         openAiCodex: getProviderModelDiscoverySnapshot(
           'openai-codex',
           runtimeSnapshot.openAiCodexAuthReady,
+          runtimeSnapshot.openAiCodexApiKeyReady,
         ),
         gemini: getProviderModelDiscoverySnapshot(
           'gemini',

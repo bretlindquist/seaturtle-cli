@@ -356,7 +356,7 @@ export function buildAPIProviderProperties(): Property[] {
   const anthropicModelRegistry = getProviderModelRegistrySnapshot('anthropic');
   const anthropicModelDiscovery = getProviderModelDiscoverySnapshot('anthropic', true);
   const codexModelRegistry = getProviderModelRegistrySnapshot('openai-codex');
-  const codexModelDiscovery = getProviderModelDiscoverySnapshot('openai-codex', runtimeSnapshot.openAiCodexAuthReady);
+  const codexModelDiscovery = getProviderModelDiscoverySnapshot('openai-codex', runtimeSnapshot.openAiCodexAuthReady, runtimeSnapshot.openAiCodexApiKeyReady);
   const geminiModelRegistry = getProviderModelRegistrySnapshot('gemini');
   const geminiModelDiscovery = getProviderModelDiscoverySnapshot('gemini', runtimeSnapshot.geminiAuthReady);
   const properties: Property[] = [];
@@ -508,7 +508,11 @@ export function buildAPIProviderProperties(): Property[] {
   });
   properties.push({
     label: 'Codex model discovery',
-    value: codexModelDiscovery.refreshStatus === 'ready' ? `${codexModelDiscovery.endpoint.path} ready` : `${codexModelDiscovery.endpoint.path} auth required`
+    value: codexModelDiscovery.refreshStatus === 'ready'
+      ? `${codexModelDiscovery.endpoint.path} ready`
+      : codexModelDiscovery.refreshStatus === 'api-key-required'
+        ? `${codexModelDiscovery.endpoint.path} requires OpenAI API key auth`
+        : `${codexModelDiscovery.endpoint.path} auth required`
   });
   const geminiAuthSourceLabel = runtimeSnapshot.geminiAuthSource === 'provider-api-key-profile' ? 'CT secure storage' : runtimeSnapshot.geminiAuthSource === 'GEMINI_API_KEY' ? 'GEMINI_API_KEY env' : 'Not configured';
   const geminiStatusLabel = runtimeSnapshot.execution.family === 'gemini' ? 'Active for the main loop' : runtimeSnapshot.preferred.family === 'gemini' ? 'Preferred but not active' : runtimeSnapshot.geminiAuthReady ? 'Available to activate' : 'Not configured';

@@ -65,56 +65,65 @@ export const OPENAI_CODEX_MODEL_DEFINITIONS: readonly OpenAiCodexModelDefinition
     {
       value: 'gpt-5.4',
       label: 'GPT-5.4',
-      description: 'Latest frontier agentic coding model',
-      descriptionForModel: 'GPT-5.4 - latest frontier agentic coding model',
+      description: 'Frontier model with the full routed OpenAI hosted-tool set',
+      descriptionForModel:
+        'GPT-5.4 - frontier model with web, file, image, code interpreter, hosted shell, and computer use',
     },
     {
       value: 'gpt-5.4-mini',
       label: 'GPT-5.4 Mini',
-      description: 'Smaller frontier agentic coding model',
+      description:
+        'Smaller frontier model with hosted tools and computer use',
       descriptionForModel:
-        'GPT-5.4 Mini - smaller frontier agentic coding model',
+        'GPT-5.4 Mini - smaller frontier model with web, file, image, code interpreter, hosted shell, and computer use',
     },
     {
       value: 'gpt-5.4-nano',
       label: 'GPT-5.4 Nano',
-      description: 'Fastest GPT-5.4-class model for lightweight subagent work',
+      description:
+        'Fastest GPT-5.4-class model for lightweight subagents without computer use',
       descriptionForModel:
-        'GPT-5.4 Nano - fastest GPT-5.4-class model for lightweight subagent work',
+        'GPT-5.4 Nano - fastest GPT-5.4-class model with web, file, image, code interpreter, and hosted shell, but no computer use',
     },
     {
       value: 'gpt-5.3-codex',
       label: 'GPT-5.3 Codex',
-      description: 'Frontier Codex-optimized agentic coding model',
+      description:
+        'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
       descriptionForModel:
-        'GPT-5.3 Codex - frontier Codex-optimized agentic coding model',
+        'GPT-5.3 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
     },
     {
       value: 'gpt-5.2-codex',
       label: 'GPT-5.2 Codex',
-      description: 'Frontier agentic coding model',
-      descriptionForModel: 'GPT-5.2 Codex - frontier agentic coding model',
+      description:
+        'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
+      descriptionForModel:
+        'GPT-5.2 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
     },
     {
       value: 'gpt-5.2',
       label: 'GPT-5.2',
-      description: 'Optimized for professional work and long-running agents',
+      description:
+        'Previous flagship with routed web, file, image, and code interpreter support',
       descriptionForModel:
-        'GPT-5.2 - optimized for professional work and long-running agents',
+        'GPT-5.2 - previous flagship with routed web, file, image, and code interpreter support',
     },
     {
       value: 'gpt-5.1-codex-max',
       label: 'GPT-5.1 Codex Max',
-      description: 'Codex-optimized model for deep and fast reasoning',
+      description:
+        'Legacy Codex compatibility model without routed OpenAI hosted tools in this build',
       descriptionForModel:
-        'GPT-5.1 Codex Max - Codex-optimized model for deep and fast reasoning',
+        'GPT-5.1 Codex Max - legacy Codex compatibility model without routed OpenAI hosted tools in this build',
     },
     {
       value: 'gpt-5.1-codex-mini',
       label: 'GPT-5.1 Codex Mini',
-      description: 'Optimized for codex. Cheaper, faster, but less capable',
+      description:
+        'Legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
       descriptionForModel:
-        'GPT-5.1 Codex Mini - optimized for codex. Cheaper, faster, but less capable',
+        'GPT-5.1 Codex Mini - legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
     },
   ] as const
 

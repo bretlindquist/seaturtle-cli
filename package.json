@@ -20,7 +20,8 @@
     "gemini-live-image-check": "bun scripts/gemini_live_image_check.ts",
     "gemini-live-search-check": "bun scripts/gemini_live_search_check.ts",
     "dev-check": "./scripts/dev-check.sh",
-    "openai-codex-check": "./scripts/openai-codex-regression.sh"
+    "openai-codex-check": "./scripts/openai-codex-regression.sh",
+    "openai-model-discovery-audit": "bun scripts/openai_model_discovery_audit.ts"
   },
   "dependencies": {
     "@mariozechner/pi-ai": "^0.65.2"

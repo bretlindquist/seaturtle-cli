@@ -15,7 +15,7 @@ export type ProviderModelDiscoverySnapshot = {
   endpoint: ProviderModelDiscoveryEndpoint
   authReady: boolean
   discoverySupported: boolean
-  refreshStatus: 'ready' | 'auth-required'
+  refreshStatus: 'ready' | 'auth-required' | 'api-key-required'
   lastRefreshAt: null
   discoveredModelCount: number
 }
@@ -134,13 +134,25 @@ export function parseGeminiModelDiscoveryResponse(
 export function getProviderModelDiscoverySnapshot(
   provider: ProviderModelFamily,
   authReady: boolean,
+  apiKeyReady = false,
 ): ProviderModelDiscoverySnapshot {
+  const refreshStatus =
+    provider === 'openai-codex'
+      ? apiKeyReady
+        ? 'ready'
+        : authReady
+          ? 'api-key-required'
+          : 'auth-required'
+      : authReady
+        ? 'ready'
+        : 'auth-required'
+
   return {
     provider,
     endpoint: getProviderModelDiscoveryEndpoint(provider),
     authReady,
     discoverySupported: true,
-    refreshStatus: authReady ? 'ready' : 'auth-required',
+    refreshStatus,
     lastRefreshAt: null,
     discoveredModelCount: 0,
   }
