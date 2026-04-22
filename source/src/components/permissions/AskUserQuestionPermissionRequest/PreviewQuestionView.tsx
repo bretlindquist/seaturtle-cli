@@ -242,7 +242,7 @@ export function PreviewQuestionView({
   // 2: PreviewBox borders (top + bottom)
   // 2: notes section (marginTop=1 + text)
   // 2: footer section (marginTop=1 + divider)
-  // 1: "Chat about this" line
+  // 1: "Add context first" line
   // 1: plan mode line (may or may not show)
   // 2: help text (marginTop=1 + text)
   const PREVIEW_OVERHEAD = 11;
@@ -302,13 +302,13 @@ export function PreviewQuestionView({
             <Box flexDirection="row" gap={1}>
               {isFooterFocused && footerIndex === 0 ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
               <Text color={isFooterFocused && footerIndex === 0 ? 'suggestion' : undefined}>
-                Chat about this
+                Add context first
               </Text>
             </Box>
             {isInPlanMode && <Box flexDirection="row" gap={1}>
                 {isFooterFocused && footerIndex === 1 ? <Text color="suggestion">{figures.pointer}</Text> : <Text> </Text>}
                 <Text color={isFooterFocused && footerIndex === 1 ? 'suggestion' : undefined}>
-                  Skip interview and plan immediately
+                  Finish interview and plan now
                 </Text>
               </Box>}
           </Box>

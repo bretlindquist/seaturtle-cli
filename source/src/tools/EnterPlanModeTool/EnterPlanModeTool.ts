@@ -96,7 +96,7 @@ export const EnterPlanModeTool: Tool<InputSchema, Output> = buildTool({
     return {
       data: {
         message:
-          'Entered plan mode. You should now focus on exploring the codebase and designing an implementation approach.',
+          'Entered plan mode. Focus on exploring the codebase and designing an implementation approach.',
       },
     }
   },
