@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import {
   runOpenAiCodexImageGeneration,
+  type OpenAiCodexImageReferenceInput,
   type OpenAiCodexImageGenerationResult,
 } from '../../services/api/openaiCodex.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
@@ -123,7 +124,15 @@ export const ImageGenerationTool = buildTool({
           })()
         : await runOpenAiCodexImageGeneration({
             model: context.options.mainLoopModel,
-            prompt: input.prompt,
+            input: {
+              prompt: input.prompt,
+              referenceImages:
+                input.referenceImages as OpenAiCodexImageReferenceInput[] | undefined,
+              aspectRatio: input.aspectRatio,
+              imageSize: input.imageSize,
+              mode: input.mode,
+              outputCount: input.outputCount,
+            },
             signal: context.abortController.signal,
             options: {
               ...context.options,

@@ -66,13 +66,18 @@ function run(): void {
 
   assert.match(
     imageGenerationHelper,
-    /await response\.json\(\)/,
-    'OpenAI image generation helper should keep using the standard non-streaming Responses body for final-image output',
-  )
-  assert.doesNotMatch(
-    imageGenerationHelper,
     /stream: true/,
-    'OpenAI image generation helper should not silently drift to streaming without partial-image handling',
+    'OpenAI image generation helper should use the streaming transport required by the current backend path',
+  )
+  assert.match(
+    imageGenerationHelper,
+    /await response\.text\(\)/,
+    'OpenAI image generation helper should parse the streaming body text instead of assuming a non-streaming JSON payload',
+  )
+  assert.match(
+    imageGenerationHelper,
+    /nextSseFrame\(/,
+    'OpenAI image generation helper should parse SSE frames when using the streaming transport',
   )
 
   assert.match(

@@ -401,6 +401,20 @@ export type OpenAiCodexImageGenerationResult = {
   revisedPrompt: string | null
 }
 
+export type OpenAiCodexImageReferenceInput = {
+  mediaType: string
+  imageBase64: string
+}
+
+export type OpenAiCodexImageGenerationInput = {
+  prompt: string
+  referenceImages?: OpenAiCodexImageReferenceInput[]
+  aspectRatio?: string
+  imageSize?: string
+  mode?: 'generate' | 'edit' | 'inpaint' | 'product' | 'text_rendering'
+  outputCount?: number
+}
+
 export type OpenAiCodexHostedShellResult = {
   outputText: string
   outputs: Array<{
@@ -814,6 +828,128 @@ function buildSingleTurnOpenAiCodexInput(
   ]
 }
 
+const OPENAI_IMAGE_ASPECT_RATIO_TO_SIZE: Readonly<Record<string, string>> = {
+  '1:1': '1024x1024',
+  '2:3': '1024x1536',
+  '3:2': '1536x1024',
+}
+
+function normalizeOpenAiImageGenerationSize(input: {
+  aspectRatio?: string
+  imageSize?: string
+}): string | null {
+  const imageSize = input.imageSize?.trim()
+  if (imageSize) {
+    const normalized = imageSize
+      .replaceAll('×', 'x')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+    return normalized === 'auto' ? 'auto' : normalized
+  }
+
+  const aspectRatio = input.aspectRatio?.trim()
+  if (!aspectRatio) {
+    return null
+  }
+
+  return OPENAI_IMAGE_ASPECT_RATIO_TO_SIZE[aspectRatio] ?? null
+}
+
+function resolveOpenAiImageGenerationAction(input: {
+  mode?: OpenAiCodexImageGenerationInput['mode']
+  referenceImageCount: number
+}): 'auto' | 'generate' | 'edit' {
+  switch (input.mode) {
+    case 'generate':
+      return 'generate'
+    case 'edit':
+    case 'inpaint':
+      return 'edit'
+    default:
+      return input.referenceImageCount > 0 ? 'edit' : 'auto'
+  }
+}
+
+function validateOpenAiImageGenerationInput(
+  input: OpenAiCodexImageGenerationInput,
+): string | null {
+  if (!input.prompt.trim()) {
+    return 'OpenAI/Codex image generation request is missing prompt input'
+  }
+
+  if (input.outputCount !== undefined && input.outputCount !== 1) {
+    return 'OpenAI/Codex hosted image generation currently routes one output image per tool call.'
+  }
+
+  const aspectRatio = input.aspectRatio?.trim()
+  if (
+    aspectRatio &&
+    !input.imageSize &&
+    !OPENAI_IMAGE_ASPECT_RATIO_TO_SIZE[aspectRatio]
+  ) {
+    return `OpenAI/Codex hosted image generation only maps aspect ratios ${Object.keys(OPENAI_IMAGE_ASPECT_RATIO_TO_SIZE).join(', ')} in this build. Use imageSize for other dimensions.`
+  }
+
+  const normalizedSize = normalizeOpenAiImageGenerationSize(input)
+  if (
+    normalizedSize &&
+    normalizedSize !== 'auto' &&
+    !/^\d{2,5}x\d{2,5}$/.test(normalizedSize)
+  ) {
+    return `OpenAI/Codex imageSize \`${input.imageSize}\` is invalid. Use \`auto\` or dimensions like \`1024x1024\`.`
+  }
+
+  const referenceImageCount = input.referenceImages?.length ?? 0
+  if (
+    (input.mode === 'edit' || input.mode === 'inpaint') &&
+    referenceImageCount === 0
+  ) {
+    return `OpenAI/Codex image mode \`${input.mode}\` requires at least one reference image.`
+  }
+
+  return null
+}
+
+function buildOpenAiCodexImageGenerationInput(
+  input: OpenAiCodexImageGenerationInput,
+): OpenAiCodexRequestItem[] {
+  const prompt = input.prompt.trim()
+  if (!prompt) {
+    return []
+  }
+
+  return [
+    {
+      type: 'message',
+      role: 'user',
+      content: [
+        { type: 'input_text', text: prompt },
+        ...(input.referenceImages ?? []).map(image => ({
+          type: 'input_image' as const,
+          image_url: buildDataUrl(image.mediaType, image.imageBase64),
+          detail: 'auto' as const,
+        })),
+      ],
+    },
+  ]
+}
+
+function buildOpenAiCodexImageGenerationToolConfig(
+  input: OpenAiCodexImageGenerationInput,
+): Record<string, unknown> {
+  const size = normalizeOpenAiImageGenerationSize(input)
+  const action = resolveOpenAiImageGenerationAction({
+    mode: input.mode,
+    referenceImageCount: input.referenceImages?.length ?? 0,
+  })
+
+  return {
+    type: 'image_generation',
+    ...(size ? { size } : {}),
+    ...(action !== 'auto' ? { action } : {}),
+  }
+}
+
 async function buildOpenAiCodexTools(params: {
   tools: Tools
 }): Promise<OpenAiCodexRequestTool[]> {
@@ -1049,7 +1185,14 @@ function collectImageGenerationResult(
       if (result) {
         return {
           imageBase64: result,
-          mediaType: 'image/png',
+          mediaType:
+            typeof record.mime_type === 'string' &&
+            record.mime_type.trim().length > 0
+              ? record.mime_type.trim()
+              : typeof record.media_type === 'string' &&
+                  record.media_type.trim().length > 0
+                ? record.media_type.trim()
+                : 'image/png',
           revisedPrompt:
             typeof record.revised_prompt === 'string' &&
             record.revised_prompt.trim().length > 0
@@ -2401,7 +2544,7 @@ export async function runOpenAiCodexFileSearch(params: {
 
 export async function runOpenAiCodexImageGeneration(params: {
   model: string
-  prompt: string
+  input: OpenAiCodexImageGenerationInput
   signal: AbortSignal
   options: Options
 }): Promise<OpenAiCodexImageGenerationResult> {
@@ -2419,10 +2562,20 @@ export async function runOpenAiCodexImageGeneration(params: {
 
   const requestTarget = buildOpenAiCodexRequestTarget(auth)
   const reasoning = buildOpenAiCodexReasoningPayload(params.options)
-  const input = buildSingleTurnOpenAiCodexInput(params.prompt)
+  const validationError = validateOpenAiImageGenerationInput(params.input)
+  if (validationError) {
+    throw new Error(validationError)
+  }
+
+  const input = buildOpenAiCodexImageGenerationInput(params.input)
   if (input.length === 0) {
     throw new Error('OpenAI/Codex image generation request is missing prompt input')
   }
+  const imageTool = buildOpenAiCodexImageGenerationToolConfig(params.input)
+  const action = resolveOpenAiImageGenerationAction({
+    mode: params.input.mode,
+    referenceImageCount: params.input.referenceImages?.length ?? 0,
+  })
 
   const response = await fetch(responsesEndpoint(requestTarget.baseUrl), {
     method: 'POST',
@@ -2430,12 +2583,15 @@ export async function runOpenAiCodexImageGeneration(params: {
     body: JSON.stringify({
       model: params.model,
       instructions:
-        'Use the image_generation tool to create a single image that best satisfies the user prompt.',
+        action === 'edit'
+          ? 'Use the image_generation tool to edit the provided reference image input so it best satisfies the user prompt.'
+          : 'Use the image_generation tool to create a single image that best satisfies the user prompt.',
       input,
-      tools: [{ type: 'image_generation' }],
+      tools: [imageTool],
       tool_choice: { type: 'image_generation' },
       ...(reasoning ? { reasoning } : {}),
       store: false,
+      stream: true,
     }),
     signal: params.signal,
   })
@@ -2453,8 +2609,53 @@ export async function runOpenAiCodexImageGeneration(params: {
     )
   }
 
-  const payload = await response.json()
-  const imageResult = collectImageGenerationResult(payload)
+  const raw = await response.text()
+  let remainder = raw
+  let imageResult: OpenAiCodexImageGenerationResult | null = null
+
+  while (true) {
+    const frame = nextSseFrame(remainder)
+    if (!frame) {
+      break
+    }
+    remainder = frame.rest
+    const payload = parseSsePayload(frame.frame)
+    if (!payload) {
+      continue
+    }
+
+    const event = JSON.parse(payload) as ChatgptSseEvent
+    if (
+      event.type === 'response.created' ||
+      event.type === 'response.in_progress'
+    ) {
+      recordOpenAiCodexTelemetryFromEvent(event)
+    }
+
+    const streamedImageResult = collectImageGenerationResult(event)
+    if (streamedImageResult) {
+      imageResult = streamedImageResult
+    }
+
+    switch (event.type) {
+      case 'response.failed': {
+        const message =
+          event.response &&
+          typeof event.response === 'object' &&
+          typeof (event.response as { error?: { message?: unknown } }).error
+            ?.message === 'string'
+            ? ((event.response as { error: { message: string } }).error.message)
+            : 'OpenAI/Codex image generation returned response.failed'
+        throw new Error(message)
+      }
+      case 'response.incomplete':
+        throw new Error(
+          'OpenAI/Codex image generation returned an incomplete response',
+        )
+      default:
+        break
+    }
+  }
 
   if (!imageResult) {
     throw new Error('OpenAI/Codex image generation returned no image output')

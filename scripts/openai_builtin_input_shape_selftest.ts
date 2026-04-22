@@ -14,11 +14,15 @@ function run(): void {
     /function buildSingleTurnOpenAiCodexInput/,
     'standalone OpenAI built-in tools should use a shared single-turn input builder',
   )
+  assert.match(
+    openAiCodex,
+    /function buildOpenAiCodexImageGenerationInput/,
+    'OpenAI image generation should use a dedicated multimodal input builder so reference images route through structured Responses input',
+  )
 
   for (const fnName of [
     'runOpenAiCodexWebSearch',
     'runOpenAiCodexFileSearch',
-    'runOpenAiCodexImageGeneration',
     'runOpenAiCodexHostedShell',
     'runOpenAiCodexComputerUse',
   ]) {
@@ -28,6 +32,11 @@ function run(): void {
       `${fnName} should build structured single-turn input through the shared helper`,
     )
   }
+  assert.match(
+    openAiCodex,
+    /runOpenAiCodexImageGeneration[\s\S]*buildOpenAiCodexImageGenerationInput\(/,
+    'image generation should build structured multimodal input through the dedicated image helper',
+  )
 
   assert.doesNotMatch(
     openAiCodex,
@@ -41,8 +50,13 @@ function run(): void {
   )
   assert.doesNotMatch(
     openAiCodex,
-    /runOpenAiCodexImageGeneration[\s\S]*input: params\.prompt/,
+    /runOpenAiCodexImageGeneration[\s\S]*input: params\.input\.prompt/,
     'image generation should not send raw string input directly',
+  )
+  assert.match(
+    openAiCodex,
+    /type: 'input_image'/,
+    'image generation input conversion should be able to include reference images as input_image parts',
   )
   assert.doesNotMatch(
     openAiCodex,

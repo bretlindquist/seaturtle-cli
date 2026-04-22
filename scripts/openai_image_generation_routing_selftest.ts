@@ -21,8 +21,8 @@ function run(): void {
   )
   assert.match(
     openAiCodex,
-    /tools: \[\{ type: 'image_generation' \}\]/,
-    'OpenAI image-generation helper should call the hosted image_generation tool',
+    /function buildOpenAiCodexImageGenerationToolConfig/,
+    'OpenAI image-generation helper should build a dedicated tool config so size and action options stay explicit',
   )
   assert.match(
     openAiCodex,
@@ -30,9 +30,39 @@ function run(): void {
     'OpenAI image-generation helper should force the image_generation tool path',
   )
   assert.match(
+    openAiCodex,
+    /function validateOpenAiImageGenerationInput/,
+    'OpenAI image-generation helper should validate provider-specific input limits instead of silently ignoring unsupported options',
+  )
+  assert.match(
+    openAiCodex,
+    /referenceImages\?: OpenAiCodexImageReferenceInput\[\]/,
+    'OpenAI image-generation input should accept reference images for hosted edit flows',
+  )
+  assert.match(
+    openAiCodex,
+    /outputCount !== undefined && input\.outputCount !== 1/,
+    'OpenAI image-generation helper should reject unsupported multi-image output counts explicitly',
+  )
+  assert.match(
+    openAiCodex,
+    /action === 'edit'/,
+    'OpenAI image-generation helper should switch its instructions when the hosted tool is being used for editing',
+  )
+  assert.match(
+    openAiCodex,
+    /tools: \[imageTool\]/,
+    'OpenAI image-generation helper should send the dedicated hosted image tool config in the request body',
+  )
+  assert.match(
     imageTool,
     /runtime\.routedOpenAiModelCapabilities\.includes\('image generation'\)/,
     'ImageGenerationTool should gate itself on the routed OpenAI image-generation capability',
+  )
+  assert.match(
+    imageTool,
+    /referenceImages:/,
+    'ImageGenerationTool should forward reference images to the OpenAI image-generation helper',
   )
   assert.match(
     imageTool,
