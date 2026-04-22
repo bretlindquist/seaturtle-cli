@@ -80,6 +80,7 @@ bun scripts/session_resume_copy_selftest.ts >/dev/null
 bun scripts/session_entry_policy_selftest.ts >/dev/null
 bun scripts/openai_codex_auth_selftest.ts >/dev/null
 bun scripts/openai_agent_capability_selftest.ts >/dev/null
+bun scripts/provider_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/openai_model_capability_truth_selftest.ts >/dev/null
 bun scripts/openai_web_search_routing_selftest.ts >/dev/null
 bun scripts/openai_helper_transport_selftest.ts >/dev/null

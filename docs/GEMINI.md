@@ -111,6 +111,17 @@ search, but `WebFetch` uses the local SeaTurtle fetch path instead.
 Gemini selection never silently executes Anthropic. If Gemini is selected and
 auth is missing, SeaTurtle fails with Gemini-specific setup guidance.
 
+Parallel agents:
+
+- Gemini uses SeaTurtle's local teammate runtime when the active Gemini runtime
+  is auth-ready
+- teammates inherit the selected Gemini provider, model, effort, settings path,
+  and provider auth instead of silently routing back to Anthropic
+- profile-backed auth is shared through `CLAUDE_CONFIG_DIR`; env-only auth is
+  forwarded through `GEMINI_API_KEY` or `GOOGLE_API_KEY`
+- if Gemini auth is unavailable in the teammate context, the teammate should
+  fail with Gemini setup guidance rather than use another provider
+
 ## Config Surface
 
 Core:

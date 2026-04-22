@@ -105,6 +105,10 @@ const TEAMMATE_ENV_VARS = [
   // Gemini auth
   'GEMINI_API_KEY',
   'GOOGLE_API_KEY',
+  // OpenAI/Codex env-only auth
+  'OPENAI_API_KEY',
+  // Anthropic env-only auth
+  'ANTHROPIC_API_KEY',
   // API provider selection — without these, teammates default to firstParty
   // and send requests to the wrong endpoint (GitHub issue #23561)
   'CLAUDE_CODE_USE_BEDROCK',

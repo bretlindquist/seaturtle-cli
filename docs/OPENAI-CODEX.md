@@ -188,6 +188,17 @@ Session behavior:
 - use `/continue` for the most recent session in the current directory
 - use `/resume` to open the picker or resume a specific prior session
 
+Parallel agents:
+
+- OpenAI/Codex OAuth and `OPENAI_API_KEY` auth both use SeaTurtle's local
+  teammate runtime when the active OpenAI runtime is auth-ready
+- teammates inherit the selected OpenAI provider, model, effort, settings path,
+  and provider auth instead of silently routing back to Anthropic
+- OAuth/profile auth is shared through `CLAUDE_CONFIG_DIR`; env-only auth is
+  forwarded through `OPENAI_API_KEY`
+- if OpenAI auth is unavailable in the teammate context, the teammate should
+  fail with OpenAI setup guidance rather than use another provider
+
 Compatibility note:
 
 - the underlying runtime still uses `dist/cli.js`

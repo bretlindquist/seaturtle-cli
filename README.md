@@ -300,6 +300,15 @@ CT-owned runtime truth for:
 - local computer-use availability
 - local MCP versus provider-hosted remote MCP availability
 
+Parallel agents and teams are SeaTurtle-owned local teammate sessions. When the
+active runtime is auth-ready, Anthropic, OpenAI/Codex OAuth, OpenAI API-key, and
+Gemini API-key setups can spawn teammates through the same CT team path.
+Teammates inherit the selected provider, model, effort, settings path, and auth
+context. OAuth/profile auth is shared through the CT config directory, and
+env-only auth is forwarded with the provider key env vars. If teammate auth is
+missing, SeaTurtle should fail on the selected provider instead of falling back
+to another runtime.
+
 ### 4. Use the app
 
 Inside CT, the next-step commands to know first are:
