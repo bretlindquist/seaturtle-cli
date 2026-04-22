@@ -45,6 +45,12 @@ import { PrBadge } from '../PrBadge.js';
 import { isPromptLikeInputMode } from './inputModes.js';
 import type { FooterControlGroup } from './footerControlModel.js';
 import { getFooterExecutionModeLabel } from './footerControlModel.js';
+import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
+import { getDisplayPath } from '../../utils/file.js';
+import { getCwd } from '../../utils/cwd.js';
+import { getMarketingNameForModel, modelDisplayString } from '../../utils/model/model.js';
+import { getModelOptions } from '../../utils/model/modelOptions.js';
+import { getPreferredMainRuntimeProvider } from '../../utils/model/providers.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -243,6 +249,7 @@ function ModeIndicator({
     columns
   } = useTerminalSize();
   const modeCycleShortcut = useShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab');
+  const activeMainLoopModel = useMainLoopModel();
   const tasks = useAppState(s => s.tasks);
   const teamContext = useAppState(s_0 => s_0.teamContext);
   // Set once in initialState (main.tsx --remote mode) and never mutated — lazy
@@ -266,6 +273,9 @@ function ModeIndicator({
   useVoiceState(s_6 => s_6.voiceWarmingUp) : false;
   const hasSelection = useHasSelection();
   const selGetState = useSelection().getState;
+  const activeProvider = getPreferredMainRuntimeProvider() ?? 'anthropic';
+  const providerModelValue = useMemo(() => getFooterProviderModelValue(activeProvider, activeMainLoopModel), [activeProvider, activeMainLoopModel]);
+  const workingDirectoryValue = getDisplayPath(getCwd());
   const hasNextTick = nextTickAt !== null;
   const isCoordinator = feature('COORDINATOR_MODE') ? coordinatorModule?.isCoordinatorMode() === true : false;
   const runningTaskCount = useMemo(() => count(Object.values(tasks), t => isBackgroundTask(t) && !("external" === 'ant' && isPanelAgentTask(t))), [tasks]);
@@ -357,6 +367,18 @@ function ModeIndicator({
       color={getModeColor(currentMode)}
     />
   ) : null;
+  const providerModelPart = <FooterControl
+    key="provider-model"
+    label={getFooterProviderLabel(activeProvider)}
+    value={providerModelValue}
+    focused={false}
+  />;
+  const workingDirectoryPart = <FooterControl
+    key="working-directory"
+    label="Dir"
+    value={workingDirectoryValue}
+    focused={false}
+  />;
   const controlHint = shouldShowModeHint ? (
     <Text dimColor key="control-hint">
       <KeyboardShortcutHint
@@ -373,6 +395,8 @@ function ModeIndicator({
   const parts = [
   ...(executionPart ? [executionPart] : []),
   ...(modePart ? [modePart] : []),
+  providerModelPart,
+  workingDirectoryPart,
   ...(controlHint ? [controlHint] : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
@@ -494,6 +518,36 @@ function ModeIndicator({
         </Text>}
     </Box>;
 }
+
+function getFooterProviderLabel(provider: 'anthropic' | 'openai-codex' | 'gemini'): string {
+  switch (provider) {
+    case 'openai-codex':
+      return 'OpenAI';
+    case 'gemini':
+      return 'Gemini';
+    default:
+      return 'Anthropic';
+  }
+}
+
+function getFooterProviderModelValue(
+  provider: 'anthropic' | 'openai-codex' | 'gemini',
+  model: string,
+): string {
+  const pickerLabel = getModelOptions(false, provider).find(
+    option => option.value === model,
+  )?.label;
+  if (pickerLabel) {
+    return pickerLabel;
+  }
+
+  if (provider === 'anthropic') {
+    return getMarketingNameForModel(model) ?? modelDisplayString(model);
+  }
+
+  return modelDisplayString(model);
+}
+
 function getSpinnerHintParts(isLoading: boolean, escShortcut: string, todosShortcut: string, killAgentsShortcut: string, hasTaskItems: boolean, expandedView: 'none' | 'tasks' | 'teammates', hasTeammates: boolean, hasRunningAgentTasks: boolean, isKillAgentsConfirmShowing: boolean): React.ReactElement[] {
   let toggleAction: string;
   if (hasTeammates) {
