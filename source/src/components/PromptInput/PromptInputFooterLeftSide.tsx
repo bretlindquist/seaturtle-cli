@@ -51,6 +51,7 @@ import { getCwd } from '../../utils/cwd.js';
 import { getMarketingNameForModel, modelDisplayString } from '../../utils/model/model.js';
 import { getModelOptions } from '../../utils/model/modelOptions.js';
 import { getPreferredMainRuntimeProvider } from '../../utils/model/providers.js';
+import { type EffortValue, getDisplayedEffortLevel, modelSupportsEffort } from '../../utils/effort.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -250,6 +251,7 @@ function ModeIndicator({
   } = useTerminalSize();
   const modeCycleShortcut = useShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab');
   const activeMainLoopModel = useMainLoopModel();
+  const activeEffortValue = useAppState(s_8 => s_8.effortValue);
   const tasks = useAppState(s => s.tasks);
   const teamContext = useAppState(s_0 => s_0.teamContext);
   // Set once in initialState (main.tsx --remote mode) and never mutated — lazy
@@ -275,6 +277,7 @@ function ModeIndicator({
   const selGetState = useSelection().getState;
   const activeProvider = getPreferredMainRuntimeProvider() ?? 'anthropic';
   const providerModelValue = useMemo(() => getFooterProviderModelValue(activeProvider, activeMainLoopModel), [activeProvider, activeMainLoopModel]);
+  const providerEffortValue = useMemo(() => getFooterProviderEffortValue(activeProvider, activeMainLoopModel, activeEffortValue), [activeEffortValue, activeMainLoopModel, activeProvider]);
   const workingDirectoryValue = getDisplayPath(getCwd());
   const hasNextTick = nextTickAt !== null;
   const isCoordinator = feature('COORDINATOR_MODE') ? coordinatorModule?.isCoordinatorMode() === true : false;
@@ -373,6 +376,12 @@ function ModeIndicator({
     value={providerModelValue}
     focused={false}
   />;
+  const providerEffortPart = providerEffortValue ? <FooterControl
+    key="provider-effort"
+    label={activeProvider === 'anthropic' ? 'Effort' : 'Reasoning'}
+    value={providerEffortValue}
+    focused={false}
+  /> : null;
   const workingDirectoryPart = <FooterControl
     key="working-directory"
     label="Dir"
@@ -396,6 +405,7 @@ function ModeIndicator({
   ...(executionPart ? [executionPart] : []),
   ...(modePart ? [modePart] : []),
   providerModelPart,
+  ...(providerEffortPart ? [providerEffortPart] : []),
   workingDirectoryPart,
   ...(controlHint ? [controlHint] : []),
   // Remote session indicator
@@ -546,6 +556,19 @@ function getFooterProviderModelValue(
   }
 
   return modelDisplayString(model);
+}
+
+function getFooterProviderEffortValue(
+  provider: 'anthropic' | 'openai-codex' | 'gemini',
+  model: string,
+  effortValue: EffortValue | undefined,
+): string | null {
+  if (!modelSupportsEffort(model)) {
+    return 'n/a';
+  }
+
+  const displayed = getDisplayedEffortLevel(model, effortValue);
+  return provider !== 'anthropic' && displayed === 'max' ? 'extra high' : displayed;
 }
 
 function getSpinnerHintParts(isLoading: boolean, escShortcut: string, todosShortcut: string, killAgentsShortcut: string, hasTaskItems: boolean, expandedView: 'none' | 'tasks' | 'teammates', hasTeammates: boolean, hasRunningAgentTasks: boolean, isKillAgentsConfirmShowing: boolean): React.ReactElement[] {
