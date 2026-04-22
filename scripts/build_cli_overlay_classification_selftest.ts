@@ -66,4 +66,10 @@ assert.match(
   'build-cli should assemble the base overlay set from explicit classified groups',
 )
 
+assert.match(
+  source,
+  /const providerOverlayDependencyPackages = \[[\s\S]*'@mariozechner\/pi-ai'/,
+  'build-cli should keep the OpenAI Codex OAuth helper in the provider overlay group',
+)
+
 console.log('build-cli-overlay-classification selftest passed')

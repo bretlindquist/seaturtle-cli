@@ -88,6 +88,7 @@ const providerOverlayDependencyPackages = [
   '@aws-sdk/credential-provider-node',
   '@azure/identity',
   '@growthbook/growthbook',
+  '@mariozechner/pi-ai',
   'google-auth-library',
 ];
 
@@ -623,10 +624,11 @@ function generateWorkspaceAugmentations() {
   generatePackageSubpathShims(new Set());
   ensureSharpPackageJson(new Set());
   ensureCliBoxesAsset(new Set());
+  overlaySourceAssets();
   generateMissingLocalStubs();
   generateSourceAliasShims(new Set());
-  overlaySourceAssets();
   restoreMissingSourceMapFiles();
+  generateSourceAliasShims(new Set());
   ensureNativeAddonPrebuilds();
   ensureUnavailablePackageEntries();
   patchMissingExports();

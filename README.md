@@ -629,6 +629,40 @@ Output:
 
 The first build performs the overlay dependency install. Later builds reuse it.
 
+### Contributor Source Build
+
+The current `./scripts/install-local-cli.sh --build` flow is the contributor
+path. It builds SeaTurtle CT from the checked-out source tree and prepares a
+generated workspace under `.cache/workspace` before bundling `dist/cli.js`.
+
+Current measured behavior after the contributor-build reset work:
+
+- fresh local clone on an M2 Max: one-pass cold build, `77` overlay packages,
+  about `31s` total
+- warm rebuild in an already-prepared checkout: overlay dependencies reused,
+  about `11s` total
+- clean Docker cold build on `node:20-bookworm`: one-pass cold build, about
+  `80s` total
+
+The phase summary now maps to real work:
+
+- `workspace prepare`
+- `overlay dependencies`
+- `workspace augmentation`
+- `bundle`
+- `finalize`
+
+The dependency phase tells you whether SeaTurtle reused the overlay package
+set or performed a cold install, and how many packages were involved.
+
+If you want to force a true cold contributor build, remove the generated
+workspace cache first:
+
+```bash
+rm -rf .cache/workspace/node_modules .cache/workspace/.overlay-install.json
+node scripts/build-cli.mjs --no-minify
+```
+
 ### Validation
 
 Canonical repo checks:
