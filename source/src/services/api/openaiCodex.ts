@@ -153,7 +153,7 @@ const OPENAI_ROUTED_5_4_FAMILY_CAPABILITIES: OpenAiCodexModelCapabilities = {
   supportsApplyPatch: false,
   supportsComputerUse: true,
   supportsSkills: false,
-  supportsCodeInterpreter: false,
+  supportsCodeInterpreter: true,
   supportsImageGeneration: true,
 }
 
@@ -187,7 +187,7 @@ const OPENAI_ROUTED_5_4_MINI_CAPABILITIES: OpenAiCodexModelCapabilities = {
   ...OPENAI_DOCUMENTED_5_4_MINI_CAPABILITIES,
   supportsApplyPatch: false,
   supportsSkills: false,
-  supportsCodeInterpreter: false,
+  supportsCodeInterpreter: true,
 }
 
 const OPENAI_DOCUMENTED_5_4_NANO_CAPABILITIES: OpenAiCodexModelCapabilities = {
@@ -207,7 +207,7 @@ const OPENAI_ROUTED_5_4_NANO_CAPABILITIES: OpenAiCodexModelCapabilities = {
   ...OPENAI_DOCUMENTED_5_4_NANO_CAPABILITIES,
   supportsApplyPatch: false,
   supportsSkills: false,
-  supportsCodeInterpreter: false,
+  supportsCodeInterpreter: true,
 }
 
 // The current GPT-5.2 model page snapshot does not expose the same detailed
@@ -422,6 +422,16 @@ export type OpenAiCodexHostedShellResult = {
     stderr: string
     exitCode: number | null
     timedOut: boolean
+  }>
+}
+
+export type OpenAiCodexCodeInterpreterResult = {
+  outputText: string
+  containerId: string | null
+  files: Array<{
+    containerId: string | null
+    fileId: string
+    filename: string | null
   }>
 }
 
@@ -1283,6 +1293,103 @@ function collectHostedShellOutputs(
 
   walk(value)
   return outputs
+}
+
+function collectCodeInterpreterContainerId(value: unknown): string | null {
+  function walk(node: unknown): string | null {
+    if (!node || typeof node !== 'object') {
+      return null
+    }
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        const found = walk(item)
+        if (found) {
+          return found
+        }
+      }
+      return null
+    }
+
+    const record = node as Record<string, unknown>
+    const type =
+      typeof record.type === 'string' ? record.type.trim().toLowerCase() : ''
+    if (
+      type === 'code_interpreter_call' &&
+      typeof record.container_id === 'string' &&
+      record.container_id.trim().length > 0
+    ) {
+      return record.container_id.trim()
+    }
+
+    for (const child of Object.values(record)) {
+      const found = walk(child)
+      if (found) {
+        return found
+      }
+    }
+
+    return null
+  }
+
+  return walk(value)
+}
+
+function collectCodeInterpreterFiles(value: unknown): Array<{
+  containerId: string | null
+  fileId: string
+  filename: string | null
+}> {
+  const collected = new Map<
+    string,
+    { containerId: string | null; fileId: string; filename: string | null }
+  >()
+
+  function walk(node: unknown): void {
+    if (!node || typeof node !== 'object') {
+      return
+    }
+
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        walk(item)
+      }
+      return
+    }
+
+    const record = node as Record<string, unknown>
+    const type =
+      typeof record.type === 'string' ? record.type.trim().toLowerCase() : ''
+
+    if (type === 'container_file_citation') {
+      const fileId =
+        typeof record.file_id === 'string' && record.file_id.trim().length > 0
+          ? record.file_id.trim()
+          : null
+      if (fileId) {
+        collected.set(fileId, {
+          containerId:
+            typeof record.container_id === 'string' &&
+            record.container_id.trim().length > 0
+              ? record.container_id.trim()
+              : null,
+          fileId,
+          filename:
+            typeof record.filename === 'string' &&
+            record.filename.trim().length > 0
+              ? record.filename.trim()
+              : null,
+        })
+      }
+    }
+
+    for (const child of Object.values(record)) {
+      walk(child)
+    }
+  }
+
+  walk(value)
+  return [...collected.values()]
 }
 
 function collectComputerCall(
@@ -2662,6 +2769,86 @@ export async function runOpenAiCodexImageGeneration(params: {
   }
 
   return imageResult
+}
+
+export async function runOpenAiCodexCodeInterpreter(params: {
+  model: string
+  task: string
+  signal: AbortSignal
+  options: Options
+}): Promise<OpenAiCodexCodeInterpreterResult> {
+  const auth = await getResolvedOpenAiCodexAuth()
+  if (!auth) {
+    throw new Error(
+      'OpenAI/Codex auth is not configured. Sign in through CT, set OPENAI_API_KEY, or link legacy Codex CLI auth, then retry with `SEATURTLE_USE_OPENAI_CODEX=1`.',
+    )
+  }
+
+  const modelError = validateOpenAiCodexModel(params.model)
+  if (modelError) {
+    throw new Error(modelError)
+  }
+
+  const requestTarget = buildOpenAiCodexRequestTarget(auth)
+  const reasoning = buildOpenAiCodexReasoningPayload(params.options)
+  const input = buildSingleTurnOpenAiCodexInput(params.task)
+  if (input.length === 0) {
+    throw new Error('OpenAI/Codex code interpreter request is missing task input')
+  }
+
+  const response = await fetch(responsesEndpoint(requestTarget.baseUrl), {
+    method: 'POST',
+    headers: requestTarget.headers,
+    body: JSON.stringify({
+      model: params.model,
+      instructions:
+        'Use the python tool in the hosted code interpreter container to complete the user request. Prefer concise summaries and cite generated files when relevant.',
+      input,
+      tools: [
+        {
+          type: 'code_interpreter',
+          container: { type: 'auto', memory_limit: '4g' },
+        },
+      ],
+      tool_choice: 'required',
+      ...(reasoning ? { reasoning } : {}),
+      store: false,
+    }),
+    signal: params.signal,
+  })
+
+  recordOpenAiCodexTelemetryFromHeaders(response.headers)
+
+  if (!response.ok) {
+    const body = await response.text()
+    throw new Error(
+      formatOpenAiCodexHttpError({
+        status: response.status,
+        statusText: response.statusText,
+        body,
+      }),
+    )
+  }
+
+  const payload = await response.json()
+  const outputText =
+    payload &&
+    typeof payload === 'object' &&
+    typeof (payload as { output_text?: unknown }).output_text === 'string'
+      ? (payload as { output_text: string }).output_text.trim()
+      : ''
+  const containerId = collectCodeInterpreterContainerId(payload)
+  const files = collectCodeInterpreterFiles(payload)
+
+  if (!outputText && !containerId && files.length === 0) {
+    throw new Error('OpenAI/Codex code interpreter returned no content')
+  }
+
+  return {
+    outputText,
+    containerId,
+    files,
+  }
 }
 
 export async function runOpenAiCodexHostedShell(params: {

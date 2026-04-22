@@ -36,6 +36,11 @@ function run(): void {
     'export async function runOpenAiCodexImageGeneration',
     'export async function runOpenAiCodexHostedShell',
   )
+  const codeInterpreterHelper = extractFunctionBody(
+    openAiCodex,
+    'export async function runOpenAiCodexCodeInterpreter',
+    'export async function runOpenAiCodexHostedShell',
+  )
   const hostedShellHelper = extractFunctionBody(
     openAiCodex,
     'export async function runOpenAiCodexHostedShell',
@@ -78,6 +83,17 @@ function run(): void {
     imageGenerationHelper,
     /nextSseFrame\(/,
     'OpenAI image generation helper should parse SSE frames when using the streaming transport',
+  )
+
+  assert.match(
+    codeInterpreterHelper,
+    /await response\.json\(\)/,
+    'OpenAI code interpreter helper should continue using the standard non-streaming Responses body',
+  )
+  assert.doesNotMatch(
+    codeInterpreterHelper,
+    /stream: true/,
+    'OpenAI code interpreter helper should not silently drift to streaming without a matching event parser',
   )
 
   assert.match(

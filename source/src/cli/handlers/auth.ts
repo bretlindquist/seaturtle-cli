@@ -419,6 +419,7 @@ export async function authStatus(opts: {
         fileSearch: runtimeSnapshot.supportsHostedFileSearch,
         computerUse: runtimeSnapshot.supportsComputerUse,
         hostedShell: runtimeSnapshot.supportsHostedShell,
+        codeInterpreter: runtimeSnapshot.supportsCodeInterpreter,
         imageGeneration: runtimeSnapshot.supportsImageGeneration,
         remoteMcp: runtimeSnapshot.supportsRemoteMcp,
         builtInTools: runtimeSnapshot.supportsOpenAiBuiltInTools,

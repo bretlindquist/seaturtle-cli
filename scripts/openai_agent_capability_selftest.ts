@@ -82,7 +82,12 @@ function run(): void {
   )
   assert.match(
     providerRuntime,
-    /supportsWebSearch \|\|\s*supportsHostedFileSearch \|\|\s*supportsRemoteMcp \|\|\s*supportsComputerUse \|\|\s*supportsHostedShell \|\|\s*supportsImageGeneration/,
+    /supportsCodeInterpreter/,
+    'provider runtime should expose OpenAI code-interpreter capability explicitly',
+  )
+  assert.match(
+    providerRuntime,
+    /supportsWebSearch \|\|\s*supportsHostedFileSearch \|\|\s*supportsRemoteMcp \|\|\s*supportsComputerUse \|\|\s*supportsHostedShell \|\|\s*supportsCodeInterpreter \|\|\s*supportsImageGeneration/,
     'provider runtime should derive built-in tool capability from routed OpenAI tool support',
   )
   assert.match(
@@ -116,6 +121,11 @@ function run(): void {
     'status view should surface a dedicated OpenAI computer-use availability row',
   )
   assert.match(
+    statusView,
+    /OpenAI code interpreter/,
+    'status view should surface a dedicated OpenAI code-interpreter availability row',
+  )
+  assert.match(
     authHandler,
     /localToolSearch/,
     'auth status JSON should expose local ToolSearch availability explicitly',
@@ -144,6 +154,11 @@ function run(): void {
     authHandler,
     /hostedShell/,
     'auth status JSON should expose OpenAI hosted-shell availability explicitly',
+  )
+  assert.match(
+    authHandler,
+    /codeInterpreter/,
+    'auth status JSON should expose OpenAI code-interpreter availability explicitly',
   )
   assert.match(
     authHandler,

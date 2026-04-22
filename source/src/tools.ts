@@ -10,6 +10,7 @@ import { FileSearchTool } from './tools/FileSearchTool/FileSearchTool.js'
 import { ComputerUseTool } from './tools/ComputerUseTool/ComputerUseTool.js'
 import { HostedShellTool } from './tools/HostedShellTool/HostedShellTool.js'
 import { ImageGenerationTool } from './tools/ImageGenerationTool/ImageGenerationTool.js'
+import { CodeInterpreterTool } from './tools/CodeInterpreterTool/CodeInterpreterTool.js'
 import { GlobTool } from './tools/GlobTool/GlobTool.js'
 import { NotebookEditTool } from './tools/NotebookEditTool/NotebookEditTool.js'
 import { WebFetchTool } from './tools/WebFetchTool/WebFetchTool.js'
@@ -211,6 +212,7 @@ export function getAllBaseTools(): Tools {
     FileWriteTool,
     HostedShellTool,
     ImageGenerationTool,
+    CodeInterpreterTool,
     NotebookEditTool,
     WebFetchTool,
     TodoWriteTool,

@@ -23,6 +23,7 @@ function run(): void {
   for (const fnName of [
     'runOpenAiCodexWebSearch',
     'runOpenAiCodexFileSearch',
+    'runOpenAiCodexCodeInterpreter',
     'runOpenAiCodexHostedShell',
     'runOpenAiCodexComputerUse',
   ]) {
@@ -62,6 +63,11 @@ function run(): void {
     openAiCodex,
     /runOpenAiCodexHostedShell[\s\S]*input: params\.task/,
     'hosted shell should not send raw string input directly',
+  )
+  assert.doesNotMatch(
+    openAiCodex,
+    /runOpenAiCodexCodeInterpreter[\s\S]*input: params\.task/,
+    'code interpreter should not send raw string input directly',
   )
   assert.doesNotMatch(
     openAiCodex,

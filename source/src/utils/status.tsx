@@ -552,6 +552,7 @@ export function buildAPIProviderProperties(): Property[] {
     if (runtimeSnapshot.supportsHostedFileSearch) capabilityLabels.push('file search');
     if (runtimeSnapshot.supportsComputerUse) capabilityLabels.push('computer use');
     if (runtimeSnapshot.supportsHostedShell) capabilityLabels.push('hosted shell');
+    if (runtimeSnapshot.supportsCodeInterpreter) capabilityLabels.push('code interpreter');
     if (runtimeSnapshot.supportsImageGeneration) capabilityLabels.push('image generation');
     if (runtimeSnapshot.supportsRemoteMcp) capabilityLabels.push('remote MCP');
     if (runtimeSnapshot.supportsOpenAiBuiltInTools) capabilityLabels.push('built-in tools');
@@ -564,6 +565,12 @@ export function buildAPIProviderProperties(): Property[] {
       value: runtimeSnapshot.supportsComputerUse
         ? 'Available via ComputerUse tool'
         : `${getChicagoEnablementSummary()}${chicagoAvailability.available && !runtimeSnapshot.supportsComputerUse ? ' · OpenAI runtime/auth required' : ''}`
+    });
+    properties.push({
+      label: 'OpenAI code interpreter',
+      value: runtimeSnapshot.supportsCodeInterpreter
+        ? 'Available via CodeInterpreter tool'
+        : 'Not routed for the active OpenAI model'
     });
     properties.push({
       label: 'OpenAI model tools',

@@ -81,6 +81,7 @@ export type MainLoopProviderRuntime = {
   supportsRemoteMcp: boolean
   supportsWebSearch: boolean
   supportsHostedShell: boolean
+  supportsCodeInterpreter: boolean
   supportsImageGeneration: boolean
   authState: 'ready' | 'available-via-cli' | 'not-configured'
   authSource: string | null
@@ -143,6 +144,7 @@ function buildAnthropicMainLoopRuntime(
       apiProvider === 'vertex' ||
       apiProvider === 'foundry',
     supportsHostedShell: false,
+    supportsCodeInterpreter: false,
     supportsImageGeneration: false,
     authState: 'ready',
     authSource: apiProvider === 'firstParty' ? 'anthropic-auth' : apiProvider,
@@ -179,6 +181,8 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
     routedModelCapabilities.supportsComputerUse
   const supportsHostedShell =
     readiness.ready && routedModelCapabilities.supportsHostedShell
+  const supportsCodeInterpreter =
+    readiness.ready && routedModelCapabilities.supportsCodeInterpreter
   const supportsImageGeneration =
     readiness.ready && routedModelCapabilities.supportsImageGeneration
   const supportsOpenAiBuiltInTools =
@@ -187,6 +191,7 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
     supportsRemoteMcp ||
     supportsComputerUse ||
     supportsHostedShell ||
+    supportsCodeInterpreter ||
     supportsImageGeneration
   const defaultOAuthProfile = getDefaultOpenAiCodexOAuthProfile()
   const defaultApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
@@ -257,6 +262,7 @@ function buildOpenAiCodexMainLoopRuntime(): MainLoopProviderRuntime {
     supportsRemoteMcp,
     supportsWebSearch,
     supportsHostedShell,
+    supportsCodeInterpreter,
     supportsImageGeneration,
     authState: readiness.hasAnyProfile || hasApiKeyAuth
       ? 'ready'
@@ -334,6 +340,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     supportsRemoteMcp: false,
     supportsWebSearch,
     supportsHostedShell,
+    supportsCodeInterpreter: false,
     supportsImageGeneration,
     authState:
       readiness.hasAnyProfile || !!process.env.GEMINI_API_KEY?.trim()
@@ -382,6 +389,7 @@ export type MainLoopProviderRuntimeSnapshot = {
   supportsRemoteMcp: boolean
   supportsWebSearch: boolean
   supportsHostedShell: boolean
+  supportsCodeInterpreter: boolean
   supportsImageGeneration: boolean
 }
 
@@ -479,6 +487,7 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     supportsRemoteMcp: execution.supportsRemoteMcp,
     supportsWebSearch: execution.supportsWebSearch,
     supportsHostedShell: execution.supportsHostedShell,
+    supportsCodeInterpreter: execution.supportsCodeInterpreter,
     supportsImageGeneration: execution.supportsImageGeneration,
   }
 }
