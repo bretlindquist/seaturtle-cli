@@ -2906,6 +2906,7 @@ export async function runOpenAiCodexHostedShell(params: {
       ],
       tool_choice: 'required',
       ...(reasoning ? { reasoning } : {}),
+      stream: true,
       store: false,
     }),
     signal: params.signal,
@@ -2924,14 +2925,79 @@ export async function runOpenAiCodexHostedShell(params: {
     )
   }
 
-  const payload = await response.json()
-  const outputText =
-    payload &&
-    typeof payload === 'object' &&
-    typeof (payload as { output_text?: unknown }).output_text === 'string'
-      ? (payload as { output_text: string }).output_text.trim()
-      : ''
-  const outputs = collectHostedShellOutputs(payload)
+  const raw = await response.text()
+  let remainder = raw
+  let outputText = ''
+  const outputs: Array<{
+    stdout: string
+    stderr: string
+    exitCode: number | null
+    timedOut: boolean
+  }> = []
+  const seenOutputs = new Set<string>()
+
+  const appendOutputs = (value: unknown) => {
+    for (const output of collectHostedShellOutputs(value)) {
+      const key = JSON.stringify(output)
+      if (!seenOutputs.has(key)) {
+        seenOutputs.add(key)
+        outputs.push(output)
+      }
+    }
+  }
+
+  while (true) {
+    const frame = nextSseFrame(remainder)
+    if (!frame) {
+      break
+    }
+    remainder = frame.rest
+    const payload = parseSsePayload(frame.frame)
+    if (!payload) {
+      continue
+    }
+
+    const event = JSON.parse(payload) as ChatgptSseEvent
+    if (
+      event.type === 'response.created' ||
+      event.type === 'response.in_progress'
+    ) {
+      recordOpenAiCodexTelemetryFromEvent(event)
+    }
+
+    switch (event.type) {
+      case 'response.output_text.delta':
+        if (typeof event.delta === 'string') {
+          outputText += event.delta
+        }
+        break
+      case 'response.output_item.done':
+        appendOutputs(event.item)
+        break
+      case 'response.completed':
+        appendOutputs(event.response)
+        if (!outputText) {
+          outputText = collectOutputText(event.response)
+        }
+        break
+      case 'response.failed': {
+        const message =
+          event.response &&
+          typeof event.response === 'object' &&
+          typeof (event.response as { error?: { message?: unknown } }).error
+            ?.message === 'string'
+            ? ((event.response as { error: { message: string } }).error.message)
+            : 'OpenAI/Codex hosted shell returned response.failed'
+        throw new Error(message)
+      }
+      case 'response.incomplete':
+        throw new Error('OpenAI/Codex hosted shell returned an incomplete response')
+      default:
+        break
+    }
+  }
+
+  outputText = outputText.trim()
 
   if (!outputText && outputs.length === 0) {
     throw new Error('OpenAI/Codex hosted shell returned no shell output')

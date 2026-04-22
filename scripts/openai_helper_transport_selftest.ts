@@ -98,13 +98,18 @@ function run(): void {
 
   assert.match(
     hostedShellHelper,
-    /await response\.json\(\)/,
-    'OpenAI hosted shell helper should continue using the standard non-streaming Responses body',
-  )
-  assert.doesNotMatch(
-    hostedShellHelper,
     /stream: true/,
-    'OpenAI hosted shell helper should not silently drift to streaming without a matching shell event parser',
+    'OpenAI hosted shell helper should use the streaming transport required by the current backend path',
+  )
+  assert.match(
+    hostedShellHelper,
+    /await response\.text\(\)/,
+    'OpenAI hosted shell helper should parse the streaming body text instead of assuming a non-streaming JSON payload',
+  )
+  assert.match(
+    hostedShellHelper,
+    /nextSseFrame\(/,
+    'OpenAI hosted shell helper should parse SSE frames when using the streaming transport',
   )
 }
 
