@@ -16,44 +16,66 @@ function getNpmSemver(): typeof import('semver') {
   return _npmSemver
 }
 
-export function gt(a: string, b: string): boolean {
-  if (typeof Bun !== 'undefined') {
-    return Bun.semver.order(a, b) === 1
+function normalizeVersionForComparison(version: string): string {
+  const trimmed = version.trim().replace(/^v/i, '')
+  const match = /^(\d+)\.(\d+)(?:\.(\d+))?([+-].*)?$/.exec(trimmed)
+  if (!match) {
+    return version
   }
-  return getNpmSemver().gt(a, b, { loose: true })
+
+  const [, major, minor, patch, suffix = ''] = match
+  return `${Number(major)}.${Number(minor)}.${patch === undefined ? 0 : Number(patch)}${suffix}`
+}
+
+export function gt(a: string, b: string): boolean {
+  const normalizedA = normalizeVersionForComparison(a)
+  const normalizedB = normalizeVersionForComparison(b)
+  if (typeof Bun !== 'undefined') {
+    return Bun.semver.order(normalizedA, normalizedB) === 1
+  }
+  return getNpmSemver().gt(normalizedA, normalizedB, { loose: true })
 }
 
 export function gte(a: string, b: string): boolean {
+  const normalizedA = normalizeVersionForComparison(a)
+  const normalizedB = normalizeVersionForComparison(b)
   if (typeof Bun !== 'undefined') {
-    return Bun.semver.order(a, b) >= 0
+    return Bun.semver.order(normalizedA, normalizedB) >= 0
   }
-  return getNpmSemver().gte(a, b, { loose: true })
+  return getNpmSemver().gte(normalizedA, normalizedB, { loose: true })
 }
 
 export function lt(a: string, b: string): boolean {
+  const normalizedA = normalizeVersionForComparison(a)
+  const normalizedB = normalizeVersionForComparison(b)
   if (typeof Bun !== 'undefined') {
-    return Bun.semver.order(a, b) === -1
+    return Bun.semver.order(normalizedA, normalizedB) === -1
   }
-  return getNpmSemver().lt(a, b, { loose: true })
+  return getNpmSemver().lt(normalizedA, normalizedB, { loose: true })
 }
 
 export function lte(a: string, b: string): boolean {
+  const normalizedA = normalizeVersionForComparison(a)
+  const normalizedB = normalizeVersionForComparison(b)
   if (typeof Bun !== 'undefined') {
-    return Bun.semver.order(a, b) <= 0
+    return Bun.semver.order(normalizedA, normalizedB) <= 0
   }
-  return getNpmSemver().lte(a, b, { loose: true })
+  return getNpmSemver().lte(normalizedA, normalizedB, { loose: true })
 }
 
 export function satisfies(version: string, range: string): boolean {
+  const normalizedVersion = normalizeVersionForComparison(version)
   if (typeof Bun !== 'undefined') {
-    return Bun.semver.satisfies(version, range)
+    return Bun.semver.satisfies(normalizedVersion, range)
   }
-  return getNpmSemver().satisfies(version, range, { loose: true })
+  return getNpmSemver().satisfies(normalizedVersion, range, { loose: true })
 }
 
 export function order(a: string, b: string): -1 | 0 | 1 {
+  const normalizedA = normalizeVersionForComparison(a)
+  const normalizedB = normalizeVersionForComparison(b)
   if (typeof Bun !== 'undefined') {
-    return Bun.semver.order(a, b)
+    return Bun.semver.order(normalizedA, normalizedB)
   }
-  return getNpmSemver().compare(a, b, { loose: true })
+  return getNpmSemver().compare(normalizedA, normalizedB, { loose: true })
 }

@@ -41,6 +41,7 @@ master_fd, slave_fd = pty.openpty()
 env = os.environ.copy()
 env.setdefault("TERM", "xterm-256color")
 env.setdefault("COLORTERM", "truecolor")
+env["NO_LAUNCH_SCREEN"] = "1"
 
 proc = subprocess.Popen(
     ["node", "dist/cli.js"],

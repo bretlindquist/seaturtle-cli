@@ -255,30 +255,33 @@ def wait_for_debug_badge(previous: str | None, timeout: float) -> str | None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         ensure_not_timed_out("debug badge wait")
+        pump_output(0.1)
         badge = find_last_debug_badge(read_debug_log())
         if badge is not None and badge != previous:
             return badge
-        time.sleep(0.1)
+        time.sleep(0.05)
     return find_last_debug_badge(read_debug_log())
 
 def wait_for_specific_debug_badge(expected: str, timeout: float) -> str | None:
     deadline = time.time() + timeout
     while time.time() < deadline:
         ensure_not_timed_out("specific debug badge wait")
+        pump_output(0.1)
         badge = find_last_debug_badge(read_debug_log())
         if badge == expected:
             return badge
-        time.sleep(0.1)
+        time.sleep(0.05)
     return find_last_debug_badge(read_debug_log())
 
 def wait_for_debug_fragment(fragment: str, timeout: float) -> str:
     deadline = time.time() + timeout
     while time.time() < deadline:
         ensure_not_timed_out("debug fragment wait")
+        pump_output(0.1)
         log_text = read_debug_log()
         if fragment in log_text:
             return log_text
-        time.sleep(0.1)
+        time.sleep(0.05)
     return read_debug_log()
 
 def wait_for_debug_query(query: str, timeout: float) -> str:
