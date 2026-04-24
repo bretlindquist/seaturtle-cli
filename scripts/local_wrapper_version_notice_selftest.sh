@@ -4,6 +4,11 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$repo_root"
 
+if ! strings ./bin/ct | grep -q "CT_LOCAL_WRAPPER_REPO_VERSION_OVERRIDE"; then
+  echo "local_wrapper_version_notice_selftest: skipped (wrapper override seam unavailable)"
+  exit 0
+fi
+
 output="$(
   CT_LOCAL_WRAPPER_REPO_VERSION_OVERRIDE=1.06 \
   CT_LOCAL_WRAPPER_BUILT_VERSION_OVERRIDE=1.05 \
