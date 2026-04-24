@@ -94,6 +94,48 @@ function limitSceneAccents(
   return filtered.slice(0, 1)
 }
 
+function selectSceneLines(
+  lines: Array<string | undefined>,
+  maxLines: number,
+): string[] {
+  const filtered = lines.filter(
+    (line, index, arr): line is string =>
+      Boolean(line) && arr.findIndex(other => other === line) === index,
+  )
+  const repeatedSignalPatterns = [
+    /\bshell-green\b/i,
+    /\bwrong name\b/i,
+    /\bbroken lamp\b/i,
+    /\bfoxfire\b/i,
+    /\bpromise\b/i,
+  ]
+  const seenSignals = new Set<number>()
+  const selected: string[] = []
+
+  for (const line of filtered) {
+    const matchingSignalIndex = repeatedSignalPatterns.findIndex(pattern =>
+      pattern.test(line),
+    )
+
+    if (
+      matchingSignalIndex !== -1 &&
+      seenSignals.has(matchingSignalIndex)
+    ) {
+      continue
+    }
+
+    selected.push(line)
+    if (matchingSignalIndex !== -1) {
+      seenSignals.add(matchingSignalIndex)
+    }
+    if (selected.length >= maxLines) {
+      break
+    }
+  }
+
+  return selected
+}
+
 function getBiomeRecallLanguage(
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
 ): {
@@ -328,39 +370,6 @@ function getOpeningAtmosphereLine(
   return undefined
 }
 
-function getSecondBeatAtmosphereLine(
-  relevantMemory: SwordsOfChaosRelevantMemory | undefined,
-  locus: ReturnType<typeof getSwordsEncounterLocus>,
-): string | undefined {
-  if (!relevantMemory) {
-    return undefined
-  }
-
-  if (relevantMemory.canonThread) {
-    return (
-      getSwordsThreadEcho({
-        locus,
-        thread: relevantMemory.canonThread,
-      }) ?? getSwordsThreadPressureText(relevantMemory.canonThread)
-    )
-  }
-
-  if (locus !== 'alley') {
-    return getSwordsWorldMapWeight(locus)
-  }
-
-  if (relevantMemory.familiarPlace && relevantMemory.liveThread) {
-    return (
-      getSwordsThreadEcho({
-        locus,
-        thread: relevantMemory.liveThread,
-      }) ?? relevantMemory.threadOmen
-    )
-  }
-
-  return undefined
-}
-
 function getSecondBeatHint(
   openingChoice: SwordsOfChaosOpeningChoice,
   relevantMemory: SwordsOfChaosRelevantMemory | undefined,
@@ -492,7 +501,6 @@ function renderDeterministicScene(
   payload: SwordsOfChaosPromptPayload,
 ): SwordsOfChaosDmSceneResponse {
   const locus = getSwordsEncounterLocus(payload.relevantMemory)
-  const worldWeight = getSwordsWorldMapWeight(locus)
   const recurringSymbol =
     payload.relevantMemory?.recurringSymbol ?? getSwordsRecurringSymbol(locus)
   const threadEcho = getSwordsThreadEcho({
@@ -546,41 +554,28 @@ function renderDeterministicScene(
       atmosphereLine,
       threadEcho ?? (locus !== 'alley' ? recurringSymbol : undefined),
     ])
-    return {
-      subtitle: openingShell.subtitle,
-      sceneText: [
-        openingShell.sceneText,
+    const openingSupportLines = selectSceneLines(
+      [
         getSwordsSceneStakesLine({
           locus,
           relevantMemory: payload.relevantMemory,
         }),
-        ...(getSwordsMagicRuleLine(payload.relevantMemory)
-          ? [getSwordsMagicRuleLine(payload.relevantMemory) as string]
-          : []),
-        ...(getSwordsPresenceLine({
+        getSwordsMagicRuleLine(payload.relevantMemory),
+        getSwordsPresenceLine({
           locus,
           relevantMemory: payload.relevantMemory,
-        })
-          ? [
-              getSwordsPresenceLine({
-                locus,
-                relevantMemory: payload.relevantMemory,
-              }) as string,
-            ]
-          : []),
-        ...(getSwordsChapterConfrontationLine({
+        }),
+        getSwordsChapterConfrontationLine({
           locus,
           relevantMemory: payload.relevantMemory,
-        })
-          ? [
-              getSwordsChapterConfrontationLine({
-                locus,
-                relevantMemory: payload.relevantMemory,
-              }) as string,
-            ]
-          : []),
+        }),
         ...openingTail,
-      ].join('\n\n'),
+      ],
+      1,
+    )
+    return {
+      subtitle: openingShell.subtitle,
+      sceneText: [openingShell.sceneText, ...openingSupportLines].join('\n\n'),
       options: applySwordsConfrontationToOpeningOptions({
         options: applySwordsMagicToOpeningOptions({
           options: applySwordsPresenceToOpeningOptions({
@@ -674,57 +669,37 @@ function renderDeterministicScene(
           ...getSwordsCarryForwardPressure(payload.relevantMemory, locus),
           ...getSwordsStorySecondBeatPressure(payload.relevantMemory),
         ]
+  const secondBeatSupportLines = selectSceneLines(
+    [
+      getSecondBeatLead(payload.openingChoice, payload.relevantMemory),
+      secondBeat.intro,
+      getSwordsSceneStakesLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }),
+      getSwordsMagicRuleLine(payload.relevantMemory),
+      getSwordsPresenceLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }),
+      getSwordsChapterConfrontationLine({
+        locus,
+        relevantMemory: payload.relevantMemory,
+      }),
+      getSwordsContinuationLead(payload.relevantMemory),
+      getSwordsSceneStateLead(payload.relevantMemory),
+      getSwordsCharacterReactionLine(payload.relevantMemory, locus),
+      getSwordsStorySecondBeatLead(payload.relevantMemory),
+      ...secondBeatTail,
+    ],
+    locus === 'alley' ? 2 : 2,
+  )
   return {
     subtitle:
       payload.relevantMemory?.canonThread && returningAgain
         ? `${secondBeat.subtitle} The air behind it feels occupied.`
         : secondBeat.subtitle,
-    sceneText: [
-      ...(getSwordsStorySecondBeatLead(payload.relevantMemory)
-        ? [getSwordsStorySecondBeatLead(payload.relevantMemory) as string]
-        : []),
-      getSwordsSceneStakesLine({
-        locus,
-        relevantMemory: payload.relevantMemory,
-      }),
-      ...(getSwordsMagicRuleLine(payload.relevantMemory)
-        ? [getSwordsMagicRuleLine(payload.relevantMemory) as string]
-        : []),
-      ...(getSwordsPresenceLine({
-        locus,
-        relevantMemory: payload.relevantMemory,
-      })
-        ? [
-            getSwordsPresenceLine({
-              locus,
-              relevantMemory: payload.relevantMemory,
-            }) as string,
-          ]
-        : []),
-      ...(getSwordsChapterConfrontationLine({
-        locus,
-        relevantMemory: payload.relevantMemory,
-      })
-        ? [
-            getSwordsChapterConfrontationLine({
-              locus,
-              relevantMemory: payload.relevantMemory,
-            }) as string,
-          ]
-        : []),
-      ...(getSwordsContinuationLead(payload.relevantMemory)
-        ? [getSwordsContinuationLead(payload.relevantMemory) as string]
-        : []),
-      ...(getSwordsSceneStateLead(payload.relevantMemory)
-        ? [getSwordsSceneStateLead(payload.relevantMemory) as string]
-        : []),
-      ...(getSwordsCharacterReactionLine(payload.relevantMemory, locus)
-        ? [getSwordsCharacterReactionLine(payload.relevantMemory, locus) as string]
-        : []),
-      getSecondBeatLead(payload.openingChoice, payload.relevantMemory),
-      secondBeat.intro,
-      ...secondBeatTail,
-    ].join('\n\n'),
+    sceneText: secondBeatSupportLines.join('\n\n'),
     options: applySecondBeatCallbackMemory(
       payload.openingChoice,
       applySwordsConfrontationToSecondBeatOptions({
