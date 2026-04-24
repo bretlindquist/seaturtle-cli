@@ -55,7 +55,7 @@ export function ShellProgressMessage(t0) {
   if (!lines.length) {
     let t3;
     if ($[7] === Symbol.for("react.memo_cache_sentinel")) {
-      t3 = <Text dimColor={true}>Running… </Text>;
+      t3 = <Text color="bashBorder">Running… </Text>;
       $[7] = t3;
     } else {
       t3 = $[7];
@@ -83,7 +83,7 @@ export function ShellProgressMessage(t0) {
   const t3 = verbose ? undefined : Math.min(5, lines.length);
   let t4;
   if ($[11] !== displayLines) {
-    t4 = <Text dimColor={true}>{displayLines}</Text>;
+    t4 = <Text color="bashBorder">{displayLines}</Text>;
     $[11] = displayLines;
     $[12] = t4;
   } else {

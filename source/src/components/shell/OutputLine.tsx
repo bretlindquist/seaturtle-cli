@@ -51,7 +51,8 @@ export function OutputLine(t0) {
     verbose,
     isError,
     isWarning,
-    linkifyUrls
+    linkifyUrls,
+    color: preferredColor,
   } = t0;
   const {
     columns
@@ -82,7 +83,7 @@ export function OutputLine(t0) {
     t1 = $[5];
   }
   const formattedContent = t1;
-  const color = isError ? "error" : isWarning ? "warning" : undefined;
+  const color = isError ? "error" : isWarning ? "warning" : preferredColor;
   let t2;
   if ($[6] !== formattedContent) {
     t2 = <Ansi>{formattedContent}</Ansi>;

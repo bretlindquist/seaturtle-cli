@@ -60,6 +60,7 @@ const proactiveModule = feature('PROACTIVE') || feature('KAIROS') ? require('../
 const NO_OP_SUBSCRIBE = (_cb: () => void) => () => {};
 const NULL = () => null;
 const MAX_VOICE_HINT_SHOWS = 3;
+const FOOTER_TURTLE = '🐢';
 type Props = {
   exitMessage: {
     show: boolean;
@@ -159,17 +160,23 @@ export function PromptInputFooterLeftSide({
 }: Props): React.ReactNode {
   if (exitMessage.show) {
     return (
-      <Text dimColor key="exit-message">
-        Press {exitMessage.key} again to exit
-      </Text>
+      <Box justifyContent="flex-start" gap={1}>
+        <FooterBrandMark />
+        <Text dimColor key="exit-message">
+          Press {exitMessage.key} again to exit
+        </Text>
+      </Box>
     )
   }
 
   if (isPasting) {
     return (
-      <Text dimColor key="pasting-message">
-        Pasting text…
-      </Text>
+      <Box justifyContent="flex-start" gap={1}>
+        <FooterBrandMark />
+        <Text dimColor key="pasting-message">
+          Pasting text…
+        </Text>
+      </Box>
     )
   }
 
@@ -179,6 +186,7 @@ export function PromptInputFooterLeftSide({
 
   return (
     <Box justifyContent="flex-start" gap={1}>
+      <FooterBrandMark />
       {isSearching ? (
         <HistorySearchInput
           value={historyQuery}
@@ -204,6 +212,10 @@ export function PromptInputFooterLeftSide({
       />
     </Box>
   )
+}
+
+function FooterBrandMark(): React.ReactNode {
+  return <Text color="bashBorder">{FOOTER_TURTLE}</Text>
 }
 type ModeIndicatorProps = {
   mode: PromptInputMode;
