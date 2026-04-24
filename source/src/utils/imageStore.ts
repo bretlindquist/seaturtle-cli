@@ -8,9 +8,18 @@ import { getFsImplementation } from './fsOperations.js'
 
 const IMAGE_STORE_DIR = 'image-cache'
 const MAX_STORED_IMAGE_PATHS = 200
+let nextReservedImageId = 1
 
 // In-memory cache of stored image paths
 const storedImagePaths = new Map<number, string>()
+
+type MessageWithImageRefs = {
+  type: string
+  imagePasteIds?: number[]
+  attachment?: {
+    imagePasteIds?: number[]
+  }
+}
 
 /**
  * Get the image store directory for the current session.
@@ -79,6 +88,25 @@ export async function storeImage(
 }
 
 /**
+ * Reserve one or more image ids for the current session.
+ * Uses transcript history plus in-memory reservations to avoid collisions
+ * when images are created after the initial paste flow.
+ */
+export function reserveImagePasteIds(
+  messages: MessageWithImageRefs[],
+  count = 1,
+): number[] {
+  if (count < 1) {
+    return []
+  }
+
+  const maxSeenId = getMaxSeenImageId(messages)
+  const startId = Math.max(nextReservedImageId, maxSeenId + 1)
+  nextReservedImageId = startId + count
+  return Array.from({ length: count }, (_, index) => startId + index)
+}
+
+/**
  * Store all images from pastedContents to disk.
  */
 export async function storeImages(
@@ -110,6 +138,27 @@ export function getStoredImagePath(imageId: number): string | null {
  */
 export function clearStoredImagePaths(): void {
   storedImagePaths.clear()
+  nextReservedImageId = 1
+}
+
+function getMaxSeenImageId(messages: MessageWithImageRefs[]): number {
+  let maxId = 0
+
+  for (const message of messages) {
+    for (const imageId of message.imagePasteIds ?? []) {
+      if (imageId > maxId) {
+        maxId = imageId
+      }
+    }
+
+    for (const imageId of message.attachment?.imagePasteIds ?? []) {
+      if (imageId > maxId) {
+        maxId = imageId
+      }
+    }
+  }
+
+  return maxId
 }
 
 function evictOldestIfAtCap(): void {

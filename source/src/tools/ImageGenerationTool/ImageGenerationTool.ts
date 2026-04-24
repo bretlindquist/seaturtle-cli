@@ -6,6 +6,8 @@ import {
 } from '../../services/api/openaiCodex.js'
 import { getMainLoopProviderRuntime } from '../../services/api/providerRuntime.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
+import type { PastedContent } from '../../utils/config.js'
+import { reserveImagePasteIds, storeImage } from '../../utils/imageStore.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { IMAGE_GENERATION_TOOL_NAME, getImageGenerationPrompt } from './prompt.js'
 import {
@@ -44,6 +46,8 @@ const outputSchema = lazySchema(() =>
     revisedPrompt: z.string().nullable(),
     mediaType: z.string(),
     imageBase64: z.string(),
+    savedImageId: z.number().int().positive().nullable(),
+    savedImagePath: z.string().nullable(),
     durationSeconds: z.number(),
   }),
 )
@@ -140,12 +144,24 @@ export const ImageGenerationTool = buildTool({
             },
           })
 
+    const [savedImageId] = reserveImagePasteIds(context.messages, 1)
+    const storedImage: PastedContent = {
+      id: savedImageId,
+      type: 'image',
+      content: result.imageBase64,
+      mediaType: result.mediaType,
+      filename: 'Generated image',
+    }
+    const savedImagePath = await storeImage(storedImage)
+
     return {
       data: {
         prompt: input.prompt,
         revisedPrompt: result.revisedPrompt,
         mediaType: result.mediaType,
         imageBase64: result.imageBase64,
+        savedImageId: savedImagePath ? savedImageId : null,
+        savedImagePath,
         durationSeconds: (performance.now() - startTime) / 1000,
       },
     }
@@ -168,6 +184,17 @@ export const ImageGenerationTool = buildTool({
               {
                 type: 'text' as const,
                 text: `Revised prompt: ${content.revisedPrompt}`,
+              },
+            ]
+          : []),
+        ...(content.savedImagePath
+          ? [
+              {
+                type: 'text' as const,
+                text:
+                  content.savedImageId !== null
+                    ? `Saved local copy as [Image #${content.savedImageId}] at ${content.savedImagePath}`
+                    : `Saved local copy at ${content.savedImagePath}`,
               },
             ]
           : []),

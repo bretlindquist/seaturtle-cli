@@ -1,4 +1,5 @@
 import React from 'react'
+import { FilePathLink } from '../../components/FilePathLink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import { Box, Text } from '../../ink.js'
@@ -21,12 +22,29 @@ export function renderToolResultMessage(output: Output): React.ReactNode {
     output.durationSeconds >= 1
       ? `${Math.round(output.durationSeconds)}s`
       : `${Math.round(output.durationSeconds * 1000)}ms`
+  const savedImageLabel =
+    output.savedImageId !== null
+      ? `[Image #${output.savedImageId}]`
+      : 'saved image'
 
   return (
-    <Box justifyContent="space-between" width="100%">
+    <Box flexDirection="column" width="100%">
       <MessageResponse height={1}>
-        <Text>Generated image in {timeDisplay}</Text>
+        <Text>
+          Generated image in {timeDisplay}
+          {output.savedImagePath ? ' · saved locally' : ''}
+        </Text>
       </MessageResponse>
+      {output.savedImagePath ? (
+        <MessageResponse>
+          <Text>
+            <FilePathLink filePath={output.savedImagePath}>
+              {savedImageLabel}
+            </FilePathLink>
+            <Text dimColor> · {output.savedImagePath}</Text>
+          </Text>
+        </MessageResponse>
+      ) : null}
     </Box>
   )
 }

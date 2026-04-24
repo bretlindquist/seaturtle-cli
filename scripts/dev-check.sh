@@ -99,6 +99,7 @@ bun scripts/openai_web_fetch_error_selftest.ts >/dev/null
 bun scripts/openai_file_search_capability_selftest.ts >/dev/null
 bun scripts/openai_file_search_routing_selftest.ts >/dev/null
 bun scripts/openai_image_generation_routing_selftest.ts >/dev/null
+bun scripts/generated_image_save_selftest.ts >/dev/null
 bun scripts/openai_hosted_shell_routing_selftest.ts >/dev/null
 bun scripts/openai_computer_use_routing_selftest.ts >/dev/null
 bun scripts/openai_remote_mcp_capability_selftest.ts >/dev/null
