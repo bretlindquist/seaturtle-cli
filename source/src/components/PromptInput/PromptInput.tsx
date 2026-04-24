@@ -1231,6 +1231,7 @@ function PromptInput({
     // or if it exceeds the number of lines we want to show
     if (text.length > PASTE_THRESHOLD || numLines > maxLines) {
       const pasteId = nextPasteIdRef.current++;
+      const pasteRef = formatPastedTextRef(pasteId, numLines);
       const newContent: PastedContent = {
         id: pasteId,
         type: 'text',
@@ -1240,7 +1241,13 @@ function PromptInput({
         ...prev,
         [pasteId]: newContent
       }));
-      insertTextAtCursor(formatPastedTextRef(pasteId, numLines));
+      insertTextAtCursor(pasteRef);
+      addNotification({
+        key: 'paste-text-complete',
+        text: `Pasted ${numLines} line${numLines === 1 ? '' : 's'} as ${pasteRef}`,
+        priority: 'immediate',
+        timeoutMs: 4000
+      });
     } else {
       // For shorter pastes, just insert the text normally
       insertTextAtCursor(text);
