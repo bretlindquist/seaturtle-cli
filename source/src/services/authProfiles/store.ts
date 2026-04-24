@@ -374,6 +374,30 @@ export function readExternalCodexCliAuth(): ExternalCodexCliAuth | null {
   }
 }
 
+export function saveExternalCodexCliAuth(auth: ExternalCodexCliAuth): void {
+  const authPath = resolveCodexAuthPath()
+  const fs = getFsImplementation()
+  fs.mkdirSync(resolveCodexHomePath(), { recursive: true })
+  fs.writeFileSync(
+    authPath,
+    JSON.stringify(
+      {
+        tokens: {
+          access_token: auth.accessToken,
+          account_id: auth.accountId,
+          ...(auth.refreshToken
+            ? { refresh_token: auth.refreshToken }
+            : {}),
+          ...(auth.idToken ? { id_token: auth.idToken } : {}),
+        },
+      },
+      null,
+      2,
+    ),
+    'utf8',
+  )
+}
+
 export function getProviderAuthReadiness(
   provider: string,
 ): ProviderAuthReadiness {

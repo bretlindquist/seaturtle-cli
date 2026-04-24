@@ -199,6 +199,18 @@ Parallel agents:
 - if OpenAI auth is unavailable in the teammate context, the teammate should
   fail with OpenAI setup guidance rather than use another provider
 
+Remote-host cloud offload:
+
+- OpenAI/Codex does not use `ct --remote`; that path is still the Anthropic
+  claude.ai CCR flow
+- OpenAI/Codex cloud/offloaded execution uses `ct ssh <host> [dir]`
+- SeaTurtle deploys a matching remote runtime, starts CT on the target host,
+  and injects the active OpenAI provider/auth selection there
+- API-key auth is exported directly; OAuth/Codex auth is materialized as a
+  scoped remote `CODEX_HOME/auth.json` for that session
+- if the remote-host session cannot establish OpenAI auth, it should fail with
+  OpenAI-specific guidance rather than route back to Anthropic
+
 Compatibility note:
 
 - the underlying runtime still uses `dist/cli.js`

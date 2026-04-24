@@ -628,8 +628,13 @@ const externalTips: Tip[] = [
   },
   {
     id: 'web-app',
-    content: async () =>
-      'Run tasks in the cloud with ct --remote "your task" while you keep coding locally',
+    content: async () => {
+      const runtime = getMainLoopProviderRuntimeSnapshot()
+      if (runtime.execution.family === 'anthropic') {
+        return 'Run tasks in the cloud with ct --remote "your task" while you keep coding locally'
+      }
+      return 'Offload a full CT session to another machine with ct ssh <host> and keep your current provider/runtime there'
+    },
     cooldownSessions: 15,
     isRelevant: async () => true,
   },

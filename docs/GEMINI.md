@@ -122,6 +122,18 @@ Parallel agents:
 - if Gemini auth is unavailable in the teammate context, the teammate should
   fail with Gemini setup guidance rather than use another provider
 
+Remote-host cloud offload:
+
+- Gemini does not use `ct --remote`; that path is still the Anthropic
+  claude.ai CCR flow
+- Gemini cloud/offloaded execution uses `ct ssh <host> [dir]`
+- SeaTurtle deploys a matching remote runtime, starts CT on the target host,
+  and injects the active Gemini provider/auth selection there
+- Gemini API-key auth is exported from CT secure storage or `GEMINI_API_KEY`
+  into the remote session for that host-managed run
+- if the remote-host session cannot establish Gemini auth, it should fail with
+  Gemini-specific guidance rather than route back to Anthropic
+
 ## Config Surface
 
 Core:

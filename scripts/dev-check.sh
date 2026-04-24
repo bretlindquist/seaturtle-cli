@@ -81,6 +81,7 @@ bun scripts/session_entry_policy_selftest.ts >/dev/null
 bun scripts/openai_codex_auth_selftest.ts >/dev/null
 bun scripts/openai_agent_capability_selftest.ts >/dev/null
 bun scripts/provider_agent_team_runtime_selftest.ts >/dev/null
+bun scripts/ssh_remote_provider_selftest.ts >/dev/null
 bun scripts/openai_model_capability_truth_selftest.ts >/dev/null
 bun scripts/provider_model_discovery_selftest.ts >/dev/null
 bun scripts/openai_model_discovery_audit_selftest.ts >/dev/null

@@ -3202,11 +3202,13 @@ async function run(): Promise<CommanderCommand> {
       }, renderAndRun);
       return;
     } else if (feature('SSH_REMOTE') && _pendingSSH?.host) {
-      // `claude ssh <host> [dir]` — probe remote, deploy binary if needed,
-      // spawn ssh with unix-socket -R forward to a local auth proxy, hand
-      // the REPL an SSHSession. Tools run remotely, UI renders locally.
-      // `--local` skips probe/deploy/ssh and spawns the current binary
-      // directly with the same env — e2e test of the proxy/auth plumbing.
+      // `ct ssh <host> [dir]` — probe remote, deploy a matching runtime when
+      // needed, then hand the REPL an SSHSession that speaks the structured
+      // SDK protocol over stdio. The local SeaTurtle process owns provider
+      // selection and supported auth material; the remote host runs tools and
+      // inference under that injected runtime contract.
+      // `--local` skips probe/deploy/ssh and spawns the child CLI locally with
+      // the same provider-managed env for transport/auth e2e validation.
       const {
         createSSHSession,
         createLocalSSHSession,
@@ -3215,7 +3217,7 @@ async function run(): Promise<CommanderCommand> {
       let sshSession;
       try {
         if (_pendingSSH.local) {
-          process.stderr.write('Starting local ssh-proxy test session...\n');
+          process.stderr.write('Starting local SeaTurtle remote-host test session...\n');
           sshSession = createLocalSSHSession({
             cwd: _pendingSSH.cwd,
             permissionMode: _pendingSSH.permissionMode,
@@ -3249,7 +3251,7 @@ async function run(): Promise<CommanderCommand> {
       } catch (err) {
         return await exitWithError(root, err instanceof SSHSessionError ? err.message : String(err), () => gracefulShutdown(1));
       }
-      const sshInfoMessage = createSystemMessage(_pendingSSH.local ? `Local ssh-proxy test session\ncwd: ${sshSession.remoteCwd}\nAuth: unix socket → local proxy` : `SSH session to ${_pendingSSH.host}\nRemote cwd: ${sshSession.remoteCwd}\nAuth: unix socket -R → local proxy`, 'info');
+      const sshInfoMessage = createSystemMessage(_pendingSSH.local ? `Local remote-host test session\ncwd: ${sshSession.remoteCwd}\nProvider auth: managed by local SeaTurtle host` : `SSH session to ${_pendingSSH.host}\nRemote cwd: ${sshSession.remoteCwd}\nProvider auth: managed by local SeaTurtle host`, 'info');
       await launchRepl(root, {
         getFpsMetrics,
         stats,
@@ -4048,17 +4050,17 @@ async function run(): Promise<CommanderCommand> {
     });
   }
 
-  // `claude ssh <host> [dir]` — registered here only so --help shows it.
+  // `ct ssh <host> [dir]` — registered here only so --help shows it.
   // The actual interactive flow is handled by early argv rewriting in main()
   // (parallels the DIRECT_CONNECT/cc:// pattern above). If commander reaches
   // this action it means the argv rewrite didn't fire (e.g. user ran
   // `claude ssh` with no host) — just print usage.
   if (feature('SSH_REMOTE')) {
-    program.command('ssh <host> [dir]').description('Run CT on a remote host over SSH. Deploys the binary and ' + 'tunnels API auth back through your local machine — no remote setup needed.').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote (dangerous)').option('--local', 'e2e test mode — spawn the child CLI locally (skip ssh/deploy). ' + 'Exercises the auth proxy and unix-socket plumbing without a remote host.').action(async () => {
+    program.command('ssh <host> [dir]').description('Run CT on a remote host over SSH. Deploys a matching SeaTurtle runtime and starts a provider-managed remote session using your current local provider/auth setup.').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote (dangerous)').option('--local', 'e2e test mode — spawn the child CLI locally (skip ssh/deploy). Exercises the remote-host stream/auth plumbing without another machine.').action(async () => {
       // Argv rewriting in main() should have consumed `ssh <host>` before
       // commander runs. Reaching here means host was missing or the
       // rewrite predicate didn't match.
-      process.stderr.write('Usage: ct ssh <user@host | ssh-config-alias> [dir]\n\n' + "Runs CT on a remote Linux host. You don't need to install\n" + 'anything on the remote or run `ct auth login` there — the binary is\n' + 'deployed over SSH and API auth tunnels back through your local machine.\n');
+      process.stderr.write('Usage: ct ssh <user@host | ssh-config-alias> [dir]\n\n' + 'Runs CT on a remote host over SSH. SeaTurtle deploys a matching runtime,\n' + 'starts the session in the requested remote directory, and injects the\n' + 'supported local provider/auth configuration for that remote session.\n');
       process.exit(1);
     });
   }

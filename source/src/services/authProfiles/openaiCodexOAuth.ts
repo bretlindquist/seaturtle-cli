@@ -10,6 +10,7 @@ import {
   buildOpenAiCodexOAuthProfile,
   getDefaultOpenAiCodexOAuthProfile,
   readExternalCodexCliAuth,
+  saveExternalCodexCliAuth,
   saveProviderAuthProfile,
 } from './store.js'
 
@@ -333,6 +334,32 @@ export async function getUsableOpenAiCodexAuth(): Promise<OpenAiCodexNativeAuth 
   const fallback = readExternalCodexCliAuth()
   if (!fallback) {
     return null
+  }
+
+  if (
+    fallback.refreshToken &&
+    isExpiredOrNearExpiry(getExpiryFromJwt(fallback.accessToken))
+  ) {
+    try {
+      const refreshed = await refreshOpenAICodexToken(fallback.refreshToken)
+      const refreshedAuth = {
+        accessToken: refreshed.access,
+        refreshToken: refreshed.refresh,
+        accountId:
+          typeof refreshed.accountId === 'string' && refreshed.accountId.length > 0
+            ? refreshed.accountId
+            : fallback.accountId,
+        idToken: fallback.idToken,
+      }
+      saveExternalCodexCliAuth(refreshedAuth)
+      return {
+        accessToken: refreshedAuth.accessToken,
+        accountId: refreshedAuth.accountId,
+        source: 'codex-cli',
+      }
+    } catch (error) {
+      logError(error)
+    }
   }
 
   return {
