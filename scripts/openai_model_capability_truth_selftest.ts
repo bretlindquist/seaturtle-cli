@@ -30,6 +30,11 @@ function run(): void {
   )
   assert.match(
     openAiCodex,
+    /'gpt-5\.5': \{\s*documented: OPENAI_DOCUMENTED_5_5_CAPABILITIES,\s*routed: OPENAI_ROUTED_5_5_CAPABILITIES,/,
+    'GPT-5.5 should keep an explicit capability entry so SeaTurtle does not drop OpenAI routed tool truth when the new Codex model is selected',
+  )
+  assert.match(
+    openAiCodex,
     /'gpt-5\.4-nano': \{/,
     'OpenAI model capability truth should include GPT-5.4 Nano so SeaTurtle can expose the current lightweight GPT-5.4-class option',
   )

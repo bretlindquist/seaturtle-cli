@@ -32,6 +32,7 @@ type RememberedEffortField =
   | 'rememberedGeminiEffortLevel'
 
 const OPENAI_CODEX_REASONING_MODELS = new Set([
+  'gpt-5.5',
   'gpt-5.4',
   'gpt-5.4-mini',
   'gpt-5.3-codex',
@@ -42,6 +43,7 @@ const OPENAI_CODEX_REASONING_MODELS = new Set([
 ])
 
 const OPENAI_CODEX_XHIGH_MODELS = new Set([
+  'gpt-5.5',
   'gpt-5.4',
   'gpt-5.4-mini',
   'gpt-5.3-codex',

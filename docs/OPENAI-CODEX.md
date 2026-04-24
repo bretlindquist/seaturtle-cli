@@ -128,6 +128,15 @@ Run on OpenAI/Codex:
 ct
 ```
 
+Current model-picker truth:
+
+- ChatGPT/Codex OAuth sessions expose `gpt-5.5` in `/model`
+- `gpt-5.5` remains hidden from `OPENAI_API_KEY` contexts in this build because
+  OpenAI documents it as a Codex/ChatGPT rollout model rather than an API-key
+  model
+- the default OpenAI main-loop model still stays on `gpt-5.4` until SeaTurtle
+  grows account-level Codex model discovery
+
 For API-key operation, set:
 
 ```bash

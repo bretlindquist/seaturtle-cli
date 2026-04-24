@@ -12,6 +12,10 @@ import {
   type OpenAiCodexResolvedAuth,
 } from '../authProfiles/openaiCodexAuth.js'
 import {
+  getDefaultOpenAiCodexApiKeyProfile,
+  getOpenAiCodexAuthReadiness,
+} from '../authProfiles/store.js'
+import {
   getConfiguredOpenAiRemoteMcpServers,
   getConfiguredOpenAiVectorStoreIds,
 } from './openaiCapabilityConfig.js'
@@ -47,6 +51,8 @@ export type OpenAiCodexModelDefinition = {
   descriptionForModel: string
 }
 
+type OpenAiCodexModelCatalogScope = 'oauth' | 'api_key'
+
 export type OpenAiCodexModelCapabilities = {
   supportsWebSearch: boolean
   supportsFileSearch: boolean
@@ -60,79 +66,115 @@ export type OpenAiCodexModelCapabilities = {
   supportsImageGeneration: boolean
 }
 
-export const OPENAI_CODEX_MODEL_DEFINITIONS: readonly OpenAiCodexModelDefinition[] =
-  [
-    {
-      value: 'gpt-5.4',
-      label: 'GPT-5.4',
-      description: 'Frontier model with the full routed OpenAI hosted-tool set',
-      descriptionForModel:
-        'GPT-5.4 - frontier model with web, file, image, code interpreter, hosted shell, and computer use',
-    },
-    {
-      value: 'gpt-5.4-mini',
-      label: 'GPT-5.4 Mini',
-      description:
-        'Smaller frontier model with hosted tools and computer use',
-      descriptionForModel:
-        'GPT-5.4 Mini - smaller frontier model with web, file, image, code interpreter, hosted shell, and computer use',
-    },
-    {
-      value: 'gpt-5.4-nano',
-      label: 'GPT-5.4 Nano',
-      description:
-        'Fastest GPT-5.4-class model for lightweight subagents without computer use',
-      descriptionForModel:
-        'GPT-5.4 Nano - fastest GPT-5.4-class model with web, file, image, code interpreter, and hosted shell, but no computer use',
-    },
-    {
-      value: 'gpt-5.3-codex',
-      label: 'GPT-5.3 Codex',
-      description:
-        'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
-      descriptionForModel:
-        'GPT-5.3 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
-    },
-    {
-      value: 'gpt-5.2-codex',
-      label: 'GPT-5.2 Codex',
-      description:
-        'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
-      descriptionForModel:
-        'GPT-5.2 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
-    },
-    {
-      value: 'gpt-5.2',
-      label: 'GPT-5.2',
-      description:
-        'Previous flagship with routed web, file, image, and code interpreter support',
-      descriptionForModel:
-        'GPT-5.2 - previous flagship with routed web, file, image, and code interpreter support',
-    },
-    {
-      value: 'gpt-5.1-codex-max',
-      label: 'GPT-5.1 Codex Max',
-      description:
-        'Legacy Codex compatibility model without routed OpenAI hosted tools in this build',
-      descriptionForModel:
-        'GPT-5.1 Codex Max - legacy Codex compatibility model without routed OpenAI hosted tools in this build',
-    },
-    {
-      value: 'gpt-5.1-codex-mini',
-      label: 'GPT-5.1 Codex Mini',
-      description:
-        'Legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
-      descriptionForModel:
-        'GPT-5.1 Codex Mini - legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
-    },
-  ] as const
+const OPENAI_CODEX_SHARED_MODEL_DEFINITIONS = [
+  {
+    value: 'gpt-5.4',
+    label: 'GPT-5.4',
+    description: 'Frontier model with the full routed OpenAI hosted-tool set',
+    descriptionForModel:
+      'GPT-5.4 - frontier model with web, file, image, code interpreter, hosted shell, and computer use',
+  },
+  {
+    value: 'gpt-5.4-mini',
+    label: 'GPT-5.4 Mini',
+    description: 'Smaller frontier model with hosted tools and computer use',
+    descriptionForModel:
+      'GPT-5.4 Mini - smaller frontier model with web, file, image, code interpreter, hosted shell, and computer use',
+  },
+  {
+    value: 'gpt-5.4-nano',
+    label: 'GPT-5.4 Nano',
+    description:
+      'Fastest GPT-5.4-class model for lightweight subagents without computer use',
+    descriptionForModel:
+      'GPT-5.4 Nano - fastest GPT-5.4-class model with web, file, image, code interpreter, and hosted shell, but no computer use',
+  },
+  {
+    value: 'gpt-5.3-codex',
+    label: 'GPT-5.3 Codex',
+    description:
+      'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
+    descriptionForModel:
+      'GPT-5.3 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
+  },
+  {
+    value: 'gpt-5.2-codex',
+    label: 'GPT-5.2 Codex',
+    description:
+      'Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
+    descriptionForModel:
+      'GPT-5.2 Codex - Codex-optimized compatibility model without routed OpenAI hosted tools in this build',
+  },
+  {
+    value: 'gpt-5.2',
+    label: 'GPT-5.2',
+    description:
+      'Previous flagship with routed web, file, image, and code interpreter support',
+    descriptionForModel:
+      'GPT-5.2 - previous flagship with routed web, file, image, and code interpreter support',
+  },
+  {
+    value: 'gpt-5.1-codex-max',
+    label: 'GPT-5.1 Codex Max',
+    description:
+      'Legacy Codex compatibility model without routed OpenAI hosted tools in this build',
+    descriptionForModel:
+      'GPT-5.1 Codex Max - legacy Codex compatibility model without routed OpenAI hosted tools in this build',
+  },
+  {
+    value: 'gpt-5.1-codex-mini',
+    label: 'GPT-5.1 Codex Mini',
+    description:
+      'Legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
+    descriptionForModel:
+      'GPT-5.1 Codex Mini - legacy low-cost Codex compatibility model without routed OpenAI hosted tools in this build',
+  },
+] as const satisfies readonly OpenAiCodexModelDefinition[]
 
-const KNOWN_CHATGPT_CODEX_MODELS = new Set(
-  OPENAI_CODEX_MODEL_DEFINITIONS.map(model => model.value),
-)
+const OPENAI_CODEX_OAUTH_ONLY_MODEL_DEFINITIONS = [
+  {
+    value: 'gpt-5.5',
+    label: 'GPT-5.5',
+    description:
+      'Newest frontier Codex model for ChatGPT/OAuth sessions during the current rollout',
+    descriptionForModel:
+      'GPT-5.5 - newest frontier Codex model for ChatGPT/OAuth sessions during the current rollout',
+  },
+] as const satisfies readonly OpenAiCodexModelDefinition[]
 
-export function getOpenAiCodexModelDefinitions(): readonly OpenAiCodexModelDefinition[] {
-  return OPENAI_CODEX_MODEL_DEFINITIONS
+function getOpenAiCodexModelCatalogScope(): OpenAiCodexModelCatalogScope {
+  if (
+    getDefaultOpenAiCodexApiKeyProfile() ||
+    process.env.OPENAI_API_KEY?.trim()
+  ) {
+    return 'api_key'
+  }
+
+  const readiness = getOpenAiCodexAuthReadiness()
+  if (readiness.externalSources.includes('codex-cli')) {
+    return 'oauth'
+  }
+
+  return 'oauth'
+}
+
+function buildOpenAiCodexModelDefinitions(
+  scope: OpenAiCodexModelCatalogScope,
+): readonly OpenAiCodexModelDefinition[] {
+  if (scope === 'api_key') {
+    return OPENAI_CODEX_SHARED_MODEL_DEFINITIONS
+  }
+
+  return [
+    ...OPENAI_CODEX_OAUTH_ONLY_MODEL_DEFINITIONS,
+    ...OPENAI_CODEX_SHARED_MODEL_DEFINITIONS,
+  ]
+}
+
+export function getOpenAiCodexModelDefinitions(
+  scope: OpenAiCodexModelCatalogScope = getOpenAiCodexModelCatalogScope(),
+): readonly OpenAiCodexModelDefinition[] {
+  return buildOpenAiCodexModelDefinitions(scope)
 }
 
 type OpenAiCodexModelCapabilityRecord = {
@@ -219,6 +261,19 @@ const OPENAI_ROUTED_5_4_NANO_CAPABILITIES: OpenAiCodexModelCapabilities = {
   supportsCodeInterpreter: true,
 }
 
+// OpenAI's current Codex model guide positions GPT-5.5 as the newest frontier
+// Codex model for complex coding, computer use, knowledge work, and research
+// workflows. Until SeaTurtle grows account-level ChatGPT model discovery, infer
+// GPT-5.5 tool parity from the existing GPT-5.4 family rather than leaving the
+// runtime with zero routed capability truth after selection.
+const OPENAI_DOCUMENTED_5_5_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  ...OPENAI_DOCUMENTED_5_4_CAPABILITIES,
+}
+
+const OPENAI_ROUTED_5_5_CAPABILITIES: OpenAiCodexModelCapabilities = {
+  ...OPENAI_ROUTED_5_4_FAMILY_CAPABILITIES,
+}
+
 // The current GPT-5.2 model page snapshot does not expose the same detailed
 // tool matrix as GPT-5.4. Keep this conservative and limited to the older
 // GPT-5-class hosted tools that SeaTurtle already routes confidently.
@@ -242,6 +297,10 @@ const OPENAI_ROUTED_5_2_CAPABILITIES: OpenAiCodexModelCapabilities = {
 const OPENAI_CODEX_MODEL_CAPABILITY_REGISTRY: Readonly<
   Record<string, OpenAiCodexModelCapabilityRecord>
 > = {
+  'gpt-5.5': {
+    documented: OPENAI_DOCUMENTED_5_5_CAPABILITIES,
+    routed: OPENAI_ROUTED_5_5_CAPABILITIES,
+  },
   'gpt-5.4': {
     documented: OPENAI_DOCUMENTED_5_4_CAPABILITIES,
     routed: OPENAI_ROUTED_5_4_FAMILY_CAPABILITIES,
@@ -2346,9 +2405,12 @@ async function collectChatgptCodexText(params: {
 }
 
 export function validateOpenAiCodexModel(model: string): string | null {
-  return KNOWN_CHATGPT_CODEX_MODELS.has(model)
+  const definitions = getOpenAiCodexModelDefinitions()
+  const knownModels = new Set(definitions.map(item => item.value))
+
+  return knownModels.has(model)
     ? null
-    : `model \`${model}\` is not available through ChatGPT-backed Codex OAuth in this build. Supported models: ${OPENAI_CODEX_MODEL_DEFINITIONS.map(item => `\`${item.value}\``).join(', ')}.`
+    : `model \`${model}\` is not available through the active OpenAI auth path in this build. Supported models: ${definitions.map(item => `\`${item.value}\``).join(', ')}.`
 }
 
 async function runOpenAiCodexPlainText(params: {
