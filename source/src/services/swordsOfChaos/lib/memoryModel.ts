@@ -129,39 +129,43 @@ export function deriveSwordsOfChaosMemory(
   const hasVisitedAnyEncounter = Object.values(save.encounterMemory).some(
     encounter => encounter.visits > 0,
   )
-  const encounterShift: SwordsOfChaosEncounterLocus =
-    save.story.activeLocus ??
-    (canonThread === 'half-shell-relic-trail' &&
-    (oceanShipMemory?.visits ?? 0) >= 2
+  const progressionEncounterShift: SwordsOfChaosEncounterLocus =
+    canonThread === 'half-shell-relic-trail' && (oceanShipMemory?.visits ?? 0) >= 2
       ? 'post-apocalyptic-ruin'
       : canonThread === 'sign-truth-fractures' &&
           (stationMemory?.visits ?? 0) >= 2
-      ? 'mars-outpost'
-      : alleyMemory &&
-          alleyMemory.visits >= 4 &&
-          canonThread === 'alley-oath-keepers'
-      ? 'old-tree'
-      : alleyMemory &&
-          alleyMemory.visits >= 4 &&
-          canonThread === 'half-shell-relic-trail'
-        ? 'ocean-ship'
+        ? 'mars-outpost'
         : alleyMemory &&
             alleyMemory.visits >= 4 &&
-            canonThread === 'broken-lamp-witnesses'
-          ? 'fae-realm'
-        : alleyMemory &&
-            alleyMemory.visits >= 4 &&
-            canonThread === 'quiet-refusals'
-          ? 'dark-dungeon'
-        : alleyMemory &&
-            alleyMemory.visits >= 4 &&
-            canonThread === 'sign-truth-fractures'
-          ? 'space-station'
-        : persistedEncounterShift
-          ? persistedEncounterShift
-        : !hasVisitedAnyEncounter && save.sessionZero.completed
-          ? getProceduralOpeningEncounterShift(save)
-        : 'alley')
+            canonThread === 'alley-oath-keepers'
+          ? 'old-tree'
+          : alleyMemory &&
+              alleyMemory.visits >= 4 &&
+              canonThread === 'half-shell-relic-trail'
+            ? 'ocean-ship'
+            : alleyMemory &&
+                alleyMemory.visits >= 4 &&
+                canonThread === 'broken-lamp-witnesses'
+              ? 'fae-realm'
+              : alleyMemory &&
+                  alleyMemory.visits >= 4 &&
+                  canonThread === 'quiet-refusals'
+                ? 'dark-dungeon'
+                : alleyMemory &&
+                    alleyMemory.visits >= 4 &&
+                    canonThread === 'sign-truth-fractures'
+                  ? 'space-station'
+                  : persistedEncounterShift
+                    ? persistedEncounterShift
+                    : !hasVisitedAnyEncounter && save.sessionZero.completed
+                      ? getProceduralOpeningEncounterShift(save)
+                      : 'alley'
+  const encounterShift: SwordsOfChaosEncounterLocus =
+    save.story.activeLocus &&
+    save.story.activeLocus !== 'alley' &&
+    progressionEncounterShift === 'alley'
+      ? save.story.activeLocus
+      : progressionEncounterShift
   const activeEncounterMemory =
     save.encounterMemory[getSwordsEncounterMemoryKey(encounterShift)]
   const priorRoutes =

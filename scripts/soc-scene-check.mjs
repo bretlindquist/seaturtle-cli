@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { buildSceneSnapshots } from './soc-scene-probe.mjs'
 
 const bannedPhrases = [

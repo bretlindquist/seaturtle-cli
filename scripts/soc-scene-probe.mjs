@@ -1,3 +1,5 @@
+#!/usr/bin/env bun
+
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { getSwordsOfChaosRelevantMemory } from '../source/src/services/swordsOfChaos/lib/relevantMemory.ts'
@@ -32,6 +34,14 @@ export function createDefaultSave() {
       drive: null,
       omen: null,
     },
+    characterDevelopment: {
+      focus: null,
+      title: null,
+      lesson: null,
+      pressure: null,
+      stage: 0,
+      lastUpdatedAt: null,
+    },
     sessionZero: {
       completed: false,
       originPlace: null,
@@ -52,6 +62,27 @@ export function createDefaultSave() {
     threadCandidates: [],
     threadMemory: {},
     encounterMemory: {},
+    story: {
+      activeLocus: null,
+      activeThread: null,
+      chapter: 0,
+      chapterTitle: null,
+      tension: 'low',
+      currentObjective: null,
+      carryForward: null,
+      continuation: null,
+      sceneState: null,
+      lastOutcomeKey: null,
+      lastAdvancedAt: null,
+    },
+    magic: {
+      rarityBudget: 0,
+      omensSeen: 0,
+      crossingsOpened: 0,
+      activeImpossible: 'none',
+      lastOmen: null,
+      lastManifestationAt: null,
+    },
     seaturtle: {
       bond: 0,
       favor: 0,
@@ -70,7 +101,14 @@ export function applyRoute(save, openingChoice, secondChoice, options = {}) {
   const beforeRelevant = getSwordsOfChaosRelevantMemory(save)
   const resolution = resolveSwordsOfChaosRoute(openingChoice, secondChoice, {
     encounterLocus: beforeRelevant.encounterShift ?? 'alley',
-    seaturtleWitnessed: options.seaturtleWitnessed,
+    character: save.character,
+    currentDevelopment: save.characterDevelopment,
+    currentMagic: save.magic,
+    currentChapter: beforeRelevant.storyChapter,
+    previousObjective: beforeRelevant.currentObjective,
+    relevantMemory: beforeRelevant,
+    seaturtleWitnessed:
+      options.seaturtleWitnessed ?? beforeRelevant.seaturtleGlimpsed,
   })
   return processSwordsOfChaosEventBatch(save, resolution.eventBatch)
 }

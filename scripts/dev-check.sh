@@ -105,6 +105,7 @@ bun scripts/openai_multimodal_input_selftest.ts >/dev/null
 bun scripts/session_environment_permission_selftest.ts >/dev/null
 bun scripts/cli_highlight_selftest.ts >/dev/null
 bun scripts/swords_scene_reveal_selftest.ts >/dev/null
+bun scripts/swords_ledger_selftest.ts >/dev/null
 bun scripts/steer_checkpoint_selftest.ts >/dev/null
 bun scripts/transcript_search_engine_selftest.ts >/dev/null
 bun scripts/transcript_search_style_selftest.ts >/dev/null
