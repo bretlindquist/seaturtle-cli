@@ -20,8 +20,6 @@ import {
   addLegendEvent,
   addInventoryItem,
   addTitle,
-  addOath,
-  addUserTruth,
   addRarityUnlock,
   updateCtGameState,
 } from '../../services/projectIdentity/archives.js'
@@ -362,6 +360,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
           ? 230
           : 300
       : null,
+    true,
   )
 
   const activeSwordsScene =
@@ -415,6 +414,7 @@ function GameCommand({ onExit }: { onExit: OnExit }): React.ReactNode {
       swordsSceneReveal.revealed < activeSwordsSceneParagraphs.length
       ? 260
       : null,
+    true,
   )
 
   function resetSwordsCreationState(mode: SwordsOfChaosCreationMode | null = null) {
