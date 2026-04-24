@@ -16,10 +16,13 @@ Upload the current platform's SeaTurtle release artifacts to a GitHub release.
 Expected artifacts:
   seaturtle-<platform>.tar.gz
   seaturtle-<platform>.tar.gz.sha256
+  seaturtle-<platform>.zip
+  seaturtle-<platform>.zip.sha256
 
 Typical flow:
   node scripts/build-cli.mjs --no-minify
-  node scripts/build-release-artifact.mjs
+  node scripts/build-release-artifact.mjs --target linux-x64
+  node scripts/build-release-artifact.mjs --target windows-x64
   scripts/publish-release-assets.sh v1.10
 EOF
   exit 1
@@ -33,7 +36,7 @@ fi
 artifact_files=()
 while IFS= read -r -d '' file; do
   artifact_files+=("$file")
-done < <(find "$outdir" -maxdepth 1 -type f \( -name 'seaturtle-*.tar.gz' -o -name 'seaturtle-*.tar.gz.sha256' \) -print0 | sort -z)
+done < <(find "$outdir" -maxdepth 1 -type f \( -name 'seaturtle-*.tar.gz' -o -name 'seaturtle-*.tar.gz.sha256' -o -name 'seaturtle-*.zip' -o -name 'seaturtle-*.zip.sha256' \) -print0 | sort -z)
 
 if [[ "${#artifact_files[@]}" -eq 0 ]]; then
   echo "No SeaTurtle release artifacts found in $outdir" >&2

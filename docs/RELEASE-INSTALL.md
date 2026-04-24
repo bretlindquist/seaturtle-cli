@@ -60,19 +60,22 @@ is intentionally separate from the normal user install path.
 
 Release artifacts are built and uploaded by:
 
-- `node scripts/build-release-artifact.mjs`
+- `.github/workflows/release-artifacts.yml`
+- `node scripts/build-release-artifact.mjs --target <platform>`
 - `scripts/publish-release-assets.sh <tag>`
 
-Current published artifact matrix in that workflow:
+Current GitHub Actions release-artifact matrix:
 
 - `darwin-arm64`
-- `darwin-x64`
-- `linux-arm64`
-- `linux-x64`
+- `windows-x64`
+
+Windows release artifacts are published to GitHub releases as `.zip` archives containing `ct.exe`.
+The curl installer remains Unix-only today, and `ct update` still follows the Unix release-install path.
 
 Maintainer-local validation helpers:
 
-- `node scripts/build-release-artifact.mjs`
+- `node scripts/build-release-artifact.mjs --target darwin-arm64`
+- `node scripts/build-release-artifact.mjs --target windows-x64`
 - `scripts/publish-release-assets.sh <tag>`
 - `bash scripts/release-installer-smoke.sh`
 - `bash scripts/release-installer-docker-smoke.sh`

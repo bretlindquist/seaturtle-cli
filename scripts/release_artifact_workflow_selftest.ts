@@ -21,20 +21,28 @@ assert(
   'expected README to document the release publish script',
 )
 
-for (const platform of [
-  'darwin-arm64',
-  'darwin-x64',
-  'linux-arm64',
-  'linux-x64',
-]) {
+for (const platform of ['darwin-arm64', 'windows-x64']) {
   assert(
     readme.includes(`- \`${platform}\``),
-    `expected README to list ${platform} in the published artifact matrix`,
+    `expected README to list ${platform} in the GitHub Actions release matrix`,
   )
   assert(
     releaseInstallDoc.includes(`- \`${platform}\``),
-    `expected release install doc to list ${platform} in the published artifact matrix`,
+    `expected release install doc to list ${platform} in the GitHub Actions release matrix`,
   )
 }
+
+assert(
+  readme.includes('release-artifacts.yml'),
+  'expected README to mention the release workflow file',
+)
+assert(
+  releaseInstallDoc.includes('Windows release artifacts are published to GitHub releases'),
+  'expected release install doc to describe Windows GitHub release artifacts',
+)
+assert(
+  releaseInstallDoc.includes('The curl installer remains Unix-only today'),
+  'expected release install doc to keep Windows installer support scoped honestly',
+)
 
 console.log('release_artifact_workflow_selftest: ok')

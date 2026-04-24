@@ -242,12 +242,13 @@ That installer:
 - installs `ct` and `seaturtle` into your user bin directory
 - does not require cloning the repo or running the contributor source build
 
-Current published release-artifact matrix:
+Current GitHub Actions release-artifact matrix:
 
 - `darwin-arm64`
-- `darwin-x64`
-- `linux-arm64`
-- `linux-x64`
+- `windows-x64`
+
+The workflow lives at `.github/workflows/release-artifacts.yml`.
+The curl installer remains Unix-only today, so the Windows artifact is published to GitHub releases without claiming the shell installer supports Windows yet.
 
 ### 2. Start CT
 
