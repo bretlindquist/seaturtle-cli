@@ -78,8 +78,7 @@ def run_case(name: str, payload: str, expect_placeholder: bool) -> None:
             if (
                 not prompt_seen
                 and compact_plain.count("❯") >= 2
-                and "Freshsessionbydefault." in compact_plain
-                and "Lane:general" in compact_plain
+                and "SeaTurtlev" in compact_plain
             ):
                 os.write(master_fd, paste_sequence.encode())
                 prompt_seen = True

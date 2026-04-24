@@ -121,7 +121,7 @@ let lolcatAnimationFrame = 0
  */
 const lightTheme: Theme = {
   autoAccept: 'rgb(135,0,255)', // Electric violet
-  bashBorder: 'rgb(255,0,135)', // Vibrant pink
+  bashBorder: 'rgb(0,153,122)', // Sea green tuned for light mode
   claude: 'rgb(215,119,87)', // Claude orange
   claudeShimmer: 'rgb(245,149,117)', // Lighter claude orange for shimmer effect
   claudeBlue_FOR_SYSTEM_SPINNER: 'rgb(87,105,247)', // Medium blue for system spinner
@@ -562,7 +562,7 @@ function buildLolcatTheme(frameOffset = 0): Theme {
  */
 const lightDaltonizedTheme: Theme = {
   autoAccept: 'rgb(135,0,255)', // Electric violet
-  bashBorder: 'rgb(0,102,204)', // Blue instead of pink
+  bashBorder: 'rgb(0,153,122)', // Sea green tuned for light mode
   claude: 'rgb(255,153,51)', // Orange adjusted for deuteranopia
   claudeShimmer: 'rgb(255,183,101)', // Lighter orange for shimmer effect
   claudeBlue_FOR_SYSTEM_SPINNER: 'rgb(51,102,255)', // Bright blue for system spinner
