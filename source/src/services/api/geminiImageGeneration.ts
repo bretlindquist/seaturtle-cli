@@ -32,15 +32,25 @@ const GEMINI_IMAGE_MODELS = new Set([
 ])
 const SUPPORTED_ASPECT_RATIOS = new Set([
   '1:1',
+  '1:4',
+  '1:8',
   '2:3',
   '3:2',
   '3:4',
+  '4:1',
   '4:3',
+  '4:5',
+  '5:4',
+  '8:1',
   '9:16',
   '16:9',
   '21:9',
 ])
 const SUPPORTED_IMAGE_SIZES = new Set(['1K', '2K', '4K'])
+const SUPPORTED_GEMINI_31_FLASH_IMAGE_SIZES = new Set([
+  '512',
+  ...SUPPORTED_IMAGE_SIZES,
+])
 const MAX_REFERENCE_IMAGES = 14
 
 function getGeminiImageAuthTarget(): {
@@ -75,11 +85,17 @@ function validateGeminiImageInput(input: GeminiImageGenerationInput): string | n
   if (input.aspectRatio && !SUPPORTED_ASPECT_RATIOS.has(input.aspectRatio)) {
     return `Gemini image aspectRatio \`${input.aspectRatio}\` is unsupported. Supported values: ${Array.from(SUPPORTED_ASPECT_RATIOS).join(', ')}.`
   }
-  if (input.imageSize && !SUPPORTED_IMAGE_SIZES.has(input.imageSize)) {
-    return `Gemini imageSize \`${input.imageSize}\` is unsupported. Supported values: ${Array.from(SUPPORTED_IMAGE_SIZES).join(', ')}.`
-  }
   if (input.imageSize && !model.startsWith('gemini-3')) {
     return 'Gemini imageSize is only routed for Gemini 3 image models.'
+  }
+  if (input.imageSize) {
+    const supportedImageSizes =
+      model === 'gemini-3.1-flash-image-preview'
+        ? SUPPORTED_GEMINI_31_FLASH_IMAGE_SIZES
+        : SUPPORTED_IMAGE_SIZES
+    if (!supportedImageSizes.has(input.imageSize)) {
+      return `Gemini imageSize \`${input.imageSize}\` is unsupported for \`${model}\`. Supported values: ${Array.from(supportedImageSizes).join(', ')}.`
+    }
   }
   if ((input.referenceImages?.length ?? 0) > MAX_REFERENCE_IMAGES) {
     return `Gemini image editing supports at most ${MAX_REFERENCE_IMAGES} reference images.`
