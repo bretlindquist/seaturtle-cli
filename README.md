@@ -588,7 +588,9 @@ These start the same tracked-plan orchestration harness.
 
 Current contract:
 
-- requires one tracked root-level dated `*-state.md` plan file
+- supports tracked dated executable `*-state.md` plan files
+- auto-discovers one tracked root-level dated `*-state.md` plan file when it is the only candidate
+- use `/autowork use <path>` or `/swim use <path>` when you want to pin a specific tracked executable plan path
 - `/autowork run` and `/swim run` carry the approved plan to completion
 - progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks
@@ -602,6 +604,7 @@ Current subcommands:
 - `/autowork`
 - `/autowork safe`
 - `/autowork dangerous`
+- `/autowork use <path>`
 - `/autowork run`
 - `/autowork step`
 - `/autowork status`
@@ -610,6 +613,7 @@ Current subcommands:
 - `/swim`
 - `/swim safe`
 - `/swim dangerous`
+- `/swim use <path>`
 - `/swim run`
 - `/swim step`
 - `/swim status`

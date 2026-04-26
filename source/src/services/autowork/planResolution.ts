@@ -1,7 +1,8 @@
-import { basename, join } from 'path'
+import { basename, join, resolve } from 'path'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
 import { getCtProjectRoot } from '../projectIdentity/paths.js'
+import { parseAutoworkPlanFile } from './planParser.js'
 import { readAutoworkState } from './state.js'
 
 const EXECUTABLE_PLAN_FILENAME_REGEX = /^\d{4}-\d{2}-\d{2}-.+-state\.md$/u
@@ -11,18 +12,32 @@ export type AutoworkPlanResolutionResult =
       ok: true
       repoRoot: string
       planPath: string
-      source: 'state' | 'tracked-root'
+      source: 'selected-path' | 'state' | 'tracked-root'
     }
   | {
       ok: false
       repoRoot: string | null
       code:
         | 'not_in_git_repo'
+        | 'stale_selected_plan'
         | 'no_tracked_plan'
         | 'multiple_tracked_plans'
         | 'stale_state_plan'
       message: string
       candidates: string[]
+    }
+
+export type AutoworkExplicitPlanSelectionResult =
+  | {
+      ok: true
+      repoRoot: string
+      planPath: string
+    }
+  | {
+      ok: false
+      repoRoot: string | null
+      code: 'not_in_git_repo' | 'invalid_plan'
+      message: string
     }
 
 async function listTrackedRootStatePlans(repoRoot: string): Promise<string[]> {
@@ -45,6 +60,39 @@ async function listTrackedRootStatePlans(repoRoot: string): Promise<string[]> {
     .map(candidate => join(repoRoot, candidate))
 }
 
+export async function resolveExplicitAutoworkPlanPath(
+  rawPath: string,
+  root: string = getCtProjectRoot(),
+): Promise<AutoworkExplicitPlanSelectionResult> {
+  const repoRoot = findCanonicalGitRoot(root)
+  if (!repoRoot) {
+    return {
+      ok: false,
+      repoRoot: null,
+      code: 'not_in_git_repo',
+      message:
+        'Autowork requires a git repository before it can select a plan file.',
+    }
+  }
+
+  const normalizedPath = resolve(root, rawPath)
+  const parsed = await parseAutoworkPlanFile(normalizedPath)
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      repoRoot,
+      code: 'invalid_plan',
+      message: parsed.message,
+    }
+  }
+
+  return {
+    ok: true,
+    repoRoot: parsed.repoRoot,
+    planPath: parsed.path,
+  }
+}
+
 export async function resolveActiveAutoworkPlanFile(
   root: string = getCtProjectRoot(),
 ): Promise<AutoworkPlanResolutionResult> {
@@ -61,6 +109,30 @@ export async function resolveActiveAutoworkPlanFile(
 
   const state = readAutoworkState(repoRoot)
   const trackedCandidates = await listTrackedRootStatePlans(repoRoot)
+
+  if (state.selectedPlanPath) {
+    const selected = await resolveExplicitAutoworkPlanPath(
+      state.selectedPlanPath,
+      repoRoot,
+    )
+    if (selected.ok) {
+      return {
+        ok: true,
+        repoRoot,
+        planPath: selected.planPath,
+        source: 'selected-path',
+      }
+    }
+
+    return {
+      ok: false,
+      repoRoot,
+      code: 'stale_selected_plan',
+      message:
+        'Autowork is pinned to a selected plan path that is no longer a valid tracked executable plan.',
+      candidates: trackedCandidates,
+    }
+  }
 
   if (state.sourcePlanPath) {
     const normalizedStatePath = join(repoRoot, basename(state.sourcePlanPath))

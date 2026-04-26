@@ -186,6 +186,7 @@ Next steps:
 - Use `/swim` for the more whimsical alias with the same guarantees
 - Use `/autowork safe` or `/swim safe` to restore the recommended checkpoint policy
 - Use `/autowork dangerous` or `/swim dangerous` only when you deliberately want the dangerous-mode policy
+- Use `/autowork use <path>` or `/swim use <path>` when you need to pin one specific executable plan file
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
@@ -194,7 +195,9 @@ Next steps:
 
 Important truth:
 
-- `/autowork` requires one tracked root-level dated `*-state.md` plan file
+- `/autowork` supports tracked dated executable `*-state.md` plan files
+- `/autowork` auto-discovers one tracked root-level candidate when there is exactly one
+- `/autowork use <path>` or `/swim use <path>` pins a specific tracked executable plan path
 - safe mode carries the approved plan to completion
 - progression still happens one guarded chunk at a time
 - safe mode verifies validation and commit hygiene before it advances

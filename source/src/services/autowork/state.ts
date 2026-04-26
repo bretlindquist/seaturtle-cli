@@ -57,6 +57,7 @@ export type AutoworkStopReason = {
 
 export type AutoworkState = {
   version: 1
+  selectedPlanPath: string | null
   sourcePlanPath: string | null
   sourcePlanRevision: string | null
   currentChunkId: string | null
@@ -82,6 +83,7 @@ export type AutoworkState = {
 function createDefaultAutoworkState(): AutoworkState {
   return {
     version: 1,
+    selectedPlanPath: null,
     sourcePlanPath: null,
     sourcePlanRevision: null,
     currentChunkId: null,
@@ -268,6 +270,10 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
   const value = input as Partial<AutoworkState>
   return {
     version: 1,
+    selectedPlanPath:
+      typeof value.selectedPlanPath === 'string'
+        ? value.selectedPlanPath
+        : null,
     sourcePlanPath:
       typeof value.sourcePlanPath === 'string' ? value.sourcePlanPath : null,
     sourcePlanRevision:

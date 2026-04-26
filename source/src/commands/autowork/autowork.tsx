@@ -14,8 +14,13 @@ import {
   getAutoworkDangerousQuip,
   getAutoworkLaunchQuip,
 } from '../../services/autowork/quips.js'
-import { resolveActiveAutoworkPlanFile } from '../../services/autowork/planResolution.js'
 import {
+  resolveActiveAutoworkPlanFile,
+  resolveExplicitAutoworkPlanPath,
+  type AutoworkPlanResolutionResult,
+} from '../../services/autowork/planResolution.js'
+import {
+  readAutoworkState,
   updateAutoworkState,
   type AutoworkExecutionScope,
   type AutoworkRunMode,
@@ -40,12 +45,42 @@ type ShellAction =
   | 'doctor'
   | 'back'
 
+function splitCommandArgs(args: string): { head: string; tail: string } {
+  const trimmed = args.trim()
+  if (!trimmed) {
+    return { head: '', tail: '' }
+  }
+
+  const firstWhitespace = trimmed.search(/\s/u)
+  if (firstWhitespace === -1) {
+    return { head: trimmed.toLowerCase(), tail: '' }
+  }
+
+  return {
+    head: trimmed.slice(0, firstWhitespace).toLowerCase(),
+    tail: trimmed.slice(firstWhitespace).trim(),
+  }
+}
+
 function titleCaseRunMode(runMode: AutoworkRunMode): string {
   return runMode === 'dangerous' ? 'dangerous' : 'safe'
 }
 
 function formatExecutionScope(scope: AutoworkExecutionScope): string {
   return scope === 'step' ? 'one chunk only' : 'plan to completion'
+}
+
+function formatPlanResolutionSource(
+  source: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
+): string {
+  switch (source) {
+    case 'selected-path':
+      return 'explicit selection'
+    case 'state':
+      return 'persisted autowork state'
+    case 'tracked-root':
+      return 'single tracked root-level fallback'
+  }
 }
 
 function formatChecks(
@@ -62,6 +97,7 @@ function formatChecks(
 function formatStatusSummary(
   entryPoint: EntryPoint,
   context: AutoworkStartupContext,
+  planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
 ): string {
   const quip = getAutoworkLaunchQuip(
     entryPoint,
@@ -74,6 +110,7 @@ function formatStatusSummary(
     `Mode: ${context.mode}`,
     `Why: ${context.modeReason}`,
     `Plan: ${context.planPath}`,
+    `Plan source: ${formatPlanResolutionSource(planSource)}`,
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
@@ -91,11 +128,15 @@ function formatStatusSummary(
   ].join('\n')
 }
 
-function formatDoctorSummary(context: AutoworkStartupContext): string {
+function formatDoctorSummary(
+  context: AutoworkStartupContext,
+  planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
+): string {
   const lines = [
     'Autowork doctor',
     '',
     `Plan: ${context.planPath}`,
+    `Plan source: ${formatPlanResolutionSource(planSource)}`,
     `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
@@ -142,7 +183,11 @@ function formatDoctorSummary(context: AutoworkStartupContext): string {
 async function getAutoworkContext(
   entryPoint: EntryPoint,
 ): Promise<
-  | { ok: true; context: AutoworkStartupContext }
+  | {
+      ok: true
+      context: AutoworkStartupContext
+      planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+    }
   | { ok: false; message: string }
 > {
   const resolved = await resolveActiveAutoworkPlanFile()
@@ -154,8 +199,16 @@ async function getAutoworkContext(
         resolved.message,
         '',
         resolved.candidates.length > 0
-          ? `Candidates:\n${resolved.candidates.map(candidate => `- ${candidate}`).join('\n')}`
-          : 'Next: create one tracked root-level dated plan file like `2026-04-05-feature-name-state.md`.',
+          ? [
+              `Candidates:\n${resolved.candidates.map(candidate => `- ${candidate}`).join('\n')}`,
+              '',
+              `Next: pin one explicitly with ${baseName} use <path>.`,
+            ].join('\n')
+          : [
+              'Next:',
+              '- create a tracked dated plan file like `2026-04-05-feature-name-state.md`',
+              `- or pin one explicitly with ${baseName} use <path>`,
+            ].join('\n'),
         '',
         `Then rerun ${baseName} status or ${baseName} doctor.`,
       ].join('\n'),
@@ -165,6 +218,70 @@ async function getAutoworkContext(
   return {
     ok: true,
     context: await inspectAndSelectAutoworkMode(resolved.planPath),
+    planSource: resolved.source,
+  }
+}
+
+async function selectAutoworkPlan(
+  entryPoint: EntryPoint,
+  rawPath: string,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const requestedPath = rawPath.trim()
+  const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+  if (!requestedPath) {
+    return {
+      ok: false,
+      message: [
+        'Missing plan path.',
+        '',
+        `Usage: ${baseName} use <tracked-dated-plan-state.md>`,
+      ].join('\n'),
+    }
+  }
+
+  const selected = await resolveExplicitAutoworkPlanPath(requestedPath)
+  if (!selected.ok) {
+    return {
+      ok: false,
+      message: [
+        `Could not select autowork plan: ${requestedPath}`,
+        '',
+        selected.message,
+      ].join('\n'),
+    }
+  }
+
+  const state = readAutoworkState(selected.repoRoot)
+  if (state.currentChunkId || state.implementedButUnverified) {
+    return {
+      ok: false,
+      message: [
+        'Autowork cannot switch plans while a chunk is active or awaiting verification.',
+        '',
+        `Current chunk: ${state.currentChunkId ?? 'unknown'}`,
+        `Next: finish the checkpoint with ${baseName} verify or clear the current run before retargeting the plan.`,
+      ].join('\n'),
+    }
+  }
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      selectedPlanPath: selected.planPath,
+      stopReason: null,
+    }),
+    selected.repoRoot,
+  )
+
+  return {
+    ok: true,
+    message: [
+      `${titleForEntryPoint(entryPoint)} plan selected.`,
+      '',
+      `Plan: ${selected.planPath}`,
+      'Source: explicit selection',
+      `Next: use ${baseName} status, ${baseName} run, or ${baseName} step.`,
+    ].join('\n'),
   }
 }
 
@@ -428,8 +545,12 @@ function AutoworkMenu({
 
             onDone(
               value === 'doctor'
-                ? formatDoctorSummary(resolved.context)
-                : formatStatusSummary(entryPoint, resolved.context),
+                ? formatDoctorSummary(resolved.context, resolved.planSource)
+                : formatStatusSummary(
+                    entryPoint,
+                    resolved.context,
+                    resolved.planSource,
+                  ),
               { display: 'system' },
             )
           }}
@@ -446,9 +567,11 @@ function AutoworkMenu({
 
 export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall {
   return async (onDone, _context, args) => {
-    const trimmedArgs = args?.trim().toLowerCase() || ''
+    const rawArgs = args?.trim() || ''
+    const { head, tail } = splitCommandArgs(rawArgs)
+    const normalizedArgs = rawArgs.toLowerCase()
 
-    if (COMMON_HELP_ARGS.includes(trimmedArgs)) {
+    if (COMMON_HELP_ARGS.includes(normalizedArgs)) {
       const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
       onDone(
         [
@@ -458,6 +581,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           `- ${baseName}`,
           `- ${baseName} safe`,
           `- ${baseName} dangerous`,
+          `- ${baseName} use <path>`,
           `- ${baseName} run`,
           `- ${baseName} step`,
           `- ${baseName} status`,
@@ -473,19 +597,25 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (trimmedArgs === 'safe') {
+    if (head === 'safe' && !tail) {
       const changed = await setAutoworkRunMode(entryPoint, 'safe')
       onDone(changed.message, { display: 'system' })
       return null
     }
 
-    if (trimmedArgs === 'dangerous') {
+    if (head === 'dangerous' && !tail) {
       const changed = await setAutoworkRunMode(entryPoint, 'dangerous')
       onDone(changed.message, { display: 'system' })
       return null
     }
 
-    if (trimmedArgs === 'run') {
+    if (head === 'use') {
+      const selection = await selectAutoworkPlan(entryPoint, tail)
+      onDone(selection.message, { display: 'system' })
+      return null
+    }
+
+    if (head === 'run' && !tail) {
       const execution = await runAutowork(entryPoint, 'plan')
       onDone(execution.message, execution.ok
         ? {
@@ -499,7 +629,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (trimmedArgs === 'step') {
+    if (head === 'step' && !tail) {
       const execution = await runAutowork(entryPoint, 'step')
       onDone(execution.message, execution.ok
         ? {
@@ -513,7 +643,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (trimmedArgs === 'verify') {
+    if (head === 'verify' && !tail) {
       const verification = await verifyAutowork(entryPoint)
       onDone(verification.message, verification.ok && verification.nextInput
         ? {
@@ -525,7 +655,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (trimmedArgs === 'status' || trimmedArgs === 'doctor') {
+    if ((head === 'status' || head === 'doctor') && !tail) {
       const resolved = await getAutoworkContext(entryPoint)
       if (!resolved.ok) {
         onDone(resolved.message, { display: 'system' })
@@ -533,15 +663,15 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       }
 
       onDone(
-        trimmedArgs === 'doctor'
-          ? formatDoctorSummary(resolved.context)
-          : formatStatusSummary(entryPoint, resolved.context),
+        head === 'doctor'
+          ? formatDoctorSummary(resolved.context, resolved.planSource)
+          : formatStatusSummary(entryPoint, resolved.context, resolved.planSource),
         { display: 'system' },
       )
       return null
     }
 
-    if (trimmedArgs === '' || trimmedArgs === 'start') {
+    if (rawArgs === '' || normalizedArgs === 'start') {
       return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} />
     }
 
@@ -552,6 +682,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `Use /${entryPoint} for the menu, or one of:`,
         `- /${entryPoint} safe`,
         `- /${entryPoint} dangerous`,
+        `- /${entryPoint} use <path>`,
         `- /${entryPoint} run`,
         `- /${entryPoint} step`,
         `- /${entryPoint} status`,
