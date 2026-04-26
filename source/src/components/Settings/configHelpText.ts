@@ -49,6 +49,8 @@ export function getConfigHelpText(setting: ConfigHelpSetting): string {
       return 'Testing override. Forces the local Chicago computer-use gate on so you can test computer-use availability in SeaTurtle.'
     case 'verbose':
       return 'Show more operational detail from CT while it works.'
+    case 'geminiBehaviorMode':
+      return 'Gemini-only coding guardrails. Strict mode appends stronger quality and UX instructions on every Gemini turn.'
     case 'terminalProgressBarEnabled':
       return 'Render a progress bar in terminal contexts that support it.'
     case 'showStatusInTerminalTab':

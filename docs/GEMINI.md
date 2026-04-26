@@ -156,6 +156,17 @@ export SEATURTLE_GEMINI_CACHED_CONTENT=cachedContents/...
 export SEATURTLE_GEMINI_SERVICE_TIER=priority
 ```
 
+Gemini-only operator controls:
+
+- `/gemini` opens the Gemini guardrails picker
+- `/gemini strict` enables the Gemini-only strict behavior mode
+- `/gemini off` disables it again
+- `/config` also exposes this as `Gemini guardrails`
+
+Strict mode currently appends an extra Gemini-only coding and UX instruction
+block on every Gemini turn. It does not affect OpenAI/Codex or Anthropic
+turns.
+
 Gemini image generation also accepts Google-style nickname aliases:
 
 - `nano banana` -> `gemini-2.5-flash-image`

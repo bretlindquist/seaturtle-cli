@@ -5,6 +5,7 @@ import {
   NOTIFICATION_CHANNELS,
   TEAMMATE_MODES,
 } from '../../utils/configConstants.js'
+import { GEMINI_BEHAVIOR_MODES } from '../../utils/geminiBehaviorMode.js'
 import { getModelOptions } from '../../utils/model/modelOptions.js'
 import { validateModel } from '../../utils/model/validateModel.js'
 import { THEME_NAMES, THEME_SETTINGS } from '../../utils/theme.js'
@@ -44,6 +45,13 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     type: 'boolean',
     description: 'Show detailed debug output',
     appStateKey: 'verbose',
+  },
+  geminiBehaviorMode: {
+    source: 'global',
+    type: 'string',
+    description:
+      'Gemini-only behavior mode. "strict" appends stricter coding and UX guardrails on Gemini turns.',
+    options: GEMINI_BEHAVIOR_MODES,
   },
   preferredNotifChannel: {
     source: 'global',

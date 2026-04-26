@@ -49,6 +49,7 @@ import type { ImageDimensions } from './imageResizer.js'
 import type { EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import type { ModelOption } from './model/modelOptions.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+import type { GeminiBehaviorMode } from './geminiBehaviorMode.js'
 
 // Re-entrancy guard: prevents getConfig → logEvent → getGlobalConfig → getConfig
 // infinite recursion when the config file is corrupted. logEvent's sampling check
@@ -246,6 +247,7 @@ export type GlobalConfig = {
     lastShownAt?: number
   }
   preferredMainProvider?: 'anthropic' | 'openai-codex' | 'gemini'
+  geminiBehaviorMode?: GeminiBehaviorMode
   rememberedAnthropicMainModel?: string
   rememberedOpenAiCodexMainModel?: string
   rememberedGeminiMainModel?: string
@@ -666,6 +668,7 @@ function createDefaultGlobalConfig(): GlobalConfig {
     autoUpdates: undefined,
     theme: 'dark',
     preferredMainProvider: 'anthropic',
+    geminiBehaviorMode: 'off',
     preferredNotifChannel: 'auto',
     verbose: false,
     editorMode: 'normal',
@@ -711,6 +714,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'theme',
   'verbose',
   'preferredMainProvider',
+  'geminiBehaviorMode',
   'rememberedAnthropicMainModel',
   'rememberedOpenAiCodexMainModel',
   'rememberedGeminiMainModel',

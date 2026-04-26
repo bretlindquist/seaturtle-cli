@@ -76,6 +76,7 @@ import {
   recordTranscript,
 } from './utils/sessionStorage.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
+import { buildGeminiStrictAppendSystemPrompt } from './services/api/geminiStrictMode.js'
 import { resolveThemeSetting } from './utils/systemTheme.js'
 import {
   shouldEnableThinkingByDefault,
@@ -234,6 +235,9 @@ export class QueryEngine {
       setSDKStatus,
       orphanedPermission,
     } = this.config
+    const effectiveAppendSystemPrompt = buildGeminiStrictAppendSystemPrompt(
+      appendSystemPrompt,
+    )
 
     this.discoveredSkillNames.clear()
     setCwd(cwd)
@@ -321,7 +325,7 @@ export class QueryEngine {
     const systemPrompt = asSystemPrompt([
       ...(customPrompt !== undefined ? [customPrompt] : defaultSystemPrompt),
       ...(memoryMechanicsPrompt ? [memoryMechanicsPrompt] : []),
-      ...(appendSystemPrompt ? [appendSystemPrompt] : []),
+      ...(effectiveAppendSystemPrompt ? [effectiveAppendSystemPrompt] : []),
     ])
 
     // Register function hook for structured output enforcement
@@ -358,7 +362,7 @@ export class QueryEngine {
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
         customSystemPrompt,
-        appendSystemPrompt,
+        appendSystemPrompt: effectiveAppendSystemPrompt,
         agentDefinitions: { activeAgents: agents, allAgents: [] },
         theme: resolveThemeSetting(getGlobalConfig().theme),
         maxBudgetUsd,
@@ -506,7 +510,7 @@ export class QueryEngine {
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
         customSystemPrompt,
-        appendSystemPrompt,
+        appendSystemPrompt: effectiveAppendSystemPrompt,
         theme: resolveThemeSetting(getGlobalConfig().theme),
         agentDefinitions: { activeAgents: agents, allAgents: [] },
         maxBudgetUsd,

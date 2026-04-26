@@ -26,6 +26,7 @@ import {
   shouldEnableThinkingByDefault,
   type ThinkingConfig,
 } from './thinking.js'
+import { buildGeminiStrictAppendSystemPrompt } from '../services/api/geminiStrictMode.js'
 
 /**
  * Fetch the three context pieces that form the API cache-key prefix:
@@ -123,12 +124,14 @@ export async function buildSideQuestionFallbackParams({
       mcpClients,
       customSystemPrompt,
     })
+  const effectiveAppendSystemPrompt =
+    buildGeminiStrictAppendSystemPrompt(appendSystemPrompt)
 
   const systemPrompt = asSystemPrompt([
     ...(customSystemPrompt !== undefined
       ? [customSystemPrompt]
       : defaultSystemPrompt),
-    ...(appendSystemPrompt ? [appendSystemPrompt] : []),
+    ...(effectiveAppendSystemPrompt ? [effectiveAppendSystemPrompt] : []),
   ])
 
   // Strip in-progress assistant message (stop_reason === null) — same guard
@@ -156,7 +159,7 @@ export async function buildSideQuestionFallbackParams({
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: agents, allAgents: [] },
       customSystemPrompt,
-      appendSystemPrompt,
+      appendSystemPrompt: effectiveAppendSystemPrompt,
     },
     abortController: createAbortController(),
     readFileState,

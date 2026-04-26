@@ -39,6 +39,7 @@ import { getInitialSettings, getSettingsForSource, updateSettingsForSource } fro
 import { getUserMsgOptIn, setUserMsgOptIn } from '../../bootstrap/state.js';
 import { DEFAULT_OUTPUT_STYLE_NAME } from 'src/constants/outputStyles.js';
 import { isEnvTruthy, isRunningOnHomespace } from 'src/utils/envUtils.js';
+import { GEMINI_BEHAVIOR_MODES, type GeminiBehaviorMode } from 'src/utils/geminiBehaviorMode.js';
 import type { LocalJSXCommandContext, CommandResultDisplay } from '../../commands.js';
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js';
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js';
@@ -490,6 +491,31 @@ export function Config({
     value: verbose,
     type: 'boolean',
     onChange: onChangeVerbose
+  }, {
+    id: 'geminiBehaviorMode',
+    label: 'Gemini guardrails',
+    value: globalConfig.geminiBehaviorMode ?? 'off',
+    options: GEMINI_BEHAVIOR_MODES,
+    type: 'enum' as const,
+    onChange(mode: string) {
+      const geminiBehaviorMode = (mode === 'strict' ? 'strict' : 'off') as GeminiBehaviorMode;
+      saveGlobalConfig(current_2a => current_2a.geminiBehaviorMode === geminiBehaviorMode ? current_2a : {
+        ...current_2a,
+        geminiBehaviorMode
+      });
+      setGlobalConfig({
+        ...getGlobalConfig(),
+        geminiBehaviorMode
+      });
+      setChanges(prev_2a => ({
+        ...prev_2a,
+        geminiBehaviorMode
+      }));
+      logEvent('tengu_config_changed', {
+        setting: 'geminiBehaviorMode' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+        value: geminiBehaviorMode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS
+      });
+    }
   }, {
     id: 'terminalProgressBarEnabled',
     label: 'Terminal progress bar',
@@ -1198,6 +1224,9 @@ export function Config({
     }
     if (globalConfig.autoCompactEnabled !== initialConfig.current.autoCompactEnabled) {
       formattedChanges.push(`${globalConfig.autoCompactEnabled ? 'Enabled' : 'Disabled'} auto-compact`);
+    }
+    if (globalConfig.geminiBehaviorMode !== initialConfig.current.geminiBehaviorMode) {
+      formattedChanges.push(`Set Gemini guardrails to ${chalk.bold(globalConfig.geminiBehaviorMode ?? 'off')}`);
     }
     if (globalConfig.respectGitignore !== initialConfig.current.respectGitignore) {
       formattedChanges.push(`${globalConfig.respectGitignore ? 'Enabled' : 'Disabled'} respect .gitignore in file picker`);

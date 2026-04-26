@@ -9,6 +9,7 @@ import goodClaude from './commands/good-claude/index.js'
 import issue from './commands/issue/index.js'
 import feedback from './commands/feedback/index.js'
 import game from './commands/game/index.js'
+import gemini from './commands/gemini/index.js'
 import clear from './commands/clear/index.js'
 import color from './commands/color/index.js'
 import commit from './commands/commit.js'
@@ -334,6 +335,7 @@ const COMMANDS = memoize((): Command[] => [
   mermaid,
   feedback,
   game,
+  gemini,
   haiku,
   caveman,
   review,
