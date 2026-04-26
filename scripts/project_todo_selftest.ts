@@ -3,12 +3,24 @@ import assert from 'node:assert/strict'
 import {
   addTodoItemToMarkdown,
   buildDefaultProjectTodoMarkdown,
+  CT_PROJECT_TODO_PLACEHOLDER_LINE,
 } from '../source/src/services/projectIdentity/projectTodoMarkdown.ts'
 
 const created = buildDefaultProjectTodoMarkdown('finish auth pass')
 assert(created.includes('# CT Project Todo'))
 assert(created.includes('## Active'))
 assert(created.includes('- [ ] finish auth pass'))
+
+const scaffold = buildDefaultProjectTodoMarkdown()
+assert(scaffold.includes(CT_PROJECT_TODO_PLACEHOLDER_LINE))
+
+const firstRealInsert = addTodoItemToMarkdown(scaffold, 'build ppt')
+assert.equal(firstRealInsert.added, true)
+assert.match(firstRealInsert.content, /## Active\n- \[ \] build ppt\n?$/)
+assert.ok(
+  !firstRealInsert.content.includes(CT_PROJECT_TODO_PLACEHOLDER_LINE),
+  'default scaffold placeholder should be removed once the first real todo is added',
+)
 
 const existing = `# CT Project Todo
 
