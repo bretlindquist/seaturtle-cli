@@ -1,6 +1,9 @@
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/growthbook.js'
-import { getMainLoopProviderRuntime } from '../services/api/providerRuntime.js'
-import { isEnvTruthy } from './envUtils.js'
+import { isBareMode, isEnvTruthy } from './envUtils.js'
+import {
+  shouldUseGeminiProvider,
+  shouldUseOpenAiCodexProvider,
+} from './model/providers.js'
 import { isAntRuntimeEnabled } from './runtimeUserType.js'
 
 /**
@@ -24,17 +27,22 @@ function isAgentTeamsFlagSet(): boolean {
  * 2. GrowthBook gate 'tengu_amber_flint' enabled (killswitch)
  */
 export function isAgentSwarmsEnabled(): boolean {
+  // --bare is explicitly hermetic: no teammate runtime and no provider-auth
+  // or secure-storage probing during startup capability discovery.
+  if (isBareMode()) {
+    return false
+  }
+
   // Ant: always on
   if (isAntRuntimeEnabled()) {
     return true
   }
 
-  // Provider runtimes: expose SeaTurtle's local teammate runtime whenever the
-  // active provider runtime is auth-ready and declares team support. The local
-  // swarm/team machinery is provider-owned by CT, not an Anthropic-only entitlement.
-  const runtime = getMainLoopProviderRuntime()
-  if (runtime.family !== 'anthropic') {
-    return runtime.executionEnabled && runtime.supportsAgentTeams
+  // Provider runtimes: selecting OpenAI/Codex or Gemini should expose CT's
+  // local teammate runtime without touching auth storage on startup. Auth
+  // readiness is enforced when the provider runtime actually executes work.
+  if (shouldUseOpenAiCodexProvider() || shouldUseGeminiProvider()) {
+    return true
   }
 
   // External: require opt-in via env var or --agent-teams flag

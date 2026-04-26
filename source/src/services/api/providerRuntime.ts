@@ -18,6 +18,7 @@ import {
   queryGeminiWithStreaming,
   queryGeminiWithoutStreaming,
   validateGeminiComputerUseModel,
+  validateGeminiImageGenerationModel,
 } from './gemini.js'
 import {
   getDefaultGeminiApiKeyProfile,

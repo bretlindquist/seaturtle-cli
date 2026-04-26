@@ -61,13 +61,18 @@ assertIncludes(
 )
 assertIncludes(
   swarmGate,
-  /runtime\.family !== 'anthropic'/,
-  'team gate should branch on provider-native runtimes instead of Anthropic-only assumptions',
+  /if \(isBareMode\(\)\)\s*\{\s*return false\s*\}/,
+  'team gate should hard-disable swarms in bare mode before any provider or auth probing',
 )
 assertIncludes(
   swarmGate,
-  /runtime\.executionEnabled && runtime\.supportsAgentTeams/,
-  'team gate should require ready provider execution before enabling non-Anthropic teams',
+  /shouldUseOpenAiCodexProvider\(\) \|\| shouldUseGeminiProvider\(\)/,
+  'team gate should use provider selection for non-Anthropic startup capability discovery',
+)
+assert.doesNotMatch(
+  swarmGate,
+  /getMainLoopProviderRuntime/,
+  'team gate should not call the provider runtime directly during startup feature discovery',
 )
 assertIncludes(
   teammateModel,

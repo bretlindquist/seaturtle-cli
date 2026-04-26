@@ -63,6 +63,7 @@ bun scripts/completion_cache_paths_selftest.ts >/dev/null
 bun scripts/plugin_directory_display_selftest.ts >/dev/null
 bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
+bun scripts/startup_sigint_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_surface_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_command_selftest.ts >/dev/null
 bun scripts/github_release_install_selftest.ts >/dev/null
@@ -81,6 +82,7 @@ bun scripts/session_entry_policy_selftest.ts >/dev/null
 bun scripts/openai_codex_auth_selftest.ts >/dev/null
 bun scripts/openai_agent_capability_selftest.ts >/dev/null
 bun scripts/provider_agent_team_runtime_selftest.ts >/dev/null
+bun scripts/runtime_vendor_exec_selftest.ts >/dev/null
 bun scripts/ssh_remote_provider_selftest.ts >/dev/null
 bun scripts/openai_model_capability_truth_selftest.ts >/dev/null
 bun scripts/openai_oauth_model_picker_selftest.ts >/dev/null

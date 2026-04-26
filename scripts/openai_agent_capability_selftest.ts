@@ -92,13 +92,13 @@ function run(): void {
   )
   assert.match(
     swarmGate,
-    /runtime\.family !== 'anthropic'/,
-    'agent swarm gate should branch on provider-native runtimes instead of Anthropic-only assumptions',
+    /if \(isBareMode\(\)\)\s*\{\s*return false\s*\}/,
+    'agent swarm gate should hard-disable swarms in bare mode before any provider or auth probing',
   )
   assert.match(
     swarmGate,
-    /runtime\.executionEnabled && runtime\.supportsAgentTeams/,
-    'agent swarm gate should require ready provider auth before enabling teams',
+    /shouldUseOpenAiCodexProvider\(\) \|\| shouldUseGeminiProvider\(\)/,
+    'agent swarm gate should branch on provider selection for provider-native runtimes',
   )
   assert.doesNotMatch(
     agentTool,

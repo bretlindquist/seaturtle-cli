@@ -48,6 +48,11 @@ assert.match(imageTool, /aspectRatio/)
 assert.match(imageTool, /imageSize/)
 assert.match(
   providerRuntime,
+  /validateGeminiImageGenerationModel,\s*\n\}\s*from '\.\/gemini\.js'/,
+  'provider runtime should import the Gemini image-generation model validator before calling it',
+)
+assert.match(
+  providerRuntime,
   /const geminiImageGenerationModelReady =\s*\n\s*validateGeminiImageGenerationModel\(\) === null/,
 )
 assert.match(
