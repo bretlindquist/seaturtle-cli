@@ -6,6 +6,10 @@ import {
   type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
   logEvent,
 } from '../../services/analytics/index.js'
+import {
+  buildGeminiStrictShellPolicyMessage,
+  getGeminiStrictShellPolicyDecision,
+} from '../../services/api/geminiStrictShellPolicy.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { PendingClassifierCheck } from '../../types/permissions.js'
 import { count } from '../../utils/array.js'
@@ -1665,6 +1669,20 @@ export async function bashToolHasPermission(
   context: ToolUseContext,
   getCommandSubcommandPrefixFn = getCommandSubcommandPrefix,
 ): Promise<PermissionResult> {
+  const geminiStrictShellDecision = getGeminiStrictShellPolicyDecision(
+    input.command,
+  )
+  if (geminiStrictShellDecision.behavior === 'deny') {
+    return {
+      behavior: 'deny',
+      message: buildGeminiStrictShellPolicyMessage(geminiStrictShellDecision),
+      decisionReason: {
+        type: 'other',
+        reason: geminiStrictShellDecision.reason,
+      },
+    }
+  }
+
   let appState = context.getAppState()
 
   // 0. AST-based security parse. This replaces both tryParseShellCommand

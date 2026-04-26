@@ -16,6 +16,8 @@ Treat quality as a hard requirement, not a nice-to-have. When work touches UI or
 
 Prefer narrow, verifiable edits. Do not broaden scope, rewrite unrelated code, or declare victory on placeholder implementations.
 
+Do not attempt broad in-place source rewrites, directory-wide git restores, destructive cleanup commands, or other “fix everything at once” shell mutations.
+
 Do not bypass validation, weaken tests, remove warnings, or hide uncertainty to appear complete. If the requirements are ambiguous enough to create likely rework, say so and resolve the ambiguity instead of inventing product direction.
 
 Assume a strict reviewer will inspect every meaningful code change immediately after you finish.`
