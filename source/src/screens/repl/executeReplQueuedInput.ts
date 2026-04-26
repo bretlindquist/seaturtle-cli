@@ -1,5 +1,30 @@
 import { handlePromptSubmit } from '../../utils/handlePromptSubmit.js';
+import { getAssistantMessageText } from '../../utils/messages.js';
+import {
+  haltQueueAutoProcessing,
+  getCommandQueueLength,
+} from '../../utils/messageQueueManager.js';
 import { getQuerySourceForREPL } from '../../utils/promptCategory.js';
+
+function shouldHaltQueueAfterQueuedTurn(messagesBeforeTurn: any[], messagesAfterTurn: any[]): boolean {
+  const newAssistantMessages = messagesAfterTurn.filter(
+    message =>
+      message.type === 'assistant' &&
+      !messagesBeforeTurn.some(existing => existing.uuid === message.uuid),
+  )
+
+  const lastAssistantMessage = newAssistantMessages.at(-1)
+  if (!lastAssistantMessage?.isApiErrorMessage) {
+    return false
+  }
+
+  const errorText = getAssistantMessageText(lastAssistantMessage)
+  if (!errorText) {
+    return true
+  }
+
+  return !/^API Error: Request was aborted\.?$/i.test(errorText.trim())
+}
 
 export async function executeReplQueuedInput({
   queuedCommands,
@@ -36,6 +61,8 @@ export async function executeReplQueuedInput({
   addNotification: (value: any) => void;
   setMessages: (updater: any) => void;
 }) {
+  const messagesBeforeTurn = messages
+
   await handlePromptSubmit({
     helpers: {
       setCursorOffset: () => {},
@@ -62,5 +89,22 @@ export async function executeReplQueuedInput({
     addNotification,
     setMessages,
     queuedCommands,
-  });
+  })
+
+  let messagesAfterTurn = messagesBeforeTurn
+  setMessages((prev: any[]) => {
+    messagesAfterTurn = prev
+    return prev
+  })
+
+  if (shouldHaltQueueAfterQueuedTurn(messagesBeforeTurn, messagesAfterTurn)) {
+    haltQueueAutoProcessing()
+    if (getCommandQueueLength() > 0) {
+      addNotification({
+        key: 'queued-prompts-preserved-after-api-error',
+        text: 'API error stopped queue progression. Remaining queued prompts were preserved.',
+        priority: 'high',
+      })
+    }
+  }
 }

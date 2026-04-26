@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import {
   getCommandQueueSnapshot,
+  isQueueAutoProcessingHalted,
   subscribeToCommandQueue,
 } from '../utils/messageQueueManager.js'
 import type { QueryGuard } from '../utils/QueryGuard.js'
@@ -49,6 +50,7 @@ export function useQueueProcessor({
     if (isQueryActive) return
     if (hasActiveLocalJsxUI) return
     if (queueSnapshot.length === 0) return
+    if (isQueueAutoProcessingHalted()) return
 
     // Reservation is now owned by handlePromptSubmit (inside executeUserInput's
     // try block). The sync chain executeQueuedInput → handlePromptSubmit →

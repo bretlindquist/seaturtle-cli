@@ -52,6 +52,7 @@ function logOperation(operation: QueueOperation, content?: string): void {
 const commandQueue: QueuedCommand[] = []
 /** Frozen snapshot — recreated on every mutation for useSyncExternalStore. */
 let snapshot: readonly QueuedCommand[] = Object.freeze([])
+let autoProcessingHalted = false
 const queueChanged = createSignal()
 
 function notifySubscribers(): void {
@@ -115,6 +116,26 @@ export function recheckCommandQueue(): void {
   }
 }
 
+export function isQueueAutoProcessingHalted(): boolean {
+  return autoProcessingHalted
+}
+
+export function haltQueueAutoProcessing(): void {
+  if (autoProcessingHalted) {
+    return
+  }
+  autoProcessingHalted = true
+  notifySubscribers()
+}
+
+export function resumeQueueAutoProcessing(): void {
+  if (!autoProcessingHalted) {
+    return
+  }
+  autoProcessingHalted = false
+  notifySubscribers()
+}
+
 // ============================================================================
 // Write operations
 // ============================================================================
@@ -125,6 +146,7 @@ export function recheckCommandQueue(): void {
  * Defaults priority to 'next' (processed before task notifications).
  */
 export function enqueue(command: QueuedCommand): void {
+  autoProcessingHalted = false
   commandQueue.push({ ...command, priority: command.priority ?? 'next' })
   notifySubscribers()
   logOperation(
@@ -139,6 +161,7 @@ export function enqueue(command: QueuedCommand): void {
  * is never starved by system messages.
  */
 export function enqueuePendingNotification(command: QueuedCommand): void {
+  autoProcessingHalted = false
   commandQueue.push({ ...command, priority: command.priority ?? 'later' })
   notifySubscribers()
   logOperation(
@@ -332,6 +355,7 @@ export function clearCommandQueue(): void {
  */
 export function resetCommandQueue(): void {
   commandQueue.length = 0
+  autoProcessingHalted = false
   snapshot = Object.freeze([])
 }
 

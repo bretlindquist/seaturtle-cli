@@ -26,7 +26,7 @@ import type { FileHistoryState } from './fileHistory.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from './fileHistory.js'
 import { gracefulShutdownSync } from './gracefulShutdown.js'
 import { stopTransientLolcatAnimation } from '../services/lolcat.js'
-import { enqueue } from './messageQueueManager.js'
+import { enqueue, resumeQueueAutoProcessing } from './messageQueueManager.js'
 import { classifyMidTurnSteering } from './midTurnSteering.js'
 import { resolveSkillModelOverride } from './model/model.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
@@ -429,6 +429,7 @@ export async function handlePromptSubmit(
 
   // Start query profiling for this query
   startQueryProfile()
+  resumeQueueAutoProcessing()
 
   // Construct a QueuedCommand from the direct user input so both paths
   // go through the same executeUserInput loop. This ensures images get
