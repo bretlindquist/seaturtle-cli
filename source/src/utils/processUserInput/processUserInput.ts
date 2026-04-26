@@ -61,6 +61,7 @@ import {
 import { processTextPrompt } from './processTextPrompt.js'
 import type { EditablePromptInputMode } from '../../types/textInputTypes.js'
 import { isPromptLikeInputMode } from '../../components/PromptInput/inputModes.js'
+import { expandPastedTextRefs } from '../../history.js'
 export type ProcessUserInputContext = ToolUseContext & LocalJSXCommandContext
 
 export type ProcessUserInputBaseResult = {
@@ -84,6 +85,13 @@ export type ProcessUserInputBaseResult = {
   nextInputMode?: EditablePromptInputMode
   nextPastedContents?: Record<number, PastedContent>
   submitNextInput?: boolean
+}
+
+export function expandStringInputPastedTextRefs(
+  input: string,
+  pastedContents?: Record<number, PastedContent>,
+): string {
+  return pastedContents ? expandPastedTextRefs(input, pastedContents) : input
 }
 
 export async function processUserInput({
@@ -143,6 +151,10 @@ export async function processUserInput({
   skipAttachments?: boolean
 }): Promise<ProcessUserInputBaseResult> {
   const inputString = typeof input === 'string' ? input : null
+  const normalizedInput =
+    inputString === null
+      ? input
+      : expandStringInputPastedTextRefs(inputString, pastedContents)
   // Immediately show the user input prompt while we are still processing the input.
   // Skip for isMeta (system-generated prompts like scheduled tasks) — those
   // should run invisibly.
@@ -155,7 +167,7 @@ export async function processUserInput({
   const appState = context.getAppState()
 
   const result = await processUserInputBase(
-    input,
+    normalizedInput,
     mode,
     setToolJSX,
     context,
@@ -181,7 +193,7 @@ export async function processUserInput({
 
   // Execute UserPromptSubmit hooks and handle blocking
   queryCheckpoint('query_hooks_start')
-  const inputMessage = getContentText(input) || ''
+  const inputMessage = getContentText(normalizedInput) || ''
 
   for await (const hookResult of executeUserPromptSubmitHooks(
     inputMessage,
