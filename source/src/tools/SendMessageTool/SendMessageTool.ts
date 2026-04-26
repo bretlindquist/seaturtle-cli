@@ -40,6 +40,7 @@ import {
 } from '../../utils/teammateMailbox.js'
 import { resumeAgentBackground } from '../AgentTool/resumeAgent.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
+import { normalizeSendMessageSummary } from './messageSummary.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
@@ -77,7 +78,7 @@ const inputSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        'A 5-10 word summary shown as a preview in the UI (required when message is a string)',
+        'Optional 5-10 word summary shown as a preview in the UI; if omitted for a plain-text message, SeaTurtle derives one from the message content.',
       ),
     message: z.union([
       z.string().describe('Plain text message content'),
@@ -157,13 +158,14 @@ async function handleMessage(
   const senderName =
     getAgentName() || (isTeammate() ? 'teammate' : TEAM_LEAD_NAME)
   const senderColor = getTeammateColor()
+  const normalizedSummary = normalizeSendMessageSummary(summary, content)
 
   await writeToMailbox(
     recipientName,
     {
       from: senderName,
       text: content,
-      summary,
+      summary: normalizedSummary,
       timestamp: new Date().toISOString(),
       color: senderColor,
     },
@@ -181,7 +183,7 @@ async function handleMessage(
         senderColor,
         target: `@${recipientName}`,
         targetColor: recipientColor,
-        summary,
+        summary: normalizedSummary,
         content,
       },
     },
@@ -195,10 +197,11 @@ async function handleBroadcast(
 ): Promise<{ data: BroadcastOutput }> {
   const appState = context.getAppState()
   const teamName = getTeamName(appState.teamContext)
+  const normalizedSummary = normalizeSendMessageSummary(summary, content)
 
   if (!teamName) {
     throw new Error(
-      'Not in a team context. Create a team with Teammate spawnTeam first, or set CLAUDE_CODE_TEAM_NAME.',
+      'Not in a team context. Create a team with TeamCreate first, or set CLAUDE_CODE_TEAM_NAME.',
     )
   }
 
@@ -241,7 +244,7 @@ async function handleBroadcast(
       {
         from: senderName,
         text: content,
-        summary,
+        summary: normalizedSummary,
         timestamp: new Date().toISOString(),
         color: senderColor,
       },
@@ -258,7 +261,7 @@ async function handleBroadcast(
         sender: senderName,
         senderColor,
         target: '@team',
-        summary,
+        summary: normalizedSummary,
         content,
       },
     },
@@ -665,13 +668,6 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
         return { result: true }
       }
       if (typeof input.message === 'string') {
-        if (!input.summary || input.summary.trim().length === 0) {
-          return {
-            result: false,
-            message: 'summary is required when message is a string',
-            errorCode: 9,
-          }
-        }
         return { result: true }
       }
 
@@ -762,7 +758,9 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
             addr.target,
             input.message,
           )
-          const preview = input.summary || truncate(input.message, 50)
+          const preview =
+            normalizeSendMessageSummary(input.summary, input.message) ??
+            truncate(input.message, 50)
           return {
             data: {
               success: result.ok,
@@ -779,7 +777,9 @@ export const SendMessageTool: Tool<InputSchema, SendMessageToolOutput> =
           /* eslint-enable @typescript-eslint/no-require-imports */
           try {
             await sendToUdsSocket(addr.target, input.message)
-            const preview = input.summary || truncate(input.message, 50)
+            const preview =
+              normalizeSendMessageSummary(input.summary, input.message) ??
+              truncate(input.message, 50)
             return {
               data: {
                 success: true,

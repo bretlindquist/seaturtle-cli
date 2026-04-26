@@ -28,6 +28,12 @@ Send a message to another agent.
 {"to": "researcher", "summary": "assign task 1", "message": "start on task #1"}
 \`\`\`
 
+or omit \`summary\` and SeaTurtle will derive a short preview automatically:
+
+\`\`\`json
+{"to": "researcher", "message": "start on task #1"}
+\`\`\`
+
 | \`to\` | |
 |---|---|
 | \`"researcher"\` | Teammate by name |
