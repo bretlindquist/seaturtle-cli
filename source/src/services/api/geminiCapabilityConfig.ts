@@ -199,10 +199,11 @@ const GEMINI_MODEL_DEFINITIONS: readonly GeminiModelDefinition[] = [
   },
   {
     value: 'gemini-3.1-flash-image-preview',
-    label: 'Gemini 3.1 Flash Image Preview',
-    description: 'Gemini 3 image generation and editing model optimized for speed',
+    label: 'Gemini 3.1 Flash Image Preview (Nano Banana 2)',
+    description:
+      'Gemini 3 image generation and editing model optimized for speed (Google Nano Banana 2)',
     descriptionForModel:
-      'Gemini 3.1 Flash Image Preview - image generation and editing optimized for speed',
+      'Gemini 3.1 Flash Image Preview (Nano Banana 2) - image generation and editing optimized for speed',
     lifecycle: 'preview',
     uses: ['image'],
     selectableInModelPicker: false,
@@ -213,10 +214,11 @@ const GEMINI_MODEL_DEFINITIONS: readonly GeminiModelDefinition[] = [
   },
   {
     value: 'gemini-3-pro-image-preview',
-    label: 'Gemini 3 Pro Image Preview',
-    description: 'Gemini 3 image generation and editing model for professional assets',
+    label: 'Gemini 3 Pro Image Preview (Nano Banana Pro)',
+    description:
+      'Gemini 3 image generation and editing model for professional assets (Google Nano Banana Pro)',
     descriptionForModel:
-      'Gemini 3 Pro Image Preview - professional image generation and editing',
+      'Gemini 3 Pro Image Preview (Nano Banana Pro) - professional image generation and editing',
     lifecycle: 'preview',
     uses: ['image'],
     selectableInModelPicker: false,
@@ -227,10 +229,11 @@ const GEMINI_MODEL_DEFINITIONS: readonly GeminiModelDefinition[] = [
   },
   {
     value: 'gemini-2.5-flash-image',
-    label: 'Gemini 2.5 Flash Image',
-    description: 'Gemini 2.5 image generation and editing model',
+    label: 'Gemini 2.5 Flash Image (Nano Banana)',
+    description:
+      'Gemini 2.5 image generation and editing model (Google Nano Banana)',
     descriptionForModel:
-      'Gemini 2.5 Flash Image - image generation and editing',
+      'Gemini 2.5 Flash Image (Nano Banana) - image generation and editing',
     lifecycle: 'stable',
     uses: ['image'],
     selectableInModelPicker: false,

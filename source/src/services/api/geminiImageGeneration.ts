@@ -1,6 +1,10 @@
 import { runGeminiGenerateContent } from './geminiClient.js'
 import type { GeminiGenerateContentRequest, GeminiPart } from './geminiTypes.js'
 import { getResolvedGeminiApiKeyAuth } from '../authProfiles/geminiAuth.js'
+import {
+  getGeminiImageModelAliases,
+  resolveGeminiImageModelAlias,
+} from './geminiImageModelAliases.js'
 
 export type GeminiReferenceImage = {
   mediaType: string
@@ -69,18 +73,28 @@ function getGeminiImageAuthTarget(): {
 }
 
 function getGeminiImageModel(explicitModel?: string): string {
-  return (
+  return resolveGeminiImageModelAlias(
     explicitModel?.trim() ||
-    process.env.SEATURTLE_GEMINI_IMAGE_MODEL?.trim() ||
-    process.env.GEMINI_IMAGE_MODEL?.trim() ||
-    DEFAULT_GEMINI_IMAGE_MODEL
+      process.env.SEATURTLE_GEMINI_IMAGE_MODEL?.trim() ||
+      process.env.GEMINI_IMAGE_MODEL?.trim() ||
+      DEFAULT_GEMINI_IMAGE_MODEL,
   )
+}
+
+function formatGeminiImageModelRoutes(): string {
+  return Array.from(GEMINI_IMAGE_MODELS).join(', ')
+}
+
+function formatGeminiImageModelAliases(): string {
+  return Array.from(getGeminiImageModelAliases().entries())
+    .map(([alias, routedModel]) => `${alias} -> ${routedModel}`)
+    .join(', ')
 }
 
 export function validateGeminiImageGenerationModel(model?: string): string | null {
   const resolvedModel = getGeminiImageModel(model)
   if (!GEMINI_IMAGE_MODELS.has(resolvedModel)) {
-    return `Gemini image generation model \`${resolvedModel}\` is not routed. Set SEATURTLE_GEMINI_IMAGE_MODEL to one of: ${Array.from(GEMINI_IMAGE_MODELS).join(', ')}.`
+    return `Gemini image generation model \`${resolvedModel}\` is not routed. Set SEATURTLE_GEMINI_IMAGE_MODEL to one of: ${formatGeminiImageModelRoutes()}. Accepted nickname aliases: ${formatGeminiImageModelAliases()}.`
   }
   return null
 }

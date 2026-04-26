@@ -3,6 +3,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import {
+  getGeminiImageModelAliases,
+  resolveGeminiImageModelAlias,
+} from '../source/src/services/api/geminiImageModelAliases.js'
 
 const repoRoot = join(import.meta.dirname, '..')
 const geminiImageGeneration = readFileSync(
@@ -40,6 +44,20 @@ assert.match(
   geminiImageGeneration,
   /export function validateGeminiImageGenerationModel\(/,
 )
+assert.equal(
+  resolveGeminiImageModelAlias('nano banana'),
+  'gemini-2.5-flash-image',
+)
+assert.equal(
+  resolveGeminiImageModelAlias('nano-banana-2'),
+  'gemini-3.1-flash-image-preview',
+)
+assert.equal(
+  resolveGeminiImageModelAlias('Nano Banana Pro'),
+  'gemini-3-pro-image-preview',
+)
+assert.equal(getGeminiImageModelAliases().size >= 3, true)
+assert.match(geminiImageGeneration, /Accepted nickname aliases:/)
 
 assert.match(imageTool, /runtime\.family === 'gemini'/)
 assert.match(imageTool, /runGeminiImageGeneration/)
