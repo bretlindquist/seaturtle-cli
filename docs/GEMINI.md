@@ -166,7 +166,9 @@ Gemini-only operator controls:
 Strict mode currently appends an extra Gemini-only coding and UX instruction
 block on every Gemini turn and blocks broad destructive Bash mutations such as
 directory-wide git restore/reset/clean commands or broad in-place source
-rewrites. It does not affect OpenAI/Codex or Anthropic turns.
+rewrites. It also runs a Gemini-only reviewer barrier for latest-turn file
+mutations and fails closed on non-approved reviews instead of waiting for
+operator approval. It does not affect OpenAI/Codex or Anthropic turns.
 
 Gemini image generation also accepts Google-style nickname aliases:
 

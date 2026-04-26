@@ -76,7 +76,17 @@ import {
   recordTranscript,
 } from './utils/sessionStorage.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
-import { buildGeminiStrictAppendSystemPrompt } from './services/api/geminiStrictMode.js'
+import {
+  buildGeminiStrictAppendSystemPrompt,
+  shouldApplyGeminiStrictMode,
+} from './services/api/geminiStrictMode.js'
+import {
+  extractGeminiStrictReviewContext,
+} from './services/api/geminiStrictReviewContext.js'
+import {
+  formatGeminiStrictReviewFailureMessage,
+  runGeminiStrictReview,
+} from './services/api/geminiStrictReview.js'
 import { resolveThemeSetting } from './utils/systemTheme.js'
 import {
   shouldEnableThinkingByDefault,
@@ -107,6 +117,7 @@ import {
   isResultSuccessful,
   normalizeMessage,
 } from './utils/queryHelpers.js'
+import { createAssistantMessage } from './utils/messages.js'
 
 // Dead code elimination: conditional import for coordinator mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -1119,6 +1130,66 @@ export class QueryEngine {
         })(),
       }
       return
+    }
+
+    if (shouldApplyGeminiStrictMode()) {
+      const strictReviewContext = extractGeminiStrictReviewContext(
+        this.mutableMessages,
+      )
+      if (strictReviewContext) {
+        const strictReview = await runGeminiStrictReview({
+          reviewContext: strictReviewContext,
+          signal: this.abortController.signal,
+        })
+
+        if (strictReview.status !== 'approve') {
+          const reviewMessage = createAssistantMessage({
+            content: formatGeminiStrictReviewFailureMessage(strictReview),
+          })
+
+          this.mutableMessages.push(reviewMessage)
+          messages.push(reviewMessage)
+
+          if (persistSession) {
+            await recordTranscript(messages)
+            if (
+              isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
+              isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
+            ) {
+              await flushSessionStorage()
+            }
+          }
+
+          yield* normalizeMessage(reviewMessage)
+          yield {
+            type: 'result',
+            subtype: 'error_during_execution',
+            duration_ms: Date.now() - startTime,
+            duration_api_ms: getTotalAPIDuration(),
+            is_error: true,
+            num_turns: turnCount,
+            stop_reason: lastStopReason,
+            session_id: getSessionId(),
+            total_cost_usd: getTotalCost(),
+            usage: this.totalUsage,
+            modelUsage: getModelUsage(),
+            permission_denials: this.permissionDenials,
+            fast_mode_state: getFastModeState(
+              mainLoopModel,
+              initialAppState.fastMode,
+            ),
+            uuid: randomUUID(),
+            errors: [
+              `[gemini_strict_review] ${strictReview.status}: ${strictReview.summary}`,
+              ...strictReview.findings,
+              ...strictReview.requiredChanges.map(
+                change => `Required change: ${change}`,
+              ),
+            ],
+          }
+          return
+        }
+      }
     }
 
     // Extract the text result based on message type
