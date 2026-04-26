@@ -223,6 +223,27 @@ function convertUserMessage(
   return messages
 }
 
+function findLatestGeminiVisibleUserTurnIndex(messages: Message[]): number {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const message = messages[index]
+    if (!message || message.type !== 'user') {
+      continue
+    }
+
+    if (message.isMeta || message.isVisibleInTranscriptOnly) {
+      continue
+    }
+
+    if (message.toolUseResult !== undefined) {
+      continue
+    }
+
+    return index
+  }
+
+  return -1
+}
+
 export function buildGeminiSystemInstruction(
   systemPrompt: SystemPrompt,
 ): GeminiContent | undefined {
@@ -235,8 +256,11 @@ export function collectGeminiContents(params: {
 }): GeminiContentConversion {
   const contents: GeminiContent[] = []
   const toolUseNamesById: ToolUseNameMap = new Map()
+  const latestVisibleUserTurnIndex = findLatestGeminiVisibleUserTurnIndex(
+    params.messages,
+  )
 
-  for (const message of params.messages) {
+  for (const [index, message] of params.messages.entries()) {
     if (message.type === 'assistant') {
       const converted = convertAssistantMessage(message, toolUseNamesById)
       if (converted.validationError) {
@@ -247,6 +271,13 @@ export function collectGeminiContents(params: {
     }
 
     if (message.type === 'user') {
+      if (
+        message.isMeta &&
+        latestVisibleUserTurnIndex !== -1 &&
+        index < latestVisibleUserTurnIndex
+      ) {
+        continue
+      }
       contents.push(...convertUserMessage(message, toolUseNamesById))
     }
   }

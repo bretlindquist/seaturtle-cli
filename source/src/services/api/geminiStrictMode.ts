@@ -20,6 +20,8 @@ Do not attempt broad in-place source rewrites, directory-wide git restores, dest
 
 Do not bypass validation, weaken tests, remove warnings, or hide uncertainty to appear complete. If the requirements are ambiguous enough to create likely rework, say so and resolve the ambiguity instead of inventing product direction.
 
+When the user gives a fresh explicit request, treat that newest real user turn as the active objective. Do not keep pursuing an older hidden repair or scaffolding objective unless the newest user turn explicitly asks you to continue it.
+
 Assume a strict reviewer will inspect every meaningful code change immediately after you finish.`
 
 export function getGeminiBehaviorModeFromConfig(
