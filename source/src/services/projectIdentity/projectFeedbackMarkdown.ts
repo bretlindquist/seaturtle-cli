@@ -1,5 +1,7 @@
 export const CT_PROJECT_FEEDBACK_TITLE = '# CT Project Feedback'
 export const CT_PROJECT_FEEDBACK_ACTIVE_HEADING = '## Entries'
+export const CT_PROJECT_FEEDBACK_PLACEHOLDER_LINE =
+  '_Feedback entries from `/feedback` will appear here._'
 
 function normalizeLine(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ')
@@ -67,7 +69,7 @@ export function buildDefaultProjectFeedbackMarkdown(
   if (initialEntry) {
     lines.push('', buildProjectFeedbackEntryMarkdown(initialEntry).trimEnd())
   } else {
-    lines.push('', '_Feedback entries from `/feedback` will appear here._')
+    lines.push('', CT_PROJECT_FEEDBACK_PLACEHOLDER_LINE)
   }
 
   return `${lines.join('\n')}\n`
@@ -101,12 +103,19 @@ export function addFeedbackEntryToMarkdown(
   if (entriesHeading) {
     const before = markdown.slice(0, entriesHeading.end).replace(/\n+$/, '')
     const after = markdown.slice(entriesHeading.end)
-    const normalizedAfter =
+    let normalizedAfter =
       after.startsWith('\n\n')
         ? after.slice(1)
         : after.startsWith('\n')
           ? after
           : `\n${after}`
+
+    const placeholderLine = `\n${CT_PROJECT_FEEDBACK_PLACEHOLDER_LINE}`
+    if (normalizedAfter.startsWith(`${placeholderLine}\n`)) {
+      normalizedAfter = normalizedAfter.slice(placeholderLine.length)
+    } else if (normalizedAfter.trim() === CT_PROJECT_FEEDBACK_PLACEHOLDER_LINE) {
+      normalizedAfter = '\n'
+    }
 
     return `${before}\n\n${entryMarkdown}\n${normalizedAfter}`
   }
