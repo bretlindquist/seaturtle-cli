@@ -93,6 +93,7 @@ import { getSettings_DEPRECATED } from './settings/settings.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 import { validateUuid } from './uuid.js'
+import { sanitizeStoredUserMultimodalMessage } from './userMultimodalRetention.js'
 
 // Cache MACRO.VERSION at module level to work around bun --define bug in async contexts
 // See: https://github.com/oven-sh/bun/issues/26168
@@ -4539,7 +4540,13 @@ export function cleanMessagesForLogging(
   messages: Message[],
   allMessages: readonly Message[] = messages,
 ): Transcript {
-  const filtered = messages.filter(isLoggableMessage) as Transcript
+  const filtered = messages
+    .filter(isLoggableMessage)
+    .map(message =>
+      message.type === 'user'
+        ? sanitizeStoredUserMultimodalMessage(message)
+        : message,
+    ) as Transcript
   return getUserType() !== 'ant'
     ? transformMessagesForExternalTranscript(
         filtered,

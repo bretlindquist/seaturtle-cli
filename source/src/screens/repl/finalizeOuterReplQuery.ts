@@ -7,6 +7,7 @@ import { getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/
 import { getCommandQueueLength } from '../../utils/messageQueueManager.js';
 import { messagesAfterAreOnlySynthetic, selectableUserMessagesFilter } from '../../components/MessageSelector.js';
 import { removeLastFromHistory } from '../../history.js';
+import { pruneHistoricalUserMultimodalMessages } from '../../utils/userMultimodalRetention.js';
 
 export async function finalizeCompletedOuterReplQuery({
   abortController,
@@ -57,6 +58,7 @@ export async function finalizeCompletedOuterReplQuery({
   resetLoadingState();
   await mrOnTurnComplete(messagesRef.current, abortController.signal.aborted);
   sendBridgeResult();
+  setMessages((prev: any[]) => pruneHistoricalUserMultimodalMessages(prev));
 
   if (isReplAntBuild && !abortController.signal.aborted) {
     setAppState(prev => {

@@ -43,6 +43,7 @@ import {
 } from './openaiCodexTelemetry.js'
 import { dispatchComputerUseMcpToolRaw } from '../../utils/computerUse/wrapper.js'
 import { cleanupComputerUseAfterTurn } from '../../utils/computerUse/cleanup.js'
+import { isRetainedMultimodalPlaceholderData } from '../../utils/userMultimodalRetention.js'
 
 export type OpenAiCodexModelDefinition = {
   value: string
@@ -774,7 +775,7 @@ function convertUserMultimodalBlock(
   const mediaType =
     typeof source.media_type === 'string' ? source.media_type : null
   const data = typeof source.data === 'string' ? source.data : null
-  if (!mediaType || !data) {
+  if (!mediaType || !data || isRetainedMultimodalPlaceholderData(data)) {
     return null
   }
 

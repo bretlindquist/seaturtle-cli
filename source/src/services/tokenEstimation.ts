@@ -22,6 +22,7 @@ import {
   normalizeModelStringForAPI,
 } from '../utils/model/model.js'
 import { jsonStringify } from '../utils/slowOperations.js'
+import { isRetainedMultimodalPlaceholderData } from '../utils/userMultimodalRetention.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAPIMetadata, getExtraBodyParams } from './api/claude.js'
 import { getAnthropicClient } from './api/client.js'
@@ -407,6 +408,13 @@ function roughTokenCountEstimationForBlock(
     return roughTokenCountEstimation(block.text)
   }
   if (block.type === 'image' || block.type === 'document') {
+    const source =
+      typeof block.source === 'object' && block.source !== null
+        ? (block.source as { data?: unknown })
+        : null
+    if (isRetainedMultimodalPlaceholderData(source?.data)) {
+      return 0
+    }
     // https://platform.claude.com/docs/en/build-with-claude/vision#calculate-image-costs
     // tokens = (width px * height px)/750
     // Images are resized to max 2000x2000 (5333 tokens). Use a conservative

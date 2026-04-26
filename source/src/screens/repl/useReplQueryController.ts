@@ -22,6 +22,7 @@ import { runReplQueryLoop } from './runReplQueryLoop.js';
 import { finalizeReplQueryTurn } from './finalizeReplQueryTurn.js';
 import { useReplQueryEventHandler } from './useReplQueryEventHandler.js';
 import type { EditablePromptInputMode } from '../../types/textInputTypes.js';
+import { pruneHistoricalUserMultimodalMessages } from '../../utils/userMultimodalRetention.js';
 
 export function useReplQueryController({
   initialMcpClients,
@@ -190,6 +191,7 @@ export function useReplQueryController({
       });
 
       if (!shouldQuery) {
+        setMessages((prev: any[]) => pruneHistoricalUserMultimodalMessages(prev));
         if (newMessages.some(isCompactBoundaryMessage)) {
           setConversationId(randomUUID());
           if (feature('PROACTIVE') || feature('KAIROS')) {

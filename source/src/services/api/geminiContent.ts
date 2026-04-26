@@ -22,6 +22,7 @@ import type {
 import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import type { Tools } from '../../Tool.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
+import { isRetainedMultimodalPlaceholderData } from '../../utils/userMultimodalRetention.js'
 
 type ToolUseNameMap = Map<string, string>
 
@@ -54,7 +55,7 @@ function convertUserContentPart(block: Record<string, unknown>): GeminiPart | nu
   const mediaType =
     typeof source.media_type === 'string' ? source.media_type : null
   const data = typeof source.data === 'string' ? source.data : null
-  if (!mediaType || !data) {
+  if (!mediaType || !data || isRetainedMultimodalPlaceholderData(data)) {
     return null
   }
 

@@ -161,6 +161,9 @@ import {
 } from './planModeV2.js'
 import { escapeRegExp } from './stringUtils.js'
 import { isTodoV2Enabled } from './tasks.js'
+import {
+  stripRetainedMultimodalPlaceholdersFromUserMessage,
+} from './userMultimodalRetention.js'
 
 // Lazy import to avoid circular dependency (teammateMailbox -> teammate -> ... -> messages)
 function getTeammateMailbox(): typeof import('./teammateMailbox.js') {
@@ -2100,12 +2103,14 @@ export function normalizeMessagesForAPI(
           // tool_result content, as these are only valid with the tool search beta.
           // When tool search IS enabled, strip only tool_reference blocks for
           // tools that no longer exist (e.g., MCP server was disconnected).
-          let normalizedMessage = message
+          let normalizedMessage =
+            stripRetainedMultimodalPlaceholdersFromUserMessage(message)
           if (!isToolSearchEnabledOptimistic()) {
-            normalizedMessage = stripToolReferenceBlocksFromUserMessage(message)
+            normalizedMessage =
+              stripToolReferenceBlocksFromUserMessage(normalizedMessage)
           } else {
             normalizedMessage = stripUnavailableToolReferencesFromUserMessage(
-              message,
+              normalizedMessage,
               availableToolNames,
             )
           }
