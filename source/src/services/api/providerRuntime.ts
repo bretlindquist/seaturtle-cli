@@ -300,8 +300,10 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     !!auth && routedModelCapabilities.supportsCodeExecution
   const supportsComputerUse =
     !!auth && supportsLocalComputerUse && computerUseModelReady
+  const geminiImageGenerationModelReady =
+    validateGeminiImageGenerationModel() === null
   const supportsImageGeneration =
-    !!auth && routedModelCapabilities.supportsImageGeneration
+    !!auth && geminiImageGenerationModelReady
   const supportsProviderBuiltInTools =
     supportsWebSearch ||
     supportsHostedFileSearch ||
@@ -312,6 +314,7 @@ function buildGeminiMainLoopRuntime(): MainLoopProviderRuntime {
     ...routedModelCapabilities,
     supportsFileSearch: supportsHostedFileSearch,
     supportsComputerUse,
+    supportsImageGeneration,
   })
 
   return {

@@ -53,8 +53,13 @@ assert.match(
 )
 assert.match(
   providerRuntime,
-  /const supportsImageGeneration =\s*\n?\s*!!auth && routedModelCapabilities\.supportsImageGeneration/,
-  'provider runtime should gate Gemini image generation through provider-routed capability truth',
+  /const geminiImageGenerationModelReady =\s*\n?\s*validateGeminiImageGenerationModel\(\) === null/,
+  'provider runtime should validate the dedicated Gemini image model separately from the main-loop model',
+)
+assert.match(
+  providerRuntime,
+  /const supportsImageGeneration =\s*\n?\s*!!auth && geminiImageGenerationModelReady/,
+  'provider runtime should gate Gemini image generation through auth plus dedicated image-model routing truth',
 )
 
 console.log('provider feature model alignment self-test passed')

@@ -56,6 +56,7 @@ export {
   type GeminiModelCapabilities,
   type GeminiModelDefinition,
 } from './geminiCapabilityConfig.js'
+export { validateGeminiImageGenerationModel } from './geminiImageGeneration.js'
 
 type GeminiAuthTarget = {
   baseUrl: string

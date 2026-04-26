@@ -36,6 +36,10 @@ assert.match(geminiImageGeneration, /parseGeminiImageGenerationResponse/)
 assert.match(geminiImageGeneration, /Gemini image generation returned no image output/)
 assert.match(geminiImageGeneration, /MAX_REFERENCE_IMAGES/)
 assert.match(geminiImageGeneration, /SEATURTLE_GEMINI_IMAGE_MODEL/)
+assert.match(
+  geminiImageGeneration,
+  /export function validateGeminiImageGenerationModel\(/,
+)
 
 assert.match(imageTool, /runtime\.family === 'gemini'/)
 assert.match(imageTool, /runGeminiImageGeneration/)
@@ -44,7 +48,11 @@ assert.match(imageTool, /aspectRatio/)
 assert.match(imageTool, /imageSize/)
 assert.match(
   providerRuntime,
-  /const supportsImageGeneration =\s*\n\s*!!auth && routedModelCapabilities\.supportsImageGeneration/,
+  /const geminiImageGenerationModelReady =\s*\n\s*validateGeminiImageGenerationModel\(\) === null/,
+)
+assert.match(
+  providerRuntime,
+  /const supportsImageGeneration =\s*\n\s*!!auth && geminiImageGenerationModelReady/,
 )
 
 console.log('gemini-image-generation self-test passed')

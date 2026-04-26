@@ -77,10 +77,19 @@ function getGeminiImageModel(explicitModel?: string): string {
   )
 }
 
+export function validateGeminiImageGenerationModel(model?: string): string | null {
+  const resolvedModel = getGeminiImageModel(model)
+  if (!GEMINI_IMAGE_MODELS.has(resolvedModel)) {
+    return `Gemini image generation model \`${resolvedModel}\` is not routed. Set SEATURTLE_GEMINI_IMAGE_MODEL to one of: ${Array.from(GEMINI_IMAGE_MODELS).join(', ')}.`
+  }
+  return null
+}
+
 function validateGeminiImageInput(input: GeminiImageGenerationInput): string | null {
   const model = getGeminiImageModel(input.model)
-  if (!GEMINI_IMAGE_MODELS.has(model)) {
-    return `Gemini image generation model \`${model}\` is not routed. Set SEATURTLE_GEMINI_IMAGE_MODEL to one of: ${Array.from(GEMINI_IMAGE_MODELS).join(', ')}.`
+  const modelError = validateGeminiImageGenerationModel(model)
+  if (modelError) {
+    return modelError
   }
   if (input.aspectRatio && !SUPPORTED_ASPECT_RATIOS.has(input.aspectRatio)) {
     return `Gemini image aspectRatio \`${input.aspectRatio}\` is unsupported. Supported values: ${Array.from(SUPPORTED_ASPECT_RATIOS).join(', ')}.`
