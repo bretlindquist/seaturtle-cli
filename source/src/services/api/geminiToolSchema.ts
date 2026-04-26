@@ -77,7 +77,10 @@ function normalizeGeminiNestedSchema(schema: unknown): unknown {
       const enumValues = variants.flatMap(variant =>
         isRecord(variant) && Array.isArray(variant.enum) ? variant.enum : [],
       )
-      if (enumValues.length > 0 && enumValues.length === variants.length) {
+      const isAllEnums = variants.every(
+        variant => isRecord(variant) && Array.isArray(variant.enum)
+      )
+      if (enumValues.length > 0 && isAllEnums) {
         normalized.enum = Array.from(new Set(enumValues))
       } else {
         normalized.anyOf = variants

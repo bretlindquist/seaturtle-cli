@@ -117,6 +117,9 @@ Parallel agents:
   is auth-ready
 - teammates inherit the selected Gemini provider, model, effort, settings path,
   and provider auth instead of silently routing back to Anthropic
+- teammates also inherit the current operator's Gemini capability boundaries,
+  including image models, file-search stores, cached content config, and
+  service tiers
 - profile-backed auth is shared through `CLAUDE_CONFIG_DIR`; env-only auth is
   forwarded through `GEMINI_API_KEY` or `GOOGLE_API_KEY`
 - if Gemini auth is unavailable in the teammate context, the teammate should
