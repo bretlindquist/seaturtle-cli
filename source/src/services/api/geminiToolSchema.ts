@@ -36,6 +36,12 @@ function normalizeSchemaType(value: unknown): JsonSchemaRecord {
   return typeof value === 'string' ? { type: value } : {}
 }
 
+function inferGeminiEnumType(values: unknown[]): 'string' | null {
+  return values.length > 0 && values.every(value => typeof value === 'string')
+    ? 'string'
+    : null
+}
+
 function normalizeGeminiNestedSchema(schema: unknown): unknown {
   if (!isRecord(schema)) {
     return schema
@@ -54,6 +60,10 @@ function normalizeGeminiNestedSchema(schema: unknown): unknown {
 
     if (key === 'const') {
       normalized.enum = [value]
+      const enumType = inferGeminiEnumType([value])
+      if (enumType) {
+        normalized.type = enumType
+      }
       continue
     }
 
@@ -82,6 +92,10 @@ function normalizeGeminiNestedSchema(schema: unknown): unknown {
       )
       if (enumValues.length > 0 && isAllEnums) {
         normalized.enum = Array.from(new Set(enumValues))
+        const enumType = inferGeminiEnumType(normalized.enum)
+        if (enumType) {
+          normalized.type = enumType
+        }
       } else {
         normalized.anyOf = variants
       }

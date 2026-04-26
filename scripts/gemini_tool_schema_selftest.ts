@@ -42,6 +42,11 @@ assert.deepEqual(
     .status.enum,
   ['pending', 'in_progress', 'completed'],
 )
+assert.equal(
+  (((todoSchema.properties as never).todos as never).items as never).properties
+    .status.type,
+  'string',
+)
 
 const bashDeclaration = buildGeminiFunctionDeclaration({
   name: 'Bash',
@@ -98,6 +103,10 @@ assert.equal(
 assert.deepEqual(
   ((boundedIntegerSchema.properties as never).choice as never).enum,
   ['a', 'b'],
+)
+assert.equal(
+  ((boundedIntegerSchema.properties as never).choice as never).type,
+  'string',
 )
 
 assert.equal(validateGeminiFunctionName('mcp__server__tool'), null)
@@ -228,6 +237,7 @@ const normalizedSendMessage = normalizeGeminiToolParameterSchema(sendMessageSche
 assert.equal(Array.isArray((normalizedSendMessage.properties as any).message.anyOf), true, "anyOf is preserved at top level");
 assert.equal(Array.isArray((normalizedSendMessage.properties as any).message.anyOf[1].anyOf), true, "anyOf is preserved at nested level");
 assert.deepEqual((normalizedSendMessage.properties as any).message.anyOf[1].anyOf[0].properties.type.enum, ["shutdown_request"], "const is converted to enum");
+assert.equal((normalizedSendMessage.properties as any).message.anyOf[1].anyOf[0].properties.type.type, "string", "const string preserves string type");
 
 // Simulate AgentTool schema
 const agentToolSchema = {
@@ -242,6 +252,7 @@ const agentToolSchema = {
 
 const normalizedAgent = normalizeGeminiToolParameterSchema(agentToolSchema);
 assert.deepEqual((normalizedAgent.properties as any).isolation.enum, ["worktree"], "enum is preserved");
+assert.equal((normalizedAgent.properties as any).isolation.type, "string", "plain enum keeps string type");
 
 // Simulate TaskUpdateTool schema
 const taskUpdateSchema = {
@@ -265,5 +276,6 @@ const taskUpdateSchema = {
 const normalizedTaskUpdate = normalizeGeminiToolParameterSchema(taskUpdateSchema);
 assert.equal((normalizedTaskUpdate.properties as any).status.anyOf, undefined, "anyOf is collapsed");
 assert.deepEqual((normalizedTaskUpdate.properties as any).status.enum, ["pending", "in_progress", "completed", "deleted"], "enums are merged");
+assert.equal((normalizedTaskUpdate.properties as any).status.type, "string", "collapsed enum keeps string type");
 
 console.log('Gemini swarm schema normalization self-tests passed');
