@@ -73,8 +73,8 @@ assert(
 const geminiCommandSource = read('source/src/commands/gemini/gemini.tsx')
 assert(
   geminiCommandSource.includes('shell-safety') &&
-    geminiCommandSource.includes('reviewer guardrails'),
-  'expected /gemini copy to mention shell-safety and reviewer guardrails',
+    geminiCommandSource.includes('reviewer-and-repair'),
+  'expected /gemini copy to mention shell-safety and reviewer-and-repair guardrails',
 )
 
 console.log('gemini strict shell policy self-test passed')

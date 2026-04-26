@@ -12,6 +12,8 @@ export type GeminiStrictReviewDecision = {
   requiredChanges: string[]
 }
 
+export const GEMINI_STRICT_MAX_REPAIR_ATTEMPTS = 1
+
 const GEMINI_STRICT_REVIEW_SYSTEM_PROMPT = `You are the Gemini strict code reviewer for SeaTurtle.
 
 Review only the supplied latest-turn code mutation summary.
@@ -53,6 +55,43 @@ export function formatGeminiStrictReviewFailureMessage(
   return [heading, `Summary: ${review.summary}`, findings, requiredChanges]
     .filter(Boolean)
     .join('\n\n')
+}
+
+export function buildGeminiStrictRepairPrompt({
+  review,
+  attemptNumber,
+  maxAttempts,
+  originalUserPrompt,
+}: {
+  review: GeminiStrictReviewDecision
+  attemptNumber: number
+  maxAttempts: number
+  originalUserPrompt: string
+}): string {
+  const findings =
+    review.findings.length > 0
+      ? `Findings:\n- ${review.findings.join('\n- ')}`
+      : 'Findings:\n- No additional detail provided.'
+  const requiredChanges =
+    review.requiredChanges.length > 0
+      ? `Required changes:\n- ${review.requiredChanges.join('\n- ')}`
+      : ''
+
+  return `<system-reminder>
+Gemini strict review did not approve your latest code changes.
+
+Original user request:
+${originalUserPrompt || '(not available)'}
+
+Review status: ${review.status}
+Summary: ${review.summary}
+
+${findings}
+
+${requiredChanges}
+
+This is automatic repair attempt ${attemptNumber} of ${maxAttempts}. Make the smallest correct changes needed to satisfy the review. Do not broaden scope. Re-validate before concluding.
+</system-reminder>`
 }
 
 export async function runGeminiStrictReview({

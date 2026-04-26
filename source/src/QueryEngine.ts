@@ -84,7 +84,9 @@ import {
   extractGeminiStrictReviewContext,
 } from './services/api/geminiStrictReviewContext.js'
 import {
+  buildGeminiStrictRepairPrompt,
   formatGeminiStrictReviewFailureMessage,
+  GEMINI_STRICT_MAX_REPAIR_ATTEMPTS,
   runGeminiStrictReview,
 } from './services/api/geminiStrictReview.js'
 import { resolveThemeSetting } from './utils/systemTheme.js'
@@ -117,7 +119,7 @@ import {
   isResultSuccessful,
   normalizeMessage,
 } from './utils/queryHelpers.js'
-import { createAssistantMessage } from './utils/messages.js'
+import { createAssistantMessage, createUserMessage } from './utils/messages.js'
 
 // Dead code elimination: conditional import for coordinator mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -446,7 +448,7 @@ export class QueryEngine {
     this.mutableMessages.push(...messagesFromUserInput)
 
     // Update params to reflect updates from processing /slash commands
-    const messages = [...this.mutableMessages]
+    let messages = [...this.mutableMessages]
 
     // Persist the user's message(s) to transcript BEFORE entering the query
     // loop. The for-await below only calls recordTranscript when ask() yields
@@ -669,14 +671,10 @@ export class QueryEngine {
         })
     }
 
-    // Track current message usage (reset on each message_start)
-    let currentMessageUsage: NonNullableUsage = EMPTY_USAGE
     let turnCount = 1
     let hasAcknowledgedInitialMessages = false
     // Track structured output from StructuredOutput tool calls
     let structuredOutputFromTool: unknown
-    // Track the last stop_reason from assistant messages
-    let lastStopReason: string | null = null
     // Reference-based watermark so error_during_execution's errors[] is
     // turn-scoped. A length-based index breaks when the 100-entry ring buffer
     // shift()s during the turn — the index slides. If this entry is rotated
@@ -686,8 +684,27 @@ export class QueryEngine {
     const initialStructuredOutputCalls = jsonSchema
       ? countToolCalls(this.mutableMessages, SYNTHETIC_OUTPUT_TOOL_NAME)
       : 0
+    const originalUserPrompt =
+      messagesFromUserInput.find(
+        (message): message is Extract<Message, { type: 'user' }> =>
+          message.type === 'user' && !message.isMeta && !message.toolUseResult,
+      )?.message.content ?? ''
+    const originalUserPromptText =
+      typeof originalUserPrompt === 'string' ? originalUserPrompt : ''
+    let strictRepairAttempts = 0
 
-    for await (const message of query({
+    while (true) {
+      processUserInputContext = {
+        ...processUserInputContext,
+        messages,
+      }
+
+      // Track current message usage (reset on each message_start)
+      let currentMessageUsage: NonNullableUsage = EMPTY_USAGE
+      // Track the last stop_reason from assistant messages
+      let lastStopReason: string | null = null
+
+      for await (const message of query({
       messages,
       systemPrompt,
       userContext,
@@ -698,7 +715,7 @@ export class QueryEngine {
       querySource: 'sdk',
       maxTurns,
       taskBudget,
-    })) {
+      })) {
       // Record assistant, user, and compact boundary messages
       if (
         message.type === 'assistant' ||
@@ -1142,9 +1159,47 @@ export class QueryEngine {
           signal: this.abortController.signal,
         })
 
+        if (
+          strictReview.status === 'needs_changes' &&
+          strictRepairAttempts < GEMINI_STRICT_MAX_REPAIR_ATTEMPTS
+        ) {
+          strictRepairAttempts++
+          const repairPromptMessage = createUserMessage({
+            content: buildGeminiStrictRepairPrompt({
+              review: strictReview,
+              attemptNumber: strictRepairAttempts,
+              maxAttempts: GEMINI_STRICT_MAX_REPAIR_ATTEMPTS,
+              originalUserPrompt: originalUserPromptText,
+            }),
+            isMeta: true,
+          })
+
+          this.mutableMessages.push(repairPromptMessage)
+          messages.push(repairPromptMessage)
+
+          if (persistSession) {
+            await recordTranscript(messages)
+            if (
+              isEnvTruthy(process.env.CLAUDE_CODE_EAGER_FLUSH) ||
+              isEnvTruthy(process.env.CLAUDE_CODE_IS_COWORK)
+            ) {
+              await flushSessionStorage()
+            }
+          }
+
+          continue
+        }
+
         if (strictReview.status !== 'approve') {
+          const failureContent = formatGeminiStrictReviewFailureMessage(
+            strictReview,
+          )
           const reviewMessage = createAssistantMessage({
-            content: formatGeminiStrictReviewFailureMessage(strictReview),
+            content:
+              strictReview.status === 'needs_changes' &&
+              strictRepairAttempts >= GEMINI_STRICT_MAX_REPAIR_ATTEMPTS
+                ? `${failureContent}\n\nAutomatic repair budget exhausted.`
+                : failureContent,
           })
 
           this.mutableMessages.push(reviewMessage)
@@ -1227,6 +1282,8 @@ export class QueryEngine {
         initialAppState.fastMode,
       ),
       uuid: randomUUID(),
+    }
+      return
     }
   }
 

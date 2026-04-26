@@ -34,10 +34,8 @@ function isToolResultUserMessage(message: Message): boolean {
   )
 }
 
-function isHumanPromptMessage(message: Message): boolean {
-  return (
-    message.type === 'user' && !message.isMeta && !isToolResultUserMessage(message)
-  )
+function isTurnBoundaryUserMessage(message: Message): boolean {
+  return message.type === 'user' && !isToolResultUserMessage(message)
 }
 
 function isFileEditResult(result: unknown): result is FileEditResult {
@@ -106,7 +104,7 @@ function getUserPromptText(message: Message): string {
 export function extractGeminiStrictReviewContext(
   messages: Message[],
 ): GeminiStrictReviewContext | null {
-  const latestPromptIndex = messages.findLastIndex(isHumanPromptMessage)
+  const latestPromptIndex = messages.findLastIndex(isTurnBoundaryUserMessage)
   if (latestPromptIndex === -1) {
     return null
   }

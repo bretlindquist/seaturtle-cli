@@ -24,7 +24,7 @@ const GEMINI_MODE_OPTIONS: OptionWithDescription<GeminiBehaviorMode>[] = [
   {
     label: 'Strict',
     description:
-      'Append Gemini-only coding and UX guardrails, block broad destructive shell mutations, and require a reviewer barrier for file edits.',
+      'Append Gemini-only coding and UX guardrails, block broad destructive shell mutations, and run a bounded reviewer-and-repair barrier for file edits.',
     value: 'strict',
   },
   {
@@ -44,7 +44,7 @@ function formatGeminiModeMessage(mode: GeminiBehaviorMode): string {
   const provider = getPreferredMainRuntimeProvider()
   if (mode === 'strict') {
     return provider === 'gemini'
-      ? 'Gemini strict mode ON. Future Gemini turns will carry the stricter coding, UX, shell-safety, and reviewer guardrails.'
+      ? 'Gemini strict mode ON. Future Gemini turns will carry the stricter coding, UX, shell-safety, and reviewer-and-repair guardrails.'
       : 'Gemini strict mode ON. It will apply automatically when Gemini is the active main provider.'
   }
 
