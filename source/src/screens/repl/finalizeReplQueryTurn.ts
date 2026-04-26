@@ -7,6 +7,7 @@ import {
   getTurnToolCount,
   getTurnToolDurationMs,
 } from '../../bootstrap/state.js';
+import type { Notification } from '../../context/notifications.js';
 import { formatProjectReminderNoticeText, getProjectReminder } from '../../services/remindme.js';
 import { getGlobalConfigWriteCount } from '../../utils/config.js';
 import { createApiMetricsMessage } from '../../utils/messages.js';
@@ -45,12 +46,7 @@ export async function finalizeReplQueryTurn({
   apiMetricsRef: React.RefObject<ApiMetricEntry[]>
   loadingStartTimeRef: React.RefObject<number>
   resetLoadingState: () => void
-  addNotification: (notification: {
-    key: string
-    text: string
-    priority: 'immediate'
-    timeoutMs: number
-  }) => void
+  addNotification: (notification: Notification) => void
   onTurnComplete?: (messages: any[]) => void | Promise<void>
   fireCompanionObserver: (
     messages: any[],
@@ -115,8 +111,12 @@ export async function finalizeReplQueryTurn({
     addNotification({
       key: 'project-remindme',
       text: formatProjectReminderNoticeText(projectReminder),
-      priority: 'immediate',
-      timeoutMs: 7000,
+      // Keep the reminder visible after replies until the user starts
+      // typing again. Immediate toasts can temporarily preempt it, then
+      // the queue restores the reminder notice.
+      priority: 'medium',
+      timeoutMs: 0x7fffffff,
+      fold: (_current, incoming) => incoming,
     });
   }
 

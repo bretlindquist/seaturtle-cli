@@ -764,6 +764,10 @@ function PromptInput({
     }
   }, [addNotification, removeNotification, thinkTriggers.length]);
   useEffect(() => {
+    if (input.length === 0) return;
+    removeNotification('project-remindme');
+  }, [input.length, removeNotification]);
+  useEffect(() => {
     if (feature('ULTRAPLAN') && ultraplanTriggers.length) {
       addNotification({
         key: 'ultraplan-active',
