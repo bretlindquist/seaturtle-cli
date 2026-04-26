@@ -156,6 +156,18 @@ export SEATURTLE_GEMINI_CACHED_CONTENT=cachedContents/...
 export SEATURTLE_GEMINI_SERVICE_TIER=priority
 ```
 
+Gemini image generation also accepts Google-style nickname aliases:
+
+- `nano banana` -> `gemini-2.5-flash-image`
+- `nano banana 2` -> `gemini-3.1-flash-image-preview`
+- `nano banana pro` -> `gemini-3-pro-image-preview`
+
+Example:
+
+```sh
+export SEATURTLE_GEMINI_IMAGE_MODEL="nano banana 2"
+```
+
 `SEATURTLE_GEMINI_CACHED_CONTENT` attaches an explicit Gemini cached-content
 prefix to native requests. This is useful when you have already created a cache
 resource and want SeaTurtle to reuse it in repeated flows.
