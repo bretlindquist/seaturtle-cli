@@ -15,8 +15,8 @@ async function run(): Promise<void> {
   )
   assert.match(
     bundleSource,
-    /function buildCliHighlight\(/,
-    'bundled CLI should include the local highlight.js bridge',
+    /failed to initialize local CLI syntax highlighting/,
+    'bundled CLI should include the local cliHighlight bridge logic',
   )
 
   process.env.FORCE_COLOR = '1'
