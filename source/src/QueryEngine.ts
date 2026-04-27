@@ -80,6 +80,7 @@ import {
   buildGeminiStrictAppendSystemPrompt,
   shouldApplyGeminiStrictMode,
 } from './services/api/geminiStrictMode.js'
+import { sanitizeGeminiFreshTurnBoundaryMessages } from './services/api/geminiReplaySanitizer.js'
 import {
   extractGeminiStrictReviewContext,
 } from './services/api/geminiStrictReviewContext.js'
@@ -94,6 +95,7 @@ import {
   shouldEnableThinkingByDefault,
   type ThinkingConfig,
 } from './utils/thinking.js'
+import { shouldUseGeminiProvider } from './utils/model/providers.js'
 
 // Lazy: MessageSelector.tsx pulls React/ink; only needed for message filtering at query time
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -449,6 +451,13 @@ export class QueryEngine {
 
     // Update params to reflect updates from processing /slash commands
     let messages = [...this.mutableMessages]
+    if (shouldUseGeminiProvider()) {
+      messages = sanitizeGeminiFreshTurnBoundaryMessages({
+        messages,
+        newMessages: messagesFromUserInput,
+        input: typeof prompt === 'string' ? prompt : undefined,
+      })
+    }
 
     // Persist the user's message(s) to transcript BEFORE entering the query
     // loop. The for-await below only calls recordTranscript when ask() yields
