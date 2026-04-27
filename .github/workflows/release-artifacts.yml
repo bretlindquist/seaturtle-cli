@@ -90,4 +90,4 @@ jobs:
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
-        run: scripts/publish-release-assets.sh ${RELEASE_TAG} dist/release
+        run: bash scripts/publish-release-assets.sh ${RELEASE_TAG} dist/release
