@@ -1,6 +1,8 @@
 import { feature } from 'bun:bundle';
 import { logEvent } from '../../services/analytics/index.js';
+import { sanitizeGeminiFreshTurnBoundaryMessages } from '../../services/api/geminiReplaySanitizer.js';
 import { enqueue } from '../../utils/messageQueueManager.js';
+import { shouldUseGeminiProvider } from '../../utils/model/providers.js';
 import { getCurrentTurnTokenBudget, snapshotOutputTokensForTurn } from '../../bootstrap/state.js';
 import { parseTokenBudget } from '../../utils/tokenBudget.js';
 
@@ -79,23 +81,31 @@ export async function prepareReplQueryAttempt<TMessage>({
   setStreamingText(null);
 
   const latestMessages = messagesRef.current;
+  const messagesForQuery =
+    shouldUseGeminiProvider()
+      ? sanitizeGeminiFreshTurnBoundaryMessages({
+          messages: latestMessages as MessageLike[],
+          newMessages: newMessages as MessageLike[],
+          input,
+        })
+      : latestMessages
 
   if (input) {
-    await mrOnBeforeQuery(input, latestMessages, newMessages.length);
+    await mrOnBeforeQuery(input, messagesForQuery, newMessages.length);
   }
 
   if (onBeforeQueryCallback && input) {
-    const shouldProceed = await onBeforeQueryCallback(input, latestMessages);
+    const shouldProceed = await onBeforeQueryCallback(input, messagesForQuery);
     if (!shouldProceed) {
       return {
         shouldProceed: false as const,
-        latestMessages,
+        latestMessages: messagesForQuery,
       };
     }
   }
 
   return {
     shouldProceed: true as const,
-    latestMessages,
+    latestMessages: messagesForQuery,
   };
 }

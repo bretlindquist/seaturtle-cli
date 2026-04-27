@@ -6,6 +6,13 @@ import type {
 import type { GeminiReplayPolicy } from './geminiReplayPolicy.js'
 import { DEFAULT_GEMINI_REPLAY_POLICY } from './geminiReplayPolicy.js'
 
+const GEMINI_INTERRUPT_MESSAGES = new Set([
+  '[Request interrupted by user]',
+  '[Request interrupted by user for tool use]',
+])
+const GEMINI_EXPLICIT_CONTINUE_PATTERN =
+  /^\s*(?:continue|resume|go on|keep going|carry on|proceed)\b/i
+
 type ToolUseBlock = {
   type: 'tool_use'
   id?: unknown
@@ -80,6 +87,87 @@ function findLatestVisibleGeminiUserTurnIndex(messages: Message[]): number {
   }
 
   return -1
+}
+
+function hasFreshVisibleGeminiUserTurn(messages: Message[]): boolean {
+  return messages.some(
+    message =>
+      message.type === 'user' &&
+      !message.isMeta &&
+      !message.isVisibleInTranscriptOnly &&
+      message.toolUseResult === undefined,
+  )
+}
+
+function isGeminiInterruptionMessage(message: UserMessage): boolean {
+  const content = message.message.content
+  if (typeof content === 'string') {
+    return GEMINI_INTERRUPT_MESSAGES.has(content.trim())
+  }
+
+  if (!Array.isArray(content)) {
+    return false
+  }
+
+  if (content.length !== 1) {
+    return false
+  }
+
+  const first = content[0]
+  return (
+    typeof first === 'object' &&
+    first !== null &&
+    first.type === 'text' &&
+    typeof first.text === 'string' &&
+    GEMINI_INTERRUPT_MESSAGES.has(first.text.trim())
+  )
+}
+
+export function shouldResetGeminiContinuationForInput(
+  input: string | undefined,
+): boolean {
+  if (!input?.trim()) {
+    return false
+  }
+
+  return !GEMINI_EXPLICIT_CONTINUE_PATTERN.test(input.trim())
+}
+
+export function sanitizeGeminiFreshTurnBoundaryMessages(params: {
+  messages: Message[]
+  newMessages: Message[]
+  input?: string
+}): Message[] {
+  if (!shouldResetGeminiContinuationForInput(params.input)) {
+    return params.messages
+  }
+
+  if (!hasFreshVisibleGeminiUserTurn(params.newMessages)) {
+    return params.messages
+  }
+
+  const latestVisibleUserTurnIndex = findLatestVisibleGeminiUserTurnIndex(
+    params.messages,
+  )
+  if (latestVisibleUserTurnIndex === -1) {
+    return params.messages
+  }
+
+  return params.messages.filter((message, index) => {
+    if (index >= latestVisibleUserTurnIndex) {
+      return true
+    }
+
+    if (message.type !== 'user') {
+      return true
+    }
+
+    if (message.isMeta || message.isVisibleInTranscriptOnly) {
+      return false
+    }
+
+    return !isGeminiInterruptionMessage(message)
+  })
 }
 
 function filterGeminiReplayMessages(
