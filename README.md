@@ -268,6 +268,9 @@ The curl installer remains Unix-only today, so the Windows artifact is published
 Windows GitHub-release installs now check that upstream release lane at startup
 and can update through a simple prompt or `ct update`, using the published
 `seaturtle-windows-x64.zip` asset.
+The current macOS paste path also prefers real clipboard images over OCR/text
+fallback during bracketed image paste, so screenshots with readable text stay
+on the image-attachment path instead of degrading into plain pasted text.
 
 ### 2. Start CT
 
@@ -676,7 +679,7 @@ Published GitHub release assets are produced with:
 If you are cutting a shipped Windows release, use the GitHub Actions workflow
 instead of a local cross-build:
 
-1. bump `source/package.json` and `CHANGELOG.md`
+1. bump `source/package.json`, update `CHANGELOG.md`, and update `README.md`
 2. validate the release helpers locally
 3. push the release commit
 4. trigger `.github/workflows/release-artifacts.yml` with the matching `v<version>` tag

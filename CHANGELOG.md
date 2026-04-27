@@ -1,5 +1,10 @@
 # SeaTurtle Changelog
 
+## 1.13 - 2026-04-27
+
+- Made macOS image paste handling stricter by probing the real clipboard image path before trusting bracketed-paste text fallback, which fixes cases where pasted screenshots with OCR-readable text were being treated as plain pasted text instead of `[Image #N]` attachments.
+- Tightened the maintainer release discipline around version bumps so the shipped version truth, README, changelog, and the Windows GitHub Actions release lane stay synchronized for the next CT release.
+
 ## 1.12 - 2026-04-27
 
 - Tightened Gemini unattended-swarm safety further by blocking dirty-parent git integration moves in `/gemini strict` and by reducing noisy stale-read edit failures after harmless full-file drift from formatters or sibling workers.

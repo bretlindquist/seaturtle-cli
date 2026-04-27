@@ -87,7 +87,7 @@ instead of trying to cross-build `ct.exe` from macOS by hand.
 
 Release sequence:
 
-1. bump `source/package.json` and update `CHANGELOG.md`
+1. bump `source/package.json`, update `CHANGELOG.md`, and update `README.md`
 2. run the release helper validation locally
 3. commit and push the release checkpoint
 4. trigger `.github/workflows/release-artifacts.yml` with the matching tag
@@ -99,11 +99,11 @@ Release sequence:
 There are two supported trigger paths:
 
 - tag push:
-  - `git tag v1.12`
-  - `git push origin v1.12`
+  - `git tag v1.13`
+  - `git push origin v1.13`
 - manual dispatch:
-  - GitHub Actions UI: run `Release Artifacts` with `tag=v1.12`
-  - or CLI: `gh workflow run release-artifacts.yml -f tag=v1.12`
+  - GitHub Actions UI: run `Release Artifacts` with `tag=v1.13`
+  - or CLI: `gh workflow run release-artifacts.yml -f tag=v1.13`
 
 The workflow builds both matrix targets:
 

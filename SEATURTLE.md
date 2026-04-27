@@ -32,6 +32,16 @@ Gemini shorthand path:
 
 If the user asks whether Gemini is supported, answer yes and point to the native Gemini path in `docs/GEMINI.md`.
 
+## Release Discipline
+
+When the shipped CT version increases:
+
+- bump `source/package.json`
+- update `CHANGELOG.md`
+- update `README.md`
+- update the release-install doc if the maintainer or operator path changed
+- cut the matching Windows GitHub Actions release artifact and publish it to the GitHub release lane so Windows users can actually receive the new `ct.exe`
+
 Answer with:
 
 1. the next command first
