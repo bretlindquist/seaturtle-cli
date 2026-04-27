@@ -48,6 +48,7 @@ import {
   removeExtraFields,
 } from './sessionStorage.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
+import { shouldUseGeminiProvider } from './model/providers.js'
 
 // Dead code elimination: ant-only tool names are conditionally required so
 // their strings don't leak into external builds. Static imports always bundle.
@@ -145,6 +146,15 @@ export type DeserializeResult = {
   turnInterruptionState: TurnInterruptionState
 }
 
+const DEFAULT_INTERRUPTED_TURN_RESUME_PROMPT =
+  'Continue from where you left off.'
+
+const GEMINI_INTERRUPTED_TURN_RESUME_PROMPT = `The previous turn was interrupted mid-task.
+
+Re-orient from the latest visible user objective and the current conversation state before taking any further action.
+
+Continue the interrupted task only. Do not revive older hidden scaffolding or unrelated prior objectives.`
+
 /**
  * Deserializes messages from a log file into the format expected by the REPL.
  * Filters unresolved tool uses, orphaned thinking messages, and appends a
@@ -208,9 +218,12 @@ export function deserializeMessagesWithInterruptDetection(
     // so the consumer only needs to handle interrupted_prompt.
     let turnInterruptionState: TurnInterruptionState
     if (internalState.kind === 'interrupted_turn') {
+      const continuationPrompt = shouldUseGeminiProvider()
+        ? GEMINI_INTERRUPTED_TURN_RESUME_PROMPT
+        : DEFAULT_INTERRUPTED_TURN_RESUME_PROMPT
       const [continuationMessage] = normalizeMessages([
         createUserMessage({
-          content: 'Continue from where you left off.',
+          content: continuationPrompt,
           isMeta: true,
         }),
       ])

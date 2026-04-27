@@ -101,6 +101,7 @@ bun scripts/gemini_strict_mode_selftest.ts >/dev/null
 bun scripts/gemini_turn_boundary_meta_selftest.ts >/dev/null
 bun scripts/gemini_fresh_turn_boundary_selftest.ts >/dev/null
 bun scripts/gemini_replay_sanitizer_selftest.ts >/dev/null
+bun scripts/gemini_conversation_recovery_selftest.ts >/dev/null
 bun scripts/gemini_strict_shell_policy_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_context_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_barrier_selftest.ts >/dev/null
