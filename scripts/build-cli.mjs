@@ -464,8 +464,18 @@ function getOverlayPackageSpec(packageName) {
   return override ? `${packageName}@${override}` : packageName;
 }
 
-function getNpmCommand() {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+function getNpmSpawnSpec(args) {
+  if (process.platform === 'win32') {
+    return {
+      command: process.env.comspec || 'cmd.exe',
+      args: ['/d', '/s', '/c', 'npm.cmd', ...args],
+    };
+  }
+
+  return {
+    command: 'npm',
+    args,
+  };
 }
 
 function prepareWorkspace(overlayPackages) {
@@ -573,11 +583,12 @@ async function ensureOverlayDependencies(packageNames, attemptNumber) {
     '--legacy-peer-deps',
     ...packageNames.map(getOverlayPackageSpec),
   ];
+  const npmInstall = getNpmSpawnSpec(installArgs);
   const installStatus = await withMeasuredAsyncPhase(
     'overlay dependencies',
     `installed ${packageNames.length} packages on attempt ${attemptNumber}`,
     () =>
-      runChildWithHeartbeat(getNpmCommand(), installArgs, {
+      runChildWithHeartbeat(npmInstall.command, npmInstall.args, {
         cwd: workspaceRoot,
         env: {
           ...process.env,
