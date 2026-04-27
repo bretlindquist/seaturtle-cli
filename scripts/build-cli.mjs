@@ -464,6 +464,10 @@ function getOverlayPackageSpec(packageName) {
   return override ? `${packageName}@${override}` : packageName;
 }
 
+function getNpmCommand() {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm';
+}
+
 function prepareWorkspace(overlayPackages) {
   const overlaySet = new Set(overlayPackages);
   const marker = readJsonIfExists(markerPath);
@@ -573,7 +577,7 @@ async function ensureOverlayDependencies(packageNames, attemptNumber) {
     'overlay dependencies',
     `installed ${packageNames.length} packages on attempt ${attemptNumber}`,
     () =>
-      runChildWithHeartbeat('npm', installArgs, {
+      runChildWithHeartbeat(getNpmCommand(), installArgs, {
         cwd: workspaceRoot,
         env: {
           ...process.env,
