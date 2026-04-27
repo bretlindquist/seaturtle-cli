@@ -69,6 +69,7 @@ bun scripts/source_wrapper_update_surface_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_command_selftest.ts >/dev/null
 bun scripts/github_release_install_selftest.ts >/dev/null
 bun scripts/release_artifact_workflow_selftest.ts >/dev/null
+bun scripts/macos_image_paste_preference_selftest.ts >/dev/null
 bun scripts/startup_welcome_copy_selftest.ts >/dev/null
 bun scripts/ct_identity_bootstrap_prompt_selftest.ts >/dev/null
 bun scripts/ct_greeting_selftest.ts >/dev/null

@@ -5,11 +5,13 @@ import { useDebounceCallback } from 'usehooks-ts'
 import type { InputEvent, Key } from '../ink.js'
 import {
   getImageFromClipboard,
+  hasImageInClipboard,
   isImageFilePath,
   PASTE_THRESHOLD,
   tryReadImageFromPath,
 } from '../utils/imagePaste.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
+import { shouldPreferClipboardImageForMacPaste } from '../utils/macosImagePastePreference.js'
 import { getPlatform } from '../utils/platform.js'
 
 const CLIPBOARD_CHECK_DEBOUNCE_MS = 50
@@ -51,6 +53,7 @@ export function usePasteHandler({
   // reads stale pasteState.timeoutId (null) and takes the onInput path. If
   // that key is Enter, it submits the old input and the paste is lost.
   const pastePendingRef = React.useRef(false)
+  const sawBracketedPasteRef = React.useRef(false)
 
   const isMacOS = React.useMemo(() => getPlatform() === 'macos', [])
 
@@ -105,9 +108,12 @@ export function usePasteHandler({
           checkClipboardForImage,
           isMacOS,
           pastePendingRef,
+          sawBracketedPasteRef,
         ) => {
           pastePendingRef.current = false
           setPasteState(({ chunks }) => {
+            const sawBracketedPaste = sawBracketedPasteRef.current
+            sawBracketedPasteRef.current = false
             // Join chunks and filter out orphaned focus sequences
             // These can appear when focus events split during paste
             const pastedText = chunks
@@ -176,6 +182,67 @@ export function usePasteHandler({
               return { chunks: [], timeoutId: null }
             }
 
+            const shouldPreferClipboardImage =
+              shouldPreferClipboardImageForMacPaste({
+                isMacOS,
+                hasImagePasteHandler: !!onImagePaste,
+                isBracketedPaste: sawBracketedPaste,
+                pastedText,
+                imagePathCount: imagePaths.length,
+              })
+
+            if (shouldPreferClipboardImage) {
+              void hasImageInClipboard()
+                .then(hasImage => {
+                  if (!hasImage) {
+                    if (onPaste) {
+                      onPaste(pastedText)
+                    }
+                    setIsPasting(false)
+                    return
+                  }
+
+                  return getImageFromClipboard()
+                    .then(imageData => {
+                      if (imageData && isMountedRef.current) {
+                        onImagePaste?.(
+                          imageData.base64,
+                          imageData.mediaType,
+                          undefined,
+                          imageData.dimensions,
+                        )
+                        return
+                      }
+                      if (onPaste) {
+                        onPaste(pastedText)
+                      }
+                    })
+                    .catch(error => {
+                      if (isMountedRef.current) {
+                        logError(error as Error)
+                      }
+                      if (onPaste) {
+                        onPaste(pastedText)
+                      }
+                    })
+                    .finally(() => {
+                      if (isMountedRef.current) {
+                        setIsPasting(false)
+                      }
+                    })
+                })
+                .catch(error => {
+                  if (isMountedRef.current) {
+                    logError(error as Error)
+                  }
+                  if (onPaste) {
+                    onPaste(pastedText)
+                  }
+                  setIsPasting(false)
+                })
+              return { chunks: [], timeoutId: null }
+            }
+
             // If paste is empty (common when trying to paste images with Cmd+V),
             // check if clipboard has an image (macOS only)
             if (isMacOS && onImagePaste && pastedText.length === 0) {
@@ -200,6 +267,7 @@ export function usePasteHandler({
         checkClipboardForImage,
         isMacOS,
         pastePendingRef,
+        sawBracketedPasteRef,
       )
     },
     [checkClipboardForImage, isMacOS, onImagePaste, onPaste],
@@ -258,6 +326,9 @@ export function usePasteHandler({
         isFromPaste)
 
     if (shouldHandleAsPaste) {
+      if (isFromPaste) {
+        sawBracketedPasteRef.current = true
+      }
       pastePendingRef.current = true
       setPasteState(({ chunks, timeoutId }) => {
         return {
