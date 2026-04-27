@@ -44,5 +44,21 @@ assert(
   releaseInstallDoc.includes('The curl installer remains Unix-only today'),
   'expected release install doc to keep Windows installer support scoped honestly',
 )
+assert(
+  releaseInstallDoc.includes('Windows GitHub-release installs, CT now also checks for newer GitHub'),
+  'expected release install doc to describe the Windows startup update prompt lane',
+)
+assert(
+  readme.includes('Windows GitHub-release installs now check that upstream release lane at startup'),
+  'expected README to mention the Windows GitHub-release updater path',
+)
+assert(
+  releaseInstallDoc.includes('gh workflow run release-artifacts.yml -f tag=v1.12'),
+  'expected release install doc to describe the manual GitHub Actions dispatch path',
+)
+assert(
+  readme.includes('verify `release-windows-x64` uploaded `seaturtle-windows-x64.zip`'),
+  'expected README to document the Windows release artifact verification step',
+)
 
 console.log('release_artifact_workflow_selftest: ok')

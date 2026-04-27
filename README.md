@@ -260,7 +260,14 @@ Current GitHub Actions release-artifact matrix:
 - `windows-x64`
 
 The workflow lives at `.github/workflows/release-artifacts.yml`.
+Maintainers can publish the Windows `ct.exe` artifact either by pushing the
+matching `v<version>` tag or by manually dispatching `Release Artifacts` with a
+`tag` input. See [`docs/RELEASE-INSTALL.md`](./docs/RELEASE-INSTALL.md) for the
+exact GitHub Actions release sequence.
 The curl installer remains Unix-only today, so the Windows artifact is published to GitHub releases without claiming the shell installer supports Windows yet.
+Windows GitHub-release installs now check that upstream release lane at startup
+and can update through a simple prompt or `ct update`, using the published
+`seaturtle-windows-x64.zip` asset.
 
 ### 2. Start CT
 
@@ -658,11 +665,25 @@ Output:
 
 - `dist/release/seaturtle-<platform>.tar.gz`
 - `dist/release/seaturtle-<platform>.tar.gz.sha256`
+- `dist/release/seaturtle-windows-x64.zip`
+- `dist/release/seaturtle-windows-x64.zip.sha256`
 
 Published GitHub release assets are produced with:
 
 - `node scripts/build-release-artifact.mjs`
 - `scripts/publish-release-assets.sh <tag>`
+
+If you are cutting a shipped Windows release, use the GitHub Actions workflow
+instead of a local cross-build:
+
+1. bump `source/package.json` and `CHANGELOG.md`
+2. validate the release helpers locally
+3. push the release commit
+4. trigger `.github/workflows/release-artifacts.yml` with the matching `v<version>` tag
+5. verify `release-windows-x64` uploaded `seaturtle-windows-x64.zip`
+6. verify the GitHub release carries the Windows `.zip` and checksum
+7. remember that Windows startup update prompts and `ct update` consume that
+   same published `.zip` asset
 
 ### Build
 

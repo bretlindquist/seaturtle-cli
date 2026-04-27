@@ -8,6 +8,10 @@ import {
   extractSeaTurtleUpstreamVersion,
   resolveSeaTurtleUpstreamPackageJsonUrl,
 } from '../source/src/services/update/seaTurtleUpstreamVersion.js'
+import {
+  buildWindowsGitHubReleaseUpdatePrompt,
+  shouldOfferWindowsGitHubReleaseStartupUpdate,
+} from '../source/src/services/update/windowsGitHubReleaseUpdatePrompt.js'
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) {
@@ -125,6 +129,45 @@ function run(): void {
       'ct update',
     'expected source-wrapper startup update signal to recommend the supported update command',
   )
+
+  const windowsGitHubReleaseSignal = buildStartupUpdateSignal({
+    currentVersion: '1.2.0',
+    latestVersion: '1.3.0',
+    versionSource: 'github-release',
+    channel: 'latest',
+    installationType: 'github-release',
+    shouldSkipVersion: neverSkip,
+  })
+  assert(
+    shouldOfferWindowsGitHubReleaseStartupUpdate(
+      windowsGitHubReleaseSignal,
+      'win32',
+      'x64',
+    ) === true,
+    'expected Windows GitHub-release startup prompt to be gated to supported Windows release installs',
+  )
+  assert(
+    shouldOfferWindowsGitHubReleaseStartupUpdate(
+      windowsGitHubReleaseSignal,
+      'darwin',
+      'x64',
+    ) === false,
+    'expected Windows GitHub-release startup prompt to stay off non-Windows platforms',
+  )
+  if (windowsGitHubReleaseSignal) {
+    const prompt = buildWindowsGitHubReleaseUpdatePrompt(
+      windowsGitHubReleaseSignal,
+    )
+    assert(
+      prompt.title === 'Windows update available',
+      'expected Windows GitHub-release startup prompt title to be stable',
+    )
+    assert(
+      prompt.request.options[0]?.key === 'yes' &&
+        prompt.request.options[1]?.key === 'no',
+      'expected Windows GitHub-release startup prompt to default Enter to the yes path',
+    )
+  }
 
   assert(
     extractSeaTurtleUpstreamVersion('{"version":"2.0.1"}') === '2.0.1',

@@ -1,23 +1,14 @@
 import { c as _c } from "react/compiler-runtime";
 import { feature } from 'bun:bundle';
 import * as React from 'react';
-import type { AutoUpdaterResult } from '../utils/autoUpdater.js';
 import { isAutoUpdaterDisabled } from '../utils/config.js';
 import { logForDebugging } from '../utils/debug.js';
 import { getCurrentInstallationType } from '../utils/doctorDiagnostic.js';
 import { AutoUpdater } from './AutoUpdater.js';
 import { NativeAutoUpdater } from './NativeAutoUpdater.js';
 import { PackageManagerAutoUpdater } from './PackageManagerAutoUpdater.js';
-type Props = {
-  isUpdating: boolean;
-  onChangeIsUpdating: (isUpdating: boolean) => void;
-  onAutoUpdaterResult: (autoUpdaterResult: AutoUpdaterResult) => void;
-  autoUpdaterResult: AutoUpdaterResult | null;
-  showSuccessMessage: boolean;
-  verbose: boolean;
-};
 export function AutoUpdaterWrapper(t0) {
-  const $ = _c(17);
+  const $ = _c(20);
   const {
     isUpdating,
     onChangeIsUpdating,
@@ -29,6 +20,7 @@ export function AutoUpdaterWrapper(t0) {
   const [useNativeInstaller, setUseNativeInstaller] = React.useState(null);
   const [isPackageManager, setIsPackageManager] = React.useState(null);
   const [isSourceWrapper, setIsSourceWrapper] = React.useState(null);
+  const [isGitHubRelease, setIsGitHubRelease] = React.useState(null);
   let t1;
   let t2;
   if ($[0] === Symbol.for("react.memo_cache_sentinel")) {
@@ -43,6 +35,7 @@ export function AutoUpdaterWrapper(t0) {
         setUseNativeInstaller(installationType === "native");
         setIsPackageManager(installationType === "package-manager");
         setIsSourceWrapper(installationType === "source-wrapper");
+        setIsGitHubRelease(installationType === "github-release");
       };
       checkInstallation();
     };
@@ -54,10 +47,10 @@ export function AutoUpdaterWrapper(t0) {
     t2 = $[1];
   }
   React.useEffect(t1, t2);
-  if (useNativeInstaller === null || isPackageManager === null || isSourceWrapper === null) {
+  if (useNativeInstaller === null || isPackageManager === null || isSourceWrapper === null || isGitHubRelease === null) {
     return null;
   }
-  if (isSourceWrapper) {
+  if (isSourceWrapper || isGitHubRelease) {
     return null;
   }
   if (isPackageManager) {

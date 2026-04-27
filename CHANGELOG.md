@@ -1,5 +1,10 @@
 # SeaTurtle Changelog
 
+## 1.12 - 2026-04-27
+
+- Tightened Gemini unattended-swarm safety further by blocking dirty-parent git integration moves in `/gemini strict` and by reducing noisy stale-read edit failures after harmless full-file drift from formatters or sibling workers.
+- Cut the next shipped CT release checkpoint, synchronized the release-version truth across the install and release helper self-tests, documented the maintainer path for building and publishing the Windows `ct.exe` artifact through GitHub Actions, and added a Windows GitHub-release updater lane with startup update prompts and a staged `ct update` flow.
+
 ## 1.11 - 2026-04-27
 
 - Hardened the Gemini runtime with provider-specific replay sanitization, including assistant-first bootstrap repair, consecutive-assistant replay normalization, and conservative tool-result replay cleanup before Gemini request conversion.

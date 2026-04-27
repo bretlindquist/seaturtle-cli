@@ -238,6 +238,7 @@ import { useReplSubmitController } from './repl/useReplSubmitController.js';
 import { useReplIdleReturn } from './repl/useReplIdleReturn.js';
 import { useReplQueuedInputProcessor } from './repl/useReplQueuedInputProcessor.js';
 import { useReplCompanionObserver } from './repl/useReplCompanionObserver.js';
+import { useWindowsGitHubReleaseUpdatePrompt } from './repl/useWindowsGitHubReleaseUpdatePrompt.js';
 import { buildReplGlobalKeybindingProps } from './repl/buildReplGlobalKeybindingProps.js';
 
 // Stable empty array for hooks that accept MCPServerConnection[] — avoids
@@ -838,6 +839,9 @@ export function REPL({
     resolve: (response: PromptResponse) => void;
     reject: (error: Error) => void;
   }>>([]);
+  useWindowsGitHubReleaseUpdatePrompt({
+    setPromptQueue,
+  });
 
   // Track bridge cleanup functions for sandbox permission requests so the
   // local dialog handler can cancel the remote prompt when the local user

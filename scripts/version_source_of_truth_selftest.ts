@@ -23,7 +23,7 @@ assert.equal(
 )
 assert.equal(
   runtimePackage.version,
-  '1.11',
+  '1.12',
   'source/package.json should carry the shipped CT version',
 )
 assert.match(
@@ -33,7 +33,7 @@ assert.match(
 )
 assert.match(
   wrapperScript,
-  /package_json_path=\"\$repo_root\/source\/package\.json\"/,
+  /package_json_path="\$repo_root\/source\/package\.json"/,
   'local wrapper should read the repo version from source/package.json',
 )
 

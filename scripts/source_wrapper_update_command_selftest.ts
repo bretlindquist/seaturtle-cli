@@ -28,7 +28,7 @@ assert(
   'expected auto-updater wrapper to detect source-wrapper installs',
 )
 assert(
-  wrapperSource.includes('if (isSourceWrapper) {'),
+  wrapperSource.includes('if (isSourceWrapper || isGitHubRelease) {'),
   'expected source-wrapper installs to skip the packaged auto-updater path',
 )
 

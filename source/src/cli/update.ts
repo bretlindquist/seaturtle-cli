@@ -19,7 +19,9 @@ import { execFileNoThrowWithCwd } from 'src/utils/execFileNoThrow.js'
 import { gracefulShutdown } from 'src/utils/gracefulShutdown.js'
 import {
   getLatestSeaTurtleReleaseVersion,
+  getSeaTurtleReleasePlatformId,
   installGitHubReleaseBinary,
+  isSeaTurtleWindowsReleasePlatform,
 } from 'src/utils/githubReleaseInstall.js'
 import {
   getLocalInstallDirDisplayPath,
@@ -245,21 +247,36 @@ export async function update() {
     }
 
     writeToStdout('\n')
-    writeToStdout('Updating installed SeaTurtle CT...\n')
+    const isWindowsGitHubReleaseInstall = isSeaTurtleWindowsReleasePlatform(
+      getSeaTurtleReleasePlatformId(),
+    )
+    writeToStdout(
+      isWindowsGitHubReleaseInstall
+        ? 'Updating installed SeaTurtle CT for Windows...\n'
+        : 'Updating installed SeaTurtle CT...\n',
+    )
 
     try {
       const nextVersion = await installGitHubReleaseBinary({
         version: latestVersion ?? undefined,
       })
-      writeToStdout(
-        chalk.green(
-          `Successfully updated installed CT from ${MACRO.VERSION} to ${nextVersion}`,
-        ) + '\n',
-      )
-      if (nextVersion !== MACRO.VERSION) {
-        await tryPrintUpdateReleaseNotes(MACRO.VERSION, nextVersion)
+      if (isWindowsGitHubReleaseInstall) {
+        await gracefulShutdown(0, 'other', {
+          finalMessage: chalk.green(
+            `Windows update to ${nextVersion} is staged. CT will exit now so Windows can replace ct.exe. Restart ct after it closes.`,
+          ),
+        })
+      } else {
+        writeToStdout(
+          chalk.green(
+            `Successfully updated installed CT from ${MACRO.VERSION} to ${nextVersion}`,
+          ) + '\n',
+        )
+        if (nextVersion !== MACRO.VERSION) {
+          await tryPrintUpdateReleaseNotes(MACRO.VERSION, nextVersion)
+        }
+        await gracefulShutdown(0)
       }
-      await gracefulShutdown(0)
     } catch (error) {
       process.stderr.write(
         `Error: Failed to update installed CT: ${String(error)}\n`,

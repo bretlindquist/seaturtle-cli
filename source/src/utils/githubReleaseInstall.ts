@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { execFile } from 'child_process'
+import { execFile, spawn } from 'child_process'
 import {
   chmod,
   copyFile,
@@ -74,15 +74,32 @@ export function getSeaTurtleReleasePlatformId(): string {
     return `linux-${arch}`
   }
 
+  if (process.platform === 'win32') {
+    if (arch !== 'x64') {
+      throw new Error(
+        `Unsupported production release architecture on Windows: ${process.arch}`,
+      )
+    }
+    return `windows-${arch}`
+  }
+
   throw new Error(`Unsupported production release platform: ${process.platform}`)
 }
 
+export function isSeaTurtleWindowsReleasePlatform(platform: string): boolean {
+  return platform.startsWith('windows-')
+}
+
 export function getSeaTurtleReleaseAssetName(platform: string): string {
-  return `seaturtle-${platform}.tar.gz`
+  return `seaturtle-${platform}${isSeaTurtleWindowsReleasePlatform(platform) ? '.zip' : '.tar.gz'}`
 }
 
 export function getSeaTurtleReleaseChecksumAssetName(platform: string): string {
   return `${getSeaTurtleReleaseAssetName(platform)}.sha256`
+}
+
+export function getSeaTurtleReleaseBinaryName(platform: string): string {
+  return isSeaTurtleWindowsReleasePlatform(platform) ? 'ct.exe' : 'ct'
 }
 
 function getSeaTurtleReleaseApiUrl(versionOrChannel: string): string {
@@ -123,7 +140,7 @@ export async function getLatestSeaTurtleReleaseVersion(): Promise<string | null>
     }
 
     return tagName.startsWith('v') ? tagName.slice(1) : tagName
-  } catch (error) {
+  } catch {
     return null
   }
 }
@@ -207,7 +224,39 @@ async function verifyArchiveChecksum(
 async function extractReleaseArchive(
   archivePath: string,
   destinationDir: string,
+  platform: string,
 ): Promise<void> {
+  if (isSeaTurtleWindowsReleasePlatform(platform)) {
+    try {
+      await execFileAsync(
+        'powershell.exe',
+        [
+          '-NoLogo',
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          "$ErrorActionPreference = 'Stop'; Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1] -Force",
+          archivePath,
+          destinationDir,
+        ],
+        {
+          timeout: 60_000,
+          windowsHide: true,
+        },
+      )
+      return
+    } catch (error) {
+      const extracted = error as {
+        stdout?: string
+        stderr?: string
+        message?: string
+      }
+      throw new Error(
+        `Failed to extract SeaTurtle release archive: ${extracted.stdout ?? ''} ${extracted.stderr ?? extracted.message ?? ''}`.trim(),
+      )
+    }
+  }
+
   try {
     await execFileAsync('tar', ['-xzf', archivePath, '-C', destinationDir], {
       timeout: 60_000,
@@ -222,6 +271,74 @@ async function extractReleaseArchive(
       `Failed to extract SeaTurtle release archive: ${extracted.stdout ?? ''} ${extracted.stderr ?? extracted.message ?? ''}`.trim(),
     )
   }
+}
+
+function formatPowerShellStringLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
+function serializeGitHubReleaseInstallMetadata(
+  metadata: GitHubReleaseInstallMetadata,
+): string {
+  return JSON.stringify(metadata, null, 2) + '\n'
+}
+
+async function stageWindowsInstalledBinaryReplacement(options: {
+  extractedBinaryPath: string
+  installedPath: string
+  metadata: GitHubReleaseInstallMetadata
+  cleanupDir: string
+}): Promise<void> {
+  const { extractedBinaryPath, installedPath, metadata, cleanupDir } = options
+  await mkdir(dirname(installedPath), { recursive: true })
+
+  const metadataPath = getSeaTurtleReleaseInstallMetadataPath()
+  await mkdir(dirname(metadataPath), { recursive: true })
+
+  const stagedMetadataPath = join(cleanupDir, INSTALL_METADATA_FILE_NAME)
+  await writeFile(
+    stagedMetadataPath,
+    serializeGitHubReleaseInstallMetadata(metadata),
+  )
+
+  const script = [
+    '$ErrorActionPreference = "Stop"',
+    `$source = ${formatPowerShellStringLiteral(extractedBinaryPath)}`,
+    `$target = ${formatPowerShellStringLiteral(installedPath)}`,
+    `$metadataSource = ${formatPowerShellStringLiteral(stagedMetadataPath)}`,
+    `$metadataTarget = ${formatPowerShellStringLiteral(metadataPath)}`,
+    `$cleanupDir = ${formatPowerShellStringLiteral(cleanupDir)}`,
+    'for ($attempt = 0; $attempt -lt 120; $attempt += 1) {',
+    '  try {',
+    '    Copy-Item -LiteralPath $source -Destination $target -Force',
+    '    Copy-Item -LiteralPath $metadataSource -Destination $metadataTarget -Force',
+    '    Remove-Item -LiteralPath $cleanupDir -Recurse -Force -ErrorAction SilentlyContinue',
+    '    exit 0',
+    '  } catch {',
+    '    Start-Sleep -Seconds 1',
+    '  }',
+    '}',
+    'exit 1',
+  ].join('; ')
+
+  const child = spawn(
+    'powershell.exe',
+    [
+      '-NoLogo',
+      '-NoProfile',
+      '-NonInteractive',
+      '-WindowStyle',
+      'Hidden',
+      '-Command',
+      script,
+    ],
+    {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+    },
+  )
+  child.unref()
 }
 
 async function replaceInstalledBinary(
@@ -242,7 +359,7 @@ async function writeGitHubReleaseInstallMetadata(
   await mkdir(dirname(metadataPath), { recursive: true })
   await writeFile(
     metadataPath,
-    JSON.stringify(metadata, null, 2) + '\n',
+    serializeGitHubReleaseInstallMetadata(metadata),
   )
 }
 
@@ -271,23 +388,40 @@ export async function installGitHubReleaseBinary(options?: {
   const tempDir = await mkdtemp(join(tmpdir(), 'seaturtle-release-update-'))
   const archivePath = join(tempDir, archiveName)
   const checksumPath = join(tempDir, checksumName)
-  const extractedBinaryPath = join(tempDir, 'ct')
+  const extractedBinaryPath = join(
+    tempDir,
+    getSeaTurtleReleaseBinaryName(platform),
+  )
+  const installMetadata: GitHubReleaseInstallMetadata = {
+    type: 'github-release',
+    repo: getSeaTurtleReleaseRepo(),
+    installedPath,
+    version,
+    installedAt: new Date().toISOString(),
+  }
+  let shouldPreserveTempDir = false
 
   try {
     await downloadFile(`${downloadBase}/${archiveName}`, archivePath)
     await downloadFile(`${downloadBase}/${checksumName}`, checksumPath)
     await verifyArchiveChecksum(archivePath, checksumPath)
-    await extractReleaseArchive(archivePath, tempDir)
-    await replaceInstalledBinary(extractedBinaryPath, installedPath)
-    await writeGitHubReleaseInstallMetadata({
-      type: 'github-release',
-      repo: getSeaTurtleReleaseRepo(),
-      installedPath,
-      version,
-      installedAt: new Date().toISOString(),
-    })
+    await extractReleaseArchive(archivePath, tempDir, platform)
+    if (isSeaTurtleWindowsReleasePlatform(platform)) {
+      shouldPreserveTempDir = true
+      await stageWindowsInstalledBinaryReplacement({
+        extractedBinaryPath,
+        installedPath,
+        metadata: installMetadata,
+        cleanupDir: tempDir,
+      })
+    } else {
+      await replaceInstalledBinary(extractedBinaryPath, installedPath)
+      await writeGitHubReleaseInstallMetadata(installMetadata)
+    }
     return version
   } finally {
-    await rm(tempDir, { recursive: true, force: true })
+    if (!shouldPreserveTempDir) {
+      await rm(tempDir, { recursive: true, force: true })
+    }
   }
 }

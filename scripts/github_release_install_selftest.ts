@@ -1,13 +1,15 @@
 import { strict as assert } from 'assert'
 import {
   getSeaTurtleReleaseAssetName,
+  getSeaTurtleReleaseBinaryName,
   getSeaTurtleReleaseChecksumAssetName,
   getSeaTurtleReleaseInstallMetadataPath,
+  isSeaTurtleWindowsReleasePlatform,
   normalizeSeaTurtleReleaseVersionTag,
 } from '../source/src/utils/githubReleaseInstall.js'
 
-assert.equal(normalizeSeaTurtleReleaseVersionTag('1.11'), 'v1.11')
-assert.equal(normalizeSeaTurtleReleaseVersionTag('v1.11'), 'v1.11')
+assert.equal(normalizeSeaTurtleReleaseVersionTag('1.12'), 'v1.12')
+assert.equal(normalizeSeaTurtleReleaseVersionTag('v1.12'), 'v1.12')
 assert.equal(
   getSeaTurtleReleaseAssetName('darwin-arm64'),
   'seaturtle-darwin-arm64.tar.gz',
@@ -16,6 +18,18 @@ assert.equal(
   getSeaTurtleReleaseChecksumAssetName('darwin-arm64'),
   'seaturtle-darwin-arm64.tar.gz.sha256',
 )
+assert.equal(
+  getSeaTurtleReleaseAssetName('windows-x64'),
+  'seaturtle-windows-x64.zip',
+)
+assert.equal(
+  getSeaTurtleReleaseChecksumAssetName('windows-x64'),
+  'seaturtle-windows-x64.zip.sha256',
+)
+assert.equal(getSeaTurtleReleaseBinaryName('darwin-arm64'), 'ct')
+assert.equal(getSeaTurtleReleaseBinaryName('windows-x64'), 'ct.exe')
+assert.equal(isSeaTurtleWindowsReleasePlatform('windows-x64'), true)
+assert.equal(isSeaTurtleWindowsReleasePlatform('darwin-arm64'), false)
 assert(
   getSeaTurtleReleaseInstallMetadataPath().endsWith(
     '/seaturtle/install.json',
