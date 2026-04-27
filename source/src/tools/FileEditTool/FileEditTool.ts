@@ -84,6 +84,22 @@ import {
 // that prevents OOM without being unnecessarily restrictive.
 const MAX_EDIT_FILE_SIZE = 1024 * 1024 * 1024 // 1 GiB (stat bytes)
 
+function isFullReadFileState(
+  readState:
+    | {
+        content: string
+        offset?: number
+        limit?: number
+      }
+    | undefined,
+): boolean {
+  return Boolean(
+    readState &&
+      readState.offset === undefined &&
+      readState.limit === undefined,
+  )
+}
+
 export const FileEditTool = buildTool({
   name: FILE_EDIT_TOOL_NAME,
   searchHint: 'modify file contents in place',
@@ -294,11 +310,14 @@ export const FileEditTool = buildTool({
         // Timestamp indicates modification, but on Windows timestamps can change
         // without content changes (cloud sync, antivirus, etc.). For full reads,
         // compare content as a fallback to avoid false positives.
-        const isFullRead =
-          readTimestamp.offset === undefined &&
-          readTimestamp.limit === undefined
+        const isFullRead = isFullReadFileState(readTimestamp)
         if (isFullRead && fileContent === readTimestamp.content) {
           // Content unchanged, safe to proceed
+        } else if (isFullRead) {
+          // A full read gives us enough context to safely retarget a narrow
+          // edit against the current file contents. This avoids redundant
+          // reread failures when formatters or sibling agents touched another
+          // part of the file after it was read.
         } else {
           return {
             result: false,
@@ -456,13 +475,10 @@ export const FileEditTool = buildTool({
         // Timestamp indicates modification, but on Windows timestamps can change
         // without content changes (cloud sync, antivirus, etc.). For full reads,
         // compare content as a fallback to avoid false positives.
-        const isFullRead =
-          lastRead &&
-          lastRead.offset === undefined &&
-          lastRead.limit === undefined
+        const isFullRead = isFullReadFileState(lastRead)
         const contentUnchanged =
           isFullRead && originalFileContents === lastRead.content
-        if (!contentUnchanged) {
+        if (!isFullRead && !contentUnchanged) {
           throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
         }
       }

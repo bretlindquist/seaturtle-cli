@@ -109,6 +109,8 @@ bun scripts/gemini_strict_review_context_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_barrier_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_repair_selftest.ts >/dev/null
 bun scripts/worktree_parallel_spawn_selftest.ts >/dev/null
+bun scripts/file_edit_stale_drift_selftest.ts >/dev/null
+bun scripts/agent_worktree_result_notice_selftest.ts >/dev/null
 bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
 bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/teammate_mode_snapshot_selftest.ts >/dev/null

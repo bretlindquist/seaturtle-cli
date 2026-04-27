@@ -10,6 +10,7 @@ import {
   buildGeminiStrictShellPolicyMessage,
   getGeminiStrictShellPolicyDecision,
 } from '../../services/api/geminiStrictShellPolicy.js'
+import { shouldApplyGeminiStrictMode } from '../../services/api/geminiStrictMode.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { PendingClassifierCheck } from '../../types/permissions.js'
 import { count } from '../../utils/array.js'
@@ -33,6 +34,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { AbortError } from '../../utils/errors.js'
+import { findGitRoot, getIsClean } from '../../utils/git.js'
 import type {
   ClassifierBehavior,
   ClassifierResult,
@@ -1680,6 +1682,30 @@ export async function bashToolHasPermission(
         type: 'other',
         reason: geminiStrictShellDecision.reason,
       },
+    }
+  }
+
+  const normalizedCommand = input.command.trim().replace(/\s+/g, ' ')
+  if (
+    shouldApplyGeminiStrictMode() &&
+    /^(?:git\s+merge|git\s+cherry-pick|git\s+rebase|git\s+am)\b/.test(
+      normalizedCommand,
+    )
+  ) {
+    const cwd = getCwd()
+    if (findGitRoot(cwd) && !(await getIsClean())) {
+      return {
+        behavior: 'deny',
+        message: [
+          'Gemini strict mode blocked this command: git integration into a dirty parent repo is likely to create avoidable merge conflicts.',
+          'Safer options: inspect git status first; commit or stash the current repo changes before integrating a worktree branch; report the worktree branch/path and stop if integration needs operator review',
+        ].join('\n'),
+        decisionReason: {
+          type: 'other',
+          reason:
+            'git integration into a dirty parent repo is likely to create avoidable merge conflicts',
+        },
+      }
     }
   }
 

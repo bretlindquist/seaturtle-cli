@@ -7,6 +7,7 @@
 - Added provider-aware interrupted-turn recovery for Gemini, preserved hidden resume guidance during restart auto-resume, and expanded the Gemini self-test surface around replay, turn boundaries, and recovery behavior.
 - Added Gemini-only strict-mode guardrails for unattended work, including `/gemini strict`, broad destructive shell-command blocking, a Gemini reviewer barrier for mutation turns, and one bounded automatic repair pass before fail-closed stop.
 - Hardened Gemini swarm reliability by removing a parallel worktree upstream-config race during agent spawn and by retrying transient empty Gemini responses before surfacing provider-aware block/finish diagnostics.
+- Added stricter Gemini swarm integration guardrails so dirty parent repos block merge/cherry-pick style worktree integration, completed worktree agents tell the parent to stop instead of forcing a dirty merge, and narrow FileEdit operations can retarget after harmless full-read drift from formatters or sibling agents.
 
 ## 1.10 - 2026-04-22
 

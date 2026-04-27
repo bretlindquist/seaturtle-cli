@@ -43,12 +43,17 @@ assert(
     shellPolicySource.includes('source rewrites'),
   'expected Gemini strict shell policy to block broad in-place source rewrites',
 )
+const bashPermissionsSource = read('source/src/tools/BashTool/bashPermissions.ts')
+assert(
+  bashPermissionsSource.includes('git integration into a dirty parent repo') &&
+    /git\\s\+merge\|git\\s\+cherry-pick/.test(bashPermissionsSource) &&
+    bashPermissionsSource.includes('getIsClean'),
+  'expected Gemini strict bash permissions to block dirty parent git integration commands',
+)
 assert(
   shellPolicySource.includes('Safer options:'),
   'expected Gemini strict shell policy messages to include safer alternatives',
 )
-
-const bashPermissionsSource = read('source/src/tools/BashTool/bashPermissions.ts')
 assert(
   bashPermissionsSource.includes('getGeminiStrictShellPolicyDecision'),
   'expected bash permissions to call the Gemini strict shell policy helper',

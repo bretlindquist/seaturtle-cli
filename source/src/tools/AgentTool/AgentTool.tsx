@@ -1342,6 +1342,7 @@ The agent is now running and will receive instructions via mailbox.`
     if (data.status === 'completed') {
       const worktreeData = data as Record<string, unknown>;
       const worktreeInfoText = worktreeData.worktreePath ? `\nworktreePath: ${worktreeData.worktreePath}\nworktreeBranch: ${worktreeData.worktreeBranch}` : '';
+      const worktreeMergeNote = worktreeData.worktreePath ? `\nBefore merging or cherry-picking this worktree result, verify the parent repo is clean. If the parent repo is dirty, stop and report the worktree branch/path instead of attempting integration.` : '';
       // If the subagent completes with no content, the tool_result is just the
       // agentId/usage trailer below — a metadata-only block at the prompt tail.
       // Some models read that as "nothing to act on" and end their turn
@@ -1362,12 +1363,12 @@ The agent is now running and will receive instructions via mailbox.`
           content: contentOrMarker
         };
       }
-      return {
-        tool_use_id: toolUseID,
-        type: 'tool_result',
-        content: [...contentOrMarker, {
-          type: 'text',
-          text: `agentId: ${data.agentId} (use SendMessage with to: '${data.agentId}' to continue this agent)${worktreeInfoText}
+        return {
+          tool_use_id: toolUseID,
+          type: 'tool_result',
+          content: [...contentOrMarker, {
+            type: 'text',
+            text: `agentId: ${data.agentId} (use SendMessage with to: '${data.agentId}' to continue this agent)${worktreeInfoText}${worktreeMergeNote}
 <usage>total_tokens: ${data.totalTokens}
 tool_uses: ${data.totalToolUseCount}
 duration_ms: ${data.totalDurationMs}</usage>`
