@@ -1,5 +1,12 @@
 # SeaTurtle Changelog
 
+## 1.11 - 2026-04-27
+
+- Hardened the Gemini runtime with provider-specific replay sanitization, including assistant-first bootstrap repair, consecutive-assistant replay normalization, and conservative tool-result replay cleanup before Gemini request conversion.
+- Made fresh visible Gemini user turns act like hard objective boundaries across REPL and headless flows, so stale hidden continuation prompts and old interruption markers stop biasing the next task.
+- Added provider-aware interrupted-turn recovery for Gemini, preserved hidden resume guidance during restart auto-resume, and expanded the Gemini self-test surface around replay, turn boundaries, and recovery behavior.
+- Added Gemini-only strict-mode guardrails for unattended work, including `/gemini strict`, broad destructive shell-command blocking, a Gemini reviewer barrier for mutation turns, and one bounded automatic repair pass before fail-closed stop.
+
 ## 1.10 - 2026-04-22
 
 - Added OpenAI hosted code interpreter as a first-class SeaTurtle tool with routed capability gating, status/auth exposure, self-tests, and live validation.

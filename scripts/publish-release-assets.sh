@@ -23,7 +23,7 @@ Typical flow:
   node scripts/build-cli.mjs --no-minify
   node scripts/build-release-artifact.mjs --target linux-x64
   node scripts/build-release-artifact.mjs --target windows-x64
-  scripts/publish-release-assets.sh v1.10
+  scripts/publish-release-assets.sh v1.11
 EOF
   exit 1
 fi

@@ -71,6 +71,17 @@ The current Gemini path routes:
 - Gemini computer use through the guarded local desktop executor
 - Gemini structured outputs plus model/request guardrails
 
+SeaTurtle's Gemini path now also has provider-specific transcript hygiene. It
+sanitizes Gemini replay history before request conversion, treats fresh visible
+user turns as hard objective boundaries instead of carrying stale continuation
+nudges forward, and uses provider-aware interrupted-turn recovery so restart
+paths do not blindly revive older hidden objectives.
+
+If you need a sleep-safer Gemini loop, use `/gemini strict`. That Gemini-only
+mode adds an extra operating prompt, blocks broad destructive shell rewrites,
+and puts file-mutation turns behind a Gemini reviewer with one bounded
+automatic repair attempt before SeaTurtle stops fail-closed.
+
 See [`docs/GEMINI.md`](./docs/GEMINI.md) for setup, supported models, routed
 features, remaining gates, and validation commands.
 
@@ -112,6 +123,7 @@ Inside CT, the Gemini-first commands are:
 - `/status` to confirm Gemini is the active main-loop runtime
 - `/model` to pick a Gemini model
 - `/effort` to control Gemini reasoning behavior
+- `/gemini strict` to enable Gemini-only unattended guardrails
 
 If you ask SeaTurtle how to use Gemini, the short answer should route you to:
 

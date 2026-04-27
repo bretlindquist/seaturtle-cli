@@ -325,8 +325,8 @@ function detectTurnInterruption(
       // completed brief-mode turn legitimately ends on SendUserMessage's
       // tool_result. Without this check, resume misclassifies every
       // brief-mode session as interrupted mid-turn and injects a phantom
-      // "Continue from where you left off." before the user's real next
-      // prompt. Look back one step for the originating tool_use.
+      // synthetic resume prompt before the user's real next prompt. Look
+      // back one step for the originating tool_use.
       if (isTerminalToolResult(lastMessage, messages, lastMessageIdx)) {
         return { kind: 'none' }
       }

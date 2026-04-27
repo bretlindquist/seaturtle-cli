@@ -359,6 +359,7 @@ import { initializeGrowthBook } from '../services/analytics/growthbook.js'
 import { errorMessage, toError } from '../utils/errors.js'
 import { sleep } from '../utils/sleep.js'
 import { isExtractModeActive } from '../memdir/paths.js'
+import { buildInterruptedTurnResumeQueuedCommand } from '../utils/interruptedTurnResume.js'
 
 // Dead code elimination: conditional imports
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -1186,8 +1187,8 @@ function runHeadlessStreaming(
     READ_FILE_STATE_CACHE_SIZE,
   )
 
-  // Auto-resume interrupted turns on restart so CC continues from where it
-  // left off without requiring the SDK to re-send the prompt.
+  // Auto-resume interrupted turns on restart so CT can continue without
+  // requiring the SDK to re-send the prompt.
   const resumeInterruptedTurnEnv =
     process.env.CLAUDE_CODE_RESUME_INTERRUPTED_TURN
   if (
@@ -1202,13 +1203,13 @@ function runHeadlessStreaming(
     // Remove the interrupted message and its sentinel, then re-enqueue so
     // the model sees it exactly once. For mid-turn interruptions, the
     // deserialization layer transforms them into interrupted_prompt by
-    // appending a synthetic "Continue from where you left off." message.
+    // appending a provider-aware synthetic resume prompt. Preserve the
+    // original meta flag so hidden recovery guidance does not come back as a
+    // visible ordinary user turn.
     removeInterruptedMessage(mutableMessages, turnInterruptionState.message)
-    enqueue({
-      mode: 'prompt',
-      value: turnInterruptionState.message.message.content,
-      uuid: randomUUID(),
-    })
+    enqueue(
+      buildInterruptedTurnResumeQueuedCommand(turnInterruptionState)!,
+    )
   }
 
   const modelOptions = getModelOptions()
