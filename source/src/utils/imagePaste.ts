@@ -18,7 +18,7 @@ import {
   maybeResizeAndDownsampleImageBuffer,
 } from './imageResizer.js'
 import { logError } from './log.js'
-export { shouldPreferClipboardImageForMacPaste } from './macosImagePastePreference.js'
+export { shouldProbeClipboardImageForMacPaste } from './macosImagePastePreference.js'
 
 // Native NSPasteboard reader. GrowthBook gate tengu_collage_kaleidoscope is
 // a kill switch (default on). Falls through to osascript when off.

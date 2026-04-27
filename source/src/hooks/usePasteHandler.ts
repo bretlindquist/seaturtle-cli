@@ -11,7 +11,7 @@ import {
   tryReadImageFromPath,
 } from '../utils/imagePaste.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
-import { shouldPreferClipboardImageForMacPaste } from '../utils/macosImagePastePreference.js'
+import { shouldProbeClipboardImageForMacPaste } from '../utils/macosImagePastePreference.js'
 import { getPlatform } from '../utils/platform.js'
 
 const CLIPBOARD_CHECK_DEBOUNCE_MS = 50
@@ -182,16 +182,15 @@ export function usePasteHandler({
               return { chunks: [], timeoutId: null }
             }
 
-            const shouldPreferClipboardImage =
-              shouldPreferClipboardImageForMacPaste({
+            const shouldProbeClipboardImage =
+              shouldProbeClipboardImageForMacPaste({
                 isMacOS,
                 hasImagePasteHandler: !!onImagePaste,
                 isBracketedPaste: sawBracketedPaste,
-                pastedText,
                 imagePathCount: imagePaths.length,
               })
 
-            if (shouldPreferClipboardImage) {
+            if (shouldProbeClipboardImage) {
               void hasImageInClipboard()
                 .then(hasImage => {
                   if (!hasImage) {

@@ -1,25 +1,22 @@
 import { strict as assert } from 'assert'
-import { shouldPreferClipboardImageForMacPaste } from '../source/src/utils/macosImagePastePreference.js'
+import { shouldProbeClipboardImageForMacPaste } from '../source/src/utils/macosImagePastePreference.js'
 
 assert.equal(
-  shouldPreferClipboardImageForMacPaste({
+  shouldProbeClipboardImageForMacPaste({
     isMacOS: true,
     hasImagePasteHandler: true,
     isBracketedPaste: true,
-    pastedText:
-      '15 년간 관찰을 한 것인데요 하루 8시간 이상 자는 사람은 사망 위험이 27% 높았고',
     imagePathCount: 0,
   }),
   true,
-  'expected macOS OCR/plaintext fallback from an image paste to prefer the clipboard image path',
+  'expected macOS bracketed paste to probe the clipboard image path before trusting pasted text',
 )
 
 assert.equal(
-  shouldPreferClipboardImageForMacPaste({
+  shouldProbeClipboardImageForMacPaste({
     isMacOS: true,
     hasImagePasteHandler: true,
     isBracketedPaste: false,
-    pastedText: 'ordinary typed text',
     imagePathCount: 0,
   }),
   false,
@@ -27,11 +24,10 @@ assert.equal(
 )
 
 assert.equal(
-  shouldPreferClipboardImageForMacPaste({
+  shouldProbeClipboardImageForMacPaste({
     isMacOS: true,
     hasImagePasteHandler: true,
     isBracketedPaste: true,
-    pastedText: '/Users/bret/Pictures/screenshot.png',
     imagePathCount: 1,
   }),
   false,
@@ -39,15 +35,25 @@ assert.equal(
 )
 
 assert.equal(
-  shouldPreferClipboardImageForMacPaste({
+  shouldProbeClipboardImageForMacPaste({
     isMacOS: false,
     hasImagePasteHandler: true,
     isBracketedPaste: true,
-    pastedText: 'image OCR text',
     imagePathCount: 0,
   }),
   false,
   'expected the clipboard-image preference to remain macOS-only',
+)
+
+assert.equal(
+  shouldProbeClipboardImageForMacPaste({
+    isMacOS: true,
+    hasImagePasteHandler: true,
+    isBracketedPaste: true,
+    imagePathCount: 0,
+  }),
+  true,
+  'expected empty bracketed pastes to share the same clipboard-first macOS image probe',
 )
 
 console.log('macos_image_paste_preference_selftest: ok')
