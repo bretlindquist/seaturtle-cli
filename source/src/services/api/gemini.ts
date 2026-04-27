@@ -10,6 +10,7 @@ import {
   collectGeminiContents,
   parseGeminiAssistantContent,
 } from './geminiContent.js'
+import { sanitizeGeminiReplayMessages } from './geminiReplaySanitizer.js'
 import {
   runGeminiGenerateContent,
   runGeminiStreamGenerateContent,
@@ -112,8 +113,9 @@ async function buildGeminiRequest(params: {
   | { request: GeminiGenerateContentRequest }
   | { error: string }
 > {
+  const sanitizedMessages = sanitizeGeminiReplayMessages(params.messages)
   const conversion = collectGeminiContents({
-    messages: params.messages,
+    messages: sanitizedMessages,
   })
   if (conversion.validationError) {
     return { error: conversion.validationError }

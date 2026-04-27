@@ -271,6 +271,9 @@ export function collectGeminiContents(params: {
     }
 
     if (message.type === 'user') {
+      if (message.isVisibleInTranscriptOnly) {
+        continue
+      }
       if (
         message.isMeta &&
         latestVisibleUserTurnIndex !== -1 &&
