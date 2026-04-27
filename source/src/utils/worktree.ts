@@ -201,6 +201,33 @@ const GIT_NO_PROMPT_ENV = {
   GIT_ASKPASS: '',
 }
 
+const GIT_CONFIG_LOCK_RETRY_DELAYS_MS = [150, 350]
+
+export function isGitConfigLockContentionError(stderr: string): boolean {
+  const normalized = stderr.toLowerCase()
+  return (
+    normalized.includes('could not lock config file') ||
+    normalized.includes('unable to write upstream branch configuration')
+  )
+}
+
+export function buildGitWorktreeAddArgs(params: {
+  worktreeBranch: string
+  worktreePath: string
+  baseSha: string
+  sparseCheckout: boolean
+}): string[] {
+  const addArgs = ['worktree', 'add']
+  if (params.sparseCheckout) {
+    addArgs.push('--no-checkout')
+  }
+  // -B (not -b): reset any orphan branch left behind by a removed worktree dir.
+  // Seed from the resolved SHA rather than the remote ref name so concurrent
+  // swarm worktree creation does not race on shared upstream branch config.
+  addArgs.push('-B', params.worktreeBranch, params.worktreePath, params.baseSha)
+  return addArgs
+}
+
 function worktreesDir(repoRoot: string): string {
   return join(repoRoot, '.claude', 'worktrees')
 }
@@ -319,16 +346,38 @@ async function getOrCreateWorktree(
   }
 
   const sparsePaths = getInitialSettings().worktree?.sparsePaths
-  const addArgs = ['worktree', 'add']
-  if (sparsePaths?.length) {
-    addArgs.push('--no-checkout')
-  }
-  // -B (not -b): reset any orphan branch left behind by a removed worktree dir.
-  // Saves a `git branch -D` subprocess (~15ms spawn overhead) on every create.
-  addArgs.push('-B', worktreeBranch, worktreePath, baseBranch)
+  const addArgs = buildGitWorktreeAddArgs({
+    worktreeBranch,
+    worktreePath,
+    baseSha,
+    sparseCheckout: Boolean(sparsePaths?.length),
+  })
 
-  const { code: createCode, stderr: createStderr } =
-    await execFileNoThrowWithCwd(gitExe(), addArgs, { cwd: repoRoot })
+  let createCode = 0
+  let createStderr = ''
+  for (let attempt = 0; attempt <= GIT_CONFIG_LOCK_RETRY_DELAYS_MS.length; attempt++) {
+    const result = await execFileNoThrowWithCwd(gitExe(), addArgs, {
+      cwd: repoRoot,
+    })
+    createCode = result.code
+    createStderr = result.stderr
+    if (createCode === 0) {
+      break
+    }
+    if (
+      isGitConfigLockContentionError(createStderr) &&
+      attempt < GIT_CONFIG_LOCK_RETRY_DELAYS_MS.length
+    ) {
+      const delayMs = GIT_CONFIG_LOCK_RETRY_DELAYS_MS[attempt]!
+      logForDebugging(
+        `Worktree creation hit shared git config lock contention; retrying in ${delayMs}ms`,
+        { level: 'warn' },
+      )
+      await sleep(delayMs)
+      continue
+    }
+    break
+  }
   if (createCode !== 0) {
     throw new Error(`Failed to create worktree: ${createStderr}`)
   }
@@ -559,12 +608,37 @@ async function performPostCreationSetup(
       ? await parseGitConfigValue(configDir, 'core', null, 'hooksPath')
       : null
     if (existing !== hooksPath) {
-      const { code: configCode, stderr: configError } =
-        await execFileNoThrowWithCwd(
+      let configCode = 0
+      let configError = ''
+      for (
+        let attempt = 0;
+        attempt <= GIT_CONFIG_LOCK_RETRY_DELAYS_MS.length;
+        attempt++
+      ) {
+        const result = await execFileNoThrowWithCwd(
           gitExe(),
           ['config', 'core.hooksPath', hooksPath],
           { cwd: worktreePath },
         )
+        configCode = result.code
+        configError = result.stderr
+        if (configCode === 0) {
+          break
+        }
+        if (
+          isGitConfigLockContentionError(configError) &&
+          attempt < GIT_CONFIG_LOCK_RETRY_DELAYS_MS.length
+        ) {
+          const delayMs = GIT_CONFIG_LOCK_RETRY_DELAYS_MS[attempt]!
+          logForDebugging(
+            `Hooks-path git config hit shared config lock contention; retrying in ${delayMs}ms`,
+            { level: 'warn' },
+          )
+          await sleep(delayMs)
+          continue
+        }
+        break
+      }
       if (configCode === 0) {
         logForDebugging(
           `Configured worktree to use hooks from main repository: ${hooksPath}`,

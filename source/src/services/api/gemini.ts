@@ -92,6 +92,14 @@ const ZERO_USAGE = {
   speed: null,
 }
 
+const GEMINI_EMPTY_RESPONSE_RETRYABLE_FINISH_REASONS = new Set([
+  '',
+  'stop',
+  'end_turn',
+  'unspecified',
+  'max_tokens',
+])
+
 export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
   const auth = getResolvedGeminiApiKeyAuth()
   return auth
@@ -101,6 +109,66 @@ export function getGeminiApiKeyAuthTarget(): GeminiAuthTarget | null {
         source: auth.source,
       }
     : null
+}
+
+function getGeminiPromptBlockReason(
+  response: GeminiGenerateContentResponse | null | undefined,
+): string | null {
+  const promptFeedback = response?.promptFeedback
+  if (!promptFeedback || typeof promptFeedback !== 'object') {
+    return null
+  }
+
+  const candidateKeys = [
+    'blockReason',
+    'block_reason',
+    'blockReasonMessage',
+    'block_reason_message',
+  ] as const
+  for (const key of candidateKeys) {
+    const value = promptFeedback[key]
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim()
+    }
+  }
+
+  return null
+}
+
+export function isRetryableGeminiEmptyResponse(
+  response: GeminiGenerateContentResponse,
+): boolean {
+  if (response.error?.message || getGeminiPromptBlockReason(response)) {
+    return false
+  }
+  const finishReason = getGeminiFinishReason(response) ?? ''
+  return GEMINI_EMPTY_RESPONSE_RETRYABLE_FINISH_REASONS.has(finishReason)
+}
+
+export function describeGeminiEmptyResponse(
+  response: GeminiGenerateContentResponse | null | undefined,
+): string {
+  const blockReason = getGeminiPromptBlockReason(response)
+  if (blockReason) {
+    return `Gemini returned no assistant content because the request was blocked (${blockReason}).`
+  }
+
+  const finishReason = getGeminiFinishReason(response)
+  switch (finishReason) {
+    case 'safety':
+      return 'Gemini returned no assistant content because the response was blocked for safety.'
+    case 'recitation':
+      return 'Gemini returned no assistant content because the response hit recitation safeguards.'
+    case 'max_tokens':
+      return 'Gemini returned no assistant content before hitting the max output token limit.'
+    case 'stop':
+    case 'end_turn':
+      return 'Gemini completed the turn without emitting assistant content.'
+    default:
+      return finishReason
+        ? `Gemini returned finish reason "${finishReason}" without assistant content.`
+        : 'Gemini backend returned no assistant content'
+  }
 }
 
 async function buildGeminiRequest(params: {
@@ -242,15 +310,24 @@ async function runGeminiPlainText(params: {
   }
 
   try {
-    const payload = await runGeminiGenerateContent({
+    let payload = await runGeminiGenerateContent({
       auth,
       model: params.model,
       request: request.request,
       signal: params.signal,
     })
-    const content = parseGeminiAssistantContent(payload)
+    let content = parseGeminiAssistantContent(payload)
+    if (content.length === 0 && isRetryableGeminiEmptyResponse(payload)) {
+      payload = await runGeminiGenerateContent({
+        auth,
+        model: params.model,
+        request: request.request,
+        signal: params.signal,
+      })
+      content = parseGeminiAssistantContent(payload)
+    }
     if (content.length === 0) {
-      throw new Error('Gemini backend returned no assistant content')
+      throw new Error(describeGeminiEmptyResponse(payload))
     }
 
     return createAssistantMessage({ content })
@@ -604,6 +681,7 @@ export async function* queryGeminiWithStreaming(params: {
   }
   const startTime = Date.now()
   let stopReason: string | null = null
+  let lastResponse: GeminiGenerateContentResponse | null = null
 
   try {
     for await (const response of runGeminiStreamGenerateContent({
@@ -612,6 +690,7 @@ export async function* queryGeminiWithStreaming(params: {
       request: request.request,
       signal: params.signal,
     })) {
+      lastResponse = response
       stopReason = getGeminiFinishReason(response) ?? stopReason
       yield* emitGeminiStreamResponse(
         envelope,
@@ -624,7 +703,7 @@ export async function* queryGeminiWithStreaming(params: {
     yield* flushGeminiTextBlock(envelope, startTime)
 
     if (envelope.emittedAssistantMessages.length === 0) {
-      throw new Error('Gemini backend returned no assistant content')
+      throw new Error(describeGeminiEmptyResponse(lastResponse))
     }
 
     if (!envelope.emittedMessageStart) {

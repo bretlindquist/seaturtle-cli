@@ -103,10 +103,12 @@ bun scripts/gemini_fresh_turn_boundary_selftest.ts >/dev/null
 bun scripts/gemini_replay_sanitizer_selftest.ts >/dev/null
 bun scripts/gemini_conversation_recovery_selftest.ts >/dev/null
 bun scripts/gemini_interrupted_turn_resume_selftest.ts >/dev/null
+bun scripts/gemini_empty_response_selftest.ts >/dev/null
 bun scripts/gemini_strict_shell_policy_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_context_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_barrier_selftest.ts >/dev/null
 bun scripts/gemini_strict_review_repair_selftest.ts >/dev/null
+bun scripts/worktree_parallel_spawn_selftest.ts >/dev/null
 bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
 bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/teammate_mode_snapshot_selftest.ts >/dev/null

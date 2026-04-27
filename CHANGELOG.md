@@ -6,6 +6,7 @@
 - Made fresh visible Gemini user turns act like hard objective boundaries across REPL and headless flows, so stale hidden continuation prompts and old interruption markers stop biasing the next task.
 - Added provider-aware interrupted-turn recovery for Gemini, preserved hidden resume guidance during restart auto-resume, and expanded the Gemini self-test surface around replay, turn boundaries, and recovery behavior.
 - Added Gemini-only strict-mode guardrails for unattended work, including `/gemini strict`, broad destructive shell-command blocking, a Gemini reviewer barrier for mutation turns, and one bounded automatic repair pass before fail-closed stop.
+- Hardened Gemini swarm reliability by removing a parallel worktree upstream-config race during agent spawn and by retrying transient empty Gemini responses before surfacing provider-aware block/finish diagnostics.
 
 ## 1.10 - 2026-04-22
 
