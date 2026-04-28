@@ -26,6 +26,7 @@ import { executePreCompactHooks } from '../../utils/hooks.js'
 import { logError } from '../../utils/log.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js'
+import { sleep } from '../../utils/sleep.js'
 import {
   buildEffectiveSystemPrompt,
   type SystemPrompt,
@@ -36,6 +37,40 @@ const reactiveCompact = feature('REACTIVE_COMPACT')
   ? (require('../../services/compact/reactiveCompact.js') as typeof import('../../services/compact/reactiveCompact.js'))
   : null
 /* eslint-enable @typescript-eslint/no-require-imports */
+
+const TRANSIENT_COMPACTION_TERMINATION_MESSAGE =
+  'Compaction transport terminated before completion. Retry /compact.'
+const TRANSIENT_COMPACTION_TERMINATION_RETRIES = 1
+const TRANSIENT_COMPACTION_TERMINATION_DELAY_MS = 250
+
+function isTransientCompactionTerminationError(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message : String(error ?? '')
+  return /\bterminated\b/i.test(message)
+}
+
+async function runCompactionWithTransientRetry<T>(
+  abortSignal: AbortSignal,
+  operation: () => Promise<T>,
+): Promise<T> {
+  let attempts = 0
+  while (true) {
+    try {
+      return await operation()
+    } catch (error) {
+      if (
+        abortSignal.aborted ||
+        !isTransientCompactionTerminationError(error) ||
+        attempts >= TRANSIENT_COMPACTION_TERMINATION_RETRIES
+      ) {
+        throw error
+      }
+
+      attempts += 1
+      await sleep(TRANSIENT_COMPACTION_TERMINATION_DELAY_MS)
+    }
+  }
+}
 
 export const call: LocalCommandCall = async (args, context) => {
   const { abortController } = context
@@ -98,13 +133,17 @@ export const call: LocalCommandCall = async (args, context) => {
     const microcompactResult = await microcompactMessages(messages, context)
     const messagesForCompact = microcompactResult.messages
 
-    const result = await compactConversation(
-      messagesForCompact,
-      context,
-      await getCacheSharingParams(context, messagesForCompact),
-      false,
-      customInstructions,
-      false,
+    const result = await runCompactionWithTransientRetry(
+      abortController.signal,
+      async () =>
+        compactConversation(
+          messagesForCompact,
+          context,
+          await getCacheSharingParams(context, messagesForCompact),
+          false,
+          customInstructions,
+          false,
+        ),
     )
 
     // Reset lastSummarizedMessageId since legacy compaction replaces all messages
@@ -125,6 +164,8 @@ export const call: LocalCommandCall = async (args, context) => {
   } catch (error) {
     if (abortController.signal.aborted) {
       throw new Error('Compaction canceled.')
+    } else if (isTransientCompactionTerminationError(error)) {
+      throw new Error(TRANSIENT_COMPACTION_TERMINATION_MESSAGE)
     } else if (hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)) {
       throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     } else if (hasExactErrorMessage(error, ERROR_MESSAGE_INCOMPLETE_RESPONSE)) {
@@ -172,10 +213,14 @@ async function compactViaReactive(
     context.setResponseLength?.(() => 0)
     context.onCompactProgress?.({ type: 'compact_start' })
 
-    const outcome = await reactive.reactiveCompactOnPromptTooLong(
-      messages,
-      cacheSafeParams,
-      { customInstructions: mergedInstructions, trigger: 'manual' },
+    const outcome = await runCompactionWithTransientRetry(
+      context.abortController.signal,
+      () =>
+        reactive.reactiveCompactOnPromptTooLong(
+          messages,
+          cacheSafeParams,
+          { customInstructions: mergedInstructions, trigger: 'manual' },
+        ),
     )
 
     if (!outcome.ok) {

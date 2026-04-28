@@ -221,6 +221,31 @@ export function getActiveAgentsFromList(
   return Array.from(agentMap.values())
 }
 
+const AGENT_TYPE_COMPATIBILITY_ALIASES = {
+  reviewer: 'general-purpose',
+  'code-reviewer': 'general-purpose',
+} as const satisfies Record<string, string>
+
+export function resolveCompatibleAgentType(
+  requestedAgentType: string,
+  agents: Pick<AgentDefinition, 'agentType'>[],
+): string {
+  if (agents.some(agent => agent.agentType === requestedAgentType)) {
+    return requestedAgentType
+  }
+
+  const alias =
+    AGENT_TYPE_COMPATIBILITY_ALIASES[
+      requestedAgentType as keyof typeof AGENT_TYPE_COMPATIBILITY_ALIASES
+    ]
+
+  if (alias && agents.some(agent => agent.agentType === alias)) {
+    return alias
+  }
+
+  return requestedAgentType
+}
+
 /**
  * Checks if an agent's required MCP servers are available.
  * Returns true if no requirements or all requirements are met.

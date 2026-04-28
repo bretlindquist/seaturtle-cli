@@ -29,6 +29,7 @@ import type {
 import {
   createAssistantAPIErrorMessage,
   createAssistantMessage,
+  ensureToolResultPairing,
 } from '../../utils/messages.js'
 import type { SystemPrompt } from '../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
@@ -881,10 +882,13 @@ export function collectOpenAiCodexInputItems(
   messages: Message[],
 ): OpenAiCodexRequestItem[] {
   const items: OpenAiCodexRequestItem[] = []
-  for (const message of messages) {
-    if (message.type !== 'user' && message.type !== 'assistant') {
-      continue
-    }
+  const repairedMessages = ensureToolResultPairing(
+    messages.filter(
+      (message): message is UserMessage | AssistantMessage =>
+        message.type === 'user' || message.type === 'assistant',
+    ),
+  )
+  for (const message of repairedMessages) {
     convertMessage(message, items)
   }
   return items

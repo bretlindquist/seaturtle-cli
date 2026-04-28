@@ -97,7 +97,7 @@ import { getMcpToolsCommandsAndResources, prefetchAllMcpResources } from './serv
 import { VALID_INSTALLABLE_SCOPES, VALID_UPDATE_SCOPES } from './services/plugins/pluginCliCommands.js';
 import { initBundledSkills } from './skills/bundled/index.js';
 import type { AgentColorName } from './tools/AgentTool/agentColorManager.js';
-import { getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson } from './tools/AgentTool/loadAgentsDir.js';
+import { getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson, resolveCompatibleAgentType } from './tools/AgentTool/loadAgentsDir.js';
 import type { LogOption } from './types/logs.js';
 import type { Message as MessageType } from './types/message.js';
 import { assertMinVersion } from './utils/autoUpdater.js';
@@ -2053,9 +2053,12 @@ async function run(): Promise<CommanderCommand> {
     const agentSetting = agentCli ?? getInitialSettings().agent;
     let mainThreadAgentDefinition: (typeof agentDefinitions.activeAgents)[number] | undefined;
     if (agentSetting) {
-      mainThreadAgentDefinition = agentDefinitions.activeAgents.find(agent => agent.agentType === agentSetting);
+      const resolvedAgentSetting = resolveCompatibleAgentType(agentSetting, agentDefinitions.activeAgents);
+      mainThreadAgentDefinition = agentDefinitions.activeAgents.find(agent => agent.agentType === resolvedAgentSetting);
       if (!mainThreadAgentDefinition) {
         logForDebugging(`Warning: agent "${agentSetting}" not found. ` + `Available agents: ${agentDefinitions.activeAgents.map(a => a.agentType).join(', ')}. ` + `Using default behavior.`);
+      } else if (resolvedAgentSetting !== agentSetting) {
+        logForDebugging(`Resolved main-thread agent alias "${agentSetting}" -> "${resolvedAgentSetting}".`);
       }
     }
 
