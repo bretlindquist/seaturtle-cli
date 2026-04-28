@@ -91,6 +91,7 @@ import {
 } from './sessionStoragePortable.js'
 import { getSettings_DEPRECATED } from './settings/settings.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+import { compactRetainedTaskOutputToolResult } from './taskOutputRetention.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 import { validateUuid } from './uuid.js'
 import { sanitizeStoredUserMultimodalMessage } from './userMultimodalRetention.js'
@@ -3731,6 +3732,11 @@ export async function loadTranscriptFile(
       if (isTranscriptMessage(entry)) {
         if (entry.parentUuid && progressBridge.has(entry.parentUuid)) {
           entry.parentUuid = progressBridge.get(entry.parentUuid) ?? null
+        }
+        if (entry.type === 'user' && entry.toolUseResult !== undefined) {
+          entry.toolUseResult = compactRetainedTaskOutputToolResult(
+            entry.toolUseResult,
+          )
         }
         messages.set(entry.uuid, entry)
         // Compact boundary: prior marble-origami-commit entries reference

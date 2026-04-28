@@ -88,6 +88,7 @@ import {
 } from '../../utils/sessionActivity.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { Stream } from '../../utils/stream.js'
+import { compactRetainedTaskOutputToolResult } from '../../utils/taskOutputRetention.js'
 import { logOTelEvent } from '../../utils/telemetry/events.js'
 import {
   addToolContentEvent,
@@ -1461,7 +1462,7 @@ async function checkPermissionsAndCallTool(
           toolUseResult:
             toolUseContext.agentId && !toolUseContext.preserveToolUseResults
               ? undefined
-              : toolUseResult,
+              : compactRetainedTaskOutputToolResult(toolUseResult),
           mcpMeta: toolUseContext.agentId ? undefined : mcpMeta,
           sourceToolAssistantUUID: assistantMessage.uuid,
         }),
