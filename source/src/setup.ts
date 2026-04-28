@@ -47,6 +47,7 @@ import { logError } from './utils/log.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import { lockCurrentVersion } from './utils/nativeInstaller/index.js'
 import type { PermissionMode } from './utils/permissions/PermissionMode.js'
+import { getBypassPermissionsSessionState } from './utils/permissions/permissionSetup.js'
 import { getPlanSlug } from './utils/plans.js'
 import { saveWorktreeState } from './utils/sessionStorage.js'
 import { profileCheckpoint } from './utils/startupProfiler.js'
@@ -402,11 +403,14 @@ export async function setup(
     }
   }
 
-  // If permission mode is set to bypass, verify we're in a safe environment
-  if (
-    permissionMode === 'bypassPermissions' ||
-    allowDangerouslySkipPermissions
-  ) {
+  const bypassPermissionsSessionState = getBypassPermissionsSessionState({
+    permissionMode,
+    allowDangerouslySkipPermissions,
+  })
+
+  // If bypass permissions is actually enabled for this session, verify we're
+  // in a safe environment before continuing.
+  if (bypassPermissionsSessionState.isAvailable) {
     // Check if running as root/sudo on Unix-like systems
     // Allow root if in a sandbox (e.g., TPU devspaces that require root)
     if (

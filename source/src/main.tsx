@@ -118,7 +118,7 @@ import { getModelDeprecationWarning } from './utils/model/deprecation.js';
 import { getDefaultMainLoopModel, getUserSpecifiedModelSetting, normalizeModelStringForAPI, parseUserSpecifiedModel } from './utils/model/model.js';
 import { ensureModelStringsInitialized } from './utils/model/modelStrings.js';
 import { PERMISSION_MODES } from './utils/permissions/PermissionMode.js';
-import { checkAndDisableBypassPermissions, getAutoModeEnabledStateIfCached, initializeToolPermissionContext, initialPermissionModeFromCLI, isDefaultPermissionModeAuto, parseToolListFromCLI, removeDangerousPermissions, stripDangerousPermissionsForAutoMode, verifyAutoModeGateAccess } from './utils/permissions/permissionSetup.js';
+import { checkAndDisableBypassPermissions, getAutoModeEnabledStateIfCached, getBypassPermissionsSessionState, initializeToolPermissionContext, initialPermissionModeFromCLI, isDefaultPermissionModeAuto, parseToolListFromCLI, removeDangerousPermissions, stripDangerousPermissionsForAutoMode, verifyAutoModeGateAccess } from './utils/permissions/permissionSetup.js';
 import { cleanupOrphanedPluginVersionsInBackground } from './utils/plugins/cacheUtils.js';
 import { initializeVersionedPlugins } from './utils/plugins/installedPluginsManager.js';
 import { getManagedPluginNames } from './utils/plugins/managedPlugins.js';
@@ -1396,8 +1396,16 @@ async function run(): Promise<CommanderCommand> {
       dangerouslySkipPermissions
     });
 
-    // Store session bypass permissions mode for trust dialog check
-    setSessionBypassPermissionsMode(permissionMode === 'bypassPermissions');
+    const bypassPermissionsSessionState = getBypassPermissionsSessionState({
+      permissionMode,
+      allowDangerouslySkipPermissions,
+    });
+
+    // Store the resolved session capability, not just the current mode, so
+    // teammates and other child flows inherit the same bypass state.
+    setSessionBypassPermissionsMode(
+      bypassPermissionsSessionState.isAvailable,
+    );
     if (feature('TRANSCRIPT_CLASSIFIER')) {
       // autoModeFlagCli is the "did the user intend auto this session" signal.
       // Set when: --enable-auto-mode, --permission-mode auto, resolved mode

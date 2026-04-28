@@ -8,6 +8,7 @@ import {
 import { GEMINI_BEHAVIOR_MODES } from '../../utils/geminiBehaviorMode.js'
 import { getModelOptions } from '../../utils/model/modelOptions.js'
 import { validateModel } from '../../utils/model/validateModel.js'
+import { EXTERNAL_PERMISSION_MODES } from '../../utils/permissions/PermissionMode.js'
 import { THEME_NAMES, THEME_SETTINGS } from '../../utils/theme.js'
 
 /** AppState keys that can be synced for immediate UI effect */
@@ -123,8 +124,21 @@ export const SUPPORTED_SETTINGS: Record<string, SettingConfig> = {
     type: 'string',
     description: 'Default permission mode for tool usage',
     options: feature('TRANSCRIPT_CLASSIFIER')
-      ? ['default', 'plan', 'acceptEdits', 'dontAsk', 'auto']
-      : ['default', 'plan', 'acceptEdits', 'dontAsk'],
+      ? [
+          'default',
+          'plan',
+          ...EXTERNAL_PERMISSION_MODES.filter(
+            mode => mode !== 'default' && mode !== 'plan',
+          ),
+          'auto',
+        ]
+      : [
+          'default',
+          'plan',
+          ...EXTERNAL_PERMISSION_MODES.filter(
+            mode => mode !== 'default' && mode !== 'plan',
+          ),
+        ],
   },
   language: {
     source: 'settings',

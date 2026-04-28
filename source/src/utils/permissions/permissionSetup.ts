@@ -810,6 +810,30 @@ export function initialPermissionModeFromCLI({
   return result
 }
 
+export type BypassPermissionsSessionState = {
+  isRequested: boolean
+  isDisabled: boolean
+  isAvailable: boolean
+}
+
+export function getBypassPermissionsSessionState({
+  permissionMode,
+  allowDangerouslySkipPermissions,
+}: {
+  permissionMode: PermissionMode
+  allowDangerouslySkipPermissions: boolean | undefined
+}): BypassPermissionsSessionState {
+  const isRequested =
+    permissionMode === 'bypassPermissions' || !!allowDangerouslySkipPermissions
+  const isDisabled = isBypassPermissionsModeDisabled()
+
+  return {
+    isRequested,
+    isDisabled,
+    isAvailable: isRequested && !isDisabled,
+  }
+}
+
 export function parseToolListFromCLI(tools: string[]): string[] {
   if (tools.length === 0) {
     return []
@@ -927,20 +951,11 @@ export async function initializeToolPermissionContext({
     })
   }
 
-  // Check if bypassPermissions mode is available (not disabled by Statsig gate or settings)
-  // Use cached values to avoid blocking on startup
-  const growthBookDisableBypassPermissionsMode =
-    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-      'tengu_disable_bypass_permissions_mode',
-    )
   const settings = getSettings_DEPRECATED() || {}
-  const settingsDisableBypassPermissionsMode =
-    settings.permissions?.disableBypassPermissionsMode === 'disable'
-  const isBypassPermissionsModeAvailable =
-    (permissionMode === 'bypassPermissions' ||
-      allowDangerouslySkipPermissions) &&
-    !growthBookDisableBypassPermissionsMode &&
-    !settingsDisableBypassPermissionsMode
+  const bypassPermissionsSessionState = getBypassPermissionsSessionState({
+    permissionMode,
+    allowDangerouslySkipPermissions,
+  })
 
   // Load all permission rules from disk
   const rulesFromDisk = loadAllPermissionRulesFromDisk()
@@ -982,7 +997,8 @@ export async function initializeToolPermissionContext({
       alwaysAllowRules: { cliArg: parsedAllowedToolsCli },
       alwaysDenyRules: { cliArg: parsedDisallowedToolsCli },
       alwaysAskRules: {},
-      isBypassPermissionsModeAvailable,
+      isBypassPermissionsModeAvailable:
+        bypassPermissionsSessionState.isAvailable,
       ...(feature('TRANSCRIPT_CLASSIFIER')
         ? { isAutoModeAvailable: isAutoModeGateEnabled() }
         : {}),

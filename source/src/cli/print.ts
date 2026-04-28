@@ -4616,7 +4616,7 @@ function handleSetPermissionMode(
           subtype: 'error',
           request_id: requestId,
           error:
-            'Cannot set permission mode to bypassPermissions because the session was not launched with --dangerously-skip-permissions',
+            'Cannot set permission mode to bypassPermissions because bypass permissions is not enabled for this session',
         },
       })
       return toolPermissionContext

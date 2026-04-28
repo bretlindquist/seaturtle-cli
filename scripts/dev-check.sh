@@ -93,6 +93,7 @@ bun scripts/provider_model_discovery_selftest.ts >/dev/null
 bun scripts/openai_model_discovery_audit_selftest.ts >/dev/null
 bun scripts/openai_web_search_routing_selftest.ts >/dev/null
 bun scripts/openai_helper_transport_selftest.ts >/dev/null
+bun scripts/bypass_permissions_single_source_selftest.ts >/dev/null
 node scripts/queue_api_error_halt_selftest.cjs >/dev/null
 bun scripts/openai_builtin_input_shape_selftest.ts >/dev/null
 bun scripts/openai_code_interpreter_routing_selftest.ts >/dev/null

@@ -28,6 +28,7 @@ import { type FpsMetrics, FpsTracker } from './utils/fpsTracker.js';
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js';
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js';
 import type { PermissionMode } from './utils/permissions/PermissionMode.js';
+import { getBypassPermissionsSessionState } from './utils/permissions/permissionSetup.js';
 import { getBaseRenderOptions } from './utils/renderOptions.js';
 import { getSettingsWithAllErrors } from './utils/settings/allErrors.js';
 import { hasAutoModeOptIn, hasSkipDangerousModePermissionPrompt } from './utils/settings/settings.js';
@@ -104,6 +105,10 @@ export async function renderAndRun(root: Root, element: React.ReactNode): Promis
   await gracefulShutdown(0);
 }
 export async function showSetupScreens(root: Root, permissionMode: PermissionMode, allowDangerouslySkipPermissions: boolean, commands?: Command[], claudeInChrome?: boolean, devChannels?: ChannelEntry[]): Promise<boolean> {
+  const bypassPermissionsSessionState = getBypassPermissionsSessionState({
+    permissionMode,
+    allowDangerouslySkipPermissions,
+  });
   if ("production" === 'test' || isEnvTruthy(false) || process.env.IS_DEMO // Skip onboarding in demo mode
   ) {
     return false;
@@ -222,7 +227,7 @@ export async function showSetupScreens(root: Root, permissionMode: PermissionMod
       });
     }
   }
-  if ((permissionMode === 'bypassPermissions' || allowDangerouslySkipPermissions) && !hasSkipDangerousModePermissionPrompt()) {
+  if (bypassPermissionsSessionState.isAvailable && !hasSkipDangerousModePermissionPrompt()) {
     const {
       BypassPermissionsModeDialog
     } = await import('./components/BypassPermissionsModeDialog.js');
