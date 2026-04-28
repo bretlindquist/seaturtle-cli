@@ -67,7 +67,10 @@ import { getHardcodedTeammateModelFallback } from '../../utils/swarm/teammateMod
 import { registerTask } from '../../utils/task/framework.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
 import type { CustomAgentDefinition } from '../AgentTool/loadAgentsDir.js'
-import { isCustomAgent } from '../AgentTool/loadAgentsDir.js'
+import {
+  isCustomAgent,
+  resolveCompatibleAgentType,
+} from '../AgentTool/loadAgentsDir.js'
 
 function getDefaultTeammateModel(leaderModel: string | null): string {
   const configured = getGlobalConfig().teammateDefaultModel
@@ -1089,5 +1092,22 @@ export async function spawnTeammate(
   config: SpawnTeammateConfig,
   context: ToolUseContext,
 ): Promise<{ data: SpawnOutput }> {
-  return handleSpawn(config, context)
+  const resolvedAgentType = config.agent_type
+    ? resolveCompatibleAgentType(
+        config.agent_type,
+        context.options.agentDefinitions.activeAgents,
+      )
+    : undefined
+  if (config.agent_type && resolvedAgentType !== config.agent_type) {
+    logForDebugging(
+      `[spawnTeammate] Resolved agent alias "${config.agent_type}" -> "${resolvedAgentType}"`,
+    )
+  }
+  return handleSpawn(
+    {
+      ...config,
+      agent_type: resolvedAgentType,
+    },
+    context,
+  )
 }

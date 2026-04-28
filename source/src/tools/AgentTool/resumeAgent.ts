@@ -31,7 +31,10 @@ import { runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js'
 import { FORK_AGENT, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
-import { isBuiltInAgent } from './loadAgentsDir.js'
+import {
+  findCompatibleAgentDefinition,
+  isBuiltInAgent,
+} from './loadAgentsDir.js'
 import { runAgent } from './runAgent.js'
 
 export type ResumeAgentResult = {
@@ -103,8 +106,9 @@ export async function resumeAgentBackground({
     selectedAgent = FORK_AGENT
     isResumedFork = true
   } else if (meta?.agentType) {
-    const found = toolUseContext.options.agentDefinitions.activeAgents.find(
-      a => a.agentType === meta.agentType,
+    const found = findCompatibleAgentDefinition(
+      meta.agentType,
+      toolUseContext.options.agentDefinitions.activeAgents,
     )
     selectedAgent = found ?? GENERAL_PURPOSE_AGENT
   } else {
@@ -119,8 +123,9 @@ export async function resumeAgentBackground({
       forkParentSystemPrompt = toolUseContext.renderedSystemPrompt
     } else {
       const mainThreadAgentDefinition = appState.agent
-        ? appState.agentDefinitions.activeAgents.find(
-            a => a.agentType === appState.agent,
+        ? findCompatibleAgentDefinition(
+            appState.agent,
+            appState.agentDefinitions.activeAgents,
           )
         : undefined
       const additionalWorkingDirectories = Array.from(

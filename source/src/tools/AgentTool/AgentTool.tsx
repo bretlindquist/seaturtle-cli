@@ -51,7 +51,7 @@ import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js';
 import { AGENT_TOOL_NAME, LEGACY_AGENT_TOOL_NAME, ONE_SHOT_BUILTIN_AGENT_TYPES } from './constants.js';
 import { buildForkedMessages, buildWorktreeNotice, FORK_AGENT, isForkSubagentEnabled, isInForkChild } from './forkSubagent.js';
 import type { AgentDefinition } from './loadAgentsDir.js';
-import { filterAgentsByMcpRequirements, hasRequiredMcpServers, isBuiltInAgent, resolveCompatibleAgentType } from './loadAgentsDir.js';
+import { filterAgentsByMcpRequirements, findCompatibleAgentDefinition, hasRequiredMcpServers, isBuiltInAgent, resolveCompatibleAgentType } from './loadAgentsDir.js';
 import { getPrompt } from './prompt.js';
 import { runAgent } from './runAgent.js';
 import { renderGroupedAgentToolUse, renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, renderToolUseProgressMessage, renderToolUseRejectedMessage, renderToolUseTag, userFacingName, userFacingNameBackgroundColor } from './UI.js';
@@ -285,9 +285,13 @@ export const AgentTool = buildTool({
     // Spawn is triggered when team_name is set (from param or context) and name is provided
     if (teamName && name) {
       // Set agent definition color for grouped UI display before spawning
-      const agentDef = subagent_type ? toolUseContext.options.agentDefinitions.activeAgents.find(a => a.agentType === subagent_type) : undefined;
+      const agentDef = subagent_type ? findCompatibleAgentDefinition(subagent_type, toolUseContext.options.agentDefinitions.activeAgents) : undefined;
+      const resolvedSubagentType = subagent_type ? resolveCompatibleAgentType(subagent_type, toolUseContext.options.agentDefinitions.activeAgents) : undefined;
+      if (subagent_type && resolvedSubagentType !== subagent_type) {
+        logForDebugging(`Resolved teammate agent alias "${subagent_type}" -> "${resolvedSubagentType}"`);
+      }
       if (agentDef?.color) {
-        setAgentColor(subagent_type!, agentDef.color);
+        setAgentColor(agentDef.agentType, agentDef.color);
       }
       const result = await spawnTeammate({
         name,
@@ -297,7 +301,7 @@ export const AgentTool = buildTool({
         use_splitpane: true,
         plan_mode_required: spawnMode === 'plan',
         model: model ?? agentDef?.model,
-        agent_type: subagent_type,
+        agent_type: resolvedSubagentType,
         invokingRequestId: assistantMessage?.requestId
       }, toolUseContext);
 
@@ -505,7 +509,7 @@ export const AgentTool = buildTool({
       } else {
         // Fallback: recompute. May diverge from parent's cached bytes if
         // GrowthBook state changed between parent turn-start and fork spawn.
-        const mainThreadAgentDefinition = appState.agent ? appState.agentDefinitions.activeAgents.find(a => a.agentType === appState.agent) : undefined;
+        const mainThreadAgentDefinition = appState.agent ? findCompatibleAgentDefinition(appState.agent, appState.agentDefinitions.activeAgents) : undefined;
         const additionalWorkingDirectories = Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys());
         const defaultSystemPrompt = await getSystemPrompt(toolUseContext.options.tools, toolUseContext.options.mainLoopModel, additionalWorkingDirectories, toolUseContext.options.mcpClients);
         forkParentSystemPrompt = buildEffectiveSystemPrompt({

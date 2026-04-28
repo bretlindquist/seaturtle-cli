@@ -120,7 +120,10 @@ import {
   isFileWithinReadSizeLimit,
 } from './file.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
-import { filterAgentsByMcpRequirements } from '../tools/AgentTool/loadAgentsDir.js'
+import {
+  filterAgentsByMcpRequirements,
+  findCompatibleAgentDefinition,
+} from '../tools/AgentTool/loadAgentsDir.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import {
   formatAgentLine,
@@ -2004,7 +2007,7 @@ function processAgentMentions(
 
   const results = agentMentions.map(mention => {
     const agentType = mention.replace('agent-', '')
-    const agentDef = agents.find(def => def.agentType === agentType)
+    const agentDef = findCompatibleAgentDefinition(agentType, agents)
 
     if (!agentDef) {
       logEvent('tengu_at_mention_agent_not_found', {})
@@ -2237,9 +2240,9 @@ async function getRelevantMemoryAttachments(
   // Otherwise search the auto-memory dir.
   const memoryDirs = extractAgentMentions(input).flatMap(mention => {
     const agentType = mention.replace('agent-', '')
-    const agentDef = agents.find(def => def.agentType === agentType)
+    const agentDef = findCompatibleAgentDefinition(agentType, agents)
     return agentDef?.memory
-      ? [getAgentMemoryDir(agentType, agentDef.memory)]
+      ? [getAgentMemoryDir(agentDef.agentType, agentDef.memory)]
       : []
   })
   const dirs = memoryDirs.length > 0 ? memoryDirs : [getAutoMemPath()]

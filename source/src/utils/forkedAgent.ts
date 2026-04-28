@@ -21,7 +21,10 @@ import {
 import { accumulateUsage, updateUsage } from '../services/api/claude.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/logging.js'
 import type { ToolUseContext } from '../Tool.js'
-import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
+import {
+  findCompatibleAgentDefinition,
+  type AgentDefinition,
+} from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
 import type { Message } from '../types/message.js'
 import { createChildAbortController } from './abortController.js'
@@ -212,7 +215,7 @@ export async function prepareForkedCommandContext(
   const agentTypeName = command.agent ?? 'general-purpose'
   const agents = context.options.agentDefinitions.activeAgents
   const baseAgent =
-    agents.find(a => a.agentType === agentTypeName) ??
+    findCompatibleAgentDefinition(agentTypeName, agents) ??
     agents.find(a => a.agentType === 'general-purpose') ??
     agents[0]
 

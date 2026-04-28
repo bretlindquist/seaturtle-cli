@@ -35,8 +35,10 @@ import {
 import { toolMatchesName, type Tool, type Tools } from 'src/Tool.js'
 import {
   type AgentDefinition,
+  findCompatibleAgentDefinition,
   isBuiltInAgent,
   parseAgentsFromJson,
+  resolveCompatibleAgentType,
 } from 'src/tools/AgentTool/loadAgentsDir.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
@@ -4410,10 +4412,11 @@ async function handleInitializeRequest(
   // Re-evaluate main thread agent after SDK agents are merged
   // This allows --agent to reference agents defined via SDK
   if (options.agent) {
+    const resolvedAgentType = resolveCompatibleAgentType(options.agent, agents)
     // If main.tsx already found this agent (filesystem-defined), it already
     // applied systemPrompt/model/initialPrompt. Skip to avoid double-apply.
-    const alreadyResolved = getMainThreadAgentType() === options.agent
-    const mainThreadAgent = agents.find(a => a.agentType === options.agent)
+    const alreadyResolved = getMainThreadAgentType() === resolvedAgentType
+    const mainThreadAgent = findCompatibleAgentDefinition(options.agent, agents)
     if (mainThreadAgent && !alreadyResolved) {
       // Update the main thread agent type in bootstrap state
       setMainThreadAgentType(mainThreadAgent.agentType)

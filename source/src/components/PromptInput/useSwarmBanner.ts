@@ -10,6 +10,7 @@ import {
   type AgentColorName,
   getAgentColor,
 } from '../../tools/AgentTool/agentColorManager.js'
+import { findCompatibleAgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { getStandaloneAgentName } from '../../utils/standaloneAgent.js'
 import { isInsideTmux } from '../../utils/swarm/backends/detection.js'
 import {
@@ -133,8 +134,9 @@ export function useSwarmBanner(): SwarmBannerInfo {
 
   // --agent CLI flag (when not handled above).
   if (agent) {
-    const agentDef = state.agentDefinitions.activeAgents.find(
-      a => a.agentType === agent,
+    const agentDef = findCompatibleAgentDefinition(
+      agent,
+      state.agentDefinitions.activeAgents,
     )
     return {
       text: agent,

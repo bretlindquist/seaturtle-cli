@@ -35,6 +35,11 @@ function run(): void {
     /'code-reviewer':\s*'general-purpose'/,
     'code-reviewer should resolve to the general-purpose compatibility agent when available',
   )
+  assert.match(
+    loadAgentsDirSource,
+    /export function findCompatibleAgentDefinition/,
+    'agent compatibility should expose a shared compatible-definition lookup helper',
+  )
 
   const agentToolSource = readFileSync(
     join(repoRoot, 'source/src/tools/AgentTool/AgentTool.tsx'),
@@ -44,6 +49,41 @@ function run(): void {
     agentToolSource,
     /resolveCompatibleAgentType\(/,
     'AgentTool should resolve compatibility aliases before failing unknown agent types',
+  )
+  assert.match(
+    agentToolSource,
+    /agent_type:\s*resolvedSubagentType/,
+    'AgentTool teammate spawns should pass the canonical compatible agent type downstream',
+  )
+
+  const spawnMultiAgentSource = readFileSync(
+    join(repoRoot, 'source/src/tools/shared/spawnMultiAgent.ts'),
+    'utf8',
+  )
+  assert.match(
+    spawnMultiAgentSource,
+    /Resolved agent alias/,
+    'spawnTeammate should canonicalize compatibility aliases before teammate launch',
+  )
+
+  const sessionRestoreSource = readFileSync(
+    join(repoRoot, 'source/src/utils/sessionRestore.ts'),
+    'utf8',
+  )
+  assert.match(
+    sessionRestoreSource,
+    /findCompatibleAgentDefinition\(/,
+    'session restore should resolve compatible agent aliases when resuming older sessions',
+  )
+
+  const printSource = readFileSync(
+    join(repoRoot, 'source/src/cli/print.ts'),
+    'utf8',
+  )
+  assert.match(
+    printSource,
+    /const resolvedAgentType = resolveCompatibleAgentType\(options\.agent, agents\)/,
+    'print mode should compare already-resolved agent state against the canonical compatible agent type',
   )
 
   const compactSource = readFileSync(

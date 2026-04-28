@@ -97,7 +97,7 @@ import { getMcpToolsCommandsAndResources, prefetchAllMcpResources } from './serv
 import { VALID_INSTALLABLE_SCOPES, VALID_UPDATE_SCOPES } from './services/plugins/pluginCliCommands.js';
 import { initBundledSkills } from './skills/bundled/index.js';
 import type { AgentColorName } from './tools/AgentTool/agentColorManager.js';
-import { getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson, resolveCompatibleAgentType } from './tools/AgentTool/loadAgentsDir.js';
+import { findCompatibleAgentDefinition, getActiveAgentsFromList, getAgentDefinitionsWithOverrides, isBuiltInAgent, isCustomAgent, parseAgentsFromJson, resolveCompatibleAgentType } from './tools/AgentTool/loadAgentsDir.js';
 import type { LogOption } from './types/logs.js';
 import type { Message as MessageType } from './types/message.js';
 import { assertMinVersion } from './utils/autoUpdater.js';
@@ -2141,7 +2141,11 @@ async function run(): Promise<CommanderCommand> {
     // For tmux teammates with --agent-type, append the custom agent's prompt
     if (isAgentSwarmsEnabled() && storedTeammateOpts?.agentId && storedTeammateOpts?.agentName && storedTeammateOpts?.teamName && storedTeammateOpts?.agentType) {
       // Look up the custom agent definition
-      const customAgent = agentDefinitions.activeAgents.find(a => a.agentType === storedTeammateOpts.agentType);
+      const resolvedTeammateAgentType = resolveCompatibleAgentType(storedTeammateOpts.agentType, agentDefinitions.activeAgents);
+      const customAgent = findCompatibleAgentDefinition(storedTeammateOpts.agentType, agentDefinitions.activeAgents);
+      if (resolvedTeammateAgentType !== storedTeammateOpts.agentType) {
+        logForDebugging(`[teammate] Resolved agent alias "${storedTeammateOpts.agentType}" -> "${resolvedTeammateAgentType}"`);
+      }
       if (customAgent) {
         // Get the prompt - need to handle both built-in and custom agents
         let customPrompt: string | undefined;

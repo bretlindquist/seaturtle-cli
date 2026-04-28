@@ -246,6 +246,16 @@ export function resolveCompatibleAgentType(
   return requestedAgentType
 }
 
+export function findCompatibleAgentDefinition<
+  T extends Pick<AgentDefinition, 'agentType'>,
+>(requestedAgentType: string, agents: T[]): T | undefined {
+  const resolvedAgentType = resolveCompatibleAgentType(
+    requestedAgentType,
+    agents,
+  )
+  return agents.find(agent => agent.agentType === resolvedAgentType)
+}
+
 /**
  * Checks if an agent's required MCP servers are available.
  * Returns true if no requirements or all requirements are met.

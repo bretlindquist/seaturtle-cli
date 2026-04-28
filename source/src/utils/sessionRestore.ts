@@ -16,6 +16,7 @@ import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import {
   type AgentDefinition,
   type AgentDefinitionsResult,
+  findCompatibleAgentDefinition,
   getActiveAgentsFromList,
   getAgentDefinitionsWithOverrides,
 } from '../tools/AgentTool/loadAgentsDir.js'
@@ -216,8 +217,9 @@ export function restoreAgentFromSession(
     return { agentDefinition: undefined, agentType: undefined }
   }
 
-  const resumedAgent = agentDefinitions.activeAgents.find(
-    agent => agent.agentType === agentSetting,
+  const resumedAgent = findCompatibleAgentDefinition(
+    agentSetting,
+    agentDefinitions.activeAgents,
   )
   if (!resumedAgent) {
     logForDebugging(
