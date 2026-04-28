@@ -2,9 +2,8 @@ import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../debug.js'
 import { updateHooksConfigSnapshot } from '../hooks/hooksConfigSnapshot.js'
 import {
-  createDisabledBypassPermissionsContext,
   findOverlyBroadBashPermissions,
-  isBypassPermissionsModeDisabled,
+  reconcilePermissionContextAfterSettingsChange,
   removeDangerousPermissions,
   transitionPlanAutoMode,
 } from '../permissions/permissionSetup.js'
@@ -58,12 +57,12 @@ export function applySettingsChange(
       }
     }
 
-    if (
-      newContext.isBypassPermissionsModeAvailable &&
-      isBypassPermissionsModeDisabled()
-    ) {
-      newContext = createDisabledBypassPermissionsContext(newContext)
-    }
+    newContext = reconcilePermissionContextAfterSettingsChange({
+      previousContext: prev.toolPermissionContext,
+      currentContext: newContext,
+      previousSettings: prev.settings,
+      nextSettings: newSettings,
+    })
 
     newContext = transitionPlanAutoMode(newContext)
 

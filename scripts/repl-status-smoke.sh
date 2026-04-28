@@ -47,6 +47,7 @@ proc = subprocess.Popen(
 os.close(slave_fd)
 
 prompt_marker = b"\xe2\x9d\xaf"
+bypass_warning_marker = b"WARNING: CT running in Bypass Permissions mode"
 error_markers = (
     b"ReferenceError",
     b"Cannot access",
@@ -56,6 +57,8 @@ error_markers = (
 )
 
 chunks: list[bytes] = []
+bypass_warning_handled = False
+bypass_warning_selection_moved = False
 
 def joined() -> bytes:
     return b"".join(chunks)
@@ -64,6 +67,8 @@ def prompt_count() -> int:
     return joined().count(prompt_marker)
 
 def read_until(predicate, timeout: float) -> bytes:
+    global bypass_warning_handled
+    global bypass_warning_selection_moved
     deadline = time.time() + timeout
     while time.time() < deadline:
         ready, _, _ = select.select([master_fd], [], [], 0.2)
@@ -74,6 +79,18 @@ def read_until(predicate, timeout: float) -> bytes:
             break
         chunks.append(chunk)
         data = joined()
+        if (
+            not bypass_warning_handled
+            and bypass_warning_marker in data
+            and b"Yes, I accept" in data
+        ):
+            if not bypass_warning_selection_moved:
+                os.write(master_fd, b"\x1b[B")
+                bypass_warning_selection_moved = True
+            else:
+                os.write(master_fd, b"\r")
+                bypass_warning_handled = True
+            continue
         if any(marker in data for marker in error_markers):
             return data
         if predicate(data):
@@ -81,7 +98,7 @@ def read_until(predicate, timeout: float) -> bytes:
     return joined()
 
 try:
-    read_until(lambda d: prompt_marker in d, 20)
+    read_until(lambda d: b"SeaTurtle v" in d and prompt_count() >= 2, 20)
 
     starting_prompts = prompt_count()
     os.write(master_fd, b"Reply with exactly ok and nothing else.\r")
@@ -105,17 +122,12 @@ try:
     ):
         raise SystemExit(3)
 finally:
-    try:
-        os.killpg(proc.pid, signal.SIGTERM)
-    except ProcessLookupError:
-        pass
+    if proc.poll() is None:
+        proc.terminate()
     try:
         proc.wait(timeout=5)
     except subprocess.TimeoutExpired:
-        try:
-            os.killpg(proc.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
+        proc.kill()
         proc.wait(timeout=5)
     os.close(master_fd)
 

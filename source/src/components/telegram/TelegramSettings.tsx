@@ -22,11 +22,16 @@ import {
   getSettings_DEPRECATED,
   updateSettingsForSource,
 } from '../../utils/settings/settings.js'
+import { applySettingsChange } from '../../utils/settings/applySettingsChange.js'
 import {
   permissionModeFromString,
   permissionModeTitle,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
+import {
+  getDefaultPermissionModeOptions,
+} from '../../utils/permissions/permissionSetup.js'
+import { useAppState, useSetAppState } from '../../state/AppState.js'
 import {
   getTelegramTranscriptionConfig,
   getTelegramTranscriptionGateMessage,
@@ -270,6 +275,10 @@ function buildTelegramDoctorItems(params: {
 
 export function TelegramSettings({ onExit }: Props): React.ReactNode {
   const terminalSize = useTerminalSize()
+  const setAppState = useSetAppState()
+  const isBypassModeAvailable = useAppState(
+    s => s.toolPermissionContext.isBypassPermissionsModeAvailable,
+  )
   const [screen, setScreen] = React.useState<Screen>({ state: 'overview' })
   const [draftBotToken, setDraftBotToken] = React.useState('')
   const [cursorOffset, setCursorOffset] = React.useState(0)
@@ -1152,36 +1161,38 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
     const options: Array<{
       label: React.ReactNode
       value: PermissionMode | 'back'
-    }> = [
-      {
-        label: (
-          <Text>
-            Ask before risky actions <Text dimColor>(default)</Text>
-          </Text>
-        ),
-        value: 'default',
-      },
-      {
-        label: (
-          <Text>
-            Accept edits automatically <Text dimColor>(faster file work)</Text>
-          </Text>
-        ),
-        value: 'acceptEdits',
-      },
-      {
-        label: (
-          <Text>
-            Full access <Text dimColor>(never ask)</Text>
-          </Text>
-        ),
-        value: 'bypassPermissions',
-      },
-      {
+    }> = getDefaultPermissionModeOptions({
+      isBypassPermissionsModeAvailable: isBypassModeAvailable,
+      showAutoMode: false,
+    })
+      .filter(
+        mode =>
+          mode === 'default' ||
+          mode === 'acceptEdits' ||
+          mode === 'bypassPermissions',
+      )
+      .map(mode => ({
+        label:
+          mode === 'default' ? (
+            <Text>
+              Ask before risky actions <Text dimColor>(default)</Text>
+            </Text>
+          ) : mode === 'acceptEdits' ? (
+            <Text>
+              Accept edits automatically{' '}
+              <Text dimColor>(faster file work)</Text>
+            </Text>
+          ) : (
+            <Text>
+              Full access <Text dimColor>(never ask)</Text>
+            </Text>
+          ),
+        value: mode,
+      }))
+    options.push({
         label: <Text>Back to Telegram overview</Text>,
         value: 'back',
-      },
-    ]
+      })
 
     return (
       <Dialog
@@ -1230,6 +1241,7 @@ export function TelegramSettings({ onExit }: Props): React.ReactNode {
                   defaultMode: value,
                 },
               })
+              applySettingsChange('userSettings', setAppState)
               setScreen({ state: 'overview' })
             }}
           />

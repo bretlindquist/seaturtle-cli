@@ -60,6 +60,8 @@ def run_case(name: str, payload: str, expect_placeholder: bool) -> None:
     prompt_seen = False
     paste_seen = False
     error_seen = False
+    bypass_warning_handled = False
+    bypass_warning_selection_moved = False
 
     try:
         while time.time() < deadline:
@@ -75,6 +77,18 @@ def run_case(name: str, payload: str, expect_placeholder: bool) -> None:
             if any(marker in plain for marker in ERROR_MARKERS):
                 error_seen = True
                 break
+            if (
+                not bypass_warning_handled
+                and "WARNING:CTrunninginBypassPermissionsmode" in compact_plain
+                and "Yes,Iaccept" in compact_plain
+            ):
+                if not bypass_warning_selection_moved:
+                    os.write(master_fd, b"\x1b[B")
+                    bypass_warning_selection_moved = True
+                else:
+                    os.write(master_fd, b"\r")
+                    bypass_warning_handled = True
+                continue
             if (
                 not prompt_seen
                 and compact_plain.count("❯") >= 2
@@ -93,17 +107,12 @@ def run_case(name: str, payload: str, expect_placeholder: bool) -> None:
             if proc.poll() is not None:
                 break
     finally:
-        try:
-            os.killpg(proc.pid, signal.SIGTERM)
-        except ProcessLookupError:
-            pass
+        if proc.poll() is None:
+            proc.terminate()
         try:
             proc.wait(timeout=5)
         except subprocess.TimeoutExpired:
-            try:
-                os.killpg(proc.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            proc.kill()
             proc.wait(timeout=5)
         os.close(master_fd)
 

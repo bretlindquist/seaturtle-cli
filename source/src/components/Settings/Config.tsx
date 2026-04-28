@@ -11,8 +11,8 @@ import { type GlobalConfig, saveGlobalConfig, getCurrentProjectConfig, type Outp
 import { normalizeApiKeyForConfig } from '../../utils/authPortable.js';
 import { getGlobalConfig, getAutoUpdaterDisabledReason, formatAutoUpdaterDisabledReason, getRemoteControlAtStartup } from '../../utils/config.js';
 import chalk from 'chalk';
-import { permissionModeTitle, permissionModeFromString, toExternalPermissionMode, isExternalPermissionMode, EXTERNAL_PERMISSION_MODES, PERMISSION_MODES, type ExternalPermissionMode, type PermissionMode } from '../../utils/permissions/PermissionMode.js';
-import { getAutoModeEnabledState, hasAutoModeOptInAnySource, isBypassPermissionsModeDisabled, transitionPlanAutoMode } from '../../utils/permissions/permissionSetup.js';
+import { permissionModeTitle, permissionModeFromString, toExternalPermissionMode, isExternalPermissionMode, PERMISSION_MODES, type ExternalPermissionMode, type PermissionMode } from '../../utils/permissions/PermissionMode.js';
+import { getAutoModeEnabledState, getDefaultPermissionModeOptions, hasAutoModeOptInAnySource, transitionPlanAutoMode } from '../../utils/permissions/permissionSetup.js';
 import { logError } from '../../utils/log.js';
 import { logEvent, type AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from 'src/services/analytics/index.js';
 import { isBridgeEnabled } from '../../bridge/bridgeEnabled.js';
@@ -50,6 +50,7 @@ import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { clearFastModeCooldown, FAST_MODE_MODEL_DISPLAY, isFastModeAvailable, isFastModeEnabled, getFastModeModel, isFastModeSupportedByModel } from '../../utils/fastMode.js';
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js';
 import { getConfigHelpText } from './configHelpText.js';
+import { applySettingsChange } from '../../utils/settings/applySettingsChange.js';
 type Props = {
   onClose: (result?: string, options?: {
     display?: CommandResultDisplay;
@@ -127,6 +128,7 @@ export function Config({
   const thinkingEnabled = useAppState(s_1 => s_1.thinkingEnabled);
   const isFastMode = useAppState(s_2 => isFastModeEnabled() ? s_2.fastMode : false);
   const promptSuggestionEnabled = useAppState(s_3 => s_3.promptSuggestionEnabled);
+  const isBypassModeAvailable = useAppState(s_4 => s_4.toolPermissionContext.isBypassPermissionsModeAvailable);
   // Show auto in the default-mode dropdown when the user has opted in OR the
   // config is fully 'enabled' — even if currently circuit-broken ('disabled'),
   // an opted-in user should still see it in settings (it's a temporary state).
@@ -155,18 +157,18 @@ export function Config({
   // AppState fields Config may modify — snapshot once at mount.
   const store = useAppStateStore();
   const [initialAppState] = useState(() => {
-    const s_4 = store.getState();
+    const s_5 = store.getState();
     return {
-      mainLoopModel: s_4.mainLoopModel,
-      mainLoopModelForSession: s_4.mainLoopModelForSession,
-      verbose: s_4.verbose,
-      thinkingEnabled: s_4.thinkingEnabled,
-      fastMode: s_4.fastMode,
-      promptSuggestionEnabled: s_4.promptSuggestionEnabled,
-      isBriefOnly: s_4.isBriefOnly,
-      replBridgeEnabled: s_4.replBridgeEnabled,
-      replBridgeOutboundOnly: s_4.replBridgeOutboundOnly,
-      settings: s_4.settings
+      mainLoopModel: s_5.mainLoopModel,
+      mainLoopModelForSession: s_5.mainLoopModelForSession,
+      verbose: s_5.verbose,
+      thinkingEnabled: s_5.thinkingEnabled,
+      fastMode: s_5.fastMode,
+      promptSuggestionEnabled: s_5.promptSuggestionEnabled,
+      isBriefOnly: s_5.isBriefOnly,
+      replBridgeEnabled: s_5.replBridgeEnabled,
+      replBridgeOutboundOnly: s_5.replBridgeOutboundOnly,
+      settings: s_5.settings
     };
   });
   // Bootstrap state snapshot — userMsgOptIn is outside AppState, so
@@ -180,7 +182,6 @@ export function Config({
   const isDirty = React.useRef(false);
   const [showThinkingWarning, setShowThinkingWarning] = useState(false);
   const [showSubmenu, setShowSubmenu] = useState<SubMenu | null>(null);
-  const isBypassModeAvailable = !isBypassPermissionsModeDisabled() && !isEnvTruthy(process.env.CLAUDE_CODE_REMOTE);
   const {
     query: searchQuery,
     setQuery: setSearchQuery,
@@ -574,18 +575,10 @@ export function Config({
     id: 'defaultPermissionMode',
     label: 'Default permission mode',
     value: settingsData?.permissions?.defaultMode || 'default',
-    options: (() => {
-      const priorityOrder: PermissionMode[] = ['default', 'plan'];
-      const allModes: readonly PermissionMode[] = feature('TRANSCRIPT_CLASSIFIER') ? PERMISSION_MODES : EXTERNAL_PERMISSION_MODES;
-      const excluded: PermissionMode[] = [];
-      if (!isBypassModeAvailable) {
-        excluded.push('bypassPermissions');
-      }
-      if (feature('TRANSCRIPT_CLASSIFIER') && !showAutoInDefaultModePicker) {
-        excluded.push('auto');
-      }
-      return [...priorityOrder, ...allModes.filter(m => !priorityOrder.includes(m) && !excluded.includes(m))];
-    })(),
+    options: getDefaultPermissionModeOptions({
+      isBypassPermissionsModeAvailable: isBypassModeAvailable,
+      showAutoMode: showAutoInDefaultModePicker
+    }),
     type: 'enum' as const,
     onChange(mode: string) {
       const parsedMode = permissionModeFromString(mode);
@@ -618,6 +611,7 @@ export function Config({
         ...prev_13,
         defaultPermissionMode: mode
       }));
+      applySettingsChange('userSettings', setAppState);
       logEvent('tengu_config_changed', {
         setting: 'defaultPermissionMode' as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
         value: mode as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS

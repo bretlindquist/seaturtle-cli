@@ -4,9 +4,8 @@ import React, { useContext, useEffect, useEffectEvent, useState, useSyncExternal
 import { MailboxProvider } from '../context/mailbox.js';
 import { useSettingsChange } from '../hooks/useSettingsChange.js';
 import { logForDebugging } from '../utils/debug.js';
-import { createDisabledBypassPermissionsContext, isBypassPermissionsModeDisabled } from '../utils/permissions/permissionSetup.js';
+import { reconcileBypassPermissionsAvailability } from '../utils/permissions/permissionSetup.js';
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js';
-import type { SettingSource } from '../utils/settings/constants.js';
 import { createStore } from './store.js';
 
 // DCE: voice context is ant-only. External builds get a passthrough.
@@ -61,9 +60,13 @@ export function AppStateProvider(t0) {
       const {
         toolPermissionContext
       } = store.getState();
-      if (toolPermissionContext.isBypassPermissionsModeAvailable && isBypassPermissionsModeDisabled()) {
-        logForDebugging("Disabling bypass permissions mode on mount (remote settings loaded before mount)");
-        store.setState(_temp);
+      const reconciledContext = reconcileBypassPermissionsAvailability(toolPermissionContext);
+      if (reconciledContext !== toolPermissionContext) {
+        logForDebugging("Reconciling bypass permissions availability on mount");
+        store.setState(prev => ({
+          ...prev,
+          toolPermissionContext: reconciledContext
+        }));
       }
     };
     $[3] = store;
@@ -107,12 +110,6 @@ export function AppStateProvider(t0) {
     t6 = $[12];
   }
   return t6;
-}
-function _temp(prev) {
-  return {
-    ...prev,
-    toolPermissionContext: createDisabledBypassPermissionsContext(prev.toolPermissionContext)
-  };
 }
 function useAppStore(): AppStateStore {
   // eslint-disable-next-line react-hooks/rules-of-hooks

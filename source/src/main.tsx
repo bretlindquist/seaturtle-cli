@@ -2656,7 +2656,7 @@ async function run(): Promise<CommanderCommand> {
 
       // Check if bypassPermissions should be disabled based on Statsig gate
       // This runs in parallel to the code below, to avoid blocking the main loop.
-      if (toolPermissionContext.mode === 'bypassPermissions' || allowDangerouslySkipPermissions) {
+      if (toolPermissionContext.isBypassPermissionsModeAvailable) {
         void checkAndDisableBypassPermissions(toolPermissionContext);
       }
 

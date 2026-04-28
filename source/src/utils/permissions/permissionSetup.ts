@@ -1,6 +1,7 @@
 import { feature } from 'bun:bundle'
 import { relative } from 'path'
 import {
+  getSessionBypassPermissionsMode,
   getOriginalCwd,
   handleAutoModeTransition,
   handlePlanModeTransition,
@@ -22,7 +23,9 @@ import {
   hasAutoModeOptIn,
 } from '../settings/settings.js'
 import {
+  EXTERNAL_PERMISSION_MODES,
   type PermissionMode,
+  PERMISSION_MODES,
   permissionModeFromString,
 } from './PermissionMode.js'
 import { applyPermissionRulesToPermissionContext } from './permissions.js'
@@ -816,6 +819,32 @@ export type BypassPermissionsSessionState = {
   isAvailable: boolean
 }
 
+type PermissionSettingsSnapshot =
+  | {
+      permissions?: {
+        defaultMode?: string
+        disableBypassPermissionsMode?: 'disable'
+      }
+    }
+  | null
+  | undefined
+
+export function isBypassPermissionsModeDisabledForSettings(
+  settings: PermissionSettingsSnapshot,
+): boolean {
+  const growthBookDisableBypassPermissionsMode =
+    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
+      'tengu_disable_bypass_permissions_mode',
+    )
+  const settingsDisableBypassPermissionsMode =
+    settings?.permissions?.disableBypassPermissionsMode === 'disable'
+
+  return (
+    growthBookDisableBypassPermissionsMode ||
+    settingsDisableBypassPermissionsMode
+  )
+}
+
 export function getBypassPermissionsSessionState({
   permissionMode,
   allowDangerouslySkipPermissions,
@@ -831,6 +860,137 @@ export function getBypassPermissionsSessionState({
     isRequested,
     isDisabled,
     isAvailable: isRequested && !isDisabled,
+  }
+}
+
+export function getSessionBypassPermissionsAvailability(
+  settings: PermissionSettingsSnapshot = getSettings_DEPRECATED() || {},
+): boolean {
+  return (
+    getSessionBypassPermissionsMode() &&
+    !isBypassPermissionsModeDisabledForSettings(settings)
+  )
+}
+
+export function getResolvedSettingsPermissionMode(
+  settings: PermissionSettingsSnapshot,
+): PermissionMode {
+  const settingsMode = settings?.permissions?.defaultMode
+  if (!settingsMode) {
+    return 'default'
+  }
+
+  const parsedMode = permissionModeFromString(settingsMode)
+
+  if (
+    isEnvTruthy(process.env.CLAUDE_CODE_REMOTE) &&
+    !['acceptEdits', 'plan', 'default'].includes(parsedMode)
+  ) {
+    return 'default'
+  }
+
+  if (
+    parsedMode === 'bypassPermissions' &&
+    isBypassPermissionsModeDisabledForSettings(settings)
+  ) {
+    return 'default'
+  }
+
+  if (
+    feature('TRANSCRIPT_CLASSIFIER') &&
+    parsedMode === 'auto' &&
+    !isAutoModeGateEnabled()
+  ) {
+    return 'default'
+  }
+
+  return parsedMode
+}
+
+export function getDefaultPermissionModeOptions({
+  isBypassPermissionsModeAvailable,
+  showAutoMode,
+}: {
+  isBypassPermissionsModeAvailable: boolean
+  showAutoMode: boolean
+}): PermissionMode[] {
+  const priorityOrder: PermissionMode[] = ['default', 'plan']
+  const allModes: readonly PermissionMode[] = feature('TRANSCRIPT_CLASSIFIER')
+    ? PERMISSION_MODES
+    : EXTERNAL_PERMISSION_MODES
+  const excluded = new Set<PermissionMode>()
+
+  if (!isBypassPermissionsModeAvailable) {
+    excluded.add('bypassPermissions')
+  }
+  if (feature('TRANSCRIPT_CLASSIFIER') && !showAutoMode) {
+    excluded.add('auto')
+  }
+
+  return [
+    ...priorityOrder,
+    ...allModes.filter(
+      mode => !priorityOrder.includes(mode) && !excluded.has(mode),
+    ),
+  ]
+}
+
+export function reconcileBypassPermissionsAvailability(
+  currentContext: ToolPermissionContext,
+  settings: PermissionSettingsSnapshot = getSettings_DEPRECATED() || {},
+): ToolPermissionContext {
+  const shouldBeAvailable = getSessionBypassPermissionsAvailability(settings)
+
+  if (
+    shouldBeAvailable === currentContext.isBypassPermissionsModeAvailable
+  ) {
+    return currentContext
+  }
+
+  if (!shouldBeAvailable) {
+    return createDisabledBypassPermissionsContext(currentContext)
+  }
+
+  return {
+    ...currentContext,
+    isBypassPermissionsModeAvailable: true,
+  }
+}
+
+export function reconcilePermissionContextAfterSettingsChange({
+  previousContext,
+  currentContext,
+  previousSettings,
+  nextSettings,
+}: {
+  previousContext: ToolPermissionContext
+  currentContext: ToolPermissionContext
+  previousSettings: PermissionSettingsSnapshot
+  nextSettings: PermissionSettingsSnapshot
+}): ToolPermissionContext {
+  const previousDefaultMode =
+    getResolvedSettingsPermissionMode(previousSettings)
+  const nextDefaultMode = getResolvedSettingsPermissionMode(nextSettings)
+  const trackedPreviousDefault = previousContext.mode === previousDefaultMode
+
+  let nextContext = reconcileBypassPermissionsAvailability(
+    currentContext,
+    nextSettings,
+  )
+
+  if (!trackedPreviousDefault || previousDefaultMode === nextDefaultMode) {
+    return nextContext
+  }
+
+  const transitionedContext = transitionPermissionMode(
+    nextContext.mode,
+    nextDefaultMode,
+    nextContext,
+  )
+
+  return {
+    ...transitionedContext,
+    mode: nextDefaultMode,
   }
 }
 
@@ -1385,17 +1545,8 @@ export function hasAutoModeOptInAnySource(): boolean {
  * This is a synchronous version that uses cached Statsig values.
  */
 export function isBypassPermissionsModeDisabled(): boolean {
-  const growthBookDisableBypassPermissionsMode =
-    checkStatsigFeatureGate_CACHED_MAY_BE_STALE(
-      'tengu_disable_bypass_permissions_mode',
-    )
-  const settings = getSettings_DEPRECATED() || {}
-  const settingsDisableBypassPermissionsMode =
-    settings.permissions?.disableBypassPermissionsMode === 'disable'
-
-  return (
-    growthBookDisableBypassPermissionsMode ||
-    settingsDisableBypassPermissionsMode
+  return isBypassPermissionsModeDisabledForSettings(
+    getSettings_DEPRECATED() || {},
   )
 }
 

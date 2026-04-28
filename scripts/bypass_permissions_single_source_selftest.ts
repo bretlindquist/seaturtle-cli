@@ -15,6 +15,16 @@ function run(): void {
   const mainSource = read(repoRoot, 'source/src/main.tsx')
   const setupSource = read(repoRoot, 'source/src/setup.ts')
   const interactiveHelpers = read(repoRoot, 'source/src/interactiveHelpers.tsx')
+  const configUi = read(repoRoot, 'source/src/components/Settings/Config.tsx')
+  const telegramSettings = read(
+    repoRoot,
+    'source/src/components/telegram/TelegramSettings.tsx',
+  )
+  const applySettingsChange = read(
+    repoRoot,
+    'source/src/utils/settings/applySettingsChange.ts',
+  )
+  const appState = read(repoRoot, 'source/src/state/AppState.tsx')
   const configToolSettings = read(
     repoRoot,
     'source/src/tools/ConfigTool/supportedSettings.ts',
@@ -26,6 +36,21 @@ function run(): void {
     permissionSetup,
     /export function getBypassPermissionsSessionState\(/,
     'permissionSetup should expose a centralized bypass session-state helper',
+  )
+  assert.match(
+    permissionSetup,
+    /export function getResolvedSettingsPermissionMode\(/,
+    'permissionSetup should expose a centralized settings default-mode resolver',
+  )
+  assert.match(
+    permissionSetup,
+    /export function reconcilePermissionContextAfterSettingsChange\(/,
+    'permissionSetup should expose a centralized settings-change reconcile helper',
+  )
+  assert.match(
+    permissionSetup,
+    /export function getDefaultPermissionModeOptions\(/,
+    'permissionSetup should expose a centralized default-mode picker helper',
   )
   assert.match(
     permissionSetup,
@@ -53,9 +78,49 @@ function run(): void {
     'interactive startup prompt flow should gate on the centralized bypass session-state helper',
   )
   assert.match(
+    configUi,
+    /toolPermissionContext\.isBypassPermissionsModeAvailable/,
+    '/config should derive bypass option visibility from live permission context state',
+  )
+  assert.match(
+    configUi,
+    /getDefaultPermissionModeOptions\(\{/,
+    '/config should derive default-mode options from the centralized picker helper',
+  )
+  assert.match(
+    configUi,
+    /applySettingsChange\('userSettings', setAppState\)/,
+    '/config should reconcile AppState through the shared settings-change path after default-mode writes',
+  )
+  assert.match(
+    telegramSettings,
+    /getDefaultPermissionModeOptions\(\{/,
+    'Telegram permissions picker should derive options from the centralized picker helper',
+  )
+  assert.match(
+    telegramSettings,
+    /applySettingsChange\('userSettings', setAppState\)/,
+    'Telegram settings should reconcile AppState through the shared settings-change path after default-mode writes',
+  )
+  assert.match(
+    applySettingsChange,
+    /reconcilePermissionContextAfterSettingsChange\(/,
+    'settings-change application should use the centralized permission-context reconcile helper',
+  )
+  assert.match(
+    appState,
+    /reconcileBypassPermissionsAvailability/,
+    'AppState mount reconciliation should use the centralized bypass-availability helper',
+  )
+  assert.match(
     configToolSettings,
     /EXTERNAL_PERMISSION_MODES/,
     'ConfigTool permission-mode options should derive from the shared permission mode constants',
+  )
+  assert.doesNotMatch(
+    mainSource,
+    /toolPermissionContext\.mode === 'bypassPermissions' \|\| allowDangerouslySkipPermissions/,
+    'main should not retain ad hoc bypass checks once live availability is centralized',
   )
   assert.match(
     printSource,
