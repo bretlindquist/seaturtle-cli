@@ -30,6 +30,19 @@ export type OpenAiCodexOAuthFlowHandlers = {
   signal?: AbortSignal
 }
 
+export type OpenAiCodexOAuthProfileIdentity = {
+  accountId: string | null
+  accountLabel: string | null
+  emailAddress?: string
+  planType?: string
+}
+
+function trimOptionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0
+    ? value.trim()
+    : undefined
+}
+
 function getStoredAccountId(profile: ProviderOAuthProfile): string | null {
   const metadataAccountId =
     typeof profile.metadata?.accountId === 'string'
@@ -59,13 +72,27 @@ function getEmailFromJwt(token: string | undefined): string | undefined {
   }
 
   const payload = decodeJwtPayload(token)
-  if (
-    payload &&
-    typeof payload === 'object' &&
-    'email' in payload &&
-    typeof payload.email === 'string'
-  ) {
+  if (!payload || typeof payload !== 'object') {
+    return undefined
+  }
+
+  if ('email' in payload && typeof payload.email === 'string') {
     return payload.email
+  }
+
+  const namespacedProfile =
+    'https://api.openai.com/profile' in payload &&
+    payload['https://api.openai.com/profile'] &&
+    typeof payload['https://api.openai.com/profile'] === 'object'
+      ? payload['https://api.openai.com/profile']
+      : null
+
+  if (
+    namespacedProfile &&
+    'email' in namespacedProfile &&
+    typeof namespacedProfile.email === 'string'
+  ) {
+    return namespacedProfile.email
   }
 
   return undefined
@@ -117,6 +144,38 @@ function getPlanTypeFromJwt(token: string | undefined): string | undefined {
   }
 
   return undefined
+}
+
+export function resolveOpenAiCodexOAuthProfileIdentity(
+  profile: ProviderOAuthProfile | null | undefined,
+  fallback?: {
+    accessToken?: string
+    idToken?: string
+    accountId?: string | null
+  },
+): OpenAiCodexOAuthProfileIdentity {
+  const accountId =
+    (profile ? getStoredAccountId(profile) : null) ??
+    trimOptionalString(fallback?.accountId) ??
+    null
+  const emailAddress =
+    getEmailFromJwt(profile?.accessToken) ??
+    getEmailFromJwt(fallback?.accessToken) ??
+    getEmailFromJwt(fallback?.idToken) ??
+    trimOptionalString(profile?.emailAddress)
+  const storedPlanType = trimOptionalString(profile?.metadata?.planType)
+  const planType =
+    getPlanTypeFromJwt(profile?.accessToken) ??
+    getPlanTypeFromJwt(fallback?.accessToken) ??
+    getPlanTypeFromJwt(fallback?.idToken) ??
+    storedPlanType
+
+  return {
+    accountId,
+    accountLabel: emailAddress ?? accountId,
+    emailAddress,
+    planType,
+  }
 }
 
 export async function loginWithOpenAiCodexOAuth(
@@ -172,20 +231,17 @@ export async function refreshOpenAiCodexOAuthProfile(
   }
 
   const refreshed = await refreshOpenAICodexToken(profile.refreshToken)
+  const storedIdentity = resolveOpenAiCodexOAuthProfileIdentity(profile)
   const refreshedProfile = buildOpenAiCodexOAuthProfile({
     accessToken: refreshed.access,
     refreshToken: refreshed.refresh,
     expiresAt: refreshed.expires,
     accountId:
-      typeof refreshed.accountId === 'string'
-        ? refreshed.accountId
-        : getStoredAccountId(profile) ?? '',
-    emailAddress: profile.emailAddress,
+      trimOptionalString(refreshed.accountId) ?? storedIdentity.accountId ?? '',
+    emailAddress:
+      getEmailFromJwt(refreshed.access) ?? storedIdentity.emailAddress,
     planType:
-      getPlanTypeFromJwt(refreshed.access) ??
-      (typeof profile.metadata?.planType === 'string'
-        ? profile.metadata.planType
-        : undefined),
+      getPlanTypeFromJwt(refreshed.access) ?? storedIdentity.planType,
     enterpriseUrl:
       typeof profile.metadata?.enterpriseUrl === 'string'
         ? profile.metadata.enterpriseUrl
@@ -195,6 +251,7 @@ export async function refreshOpenAiCodexOAuthProfile(
         ? profile.metadata.projectId
         : undefined,
   })
+  refreshedProfile.profileId = profile.profileId
 
   const saveResult = saveProviderAuthProfile({
     profile: refreshedProfile,
@@ -265,31 +322,36 @@ export function maybeAdoptExternalCodexCliAuthProfile(): boolean {
   const nativeProfile = getDefaultOpenAiCodexOAuthProfile()
   if (nativeProfile) {
     const fallback = readExternalCodexCliAuth()
-    const fallbackEmail = getEmailFromJwt(fallback?.idToken)
-    const fallbackPlanType =
-      getPlanTypeFromJwt(nativeProfile.accessToken) ??
-      getPlanTypeFromJwt(fallback?.accessToken) ??
-      getPlanTypeFromJwt(fallback?.idToken)
-    const hasStoredPlanType =
-      typeof nativeProfile.metadata?.planType === 'string' &&
-      nativeProfile.metadata.planType.length > 0
+    const resolvedIdentity = resolveOpenAiCodexOAuthProfileIdentity(
+      nativeProfile,
+      fallback
+        ? {
+            accessToken: fallback.accessToken,
+            idToken: fallback.idToken,
+            accountId: fallback.accountId,
+          }
+        : undefined,
+    )
+    const storedPlanType = trimOptionalString(nativeProfile.metadata?.planType)
     const needsBackfill =
-      (!!fallbackEmail && !nativeProfile.emailAddress) ||
-      (!!fallbackPlanType && !hasStoredPlanType)
+      resolvedIdentity.accountId !== getStoredAccountId(nativeProfile) ||
+      resolvedIdentity.emailAddress !== trimOptionalString(nativeProfile.emailAddress) ||
+      resolvedIdentity.planType !== storedPlanType
 
     if (needsBackfill) {
-      saveProviderAuthProfile({
-        profile: {
-          ...nativeProfile,
-          emailAddress: nativeProfile.emailAddress ?? fallbackEmail,
-          metadata: {
-            ...nativeProfile.metadata,
-            planType:
-              hasStoredPlanType
-                ? nativeProfile.metadata?.planType
-                : fallbackPlanType ?? null,
-          },
+      const updatedProfile: ProviderOAuthProfile = {
+        ...nativeProfile,
+        emailAddress: resolvedIdentity.emailAddress,
+        accountUuid: resolvedIdentity.accountId ?? nativeProfile.accountUuid,
+        metadata: {
+          ...nativeProfile.metadata,
+          accountId: resolvedIdentity.accountId ?? nativeProfile.metadata?.accountId ?? null,
+          planType: resolvedIdentity.planType ?? null,
         },
+        updatedAt: Date.now(),
+      }
+      saveProviderAuthProfile({
+        profile: updatedProfile,
         setAsDefault: true,
       })
     }
@@ -317,12 +379,13 @@ export async function getUsableOpenAiCodexAuth(): Promise<OpenAiCodexNativeAuth 
           : nativeProfile
         const accountId = getStoredAccountId(activeProfile)
         if (accountId) {
+          const activeIdentity = resolveOpenAiCodexOAuthProfileIdentity(activeProfile)
           return {
             accessToken: activeProfile.accessToken,
             accountId,
             source: 'provider-auth-profile',
             profileId: activeProfile.profileId,
-            emailAddress: activeProfile.emailAddress,
+            emailAddress: activeIdentity.emailAddress,
           }
         }
       } catch (error) {

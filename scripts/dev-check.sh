@@ -91,6 +91,7 @@ bun scripts/voice_identity_selftest.ts >/dev/null
 bun scripts/session_resume_copy_selftest.ts >/dev/null
 bun scripts/session_entry_policy_selftest.ts >/dev/null
 bun scripts/openai_codex_auth_selftest.ts >/dev/null
+bun scripts/openai_status_account_identity_selftest.ts >/dev/null
 bun scripts/openai_agent_capability_selftest.ts >/dev/null
 bun scripts/provider_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/runtime_vendor_exec_selftest.ts >/dev/null

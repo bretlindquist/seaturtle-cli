@@ -27,7 +27,10 @@ import {
   getGeminiAuthReadiness,
   getOpenAiCodexAuthReadiness,
 } from '../authProfiles/store.js'
-import { maybeAdoptExternalCodexCliAuthProfile } from '../authProfiles/openaiCodexOAuth.js'
+import {
+  maybeAdoptExternalCodexCliAuthProfile,
+  resolveOpenAiCodexOAuthProfileIdentity,
+} from '../authProfiles/openaiCodexOAuth.js'
 import { getResolvedOpenAiCodexAuth } from '../authProfiles/openaiCodexAuth.js'
 import {
   isOpenAiHostedFileSearchConfigured,
@@ -432,6 +435,9 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
   const openAiCodex = buildOpenAiCodexMainLoopRuntime()
   const gemini = buildGeminiMainLoopRuntime()
   const openAiProfile = getDefaultOpenAiCodexOAuthProfile()
+  const openAiProfileIdentity = resolveOpenAiCodexOAuthProfileIdentity(
+    openAiProfile,
+  )
   const openAiApiKeyProfile = getDefaultOpenAiCodexApiKeyProfile()
   const geminiApiKeyProfile = getDefaultGeminiApiKeyProfile()
   const preferred = shouldPreferGeminiMainLoop()
@@ -460,14 +466,9 @@ export function getMainLoopProviderRuntimeSnapshot(): MainLoopProviderRuntimeSna
     openAiCodexCliFallbackReady: openAiReadiness.readyViaExternal,
     openAiCodexAuthSource: openAiCodex.authSource,
     openAiCodexAccountLabel:
-      openAiProfile?.emailAddress ??
-      (typeof openAiProfile?.metadata?.accountId === 'string'
-        ? openAiProfile.metadata.accountId
-        : openAiProfile?.accountUuid ??
-          openAiApiKeyProfile?.label ??
-          null),
+      openAiProfileIdentity.accountLabel ?? openAiApiKeyProfile?.label ?? null,
     openAiCodexPlanLabel: formatOpenAiCodexPlanLabel(
-      openAiProfile?.metadata?.planType,
+      openAiProfileIdentity.planType,
     ),
     documentedOpenAiModelCapabilities:
       execution.documentedOpenAiModelCapabilities,
