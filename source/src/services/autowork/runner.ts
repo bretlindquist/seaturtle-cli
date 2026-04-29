@@ -3,6 +3,14 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
 import {
+  getCtWorkExecutionPath,
+  getCtWorkIntentPath,
+  getCtWorkPhasePath,
+  getCtWorkPlanPath,
+  getCtWorkResearchPath,
+  getCtWorkVerificationPath,
+} from '../projectIdentity/paths.js'
+import {
   assessAutoworkEligibility,
   assessAutoworkHygiene,
   type AutoworkEligibilityResult,
@@ -53,6 +61,10 @@ import {
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
 
 export type AutoworkEntryPoint = 'autowork' | 'swim'
+type AutoworkLifecycleMode = Extract<
+  AutoworkMode,
+  'discovery' | 'research' | 'plan-hardening' | 'audit-and-polish'
+>
 
 async function getGitStatusShortLines(repoRoot: string): Promise<string[]> {
   const { stdout } = await execFileNoThrowWithCwd(
@@ -288,6 +300,95 @@ function formatValidationLines(results: AutoworkValidationResult[]): string[] {
       ? `- ${result.command}: ${result.ok ? 'ok' : 'failed'} - ${result.summary}`
       : `- ${result.command}: ${result.ok ? 'ok' : 'failed'}`,
   )
+}
+
+function getLifecyclePhaseForMode(mode: AutoworkLifecycleMode): 'intent' | 'research' | 'plan' | 'review' {
+  switch (mode) {
+    case 'discovery':
+      return 'intent'
+    case 'research':
+      return 'research'
+    case 'plan-hardening':
+      return 'plan'
+    case 'audit-and-polish':
+      return 'review'
+  }
+}
+
+function getLifecycleStatusText(mode: AutoworkLifecycleMode): string {
+  switch (mode) {
+    case 'discovery':
+      return 'Capturing workstream intent'
+    case 'research':
+      return 'Research wave active'
+    case 'plan-hardening':
+      return 'Plan hardening wave active'
+    case 'audit-and-polish':
+      return 'Broad review wave active'
+  }
+}
+
+function getLifecycleActionLine(mode: AutoworkLifecycleMode): string {
+  switch (mode) {
+    case 'discovery':
+      return 'Capture the active workstream intent and constraints before planning.'
+    case 'research':
+      return 'Research the blocking unknowns and record evidence into workflow state before planning or coding.'
+    case 'plan-hardening':
+      return 'Harden the executable plan and workflow packet so execution can proceed from a stable chunk graph.'
+    case 'audit-and-polish':
+      return 'Perform the broad review and final quality pass before calling the workstream done.'
+  }
+}
+
+function buildLifecyclePacketPathLines(repoRoot: string): string[] {
+  return [
+    `- intent packet: ${getCtWorkIntentPath(repoRoot)}`,
+    `- research packet: ${getCtWorkResearchPath(repoRoot)}`,
+    `- plan packet: ${getCtWorkPlanPath(repoRoot)}`,
+    `- execution packet: ${getCtWorkExecutionPath(repoRoot)}`,
+    `- verification packet: ${getCtWorkVerificationPath(repoRoot)}`,
+    `- phase packet: ${getCtWorkPhasePath(repoRoot)}`,
+  ]
+}
+
+function buildAutoworkLifecyclePrompt(
+  entryPoint: AutoworkEntryPoint,
+  repoRoot: string,
+  planPath: string,
+  context: AutoworkStartupContext,
+  mode: AutoworkLifecycleMode,
+): string {
+  const packetPathLines = buildLifecyclePacketPathLines(repoRoot)
+  const workflowReason = context.workflowResolution?.reason ?? context.modeReason
+  const nextStep = `/${entryPoint} run`
+
+  return [
+    '<system-reminder>',
+    `CT ${entryPoint} lifecycle mode is active for ${getProjectName(repoRoot)}.`,
+    `Current autowork mode: ${mode}.`,
+    '',
+    `Plan file: ${planPath}`,
+    `Workflow reason: ${workflowReason}`,
+    '',
+    'Authoritative workflow packet files:',
+    ...packetPathLines,
+    '',
+    'Required workflow:',
+    `1. ${getLifecycleActionLine(mode)}`,
+    '2. Read the authoritative packet files before editing anything.',
+    '3. Keep the packet JSON valid and aligned: no contradictory phase/readiness stories.',
+    '4. Preserve single source of truth by updating workflow packet state instead of inventing parallel scratch notes.',
+    mode === 'plan-hardening'
+      ? '5. If the tracked plan file needs hardening, keep it aligned with the workflow plan packet chunk graph.'
+      : '5. Do not begin implementation chunks unless the workflow state legitimately advances there.',
+    mode === 'audit-and-polish'
+      ? '6. Review for production-grade completeness, record findings in verification/workflow state, and make only narrow fixes that are required by the review.'
+      : '6. End with the workflow state advanced as far as the evidence supports, then stop.',
+    '',
+    `When finished, the queued ${nextStep} command will reassess the workflow state and continue from the next correct phase.`,
+    '</system-reminder>',
+  ].join('\n')
 }
 
 function buildAutoworkExecutionPrompt(
@@ -527,6 +628,45 @@ function syncAutoworkExecutionStarted(
   )
 }
 
+function syncAutoworkLifecycleModeStarted(
+  repoRoot: string,
+  mode: AutoworkLifecycleMode,
+  runtimeWindow: AutoworkRuntimeWindow,
+): void {
+  const now = Date.now()
+  const phase = getLifecyclePhaseForMode(mode)
+  const statusText = getLifecycleStatusText(mode)
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      phase,
+      activeChunkId: null,
+      updatedAt: now,
+      timeBudgetMs: runtimeWindow.timeBudgetMs,
+      deadlineAt: runtimeWindow.deadlineAt,
+      heartbeatEnabled: runtimeWindow.heartbeatEnabled,
+      heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
+      checkpointPolicy: runtimeWindow.checkpointPolicy,
+      currentActions: [statusText],
+      blockedOn: [],
+      nextVerificationSteps: [],
+      stopReason: null,
+      swarmActive: false,
+      swarmWorkerCount: 0,
+      statusText,
+      lastActivityAt: now,
+    }),
+    repoRoot,
+  )
+  setActiveWorkstreamPhase(
+    {
+      phase,
+      phaseReason: statusText,
+    },
+    repoRoot,
+  )
+}
+
 function syncAutoworkVerificationBlocked(
   repoRoot: string,
   chunkId: string,
@@ -761,6 +901,56 @@ export async function prepareAutoworkSafeExecution(
       context.eligibility.failedCheck,
     )
     return { ok: false, message: context.eligibility.message }
+  }
+
+  if (
+    context.mode === 'discovery' ||
+    context.mode === 'research' ||
+    context.mode === 'plan-hardening' ||
+    context.mode === 'audit-and-polish'
+  ) {
+    const lifecycleMode = context.mode
+    const prompt = buildAutoworkLifecyclePrompt(
+      entryPoint,
+      context.repoRoot,
+      context.planPath,
+      context,
+      lifecycleMode,
+    )
+    const nextRunCount = context.state.runCount + 1
+    updateAutoworkState(
+      current => ({
+        ...current,
+        sourcePlanPath: context.planPath,
+        currentChunkId: null,
+        currentMode: lifecycleMode,
+        lastStartupInspection: context.inspection,
+        lastValidationResult: null,
+        executionScope,
+        stopReason: null,
+        lastStartedAt: Date.now(),
+        implementedButUnverified: false,
+        runCount: nextRunCount,
+      }),
+      context.repoRoot,
+    )
+    syncAutoworkLifecycleModeStarted(context.repoRoot, lifecycleMode, runtimeWindow)
+
+    return {
+      ok: true,
+      repoRoot: context.repoRoot,
+      planPath: context.planPath,
+      chunkId: lifecycleMode,
+      visibleMessage: [
+        '',
+        `${getLifecycleStatusText(lifecycleMode)}.`,
+        `Plan: ${context.planPath}`,
+        `Why: ${context.modeReason}`,
+        `Queued next step: /${entryPoint} run`,
+      ].join('\n'),
+      metaMessages: [prompt],
+      nextInput: `/${entryPoint} run`,
+    }
   }
 
   if (context.mode !== 'execution') {

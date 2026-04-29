@@ -177,6 +177,11 @@ function formatStatusSummary(
       ? `Next: use /${entryPoint} run to continue the approved plan from ${context.nextPendingChunkId ?? 'the next chunk'}, or /${entryPoint} step to execute only one chunk.`
       : context.mode === 'verification'
         ? `Next: use /${entryPoint} verify to enforce the checkpoint for ${context.state.currentChunkId ?? 'the active chunk'}.`
+        : context.mode === 'research' ||
+            context.mode === 'plan-hardening' ||
+            context.mode === 'audit-and-polish' ||
+            context.mode === 'discovery'
+          ? `Next: use /${entryPoint} run to continue the current ${context.mode} wave from workflow state.`
         : `Next: use /${entryPoint} doctor for the fuller checkpoint breakdown.`,
   ].join('\n')
 }
