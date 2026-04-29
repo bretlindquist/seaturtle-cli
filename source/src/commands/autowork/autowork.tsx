@@ -12,6 +12,10 @@ import {
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
 import {
+  resolveAutoworkBackendPolicy,
+  type AutoworkBackendPolicy,
+} from '../../services/autowork/backendPolicy.js'
+import {
   getAutoworkDangerousQuip,
   getAutoworkLaunchQuip,
 } from '../../services/autowork/quips.js'
@@ -124,6 +128,30 @@ function formatWorkflowEligibilityHint(
   }
 }
 
+function formatBackendTarget(policy: AutoworkBackendPolicy): string {
+  switch (policy.target) {
+    case 'main-thread':
+      return 'main thread'
+    case 'local-swarm':
+      return policy.localExecutorMode
+        ? `local swarm (${policy.localExecutorMode})`
+        : 'local swarm'
+    case 'cloud-swarm':
+      return 'cloud swarm'
+  }
+}
+
+function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
+  switch (policy.cloudSwarmStatus) {
+    case 'active':
+      return 'active'
+    case 'idle':
+      return 'idle'
+    case 'unavailable':
+      return policy.cloudReason ?? 'unavailable'
+  }
+}
+
 function formatChecks(
   context: AutoworkStartupContext,
   doctor: boolean,
@@ -144,6 +172,7 @@ function formatStatusSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
+  const backendPolicy = resolveAutoworkBackendPolicy(context.mode)
   const quip = getAutoworkLaunchQuip(
     entryPoint,
     `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
@@ -166,6 +195,8 @@ function formatStatusSummary(
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
+    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
+    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -194,6 +225,7 @@ function formatDoctorSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
+  const backendPolicy = resolveAutoworkBackendPolicy(context.mode)
   const lines = [
     'Autowork doctor',
     '',
@@ -206,6 +238,8 @@ function formatDoctorSummary(
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
+    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
+    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -218,6 +252,8 @@ function formatDoctorSummary(
     'Eligibility checks:',
     ...formatChecks(context, true),
   ]
+
+  lines.push('', `Backend policy: ${backendPolicy.reason}`)
 
   if (workflowResolution?.issues.length) {
     lines.push('', 'Workflow issues:', ...workflowResolution.issues.map(issue => `- ${issue}`))

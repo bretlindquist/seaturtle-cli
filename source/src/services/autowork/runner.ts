@@ -46,6 +46,7 @@ import {
   isAutoworkRelaxableFailureCode,
   type AutoworkRunPolicy,
 } from './policy.js'
+import { resolveAutoworkBackendPolicy } from './backendPolicy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
 import {
   peekActiveWorkstream,
@@ -513,6 +514,7 @@ function syncAutoworkStopped(
 ): void {
   const now = Date.now()
   const phase = resolveStoppedWorkPhase(repoRoot)
+  const backendPolicy = resolveAutoworkBackendPolicy('idle')
   updateWorkExecutionPacket(
     current => ({
       ...current,
@@ -525,6 +527,7 @@ function syncAutoworkStopped(
       blockedOn: [phaseReason],
       nextVerificationSteps: [],
       stopReason: phaseReason,
+      swarmBackend: backendPolicy.swarmBackend,
       swarmActive: false,
       swarmWorkerCount: 0,
       statusText,
@@ -598,6 +601,7 @@ function syncAutoworkExecutionStarted(
   runtimeWindow: AutoworkRuntimeWindow,
 ): void {
   const now = Date.now()
+  const backendPolicy = resolveAutoworkBackendPolicy('execution')
   updateWorkExecutionPacket(
     current => ({
       ...current,
@@ -616,6 +620,7 @@ function syncAutoworkExecutionStarted(
       nextVerificationSteps: [`/${entryPoint} verify`],
       continuationDebt: [],
       stopReason: null,
+      swarmBackend: backendPolicy.swarmBackend,
       statusText: `Executing ${chunkId}`,
       lastActivityAt: now,
     }),
@@ -638,6 +643,7 @@ function syncAutoworkLifecycleModeStarted(
   const now = Date.now()
   const phase = getLifecyclePhaseForMode(mode)
   const statusText = getLifecycleStatusText(mode)
+  const backendPolicy = resolveAutoworkBackendPolicy(mode)
   updateWorkExecutionPacket(
     current => ({
       ...current,
@@ -653,6 +659,7 @@ function syncAutoworkLifecycleModeStarted(
       blockedOn: [],
       nextVerificationSteps: [],
       stopReason: null,
+      swarmBackend: backendPolicy.swarmBackend,
       swarmActive: false,
       swarmWorkerCount: 0,
       statusText,
@@ -675,6 +682,7 @@ function syncAutoworkVerificationBlocked(
   reason: string,
 ): void {
   const now = Date.now()
+  const backendPolicy = resolveAutoworkBackendPolicy('verification')
   updateWorkExecutionPacket(
     current => ({
       ...current,
@@ -687,6 +695,7 @@ function syncAutoworkVerificationBlocked(
       currentActions: [],
       blockedOn: [reason],
       stopReason: reason,
+      swarmBackend: backendPolicy.swarmBackend,
       swarmActive: false,
       swarmWorkerCount: 0,
       statusText: `Verification blocked for ${chunkId}`,
@@ -723,6 +732,8 @@ function syncAutoworkVerificationComplete(
 ): void {
   const now = Date.now()
   const phase = nextPendingChunkId ? 'implementation' : 'review'
+  const backendMode = nextPendingChunkId ? 'execution' : 'audit-and-polish'
+  const backendPolicy = resolveAutoworkBackendPolicy(backendMode)
   const statusText =
     nextPendingChunkId === null
       ? `Chunk ${chunkId} verified`
@@ -743,6 +754,9 @@ function syncAutoworkVerificationComplete(
       blockedOn: [],
       nextVerificationSteps: [],
       stopReason: null,
+      swarmBackend: keepRuntimeWindowActive
+        ? current.swarmBackend
+        : backendPolicy.swarmBackend,
       swarmActive: false,
       swarmWorkerCount: 0,
       statusText,
