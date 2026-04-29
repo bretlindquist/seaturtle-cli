@@ -275,6 +275,9 @@ function getInitialState(): State {
       resolvedCwd = rawCwd.normalize('NFC')
     }
   }
+  if (resolvedCwd && typeof process !== 'undefined') {
+    process.env.SEATURTLE_ORIGINAL_CWD = resolvedCwd
+  }
   const state: State = {
     originalCwd: resolvedCwd,
     projectRoot: resolvedCwd,
@@ -515,7 +518,9 @@ export function getProjectRoot(): string {
 }
 
 export function setOriginalCwd(cwd: string): void {
-  STATE.originalCwd = cwd.normalize('NFC')
+  const normalized = cwd.normalize('NFC')
+  STATE.originalCwd = normalized
+  process.env.SEATURTLE_ORIGINAL_CWD = normalized
 }
 
 /**

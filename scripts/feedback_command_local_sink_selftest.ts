@@ -6,7 +6,7 @@ const feedbackSource = readFileSync(
   'utf8',
 )
 const pathsSource = readFileSync(
-  new URL('../source/src/services/projectIdentity/paths.ts', import.meta.url),
+  new URL('../source/src/services/projectIdentity/pathLayout.ts', import.meta.url),
   'utf8',
 )
 
