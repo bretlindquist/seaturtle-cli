@@ -1,6 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname } from 'path'
 import {
+  parseAutoworkPlanContent,
+  type AutoworkChunkStatus,
+} from '../autowork/planChunkParser.js'
+import {
   getCtArchivedWorkDir,
   getCtArchivedWorkExecutionPath,
   getCtArchivedWorkIntentPath,
@@ -1370,6 +1374,10 @@ function updatePlanLifecyclePackets(
     normalizeText(current.plan.planSummary) ??
     normalizedIntentSummary ??
     normalizedTitleHint
+  const projectedPlan =
+    planContent && normalizedPlanPath
+      ? projectAutoworkPlanPacketState(normalizedPlanPath, planContent)
+      : null
 
   return {
     intent: sanitizeWorkIntentPacket({
@@ -1396,6 +1404,8 @@ function updatePlanLifecyclePackets(
       capturedAt: current.plan.capturedAt ?? now,
       updatedAt: now,
       planSummary: nextPlanSummary,
+      chunkOrder: projectedPlan?.chunkOrder ?? current.plan.chunkOrder,
+      chunks: projectedPlan?.chunks ?? current.plan.chunks,
       promotedPlanDocs: normalizedPlanPath
         ? appendUniqueTextValue(current.plan.promotedPlanDocs, normalizedPlanPath)
         : current.plan.promotedPlanDocs,
@@ -1426,6 +1436,58 @@ function updatePlanLifecyclePackets(
       phaseReason,
       updatedAt: now,
     }),
+  }
+}
+
+function mapAutoworkChunkStatusToWorkChunkStatus(
+  status: AutoworkChunkStatus,
+): WorkChunkStatus {
+  switch (status) {
+    case 'pending':
+      return 'pending'
+    case 'in-progress':
+      return 'in_progress'
+    case 'implemented-but-unverified':
+    case 'successful':
+    case 'completed':
+      return 'completed'
+    case 'failed':
+    case 'blocked':
+      return 'blocked'
+  }
+}
+
+function projectAutoworkPlanPacketState(
+  planFilePath: string,
+  planContent: string,
+): Pick<WorkPlanPacket, 'chunkOrder' | 'chunks'> | null {
+  const parsed = parseAutoworkPlanContent(planFilePath, planContent)
+  if (!Array.isArray(parsed)) {
+    return null
+  }
+
+  return {
+    chunkOrder: parsed.map(chunk => chunk.id),
+    chunks: parsed.map(chunk => ({
+      id: chunk.id,
+      title: chunk.name,
+      status: mapAutoworkChunkStatusToWorkChunkStatus(chunk.status),
+      purpose: chunk.purpose,
+      scope: chunk.files,
+      files: chunk.files,
+      dependencies: chunk.dependencies,
+      risks: chunk.risks,
+      validation: chunk.validation
+        .split(/\n+/u)
+        .map(value => value.trim())
+        .filter(Boolean),
+      done: chunk.done
+        .split(/\n+/u)
+        .map(value => value.trim())
+        .filter(Boolean),
+      rollbackNotes: [],
+      reviewNotes: [],
+    })),
   }
 }
 

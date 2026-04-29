@@ -45,6 +45,19 @@ import {
 } from '../source/src/services/projectIdentity/pathLayout.ts'
 
 function run(): void {
+  const executablePlanContent = [
+    '# Final Plan',
+    '',
+    '## Chunk wave-1',
+    'Status: pending',
+    'Purpose: Wire plan mode to workflow state',
+    'Files: source/src/commands/plan/plan.tsx, source/src/services/projectIdentity/workflowState.ts',
+    'Dependencies: none',
+    'Risks: state drift',
+    'Validation: bun scripts/workflow_state_selftest.ts',
+    'Done: Workflow plan packet mirrors the executable chunk structure.',
+  ].join('\n')
+
   const root = mkdtempSync(join(tmpdir(), 'seaturtle-workflow-state-'))
 
   try {
@@ -280,7 +293,7 @@ function run(): void {
         titleHint: 'Wire plan mode to workflow state',
         intentSummary: 'Make plan mode consume the workflow-state source of truth.',
         planFilePath: '/tmp/work-contract-plan.md',
-        planContent: '# Final Plan\n\n- Wire plan mode to workflow state',
+        planContent: executablePlanContent,
         phaseReason: 'Plan mode entered for the next consumer wave.',
       },
       root,
@@ -293,6 +306,12 @@ function run(): void {
       '/tmp/work-contract-plan.md',
       'planning lifecycle should persist the promoted plan artifact path',
     )
+    assert.deepEqual(
+      planning.packets.plan.chunkOrder,
+      ['wave-1'],
+      'planning lifecycle should project executable autowork chunks into workflow plan state',
+    )
+    assert.equal(planning.packets.plan.chunks[0]?.title, 'wave-1')
 
     const planProjection = readActiveWorkflowPlanProjection(root)
     assert.equal(planProjection.planFilePath, '/tmp/work-contract-plan.md')
@@ -301,13 +320,14 @@ function run(): void {
     const approvedPlan = markActivePlanApproved(
       {
         planFilePath: '/tmp/work-contract-plan.md',
-        planContent: '# Final Plan\n\n- Wire plan mode to workflow state',
+        planContent: executablePlanContent,
         phaseReason: 'Plan approved and implementation can begin.',
       },
       root,
     )
     assert.equal(approvedPlan.packets.plan.status, 'approved')
     assert.equal(approvedPlan.resolution.phase, 'implementation')
+    assert.equal(approvedPlan.packets.plan.chunks[0]?.status, 'pending')
     assert.equal(
       approvedPlan.resolution.autoworkEligibilityHint,
       'research-needed',
