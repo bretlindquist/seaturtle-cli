@@ -77,7 +77,7 @@ import { getFsImplementation } from './fsOperations.js'
 import { getWorktreePaths } from './getWorktreePaths.js'
 import { getBranch } from './git.js'
 import { gracefulShutdownSync, isShuttingDown } from './gracefulShutdown.js'
-import { parseJSONL } from './json.js'
+import { forEachJSONL } from './json.js'
 import { logError } from './log.js'
 import { extractTag, isCompactBoundaryMessage } from './messages.js'
 import { sanitizePath } from './path.js'
@@ -3606,6 +3606,49 @@ export async function loadTranscriptFile(
   const contextCollapseCommits: ContextCollapseCommitEntry[] = []
   // Last-wins — later entries supersede.
   let contextCollapseSnapshot: ContextCollapseSnapshotEntry | undefined
+  const applyMetadataEntry = (entry: Entry): void => {
+    if (entry.type === 'summary' && entry.leafUuid) {
+      summaries.set(entry.leafUuid, entry.summary)
+    } else if (entry.type === 'custom-title' && entry.sessionId) {
+      customTitles.set(entry.sessionId, entry.customTitle)
+    } else if (entry.type === 'tag' && entry.sessionId) {
+      tags.set(entry.sessionId, entry.tag)
+    } else if (entry.type === 'agent-name' && entry.sessionId) {
+      agentNames.set(entry.sessionId, entry.agentName)
+    } else if (entry.type === 'agent-color' && entry.sessionId) {
+      agentColors.set(entry.sessionId, entry.agentColor)
+    } else if (entry.type === 'agent-setting' && entry.sessionId) {
+      agentSettings.set(entry.sessionId, entry.agentSetting)
+    } else if (entry.type === 'mode' && entry.sessionId) {
+      modes.set(entry.sessionId, entry.mode)
+    } else if (entry.type === 'worktree-state' && entry.sessionId) {
+      worktreeStates.set(entry.sessionId, entry.worktreeSession)
+    } else if (entry.type === 'pr-link' && entry.sessionId) {
+      prNumbers.set(entry.sessionId, entry.prNumber)
+      prUrls.set(entry.sessionId, entry.prUrl)
+      prRepositories.set(entry.sessionId, entry.prRepository)
+    } else if (entry.type === 'file-history-snapshot') {
+      fileHistorySnapshots.set(entry.messageId, entry)
+    } else if (entry.type === 'attribution-snapshot') {
+      attributionSnapshots.set(entry.messageId, entry)
+    } else if (entry.type === 'content-replacement') {
+      // Subagent decisions key by agentId (sidechain resume); main-thread
+      // decisions key by sessionId (/resume).
+      if (entry.agentId) {
+        const existing = agentContentReplacements.get(entry.agentId) ?? []
+        agentContentReplacements.set(entry.agentId, existing)
+        existing.push(...entry.replacements)
+      } else {
+        const existing = contentReplacements.get(entry.sessionId) ?? []
+        contentReplacements.set(entry.sessionId, existing)
+        existing.push(...entry.replacements)
+      }
+    } else if (entry.type === 'marble-origami-commit') {
+      contextCollapseCommits.push(entry)
+    } else if (entry.type === 'marble-origami-snapshot') {
+      contextCollapseSnapshot = entry
+    }
+  }
 
   try {
     // For large transcripts, avoid materializing megabytes of stale content.
@@ -3673,35 +3716,8 @@ export async function loadTranscriptFile(
     // etc.) for entries written before the compact boundary. Any overlap with
     // the post-boundary buffer is harmless — later values overwrite earlier ones.
     if (metadataLines && metadataLines.length > 0) {
-      const metaEntries = parseJSONL<Entry>(
-        Buffer.from(metadataLines.join('\n')),
-      )
-      for (const entry of metaEntries) {
-        if (entry.type === 'summary' && entry.leafUuid) {
-          summaries.set(entry.leafUuid, entry.summary)
-        } else if (entry.type === 'custom-title' && entry.sessionId) {
-          customTitles.set(entry.sessionId, entry.customTitle)
-        } else if (entry.type === 'tag' && entry.sessionId) {
-          tags.set(entry.sessionId, entry.tag)
-        } else if (entry.type === 'agent-name' && entry.sessionId) {
-          agentNames.set(entry.sessionId, entry.agentName)
-        } else if (entry.type === 'agent-color' && entry.sessionId) {
-          agentColors.set(entry.sessionId, entry.agentColor)
-        } else if (entry.type === 'agent-setting' && entry.sessionId) {
-          agentSettings.set(entry.sessionId, entry.agentSetting)
-        } else if (entry.type === 'mode' && entry.sessionId) {
-          modes.set(entry.sessionId, entry.mode)
-        } else if (entry.type === 'worktree-state' && entry.sessionId) {
-          worktreeStates.set(entry.sessionId, entry.worktreeSession)
-        } else if (entry.type === 'pr-link' && entry.sessionId) {
-          prNumbers.set(entry.sessionId, entry.prNumber)
-          prUrls.set(entry.sessionId, entry.prUrl)
-          prRepositories.set(entry.sessionId, entry.prRepository)
-        }
-      }
+      forEachJSONL<Entry>(metadataLines.join('\n'), applyMetadataEntry)
     }
-
-    const entries = parseJSONL<Entry>(buf)
 
     // Bridge map for legacy progress entries: progress_uuid → progress_parent_uuid.
     // PR #24099 removed progress from isTranscriptMessage, so old transcripts with
@@ -3712,7 +3728,7 @@ export async function loadTranscriptFile(
     // rewrite any subsequent message whose parentUuid lands in the bridge.
     const progressBridge = new Map<UUID, UUID | null>()
 
-    for (const entry of entries) {
+    forEachJSONL<Entry>(buf, entry => {
       // Legacy progress check runs before the Entry-typed else-if chain —
       // progress is not in the Entry union, so checking it after TypeScript
       // has narrowed `entry` intersects to `never`.
@@ -3727,7 +3743,7 @@ export async function loadTranscriptFile(
             ? (progressBridge.get(parent) ?? null)
             : parent,
         )
-        continue
+        return
       }
       if (isTranscriptMessage(entry)) {
         if (entry.parentUuid && progressBridge.has(entry.parentUuid)) {
@@ -3750,48 +3766,10 @@ export async function loadTranscriptFile(
           contextCollapseCommits.length = 0
           contextCollapseSnapshot = undefined
         }
-      } else if (entry.type === 'summary' && entry.leafUuid) {
-        summaries.set(entry.leafUuid, entry.summary)
-      } else if (entry.type === 'custom-title' && entry.sessionId) {
-        customTitles.set(entry.sessionId, entry.customTitle)
-      } else if (entry.type === 'tag' && entry.sessionId) {
-        tags.set(entry.sessionId, entry.tag)
-      } else if (entry.type === 'agent-name' && entry.sessionId) {
-        agentNames.set(entry.sessionId, entry.agentName)
-      } else if (entry.type === 'agent-color' && entry.sessionId) {
-        agentColors.set(entry.sessionId, entry.agentColor)
-      } else if (entry.type === 'agent-setting' && entry.sessionId) {
-        agentSettings.set(entry.sessionId, entry.agentSetting)
-      } else if (entry.type === 'mode' && entry.sessionId) {
-        modes.set(entry.sessionId, entry.mode)
-      } else if (entry.type === 'worktree-state' && entry.sessionId) {
-        worktreeStates.set(entry.sessionId, entry.worktreeSession)
-      } else if (entry.type === 'pr-link' && entry.sessionId) {
-        prNumbers.set(entry.sessionId, entry.prNumber)
-        prUrls.set(entry.sessionId, entry.prUrl)
-        prRepositories.set(entry.sessionId, entry.prRepository)
-      } else if (entry.type === 'file-history-snapshot') {
-        fileHistorySnapshots.set(entry.messageId, entry)
-      } else if (entry.type === 'attribution-snapshot') {
-        attributionSnapshots.set(entry.messageId, entry)
-      } else if (entry.type === 'content-replacement') {
-        // Subagent decisions key by agentId (sidechain resume); main-thread
-        // decisions key by sessionId (/resume).
-        if (entry.agentId) {
-          const existing = agentContentReplacements.get(entry.agentId) ?? []
-          agentContentReplacements.set(entry.agentId, existing)
-          existing.push(...entry.replacements)
-        } else {
-          const existing = contentReplacements.get(entry.sessionId) ?? []
-          contentReplacements.set(entry.sessionId, existing)
-          existing.push(...entry.replacements)
-        }
-      } else if (entry.type === 'marble-origami-commit') {
-        contextCollapseCommits.push(entry)
-      } else if (entry.type === 'marble-origami-snapshot') {
-        contextCollapseSnapshot = entry
+      } else {
+        applyMetadataEntry(entry)
       }
-    }
+    })
   } catch {
     // File doesn't exist or can't be read
   }
@@ -3808,17 +3786,13 @@ export async function loadTranscriptFile(
   // handle cases where the last message is a system/metadata message.
   // For each conversation chain (identified by following parent links), the leaf
   // is the most recent user/assistant message.
-  const allMessages = [...messages.values()]
-
   // Standard leaf computation using parent relationships
-  const parentUuids = new Set(
-    allMessages
-      .map(msg => msg.parentUuid)
-      .filter((uuid): uuid is UUID => uuid !== null),
-  )
-
-  // Find all terminal messages (messages with no children)
-  const terminalMessages = allMessages.filter(msg => !parentUuids.has(msg.uuid))
+  const parentUuids = new Set<UUID>()
+  for (const msg of messages.values()) {
+    if (msg.parentUuid !== null) {
+      parentUuids.add(msg.parentUuid)
+    }
+  }
 
   const leafUuids = new Set<UUID>()
   let hasCycle = false
@@ -3827,7 +3801,7 @@ export async function loadTranscriptFile(
     // Build a set of UUIDs that have user/assistant children
     // (these are mid-conversation nodes, not dead ends)
     const hasUserAssistantChild = new Set<UUID>()
-    for (const msg of allMessages) {
+    for (const msg of messages.values()) {
       if (msg.parentUuid && (msg.type === 'user' || msg.type === 'assistant')) {
         hasUserAssistantChild.add(msg.parentUuid)
       }
@@ -3837,7 +3811,8 @@ export async function loadTranscriptFile(
     // Skip ancestors that already have user/assistant children - those are mid-conversation
     // nodes where the conversation continued (e.g., an assistant tool_use message whose
     // progress child is terminal, but whose tool_result child continues the conversation).
-    for (const terminal of terminalMessages) {
+    for (const terminal of messages.values()) {
+      if (parentUuids.has(terminal.uuid)) continue
       const seen = new Set<UUID>()
       let current: TranscriptMessage | undefined = terminal
       while (current) {
@@ -3860,7 +3835,8 @@ export async function loadTranscriptFile(
   } else {
     // Original leaf computation: walk back from terminal messages to find
     // the nearest user/assistant ancestor unconditionally
-    for (const terminal of terminalMessages) {
+    for (const terminal of messages.values()) {
+      if (parentUuids.has(terminal.uuid)) continue
       const seen = new Set<UUID>()
       let current: TranscriptMessage | undefined = terminal
       while (current) {

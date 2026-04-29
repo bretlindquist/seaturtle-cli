@@ -175,6 +175,58 @@ function parseJSONLString<T>(data: string): T[] {
 }
 
 /**
+ * Incrementally parse JSONL records without materializing a full result array.
+ * Intended for large-session load paths that only need per-entry side effects.
+ */
+export function forEachJSONL<T>(
+  data: string | Buffer,
+  visit: (value: T) => void,
+): void {
+  if (typeof data === 'string') {
+    const stripped = stripBOM(data)
+    const len = stripped.length
+    let start = 0
+
+    while (start < len) {
+      let end = stripped.indexOf('\n', start)
+      if (end === -1) end = len
+
+      const line = stripped.substring(start, end).trim()
+      start = end + 1
+      if (!line) continue
+      try {
+        visit(JSON.parse(line) as T)
+      } catch {
+        // Skip malformed lines
+      }
+    }
+    return
+  }
+
+  const buf = data
+  const bufLen = buf.length
+  let start = 0
+
+  if (buf[0] === 0xef && buf[1] === 0xbb && buf[2] === 0xbf) {
+    start = 3
+  }
+
+  while (start < bufLen) {
+    let end = buf.indexOf(0x0a, start)
+    if (end === -1) end = bufLen
+
+    const line = buf.toString('utf8', start, end).trim()
+    start = end + 1
+    if (!line) continue
+    try {
+      visit(JSON.parse(line) as T)
+    } catch {
+      // Skip malformed lines
+    }
+  }
+}
+
+/**
  * Parses JSONL data from a string or Buffer, skipping malformed lines.
  * Uses Bun.JSONL.parseChunk when available for better performance,
  * falls back to indexOf-based scanning otherwise.
