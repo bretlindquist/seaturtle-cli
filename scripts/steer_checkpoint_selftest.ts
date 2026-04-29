@@ -47,6 +47,7 @@ function run(): void {
     'should we talk about the auth model instead?',
     'side_question',
   )
+  const continuationOnly = createPromptCommand('continue', 'same_task_steer')
   const taskNotification: QueuedCommand = {
     value: '<task-id>123</task-id><summary>done</summary>',
     mode: 'task-notification',
@@ -69,6 +70,10 @@ function run(): void {
     classification: 'ignore',
     reason: 'side_question_lane_should_not_hijack_active_task',
   })
+  assert.deepEqual(classifyBoundaryQueuedCommand(continuationOnly), {
+    classification: 'relevant_now',
+    reason: 'same_task_steer_from_mid_turn_classifier',
+  })
   assert.equal(
     classifyBoundaryQueuedCommand(taskNotification),
     null,
@@ -80,6 +85,7 @@ function run(): void {
     appendToTask,
     deferredAdjacent,
     ignoredSideQuestion,
+    continuationOnly,
     taskNotification,
   ])
   assert.deepEqual(partition.attachNow, [
@@ -90,6 +96,7 @@ function run(): void {
   assert.deepEqual(partition.leaveQueued, [
     deferredAdjacent,
     ignoredSideQuestion,
+    continuationOnly,
   ])
 
   const plan = buildSteerBoundaryPlan({
@@ -101,6 +108,7 @@ function run(): void {
       appendToTask,
       deferredAdjacent,
       ignoredSideQuestion,
+      continuationOnly,
       taskNotification,
     ],
     toolNames: ['Bash', 'Read'],
@@ -113,6 +121,7 @@ function run(): void {
   assert.deepEqual(plan.leaveQueued, [
     deferredAdjacent,
     ignoredSideQuestion,
+    continuationOnly,
   ])
   assert.deepEqual(plan.consumedCommands, [
     relevantNow,
@@ -133,6 +142,7 @@ function run(): void {
       appendToTask,
       deferredAdjacent,
       ignoredSideQuestion,
+      continuationOnly,
       taskNotification,
     ],
     toolNames: ['Bash', 'Read'],
@@ -155,6 +165,10 @@ function run(): void {
     checkpoint?.steerClassifications[3]?.classification,
     'ignore',
     'side-question-like queued prompts should stay visible in the checkpoint but not hijack the task',
+  )
+  assert.ok(
+    checkpoint?.queuedSteersReceived.every(item => item.prompt !== 'continue'),
+    'continuation-only queued prompts should stay out of mid-turn steer checkpoints',
   )
   assert.match(
     checkpoint?.boundaryTimestamp ?? '',
@@ -208,11 +222,11 @@ function run(): void {
   })
   assert.deepEqual(
     removeByIdentity(
-      [mutationRelevant, mutationDeferred, mutationNotification, slashCommand],
-      queuePlan.consumedCommands,
-    ),
-    [mutationDeferred, slashCommand],
-    'queue mutation should remove only consumed prompt/task commands and preserve deferred or slash-routed entries',
+    [mutationRelevant, mutationDeferred, mutationNotification, slashCommand],
+    queuePlan.consumedCommands,
+  ),
+  [mutationDeferred, slashCommand],
+  'queue mutation should remove only consumed prompt/task commands and preserve deferred or slash-routed entries',
   )
 
   const repoRoot = join(import.meta.dir, '..')

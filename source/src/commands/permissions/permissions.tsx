@@ -1,10 +1,217 @@
-import * as React from 'react';
-import { PermissionRuleList } from '../../components/permissions/rules/PermissionRuleList.js';
-import type { LocalJSXCommandCall } from '../../types/command.js';
-import { createPermissionRetryMessage } from '../../utils/messages.js';
-export const call: LocalJSXCommandCall = async (onDone, context) => {
-  return <PermissionRuleList onExit={onDone} onRetryDenials={commands => {
-    context.setMessages(prev => [...prev, createPermissionRetryMessage(commands)]);
-  }} />;
-};
-//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJuYW1lcyI6WyJSZWFjdCIsIlBlcm1pc3Npb25SdWxlTGlzdCIsIkxvY2FsSlNYQ29tbWFuZENhbGwiLCJjcmVhdGVQZXJtaXNzaW9uUmV0cnlNZXNzYWdlIiwiY2FsbCIsIm9uRG9uZSIsImNvbnRleHQiLCJjb21tYW5kcyIsInNldE1lc3NhZ2VzIiwicHJldiJdLCJzb3VyY2VzIjpbInBlcm1pc3Npb25zLnRzeCJdLCJzb3VyY2VzQ29udGVudCI6WyJpbXBvcnQgKiBhcyBSZWFjdCBmcm9tICdyZWFjdCdcbmltcG9ydCB7IFBlcm1pc3Npb25SdWxlTGlzdCB9IGZyb20gJy4uLy4uL2NvbXBvbmVudHMvcGVybWlzc2lvbnMvcnVsZXMvUGVybWlzc2lvblJ1bGVMaXN0LmpzJ1xuaW1wb3J0IHR5cGUgeyBMb2NhbEpTWENvbW1hbmRDYWxsIH0gZnJvbSAnLi4vLi4vdHlwZXMvY29tbWFuZC5qcydcbmltcG9ydCB7IGNyZWF0ZVBlcm1pc3Npb25SZXRyeU1lc3NhZ2UgfSBmcm9tICcuLi8uLi91dGlscy9tZXNzYWdlcy5qcydcblxuZXhwb3J0IGNvbnN0IGNhbGw6IExvY2FsSlNYQ29tbWFuZENhbGwgPSBhc3luYyAob25Eb25lLCBjb250ZXh0KSA9PiB7XG4gIHJldHVybiAoXG4gICAgPFBlcm1pc3Npb25SdWxlTGlzdFxuICAgICAgb25FeGl0PXtvbkRvbmV9XG4gICAgICBvblJldHJ5RGVuaWFscz17Y29tbWFuZHMgPT4ge1xuICAgICAgICBjb250ZXh0LnNldE1lc3NhZ2VzKHByZXYgPT4gW1xuICAgICAgICAgIC4uLnByZXYsXG4gICAgICAgICAgY3JlYXRlUGVybWlzc2lvblJldHJ5TWVzc2FnZShjb21tYW5kcyksXG4gICAgICAgIF0pXG4gICAgICB9fVxuICAgIC8+XG4gIClcbn1cbiJdLCJtYXBwaW5ncyI6IkFBQUEsT0FBTyxLQUFLQSxLQUFLLE1BQU0sT0FBTztBQUM5QixTQUFTQyxrQkFBa0IsUUFBUSwwREFBMEQ7QUFDN0YsY0FBY0MsbUJBQW1CLFFBQVEsd0JBQXdCO0FBQ2pFLFNBQVNDLDRCQUE0QixRQUFRLHlCQUF5QjtBQUV0RSxPQUFPLE1BQU1DLElBQUksRUFBRUYsbUJBQW1CLEdBQUcsTUFBQUUsQ0FBT0MsTUFBTSxFQUFFQyxPQUFPLEtBQUs7RUFDbEUsT0FDRSxDQUFDLGtCQUFrQixDQUNqQixNQUFNLENBQUMsQ0FBQ0QsTUFBTSxDQUFDLENBQ2YsY0FBYyxDQUFDLENBQUNFLFFBQVEsSUFBSTtJQUMxQkQsT0FBTyxDQUFDRSxXQUFXLENBQUNDLElBQUksSUFBSSxDQUMxQixHQUFHQSxJQUFJLEVBQ1BOLDRCQUE0QixDQUFDSSxRQUFRLENBQUMsQ0FDdkMsQ0FBQztFQUNKLENBQUMsQ0FBQyxHQUNGO0FBRU4sQ0FBQyIsImlnbm9yZUxpc3QiOltdfQ==
+import * as React from 'react'
+import { Select } from '../../components/CustomSelect/select.js'
+import { Dialog } from '../../components/design-system/Dialog.js'
+import { COMMON_HELP_ARGS } from '../../constants/xml.js'
+import { Box, Text } from '../../ink.js'
+import type {
+  CommandResultDisplay,
+  LocalJSXCommandCall,
+  LocalJSXCommandContext,
+} from '../../types/command.js'
+import { createPermissionRetryMessage } from '../../utils/messages.js'
+import {
+  permissionModeTitle,
+  type PermissionMode,
+} from '../../utils/permissions/PermissionMode.js'
+import { PermissionRuleList } from '../../components/permissions/rules/PermissionRuleList.js'
+
+type PermissionsTab = 'recent' | 'allow' | 'ask' | 'deny' | 'workspace'
+type PermissionMenuAction = PermissionsTab | 'back'
+
+type OnDone = (
+  result?: string,
+  options?: {
+    display?: CommandResultDisplay
+  },
+) => void
+
+function parsePermissionsTab(args: string): PermissionsTab | null {
+  const normalized = args.trim().toLowerCase()
+  if (!normalized) {
+    return null
+  }
+
+  switch (normalized) {
+    case 'recent':
+    case 'recent-denials':
+    case 'denials':
+      return 'recent'
+    case 'allow':
+    case 'allowed':
+    case 'rules':
+      return 'allow'
+    case 'ask':
+      return 'ask'
+    case 'deny':
+    case 'denied':
+      return 'deny'
+    case 'workspace':
+    case 'directories':
+    case 'dirs':
+      return 'workspace'
+    default:
+      return null
+  }
+}
+
+function getPermissionsHelpText(): string {
+  return [
+    'Use /permissions to review permission rules, recent denials, and workspace directories.',
+    '',
+    'Shortcuts:',
+    '- /permissions recent',
+    '- /permissions allow',
+    '- /permissions ask',
+    '- /permissions deny',
+    '- /permissions workspace',
+  ].join('\n')
+}
+
+function PermissionsMenu({
+  currentMode,
+  onDone,
+  onSelectTab,
+}: {
+  currentMode: PermissionMode
+  onDone: OnDone
+  onSelectTab: (tab: PermissionsTab) => void
+}): React.ReactNode {
+  return (
+    <Dialog
+      title="Permissions"
+      subtitle="Review permission rules, recent denials, and workspace directories from one surface."
+      onCancel={() =>
+        onDone('Permissions menu dismissed', {
+          display: 'system',
+        })
+      }
+    >
+      <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column">
+          <Text>Current mode:</Text>
+          <Text dimColor>{permissionModeTitle(currentMode)}</Text>
+        </Box>
+        <Select
+          options={[
+            {
+              label: 'Recent denials',
+              value: 'recent' as const,
+              description:
+                'Review commands denied by the auto mode classifier and retry them when appropriate',
+            },
+            {
+              label: 'Allow rules',
+              value: 'allow' as const,
+              description:
+                'Review or remove always-allow permission rules',
+            },
+            {
+              label: 'Ask rules',
+              value: 'ask' as const,
+              description:
+                'Review rules that force explicit approval prompts',
+            },
+            {
+              label: 'Deny rules',
+              value: 'deny' as const,
+              description:
+                'Review or remove always-deny permission rules',
+            },
+            {
+              label: 'Workspace directories',
+              value: 'workspace' as const,
+              description:
+                'Manage additional working directories and workspace scope',
+            },
+            {
+              label: 'Back',
+              value: 'back' as const,
+              description: 'Return to the conversation',
+            },
+          ]}
+          onChange={(value: PermissionMenuAction) => {
+            if (value === 'back') {
+              onDone('Permissions menu dismissed', { display: 'system' })
+              return
+            }
+
+            onSelectTab(value)
+          }}
+          onCancel={() =>
+            onDone('Permissions menu dismissed', {
+              display: 'system',
+            })
+          }
+        />
+      </Box>
+    </Dialog>
+  )
+}
+
+function PermissionsShell({
+  context,
+  initialTab,
+  onDone,
+}: {
+  context: LocalJSXCommandContext
+  initialTab: PermissionsTab | null
+  onDone: OnDone
+}): React.ReactNode {
+  const [selectedTab, setSelectedTab] = React.useState<PermissionsTab | null>(
+    initialTab,
+  )
+  const currentMode = context.getAppState().toolPermissionContext.mode
+
+  if (selectedTab) {
+    return (
+      <PermissionRuleList
+        initialTab={selectedTab}
+        onExit={() => setSelectedTab(null)}
+        onRetryDenials={commands => {
+          context.setMessages(prev => [
+            ...prev,
+            createPermissionRetryMessage(commands),
+          ])
+        }}
+      />
+    )
+  }
+
+  return (
+    <PermissionsMenu
+      currentMode={currentMode}
+      onDone={onDone}
+      onSelectTab={setSelectedTab}
+    />
+  )
+}
+
+export const call: LocalJSXCommandCall = async (onDone, context, args) => {
+  const trimmedArgs = args?.trim() || ''
+
+  if (COMMON_HELP_ARGS.includes(trimmedArgs)) {
+    onDone(getPermissionsHelpText(), { display: 'system' })
+    return null
+  }
+
+  const initialTab = parsePermissionsTab(trimmedArgs)
+  if (trimmedArgs.length > 0 && !initialTab) {
+    onDone(
+      [
+        `Unknown /permissions option: ${trimmedArgs}`,
+        '',
+        getPermissionsHelpText(),
+      ].join('\n'),
+      { display: 'system' },
+    )
+    return null
+  }
+
+  return (
+    <PermissionsShell
+      context={context}
+      initialTab={initialTab}
+      onDone={onDone}
+    />
+  )
+}

@@ -271,11 +271,17 @@ function createCommandSuggestionItem(
   const aliasText = matchedAlias ? ` (${matchedAlias})` : ''
 
   const isWorkflow = cmd.type === 'prompt' && cmd.kind === 'workflow'
-  const fullDescription =
-    (isWorkflow ? cmd.description : formatDescriptionWithSource(cmd)) +
-    (cmd.type === 'prompt' && cmd.argNames?.length
-      ? ` (arguments: ${cmd.argNames.join(', ')})`
-      : '')
+  const descriptionParts = [
+    isWorkflow ? cmd.description : formatDescriptionWithSource(cmd),
+  ]
+
+  if (cmd.argumentHint) {
+    descriptionParts.push(`Usage: /${commandName} ${cmd.argumentHint}`)
+  } else if (cmd.type === 'prompt' && cmd.argNames?.length) {
+    descriptionParts.push(`Arguments: ${cmd.argNames.join(', ')}`)
+  }
+
+  const fullDescription = descriptionParts.join(' · ')
 
   return {
     id: getCommandId(cmd),

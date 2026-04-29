@@ -8,6 +8,11 @@ const APPEND_TO_TASK_PATTERNS = [
   /\b(when you get there|when you get to that)\b/i,
 ] as const
 
+const CONTINUATION_ONLY_PATTERNS = [
+  /^\s*continue\s*$/i,
+  /^\s*(go on|keep going)\s*$/i,
+] as const
+
 export type SteerCheckpointClassification =
   | 'relevant_now'
   | 'append_to_task'
@@ -68,6 +73,10 @@ function classifyBoundarySteer(input: {
     classification: 'defer_adjacent',
     reason: 'default_defer_for_unclassified_boundary_prompt',
   }
+}
+
+function isContinuationOnlyPrompt(prompt: string): boolean {
+  return CONTINUATION_ONLY_PATTERNS.some(pattern => pattern.test(prompt))
 }
 
 export function classifyBoundaryQueuedCommand(
@@ -171,7 +180,10 @@ export function buildSteerCheckpoint(input: {
       sourceUuid: cmd.uuid,
       midTurnIntent: cmd.midTurnIntent,
     }))
-    .filter(item => item.prompt.length > 0)
+    .filter(
+      item =>
+        item.prompt.length > 0 && !isContinuationOnlyPrompt(item.prompt),
+    )
 
   if (queuedSteers.length === 0) {
     return null
@@ -232,6 +244,11 @@ export function partitionQueuedCommandsForBoundary(
   for (const cmd of queuedCommands) {
     if (!isPromptLikeInputMode(cmd.mode)) {
       attachNow.push(cmd)
+      continue
+    }
+
+    if (isContinuationOnlyPrompt(getPromptText(cmd.value))) {
+      leaveQueued.push(cmd)
       continue
     }
 
