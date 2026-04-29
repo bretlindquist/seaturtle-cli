@@ -91,7 +91,9 @@ function formatExecutionScope(scope: AutoworkExecutionScope): string {
 }
 
 function formatPlanResolutionSource(
-  source: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
+  source:
+    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+    | 'workflow-bootstrap',
 ): string {
   switch (source) {
     case 'selected-path':
@@ -102,6 +104,8 @@ function formatPlanResolutionSource(
       return 'persisted autowork state'
     case 'tracked-root':
       return 'single tracked root-level fallback'
+    case 'workflow-bootstrap':
+      return 'workflow bootstrap'
   }
 }
 
@@ -166,7 +170,9 @@ function formatChecks(
 function formatStatusSummary(
   entryPoint: EntryPoint,
   context: AutoworkStartupContext,
-  planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
+  planSource:
+    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+    | 'workflow-bootstrap',
 ): string {
   const execution = context.repoRoot
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
@@ -183,7 +189,7 @@ function formatStatusSummary(
     '',
     `Mode: ${context.mode}`,
     `Why: ${context.modeReason}`,
-    `Plan: ${context.planPath}`,
+    `Plan: ${context.planPath ?? 'none yet'}`,
     `Plan source: ${formatPlanResolutionSource(planSource)}`,
     workflowResolution
       ? `Workflow phase: ${workflowResolution.phase}`
@@ -219,7 +225,9 @@ function formatStatusSummary(
 
 function formatDoctorSummary(
   context: AutoworkStartupContext,
-  planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
+  planSource:
+    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+    | 'workflow-bootstrap',
 ): string {
   const execution = context.repoRoot
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
@@ -229,7 +237,7 @@ function formatDoctorSummary(
   const lines = [
     'Autowork doctor',
     '',
-    `Plan: ${context.planPath}`,
+    `Plan: ${context.planPath ?? 'none yet'}`,
     `Plan source: ${formatPlanResolutionSource(planSource)}`,
     `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
     `Workflow phase: ${workflowResolution?.phase ?? 'unavailable'}`,
@@ -311,12 +319,23 @@ async function getAutoworkContext(
   | {
       ok: true
       context: AutoworkStartupContext
-      planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+      planSource:
+        | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
+        | 'workflow-bootstrap'
     }
   | { ok: false; message: string }
 > {
   const resolved = await resolveActiveAutoworkPlanFile()
   if (!resolved.ok) {
+    const workflowBootstrapContext = await inspectAndSelectAutoworkMode(null)
+    if (workflowBootstrapContext.repoRoot && workflowBootstrapContext.mode !== 'execution') {
+      return {
+        ok: true,
+        context: workflowBootstrapContext,
+        planSource: 'workflow-bootstrap',
+      }
+    }
+
     const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
     return {
       ok: false,

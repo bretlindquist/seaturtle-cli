@@ -32,7 +32,7 @@ function run(): void {
   )
   assert.match(
     runnerSource,
-    /context\.mode === 'discovery'[\s\S]*context\.mode === 'audit-and-polish'/,
+    /function isLifecycleMode\(mode: AutoworkMode\): mode is AutoworkLifecycleMode/,
     'expected prepareAutoworkSafeExecution to actively handle non-execution autowork lifecycle modes',
   )
   assert.match(

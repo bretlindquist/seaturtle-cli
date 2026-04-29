@@ -49,7 +49,9 @@ import {
 import { resolveAutoworkBackendPolicy } from './backendPolicy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
 import {
+  createWorkstreamId,
   peekActiveWorkstream,
+  startActiveWorkstream,
   type WorkflowResolution,
   setActiveWorkstreamPhase,
   updateWorkExecutionPacket,
@@ -67,6 +69,15 @@ type AutoworkLifecycleMode = Extract<
   AutoworkMode,
   'discovery' | 'research' | 'plan-hardening' | 'audit-and-polish'
 >
+
+function isLifecycleMode(mode: AutoworkMode): mode is AutoworkLifecycleMode {
+  return (
+    mode === 'discovery' ||
+    mode === 'research' ||
+    mode === 'plan-hardening' ||
+    mode === 'audit-and-polish'
+  )
+}
 
 async function getGitStatusShortLines(repoRoot: string): Promise<string[]> {
   const { stdout } = await execFileNoThrowWithCwd(
@@ -118,7 +129,7 @@ async function getLatestRelevantCommits(
 
 export type AutoworkStartupContext = {
   repoRoot: string | null
-  planPath: string
+  planPath: string | null
   state: AutoworkState
   runPolicy: AutoworkRunPolicy
   inspection: AutoworkStartupInspection
@@ -134,7 +145,7 @@ export type AutoworkSafeExecutionLaunch =
   | {
       ok: true
       repoRoot: string
-      planPath: string
+      planPath: string | null
       chunkId: string
       visibleMessage: string
       metaMessages: string[]
@@ -357,7 +368,7 @@ function buildLifecyclePacketPathLines(repoRoot: string): string[] {
 function buildAutoworkLifecyclePrompt(
   entryPoint: AutoworkEntryPoint,
   repoRoot: string,
-  planPath: string,
+  planPath: string | null,
   context: AutoworkStartupContext,
   mode: AutoworkLifecycleMode,
 ): string {
@@ -370,7 +381,7 @@ function buildAutoworkLifecyclePrompt(
     `CT ${entryPoint} lifecycle mode is active for ${getProjectName(repoRoot)}.`,
     `Current autowork mode: ${mode}.`,
     '',
-    `Plan file: ${planPath}`,
+    `Plan file: ${planPath ?? 'none yet'}`,
     `Workflow reason: ${workflowReason}`,
     '',
     'Authoritative workflow packet files:',
@@ -392,6 +403,100 @@ function buildAutoworkLifecyclePrompt(
     `When finished, the queued ${nextStep} command will reassess the workflow state and continue from the next correct phase.`,
     '</system-reminder>',
   ].join('\n')
+}
+
+function buildMissingPlanParseResult(root: string): AutoworkPlanParseResult {
+  return {
+    ok: false,
+    path: resolve(root, '__autowork_no_plan__-state.md'),
+    code: 'missing_plan_file',
+    message:
+      'No tracked executable plan file is active yet. Autowork can still capture intent, research, or harden a plan before execution begins.',
+  }
+}
+
+function buildMissingPlanEligibilityResult(
+  root: string,
+  repoRoot: string | null,
+): AutoworkEligibilityResult {
+  const planPath = resolve(root, '__autowork_no_plan__-state.md')
+  if (!repoRoot) {
+    return {
+      ok: false,
+      code: 'not_in_git_repo',
+      message: 'Autowork requires a git repository before it can start.',
+      failedCheck: 'git-repo',
+      repoRoot: null,
+      planPath,
+      checks: [
+        {
+          name: 'git-repo',
+          ok: false,
+          summary: 'Current working context is not inside a git repository.',
+        },
+      ],
+    }
+  }
+
+  return {
+    ok: false,
+    code: 'missing_plan_file',
+    message:
+      'No tracked executable plan file is active yet. Lifecycle work may continue, but code execution cannot begin until a plan exists.',
+    failedCheck: 'plan-file',
+    repoRoot,
+    planPath,
+    checks: [
+      {
+        name: 'git-repo',
+        ok: true,
+        summary: `Repository root: ${repoRoot}`,
+      },
+      {
+        name: 'plan-file',
+        ok: false,
+        summary:
+          'No tracked executable plan file is active yet for this workstream.',
+      },
+    ],
+  }
+}
+
+function shouldBlockLifecycleForEligibility(
+  eligibility: AutoworkEligibilityResult,
+): boolean {
+  if (eligibility.ok) {
+    return false
+  }
+
+  return (
+    eligibility.code === 'not_in_git_repo' ||
+    eligibility.code === 'ignore_hygiene_failed' ||
+    eligibility.code === 'forbidden_tracked_files'
+  )
+}
+
+function ensureAutoworkLifecycleWorkstream(
+  repoRoot: string,
+  context: AutoworkStartupContext,
+  mode: AutoworkLifecycleMode,
+): void {
+  const existing = peekActiveWorkstream(repoRoot)
+  if (existing?.resolution.workId) {
+    return
+  }
+
+  const title = getProjectName(repoRoot)
+  startActiveWorkstream(
+    {
+      workId: createWorkstreamId(title),
+      title,
+      summary: context.modeReason,
+      currentPhase: getLifecyclePhaseForMode(mode),
+      phaseReason: getLifecycleStatusText(mode),
+    },
+    repoRoot,
+  )
 }
 
 function buildAutoworkExecutionPrompt(
@@ -791,10 +896,13 @@ function syncAutoworkVerificationComplete(
 }
 
 export async function inspectAndSelectAutoworkMode(
-  planPath: string,
+  planPath: string | null,
 ): Promise<AutoworkStartupContext> {
-  const resolvedPlanPath = resolve(planPath)
-  const repoRoot = findCanonicalGitRoot(dirname(resolvedPlanPath))
+  const root = getCtProjectRoot()
+  const resolvedPlanPath = planPath ? resolve(planPath) : null
+  const repoRoot = resolvedPlanPath
+    ? findCanonicalGitRoot(dirname(resolvedPlanPath))
+    : findCanonicalGitRoot(root)
   const state = readAutoworkState(repoRoot ?? undefined)
   const workflow = repoRoot ? peekActiveWorkstream(repoRoot) : null
 
@@ -804,8 +912,12 @@ export async function inspectAndSelectAutoworkMode(
           getCurrentBranch(repoRoot),
           getGitStatusShortLines(repoRoot),
           getLatestRelevantCommits(repoRoot),
-          parseAutoworkPlanFile(resolvedPlanPath),
-          assessAutoworkEligibility(resolvedPlanPath, state.runMode),
+          resolvedPlanPath
+            ? parseAutoworkPlanFile(resolvedPlanPath)
+            : Promise.resolve(buildMissingPlanParseResult(root)),
+          resolvedPlanPath
+            ? assessAutoworkEligibility(resolvedPlanPath, state.runMode)
+            : Promise.resolve(buildMissingPlanEligibilityResult(root, repoRoot)),
           assessAutoworkHygiene(repoRoot),
         ])
       : [
@@ -814,7 +926,7 @@ export async function inspectAndSelectAutoworkMode(
           [],
           ({
             ok: false,
-            path: resolvedPlanPath,
+            path: resolve(root, '__autowork_no_plan__-state.md'),
             code: 'plan_not_in_git_repo',
             message: 'Autowork plan file must live inside a git repository.',
           } as const),
@@ -824,7 +936,7 @@ export async function inspectAndSelectAutoworkMode(
             message: 'Autowork requires a git repository before it can start.',
             failedCheck: 'git-repo',
             repoRoot: null,
-            planPath: resolvedPlanPath,
+            planPath: resolve(root, '__autowork_no_plan__-state.md'),
             checks: [
               {
                 name: 'git-repo',
@@ -858,12 +970,20 @@ export async function inspectAndSelectAutoworkMode(
     capturedAt: Date.now(),
   }
 
-  const decision = selectAutoworkMode(
-    inspection,
-    state,
-    parsedPlan,
-    workflow?.resolution ?? null,
-  )
+  const decision =
+    resolvedPlanPath === null && workflow === null
+      ? {
+          mode: 'discovery' as const,
+          reason:
+            'No active workstream exists yet. Autowork should capture intent before research or planning.',
+          nextPendingChunkId: null,
+        }
+      : selectAutoworkMode(
+          inspection,
+          state,
+          parsedPlan,
+          workflow?.resolution ?? null,
+        )
 
   return {
     repoRoot,
@@ -909,7 +1029,23 @@ export async function prepareAutoworkSafeExecution(
     return { ok: false, message }
   }
 
-  if (!context.eligibility.ok) {
+  if (isLifecycleMode(context.mode)) {
+    if (shouldBlockLifecycleForEligibility(context.eligibility)) {
+      persistAutoworkStop(
+        context,
+        context.eligibility.code,
+        context.eligibility.message,
+        context.eligibility.failedCheck,
+      )
+      return { ok: false, message: context.eligibility.message }
+    }
+
+    ensureAutoworkLifecycleWorkstream(
+      context.repoRoot,
+      context,
+      context.mode,
+    )
+  } else if (!context.eligibility.ok) {
     persistAutoworkStop(
       context,
       context.eligibility.code,
@@ -919,12 +1055,7 @@ export async function prepareAutoworkSafeExecution(
     return { ok: false, message: context.eligibility.message }
   }
 
-  if (
-    context.mode === 'discovery' ||
-    context.mode === 'research' ||
-    context.mode === 'plan-hardening' ||
-    context.mode === 'audit-and-polish'
-  ) {
+  if (isLifecycleMode(context.mode)) {
     const lifecycleMode = context.mode
     const prompt = buildAutoworkLifecyclePrompt(
       entryPoint,
@@ -960,7 +1091,7 @@ export async function prepareAutoworkSafeExecution(
       visibleMessage: [
         '',
         `${getLifecycleStatusText(lifecycleMode)}.`,
-        `Plan: ${context.planPath}`,
+        `Plan: ${context.planPath ?? 'none yet'}`,
         `Why: ${context.modeReason}`,
         `Queued next step: /${entryPoint} run`,
       ].join('\n'),
@@ -1013,6 +1144,14 @@ export async function prepareAutoworkSafeExecution(
       nextChunk.id,
     )
     return { ok: false, message }
+  }
+
+  if (!context.planPath) {
+    return {
+      ok: false,
+      message:
+        'Autowork execution cannot begin because no tracked executable plan file is active yet.',
+    }
   }
 
   const prompt = buildAutoworkExecutionPrompt(

@@ -124,6 +124,7 @@ bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
 bun scripts/autowork_workflow_phase_selftest.ts >/dev/null
 bun scripts/autowork_workflow_plan_parser_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_run_selftest.ts >/dev/null
+bun scripts/autowork_workflow_bootstrap_selftest.ts >/dev/null
 bun scripts/workflow_state_tool_selftest.ts >/dev/null
 bun scripts/autowork_backend_policy_selftest.ts >/dev/null
 bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
