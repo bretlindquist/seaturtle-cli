@@ -4003,6 +4003,62 @@ export async function getLastSessionLog(
 }
 
 /**
+ * Resolve an explicit session UUID across all project transcript directories.
+ * This is used when the current cwd does not own the transcript file.
+ */
+export async function findSessionLogByIdAcrossProjects(
+  sessionId: UUID,
+): Promise<LogOption | null> {
+  const projectsDir = getProjectsDir()
+
+  let dirents: Dirent[]
+  try {
+    dirents = await readdir(projectsDir, { withFileTypes: true })
+  } catch {
+    return null
+  }
+
+  const candidateLogs: LogOption[] = []
+  for (const dirent of dirents) {
+    if (!dirent.isDirectory()) continue
+    const projectDir = join(projectsDir, dirent.name)
+    const sessionFiles = await getSessionFilesWithMtime(projectDir)
+    const fileInfo = sessionFiles.get(sessionId)
+    if (!fileInfo) continue
+
+    candidateLogs.push({
+      date: new Date(fileInfo.mtime).toISOString(),
+      messages: [],
+      isLite: true,
+      fullPath: fileInfo.path,
+      value: 0,
+      created: new Date(fileInfo.ctime),
+      modified: new Date(fileInfo.mtime),
+      firstPrompt: '',
+      messageCount: 0,
+      fileSize: fileInfo.size,
+      isSidechain: false,
+      sessionId,
+    })
+  }
+
+  if (candidateLogs.length === 0) {
+    return null
+  }
+
+  candidateLogs.sort((a, b) => b.modified.getTime() - a.modified.getTime())
+
+  const readBuf = Buffer.alloc(LITE_READ_BUF_SIZE)
+  for (const candidate of candidateLogs) {
+    const enriched = await enrichLog(candidate, readBuf)
+    if (!enriched) continue
+    return isLiteLog(enriched) ? await loadFullLog(enriched) : enriched
+  }
+
+  return null
+}
+
+/**
  * Loads the list of message logs
  * @param limit Optional limit on number of session files to load
  * @returns List of message logs sorted by date

@@ -39,6 +39,7 @@ import { processSessionStartHooks } from './sessionStart.js'
 import {
   buildConversationChain,
   checkResumeConsistency,
+  findSessionLogByIdAcrossProjects,
   getLastSessionLog,
   getSessionIdFromLog,
   isLiteLog,
@@ -532,7 +533,9 @@ export async function loadConversationForResume(
       sessionId = loaded.sessionId
     } else if (typeof source === 'string') {
       // Load specific session by ID
-      log = await getLastSessionLog(source as UUID)
+      log =
+        (await getLastSessionLog(source as UUID)) ??
+        (await findSessionLogByIdAcrossProjects(source as UUID))
       sessionId = source as UUID
     } else {
       // Already have a LogOption

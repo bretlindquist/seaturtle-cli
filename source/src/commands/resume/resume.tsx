@@ -18,7 +18,7 @@ import { agenticSessionSearch } from '../../utils/agenticSessionSearch.js';
 import { checkCrossProjectResume } from '../../utils/crossProjectResume.js';
 import { getWorktreePaths } from '../../utils/getWorktreePaths.js';
 import { logError } from '../../utils/log.js';
-import { getLastSessionLog, getSessionIdFromLog, isCustomTitleEnabled, isLiteLog, loadAllProjectsMessageLogs, loadFullLog, loadSameRepoMessageLogs, searchSessionsByCustomTitle } from '../../utils/sessionStorage.js';
+import { findSessionLogByIdAcrossProjects, getLastSessionLog, getSessionIdFromLog, isCustomTitleEnabled, isLiteLog, loadAllProjectsMessageLogs, loadFullLog, loadSameRepoMessageLogs, searchSessionsByCustomTitle } from '../../utils/sessionStorage.js';
 import { validateUuid } from '../../utils/uuid.js';
 import { getNoResumableSessionsText } from '../../services/sessionResume/sessionResumeCopy.js';
 type ResumeResult = {
@@ -236,6 +236,22 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     const directLog = await getLastSessionLog(maybeSessionId);
     if (directLog) {
       void onResume(maybeSessionId, directLog, 'slash_command_session_id');
+      return null;
+    }
+
+    const crossProjectLog = await findSessionLogByIdAcrossProjects(maybeSessionId);
+    if (crossProjectLog) {
+      const crossProjectCheck = checkCrossProjectResume(crossProjectLog, true, worktreePaths);
+      if (crossProjectCheck.isCrossProject && !crossProjectCheck.isSameRepoWorktree) {
+        const raw = await setClipboard(crossProjectCheck.command);
+        if (raw) process.stdout.write(raw);
+        const message = ['', 'This conversation is from a different directory.', '', 'To resume, run:', `  ${crossProjectCheck.command}`, '', '(Command copied to clipboard)', ''].join('\n');
+        onDone(message, {
+          display: 'user'
+        });
+        return null;
+      }
+      void onResume(maybeSessionId, crossProjectLog, 'slash_command_session_id');
       return null;
     }
   }
