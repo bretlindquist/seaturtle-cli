@@ -44,8 +44,6 @@ function shouldForwardSdkMessage(message: StdoutMessage): message is SDKMessage 
 }
 
 export class SSHSessionManager {
-  private readonly stdout = this.proc.stdout
-  private readonly stderr = this.proc.stderr
   private buffer = ''
   private connected = false
   private disconnected = false
@@ -56,10 +54,10 @@ export class SSHSessionManager {
   ) {}
 
   connect(): void {
-    this.stdout.setEncoding('utf8')
-    this.stderr.setEncoding('utf8')
+    this.proc.stdout.setEncoding('utf8')
+    this.proc.stderr.setEncoding('utf8')
 
-    this.stdout.on('data', this.handleStdoutData)
+    this.proc.stdout.on('data', this.handleStdoutData)
     this.proc.on('spawn', this.handleConnected)
     this.proc.on('close', this.handleDisconnected)
     this.proc.on('error', this.handleError)
@@ -199,7 +197,7 @@ export class SSHSessionManager {
       return
     }
 
-    this.stdout.off('data', this.handleStdoutData)
+    this.proc.stdout.off('data', this.handleStdoutData)
     this.proc.off('spawn', this.handleConnected)
     this.proc.off('close', this.handleDisconnected)
     this.proc.off('error', this.handleError)

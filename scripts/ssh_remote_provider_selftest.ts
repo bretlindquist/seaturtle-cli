@@ -7,6 +7,10 @@ const createSSHSessionPath = path.join(
   repoRoot,
   'source/src/ssh/createSSHSession.ts',
 )
+const sshSessionManagerPath = path.join(
+  repoRoot,
+  'source/src/ssh/SSHSessionManager.ts',
+)
 const openAiOauthPath = path.join(
   repoRoot,
   'source/src/services/authProfiles/openaiCodexOAuth.ts',
@@ -16,10 +20,12 @@ const tipRegistryPath = path.join(
   'source/src/services/tips/tipRegistry.ts',
 )
 const mainPath = path.join(repoRoot, 'source/src/main.tsx')
+const buildScriptPath = path.join(repoRoot, 'scripts/build-cli.mjs')
 const openAiDocsPath = path.join(repoRoot, 'docs/OPENAI-CODEX.md')
 const geminiDocsPath = path.join(repoRoot, 'docs/GEMINI.md')
 
 const createSSHSessionSource = readFileSync(createSSHSessionPath, 'utf8')
+const sshSessionManagerSource = readFileSync(sshSessionManagerPath, 'utf8')
 assert.match(
   createSSHSessionSource,
   /linux-x64'.*bun-linux-x64/s,
@@ -55,6 +61,11 @@ assert.match(
   /exec \$\{quotePosix\(remoteBinary\)\}/,
   'launch script should execute the uploaded remote runtime',
 )
+assert.doesNotMatch(
+  sshSessionManagerSource,
+  /private readonly stdout = this\.proc\.stdout|private readonly stderr = this\.proc\.stderr/,
+  'SSH session manager should not read proc stdio from field initializers before the constructor parameter property is assigned',
+)
 
 const openAiOauthSource = readFileSync(openAiOauthPath, 'utf8')
 assert.match(
@@ -81,10 +92,21 @@ assert.match(
 )
 
 const mainSource = readFileSync(mainPath, 'utf8')
+const buildScriptSource = readFileSync(buildScriptPath, 'utf8')
 assert.match(
   mainSource,
   /provider-managed remote session/,
   'SSH help copy should describe the provider-managed remote-host path',
+)
+assert.match(
+  mainSource,
+  /program\.command\('ssh-check \[host\] \[dir\]'\)/,
+  'CLI should expose a dedicated ssh-check live probe command',
+)
+assert.match(
+  buildScriptSource,
+  /'SSH_REMOTE'/,
+  'build script should keep SSH_REMOTE enabled so ssh and ssh-check reach the shipped CLI',
 )
 assert.doesNotMatch(
   mainSource,
@@ -94,13 +116,13 @@ assert.doesNotMatch(
 
 assert.match(
   readFileSync(openAiDocsPath, 'utf8'),
-  /OpenAI\/Codex does not use `ct --remote`[\s\S]*ct ssh <host>/,
-  'OpenAI docs should point cloud offload to ct ssh and reject ct --remote',
+  /OpenAI\/Codex does not use `ct --remote`[\s\S]*ct ssh-check --local[\s\S]*ct ssh <host>/,
+  'OpenAI docs should document the ssh-check live probe before the ct ssh offload path',
 )
 assert.match(
   readFileSync(geminiDocsPath, 'utf8'),
-  /Gemini does not use `ct --remote`[\s\S]*ct ssh <host>/,
-  'Gemini docs should point cloud offload to ct ssh and reject ct --remote',
+  /Gemini does not use `ct --remote`[\s\S]*ct ssh-check --local[\s\S]*ct ssh <host>/,
+  'Gemini docs should document the ssh-check live probe before the ct ssh offload path',
 )
 
 console.log('ssh remote provider selftest passed')

@@ -4062,6 +4062,52 @@ async function run(): Promise<CommanderCommand> {
       process.stderr.write('Usage: ct ssh <user@host | ssh-config-alias> [dir]\n\n' + 'Runs CT on a remote host over SSH. SeaTurtle deploys a matching runtime,\n' + 'starts the session in the requested remote directory, and injects the\n' + 'supported local provider/auth configuration for that remote session.\n');
       process.exit(1);
     });
+    program.command('ssh-check [host] [dir]').description('Run a strict provider-managed remote-host probe. Connects through the SSH runtime, sends one live probe message, and exits pass/fail. Use --local to validate the remote-host stream/auth path without another machine.').option('--permission-mode <mode>', 'Permission mode for the probe session').option('--dangerously-skip-permissions', 'Skip all permission prompts during the probe (dangerous)').option('--local', 'Local e2e probe mode — skip ssh/probe/deploy and validate the provider-managed remote-host stream/auth path on this machine.').option('--timeout-ms <ms>', 'Probe timeout in milliseconds', value => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        throw new Error(`Invalid timeout: ${value}`);
+      }
+      return parsed;
+    }).action(async (host: string | undefined, dir: string | undefined, opts: {
+      permissionMode?: string;
+      dangerouslySkipPermissions?: boolean;
+      local?: boolean;
+      timeoutMs?: number;
+    }) => {
+      if (!opts.local && !host) {
+        process.stderr.write('Usage: ct ssh-check <user@host | ssh-config-alias> [dir]\n       ct ssh-check --local [dir]\n');
+        process.exit(1);
+      }
+      const {
+        runSSHProbe
+      } = await import('./ssh/sshProbe.js');
+      try {
+        const result = await runSSHProbe({
+          host,
+          cwd: dir,
+          local: opts.local === true,
+          localVersion: MACRO.VERSION,
+          permissionMode: opts.permissionMode,
+          dangerouslySkipPermissions: opts.dangerouslySkipPermissions === true,
+          timeoutMs: opts.timeoutMs
+        }, process.stderr.isTTY && !opts.local ? {
+          onProgress: msg => {
+            process.stderr.write(`\r  ${msg}\x1b[K`);
+          }
+        } : {});
+        if (process.stderr.isTTY && !opts.local) {
+          process.stderr.write('\n');
+        }
+        process.stdout.write(`ssh-check passed\nmode: ${result.mode}\nremoteCwd: ${result.remoteCwd}\nprobe: ${result.probeToken}\n`);
+        process.exit(0);
+      } catch (err) {
+        if (process.stderr.isTTY && !opts.local) {
+          process.stderr.write('\n');
+        }
+        process.stderr.write(`ssh-check failed: ${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
+      }
+    });
   }
 
   // claude connect — subcommand only handles -p (headless) mode.

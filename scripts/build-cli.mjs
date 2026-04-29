@@ -197,6 +197,7 @@ const enabledBundleFeatures = new Set([
   'BASH_CLASSIFIER',
   'TRANSCRIPT_CLASSIFIER',
   'CHICAGO_MCP',
+  'SSH_REMOTE',
 ]);
 
 let activeBuildTicker = null;
@@ -640,7 +641,9 @@ function generateWorkspaceAugmentations() {
   ensureSharpPackageJson(new Set());
   ensureCliBoxesAsset(new Set());
   overlaySourceAssets();
+  pruneShadowingLocalStubs();
   generateMissingLocalStubs();
+  pruneShadowingLocalStubs();
   generateSourceAliasShims(new Set());
   restoreMissingSourceMapFiles();
   generateSourceAliasShims(new Set());
@@ -905,12 +908,15 @@ function patchFeatureFlags() {
       continue;
     }
     const contents = fs.readFileSync(filePath, 'utf8');
-    if (!contents.includes('bun:bundle')) {
-      continue;
-    }
     const updated = contents
-      .replace(/import\s*\{[^}]*\bfeature\b[^}]*\}\s*from\s*['"]bun:bundle['"]\s*;?\n?/g,
-        featureShim);
+      .replace(
+        /import\s*\{[^}]*\bfeature\b[^}]*\}\s*from\s*['"]bun:bundle['"]\s*;?\n?/g,
+        featureShim,
+      )
+      .replace(
+        /const feature = \(flag\) => \(\[[\s\S]*?\]\)\.includes\(flag\);\n/g,
+        featureShim,
+      );
     if (updated !== contents) {
       fs.writeFileSync(filePath, updated, 'utf8');
     }
@@ -1129,6 +1135,27 @@ function collectMissingLocalImports(root) {
     }
   }
   return missing;
+}
+
+function pruneShadowingLocalStubs() {
+  const root = path.join(workspaceRoot, 'src');
+  for (const filePath of walkFiles(root)) {
+    const extension = path.extname(filePath);
+    if (!['.js', '.mjs', '.cjs'].includes(extension)) {
+      continue;
+    }
+    if (!isAutoStubFile(filePath)) {
+      continue;
+    }
+
+    const stem = filePath.slice(0, -extension.length);
+    const realSibling = ['.ts', '.tsx', '.mts', '.cts'].find(alternative =>
+      isFile(`${stem}${alternative}`),
+    );
+    if (realSibling) {
+      fs.unlinkSync(filePath);
+    }
+  }
 }
 
 function writeLocalStub(targetPath, refs) {
@@ -1772,7 +1799,8 @@ function resolveLike(importer, specifier) {
 }
 
 function resolveExistingPath(candidate) {
-  if (isFile(candidate)) {
+  const candidateExists = isFile(candidate);
+  if (candidateExists && !isAutoStubFile(candidate)) {
     return candidate;
   }
 
@@ -1781,14 +1809,14 @@ function resolveExistingPath(candidate) {
     const stem = candidate.slice(0, -extension.length);
     for (const alternative of candidateExtensions) {
       const resolved = `${stem}${alternative}`;
-      if (isFile(resolved)) {
+      if (isFile(resolved) && !isAutoStubFile(resolved)) {
         return resolved;
       }
     }
   } else if (!extension) {
     for (const alternative of candidateExtensions) {
       const resolved = `${candidate}${alternative}`;
-      if (isFile(resolved)) {
+      if (isFile(resolved) && !isAutoStubFile(resolved)) {
         return resolved;
       }
     }
@@ -1797,10 +1825,14 @@ function resolveExistingPath(candidate) {
   if (isDirectory(candidate)) {
     for (const alternative of candidateExtensions) {
       const resolved = path.join(candidate, `index${alternative}`);
-      if (isFile(resolved)) {
+      if (isFile(resolved) && !isAutoStubFile(resolved)) {
         return resolved;
       }
     }
+  }
+
+  if (candidateExists) {
+    return candidate;
   }
 
   return null;

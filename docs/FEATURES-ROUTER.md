@@ -18,6 +18,7 @@ Use it when the user asks natural-language questions like:
 - how do I test Telegram?
 - why does CT still use CLAUDE env vars?
 - should I run ct or node dist/cli.js?
+- how do I validate the remote-host offload path?
 
 Prefer the command first, then the deeper doc if needed.
 
@@ -62,6 +63,7 @@ Next steps:
 - Use `/status` or `auth status --json` to inspect active provider/runtime
 - Use `/status` to inspect the `OpenAI computer use` row when you need the concrete enablement path
 - Use `ct` to launch SeaTurtle directly on the OpenAI/Codex path
+- Use `ct ssh-check --local` when you want the smallest end-to-end probe for the provider-managed remote-host stream/auth path before relying on cloud/offload claims
 
 Deep doc:
 
@@ -79,6 +81,31 @@ Important truth:
 - some Anthropic-only features are still gated
 - GitHub Actions setup for OpenAI/Codex remains limited under OAuth-only installs
 - OpenAI computer use also depends on local runtime prerequisites; `/status` now shows the missing prerequisite directly instead of implying there is a hidden prompt toggle
+
+## Remote-host offload / SSH live gate
+
+Keywords:
+
+- ssh
+- ssh-check
+- remote host
+- offload
+- cloud offload
+- live probe
+- provider-managed remote session
+- ct ssh
+
+Next steps:
+
+- Use `ct ssh-check --local` for the smallest provider-managed remote-host probe on the current machine
+- Use `ct ssh-check <host> [dir]` when you want to validate a real remote host boundary
+- Use `ct ssh <host> [dir]` only after the probe path is healthy
+
+Important truth:
+
+- `ct ssh-check` is the permanent live gate for the provider-managed remote-host seam
+- it validates the real transport/auth path by connecting and requiring one expected live assistant response
+- `ct ssh --local` still exists as the underlying local e2e transport mode, but `ct ssh-check --local` is the operator-facing probe path
 
 ## Branding / CT / seaturtle / compatibility
 

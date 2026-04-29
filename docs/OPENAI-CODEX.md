@@ -212,11 +212,15 @@ Remote-host cloud offload:
 
 - OpenAI/Codex does not use `ct --remote`; that path is still the Anthropic
   claude.ai CCR flow
+- use `ct ssh-check --local` as the smallest live probe for the provider-managed
+  remote-host stream/auth path before relying on remote-host offload claims
 - OpenAI/Codex cloud/offloaded execution uses `ct ssh <host> [dir]`
 - SeaTurtle deploys a matching remote runtime, starts CT on the target host,
   and injects the active OpenAI provider/auth selection there
 - API-key auth is exported directly; OAuth/Codex auth is materialized as a
   scoped remote `CODEX_HOME/auth.json` for that session
+- use `ct ssh-check <host> [dir]` when you want a strict pass/fail validation
+  of the full remote-host boundary before broader remote work
 - if the remote-host session cannot establish OpenAI auth, it should fail with
   OpenAI-specific guidance rather than route back to Anthropic
 

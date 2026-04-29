@@ -159,6 +159,13 @@ def assert_stream_todowrite(stdout: str, _stderr: str) -> None:
             raise StepFailed(message)
 
 
+def assert_ssh_probe(stdout: str, _stderr: str) -> None:
+    if "ssh-check passed" not in stdout:
+        raise StepFailed("ssh-check did not report a passing probe")
+    if "probe: SSH_PROBE_OK" not in stdout:
+        raise StepFailed("ssh-check did not report the expected live probe token")
+
+
 def run_step(step: Step, env: dict[str, str]) -> None:
     print(f"START {step.name}")
     started = time.time()
@@ -402,6 +409,12 @@ def build_steps() -> list[Step]:
             command=["bash", "scripts/repl-transcript-search-smoke.sh"],
             timeout_s=120,
             assertion=assert_not_empty,
+        ),
+        Step(
+            name="ssh_check_local",
+            command=["node", "dist/cli.js", "ssh-check", "--local"],
+            timeout_s=45,
+            assertion=assert_ssh_probe,
         ),
         Step(
             name="strict_todowrite_plain",
