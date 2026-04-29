@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { readFileSync } from 'node:fs'
 import type { CommandResultDisplay } from '../../commands.js'
 import { Select } from '../../components/CustomSelect/select.js'
 import { Dialog } from '../../components/design-system/Dialog.js'
@@ -31,7 +32,10 @@ import {
   parseAutoworkBudgetInput,
 } from '../../services/autowork/runtimeWindow.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
-import { peekActiveWorkstream } from '../../services/projectIdentity/workflowState.js'
+import {
+  markActivePlanApproved,
+  peekActiveWorkstream,
+} from '../../services/projectIdentity/workflowState.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 import { formatDuration } from '../../utils/format.js'
 import type {
@@ -88,6 +92,8 @@ function formatPlanResolutionSource(
   switch (source) {
     case 'selected-path':
       return 'explicit selection'
+    case 'workflow-state':
+      return 'workflow state'
     case 'state':
       return 'persisted autowork state'
     case 'tracked-root':
@@ -311,6 +317,14 @@ async function selectAutoworkPlan(
       selectedPlanPath: selected.planPath,
       stopReason: null,
     }),
+    selected.repoRoot,
+  )
+  markActivePlanApproved(
+    {
+      planFilePath: selected.planPath,
+      planContent: readFileSync(selected.planPath, 'utf8'),
+      phaseReason: 'Autowork selected an executable workflow plan.',
+    },
     selected.repoRoot,
   )
 

@@ -32,8 +32,23 @@ function run(): void {
   )
   assert.match(
     resolutionSource,
+    /source: 'workflow-state'/,
+    'expected resolver to expose workflow-state as an authoritative plan source',
+  )
+  assert.match(
+    resolutionSource,
+    /readActiveWorkflowPlanProjection/,
+    'expected resolver to consult active workflow state before tracked-root fallback',
+  )
+  assert.match(
+    resolutionSource,
     /code:\s*'stale_selected_plan'/,
     'expected resolver to fail clearly when the selected plan path goes stale',
+  )
+  assert.match(
+    resolutionSource,
+    /code:\s*'stale_workflow_plan'/,
+    'expected resolver to fail clearly when workflow state points at a stale promoted plan',
   )
 
   const commandSource = read(
@@ -64,6 +79,16 @@ function run(): void {
     commandSource,
     /selectedPlanPath: selected\.planPath/,
     'expected explicit plan selection to persist selectedPlanPath',
+  )
+  assert.match(
+    commandSource,
+    /markActivePlanApproved/,
+    'expected explicit autowork plan selection to advance workflow state too',
+  )
+  assert.match(
+    commandSource,
+    /case 'workflow-state':/,
+    'expected autowork status formatting to name workflow-state plan resolution',
   )
 
   const autoworkIndexSource = read(

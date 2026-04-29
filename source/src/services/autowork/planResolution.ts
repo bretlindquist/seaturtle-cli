@@ -2,17 +2,18 @@ import { basename, join, resolve } from 'path'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
 import { getCtProjectRoot } from '../projectIdentity/paths.js'
+import { readActiveWorkflowPlanProjection } from '../projectIdentity/workflowState.js'
 import { parseAutoworkPlanFile } from './planParser.js'
 import { readAutoworkState } from './state.js'
 
 const EXECUTABLE_PLAN_FILENAME_REGEX = /^\d{4}-\d{2}-\d{2}-.+-state\.md$/u
 
 export type AutoworkPlanResolutionResult =
-  | {
+    | {
       ok: true
       repoRoot: string
       planPath: string
-      source: 'selected-path' | 'state' | 'tracked-root'
+      source: 'selected-path' | 'workflow-state' | 'state' | 'tracked-root'
     }
   | {
       ok: false
@@ -20,6 +21,7 @@ export type AutoworkPlanResolutionResult =
       code:
         | 'not_in_git_repo'
         | 'stale_selected_plan'
+        | 'stale_workflow_plan'
         | 'no_tracked_plan'
         | 'multiple_tracked_plans'
         | 'stale_state_plan'
@@ -108,6 +110,7 @@ export async function resolveActiveAutoworkPlanFile(
   }
 
   const state = readAutoworkState(repoRoot)
+  const workflowPlan = readActiveWorkflowPlanProjection(repoRoot)
   const trackedCandidates = await listTrackedRootStatePlans(repoRoot)
 
   if (state.selectedPlanPath) {
@@ -130,6 +133,30 @@ export async function resolveActiveAutoworkPlanFile(
       code: 'stale_selected_plan',
       message:
         'Autowork is pinned to a selected plan path that is no longer a valid tracked executable plan.',
+      candidates: trackedCandidates,
+    }
+  }
+
+  if (workflowPlan.planFilePath) {
+    const workflowSelected = await resolveExplicitAutoworkPlanPath(
+      workflowPlan.planFilePath,
+      repoRoot,
+    )
+    if (workflowSelected.ok) {
+      return {
+        ok: true,
+        repoRoot,
+        planPath: workflowSelected.planPath,
+        source: 'workflow-state',
+      }
+    }
+
+    return {
+      ok: false,
+      repoRoot,
+      code: 'stale_workflow_plan',
+      message:
+        'The active workflow packet points to a promoted plan file that is no longer a valid tracked executable plan.',
       candidates: trackedCandidates,
     }
   }
