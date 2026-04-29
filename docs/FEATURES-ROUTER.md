@@ -174,6 +174,11 @@ Keywords:
 - autowork
 - swim
 - tracked plan
+- persistent orchestration
+- persistent autowork
+- work automatically
+- automatic work
+- work for 8 hours
 - plan to completion
 - orchestration
 - doctor
@@ -184,10 +189,17 @@ Next steps:
 
 - Use `/autowork` for the operator-forward entrypoint
 - Use `/swim` for the more whimsical alias with the same guarantees
+- Simple path:
+  - create or approve one tracked executable plan
+  - use `/autowork run 8h` when you want bounded persistent orchestration
+  - use `/autowork run` when you want the same orchestration without a fixed window
+  - use `/autowork status` to check the live window, heartbeat, and next chunk
+  - use `/autowork doctor` when the run refuses to continue or seems unhealthy
 - Use `/autowork safe` or `/swim safe` to restore the recommended checkpoint policy
 - Use `/autowork dangerous` or `/swim dangerous` only when you deliberately want the dangerous-mode policy
 - Use `/autowork use <path>` or `/swim use <path>` when you need to pin one specific executable plan file
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
+- Use `/autowork run 8h`, `/autowork run for 8 hours`, or `/autowork step 30m` when you want a bounded runtime window
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
@@ -198,6 +210,8 @@ Important truth:
 - `/autowork` supports tracked dated executable `*-state.md` plan files
 - `/autowork` auto-discovers one tracked root-level candidate when there is exactly one
 - `/autowork use <path>` or `/swim use <path>` pins a specific tracked executable plan path
+- bounded runtime windows persist across `/autowork run -> verify -> run` turns until the deadline or stop condition clears them
+- `/autowork status` and `/autowork doctor` report the live autowork window and heartbeat state
 - safe mode carries the approved plan to completion
 - progression still happens one guarded chunk at a time
 - safe mode verifies validation and commit hygiene before it advances

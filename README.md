@@ -608,12 +608,21 @@ than dropping them into Anthropic-first wording.
 
 These start the same tracked-plan orchestration harness.
 
+Simple path:
+
+- create or approve one tracked executable plan
+- use `/autowork run 8h` when you want bounded persistent orchestration
+- use `/autowork run` when you want the same orchestration without a fixed window
+- use `/autowork status` to inspect the live runtime window, heartbeat, and next chunk
+- use `/autowork doctor` when the run refuses to continue or seems unhealthy
+
 Current contract:
 
 - supports tracked dated executable `*-state.md` plan files
 - auto-discovers one tracked root-level dated `*-state.md` plan file when it is the only candidate
 - use `/autowork use <path>` or `/swim use <path>` when you want to pin a specific tracked executable plan path
 - `/autowork run` and `/swim run` carry the approved plan to completion
+- `/autowork run 8h`, `/autowork run for 8 hours`, and `/autowork step 30m` start bounded runtime windows
 - progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks
 - safe mode stops on checkpoint failure instead of continuing blindly
@@ -628,6 +637,7 @@ Current subcommands:
 - `/autowork dangerous`
 - `/autowork use <path>`
 - `/autowork run`
+- `/autowork run 8h`
 - `/autowork step`
 - `/autowork status`
 - `/autowork doctor`
@@ -781,6 +791,7 @@ They are a higher-level tracked-plan orchestrator with these guarantees:
 
 - safe mode requires a clean working tree before chunk launch
 - safe mode uses `/autowork run` and `/swim run` to carry the approved plan to completion
+- bounded windows use `/autowork run 8h`, `/autowork run for 8 hours`, or `/autowork step 30m` when you want the run to stop cleanly at a checkpoint deadline
 - safe mode still launches one guarded chunk at a time
 - safe mode queues a verification step after the execution turn
 - safe mode requires validation and a new commit before it advances
@@ -814,6 +825,7 @@ Cost and operator expectations:
 
 - it uses more tokens, time, and runtime than ordinary interactive work
 - it is meant for a tracked, surgical chunk plan, not open-ended exploration
+- `/autowork status` and `/autowork doctor` are the fastest way to inspect the live runtime window, heartbeat, and next checkpoint
 - safe mode remains the recommended default
 - use `/autowork step` or `/swim step` when you intentionally want just one guarded chunk
 

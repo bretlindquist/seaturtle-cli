@@ -57,8 +57,23 @@ function run(): void {
   )
   assert.match(
     commandSource,
+    /run 8h/,
+    'expected autowork help to advertise bounded runtime window examples',
+  )
+  assert.match(
+    commandSource,
     /selectedPlanPath: selected\.planPath/,
     'expected explicit plan selection to persist selectedPlanPath',
+  )
+
+  const autoworkIndexSource = read(
+    projectRoot,
+    'source/src/commands/autowork/index.ts',
+  )
+  assert.match(
+    autoworkIndexSource,
+    /persistent tracked-plan orchestration/,
+    'expected the autowork command description to explain the persistent orchestration surface',
   )
 
   const readmeSource = read(projectRoot, 'README.md')
@@ -67,12 +82,27 @@ function run(): void {
     /\/autowork use <path>/,
     'expected README to document the explicit autowork plan selector',
   )
+  assert.match(
+    readmeSource,
+    /\/autowork run 8h/,
+    'expected README to document the bounded autowork runtime-window entrypoint',
+  )
 
   const featuresRouterSource = read(projectRoot, 'docs/FEATURES-ROUTER.md')
   assert.match(
     featuresRouterSource,
     /\/autowork use <path>/,
     'expected features router docs to mention the explicit plan selector',
+  )
+  assert.match(
+    featuresRouterSource,
+    /persistent orchestration|work automatically/,
+    'expected features router docs to answer natural-language autowork usage questions',
+  )
+  assert.match(
+    featuresRouterSource,
+    /\/autowork run 8h/,
+    'expected features router docs to show a bounded runtime-window example',
   )
 }
 

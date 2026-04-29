@@ -4,7 +4,7 @@ const swim = {
   type: 'local-jsx',
   name: 'swim',
   description:
-    'Run whimsical tracked-plan orchestration with the same explicit validation and commit gates',
+    'Run the whimsical alias for persistent tracked-plan orchestration with the same bounded windows and verification gates',
   immediate: true,
   disableModelInvocation: true,
   userInvocable: true,

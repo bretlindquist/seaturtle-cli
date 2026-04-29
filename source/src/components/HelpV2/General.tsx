@@ -22,7 +22,7 @@ export function General() {
   }
   let t1;
   if ($[4] === Symbol.for("react.memo_cache_sentinel")) {
-    t1 = <Box flexDirection="column" gap={1}><Box><Text bold={true}>Docs</Text></Box><Box><Text>/status for live runtime truth · /login for interactive auth setup · /model for model selection · /mcp for integrations</Text></Box><Box><Text>Feature router: <Link url={PRODUCT_DOCS_URL} /></Text></Box><Box><Text>OpenAI runtime guide: <Link url={PRODUCT_OPENAI_DOCS_URL} /></Text></Box><Box><Text>Gemini runtime guide: <Link url={PRODUCT_GEMINI_DOCS_URL} /></Text></Box></Box>;
+    t1 = <Box flexDirection="column" gap={1}><Box><Text bold={true}>Docs</Text></Box><Box><Text>/status for live runtime truth · /login for interactive auth setup · /model for model selection · /autowork for persistent orchestration · /mcp for integrations</Text></Box><Box><Text>Feature router: <Link url={PRODUCT_DOCS_URL} /></Text></Box><Box><Text>OpenAI runtime guide: <Link url={PRODUCT_OPENAI_DOCS_URL} /></Text></Box><Box><Text>Gemini runtime guide: <Link url={PRODUCT_GEMINI_DOCS_URL} /></Text></Box></Box>;
     $[4] = t1;
   } else {
     t1 = $[4];

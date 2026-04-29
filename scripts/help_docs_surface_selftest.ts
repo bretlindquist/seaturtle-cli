@@ -44,6 +44,11 @@ function run(): void {
     /Use \/status to inspect the live tool surface/,
     'expected the general help tab to point users to /status for runtime truth',
   )
+  assert.match(
+    general,
+    /\/autowork for persistent orchestration/,
+    'expected the general help tab to point users to /autowork for persistent orchestration',
+  )
 }
 
 run()
