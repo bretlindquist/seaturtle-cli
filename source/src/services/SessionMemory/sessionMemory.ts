@@ -41,6 +41,8 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getTokenUsage, tokenCountWithEstimation } from '../../utils/tokens.js'
 import { logEvent } from '../analytics/index.js'
 import { isAutoCompactEnabled } from '../compact/autoCompact.js'
+import { getCtProjectRoot } from '../projectIdentity/paths.js'
+import { readActiveWorkflowCompactionProjection } from '../projectIdentity/workflowState.js'
 import {
   buildSessionMemoryUpdatePrompt,
   loadSessionMemoryTemplate,
@@ -232,6 +234,15 @@ async function setupSessionMemoryFile(
   return { memoryPath, currentMemory }
 }
 
+function getWorkflowStateContextForSessionMemory(): string | null {
+  const projection = readActiveWorkflowCompactionProjection(getCtProjectRoot())
+  if (!projection) {
+    return null
+  }
+
+  return projection.summaryLines.join('\n')
+}
+
 /**
  * Initialize session memory config from remote config (lazy initialization).
  * Memoized - only runs once per session, subsequent calls return immediately.
@@ -305,11 +316,13 @@ const extractSessionMemory = sequential(async function (
   // Set up file system and read current state with isolated context
   const { memoryPath, currentMemory } =
     await setupSessionMemoryFile(setupContext)
+  const workflowStateContext = getWorkflowStateContextForSessionMemory()
 
   // Create extraction message
   const userPrompt = await buildSessionMemoryUpdatePrompt(
     currentMemory,
     memoryPath,
+    workflowStateContext,
   )
 
   // Run session memory extraction using runForkedAgent for prompt caching
@@ -400,11 +413,13 @@ export async function manuallyExtractSessionMemory(
     // Set up file system and read current state with isolated context
     const { memoryPath, currentMemory } =
       await setupSessionMemoryFile(setupContext)
+    const workflowStateContext = getWorkflowStateContextForSessionMemory()
 
     // Create extraction message
     const userPrompt = await buildSessionMemoryUpdatePrompt(
       currentMemory,
       memoryPath,
+      workflowStateContext,
     )
 
     // Get system prompt for cache-safe params

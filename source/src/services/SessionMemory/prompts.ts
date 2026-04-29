@@ -226,6 +226,7 @@ export async function isSessionMemoryEmpty(content: string): Promise<boolean> {
 export async function buildSessionMemoryUpdatePrompt(
   currentNotes: string,
   notesPath: string,
+  workflowStateContext: string | null = null,
 ): Promise<string> {
   const promptTemplate = await loadSessionMemoryPrompt()
 
@@ -241,9 +242,13 @@ export async function buildSessionMemoryUpdatePrompt(
   }
 
   const basePrompt = substituteVariables(promptTemplate, variables)
+  const workflowStateReminder =
+    workflowStateContext && workflowStateContext.trim()
+      ? `\n\nAUTHORITATIVE WORKFLOW STATE:\n<workflow_state_context>\n${workflowStateContext.trim()}\n</workflow_state_context>\n\nIf this workflow state block is present, treat it as the source of truth for the active phase, current work, blockers, verification state, and next steps. Keep "Current State", "Task specification", "Workflow", and "Worklog" aligned with it. Do not invent progress that disagrees with it.`
+      : ''
 
   // Add section size reminders and/or total budget warnings
-  return basePrompt + sectionReminders
+  return basePrompt + workflowStateReminder + sectionReminders
 }
 
 /**
