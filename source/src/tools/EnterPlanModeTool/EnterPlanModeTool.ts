@@ -5,11 +5,15 @@ import {
   handlePlanModeTransition,
 } from '../../bootstrap/state.js'
 import type { Tool } from '../../Tool.js'
+import type { Message } from '../../types/message.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
+import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import { ensureActivePlanningWorkstream } from '../../services/projectIdentity/workflowState.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
 import { isPlanModeInterviewPhaseEnabled } from '../../utils/planModeV2.js'
+import { getPlan, getPlanFilePath } from '../../utils/plans.js'
 import { ENTER_PLAN_MODE_TOOL_NAME } from './constants.js'
 import { getEnterPlanModeToolPrompt } from './prompt.js'
 import {
@@ -32,6 +36,39 @@ const outputSchema = lazySchema(() =>
 )
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
+
+function normalizeIntentHint(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ')
+  return normalized || null
+}
+
+function getLatestUserIntentHint(messages: Message[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]
+    if (message?.type !== 'user' || message.isMeta) {
+      continue
+    }
+    const content = message.message.content
+    if (typeof content === 'string') {
+      return normalizeIntentHint(content)
+    }
+    if (Array.isArray(content)) {
+      const text = content
+        .filter(block => block?.type === 'text' && typeof block.text === 'string')
+        .map(block => block.text.trim())
+        .filter(Boolean)
+        .join(' ')
+      const normalized = normalizeIntentHint(text)
+      if (normalized) {
+        return normalized
+      }
+    }
+  }
+  return null
+}
 
 export const EnterPlanModeTool: Tool<InputSchema, Output> = buildTool({
   name: ENTER_PLAN_MODE_TOOL_NAME,
@@ -92,6 +129,17 @@ export const EnterPlanModeTool: Tool<InputSchema, Output> = buildTool({
         { type: 'setMode', mode: 'plan', destination: 'session' },
       ),
     }))
+    const intentHint = getLatestUserIntentHint(appState.messages)
+    ensureActivePlanningWorkstream(
+      {
+        titleHint: intentHint,
+        intentSummary: intentHint,
+        planFilePath: getPlanFilePath(context.agentId),
+        planContent: getPlan(context.agentId),
+        phaseReason: 'Entered plan mode from EnterPlanModeTool.',
+      },
+      getCtProjectRoot(),
+    )
 
     return {
       data: {

@@ -229,6 +229,26 @@ export type StartActiveWorkstreamInput = {
   intentSummary?: string | null
 }
 
+export type EnsurePlanningWorkstreamInput = {
+  titleHint?: string | null
+  intentSummary?: string | null
+  planFilePath?: string | null
+  planContent?: string | null
+  phaseReason?: string | null
+  workStandardsProfileId?: string | null
+}
+
+export type ApproveActivePlanInput = {
+  planFilePath?: string | null
+  planContent?: string | null
+  phaseReason?: string | null
+}
+
+export type SetActiveWorkstreamPhaseInput = {
+  phase: WorkPhase
+  phaseReason?: string | null
+}
+
 export type ArchivedWorkflowSnapshot = WorkflowPackets & {
   archiveDir: string
 }
@@ -395,6 +415,14 @@ function normalizeOptionalTimestamp(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+function formatWorkstreamDate(now: number): string {
+  const date = new Date(now)
+  const year = String(date.getFullYear()).padStart(4, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function uniqueTextList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return []
@@ -529,6 +557,48 @@ function sanitizeWorkStandardsProfileRef(
     version: 1,
     id,
   }
+}
+
+function appendUniqueTextValue(list: string[], value: string | null): string[] {
+  if (!value) {
+    return list
+  }
+
+  const normalized = normalizeText(value)
+  if (!normalized) {
+    return list
+  }
+
+  const key = normalized.toLowerCase()
+  if (list.some(entry => entry.toLowerCase() === key)) {
+    return list
+  }
+
+  return [...list, normalized]
+}
+
+function summarizePlanContent(planContent: string | null): string | null {
+  if (!planContent) {
+    return null
+  }
+
+  const lines = planContent
+    .split(/\r?\n/)
+    .map(line => normalizeText(line))
+    .filter((line): line is string => !!line)
+
+  for (const line of lines) {
+    const trimmed = line
+      .replace(/^#+\s*/, '')
+      .replace(/^[-*]\s*/, '')
+      .replace(/^\d+\.\s*/, '')
+      .trim()
+    if (trimmed) {
+      return trimmed.slice(0, 200)
+    }
+  }
+
+  return null
 }
 
 export function sanitizeWorkIntentPacket(input: unknown): WorkIntentPacket {
@@ -1228,6 +1298,184 @@ function buildWorkSlug(title: string, workId: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+export function createWorkstreamId(
+  titleHint: string | null = null,
+  now: number = Date.now(),
+): string {
+  const datePrefix = formatWorkstreamDate(now)
+  const normalizedTitle = normalizeText(titleHint)
+  const slug = buildWorkSlug(normalizedTitle ?? 'workstream', normalizedTitle ?? 'workstream')
+  return `${datePrefix}-${slug}`
+}
+
+function syncActiveWorkstreamIndexEntry(
+  entry: WorkIndexEntry,
+  phase: WorkPhase,
+  summary: string | null,
+  phaseReason: string | null,
+  now: number,
+): WorkIndexEntry {
+  return {
+    ...entry,
+    updatedAt: now,
+    phase,
+    summary: summary ?? entry.summary,
+    lastPhaseReason: phaseReason ?? entry.lastPhaseReason,
+  }
+}
+
+function updatePlanLifecyclePackets(
+  current: WorkflowPackets,
+  {
+    phase,
+    phaseReason,
+    planStatus,
+    planFilePath,
+    planContent,
+    titleHint,
+    intentSummary,
+  }: {
+    phase: Extract<WorkPhase, 'plan' | 'implementation'>
+    phaseReason: string | null
+    planStatus: WorkPlanStatus
+    planFilePath?: string | null
+    planContent?: string | null
+    titleHint?: string | null
+    intentSummary?: string | null
+  },
+): WorkflowPackets {
+  const now = Date.now()
+  const activeWorkId = current.phase.workId ?? current.intent.workId ?? current.plan.workId
+  if (!activeWorkId) {
+    return current
+  }
+
+  const normalizedPlanPath = normalizeText(planFilePath)
+  const normalizedIntentSummary = normalizeText(intentSummary)
+  const normalizedTitleHint = normalizeText(titleHint)
+  const nextPlanSummary =
+    summarizePlanContent(planContent ?? current.plan.planSummary) ??
+    normalizeText(current.plan.planSummary) ??
+    normalizedIntentSummary ??
+    normalizedTitleHint
+
+  return {
+    intent: sanitizeWorkIntentPacket({
+      ...current.intent,
+      workId: activeWorkId,
+      updatedAt: now,
+      intentSummary:
+        current.intent.intentSummary ??
+        normalizedIntentSummary ??
+        normalizedTitleHint ??
+        nextPlanSummary,
+      goals:
+        current.intent.goals.length > 0
+          ? current.intent.goals
+          : normalizedTitleHint
+            ? [normalizedTitleHint]
+            : current.intent.goals,
+    }),
+    research: current.research,
+    plan: sanitizeWorkPlanPacket({
+      ...current.plan,
+      workId: activeWorkId,
+      status: planStatus,
+      capturedAt: current.plan.capturedAt ?? now,
+      updatedAt: now,
+      planSummary: nextPlanSummary,
+      promotedPlanDocs: normalizedPlanPath
+        ? appendUniqueTextValue(current.plan.promotedPlanDocs, normalizedPlanPath)
+        : current.plan.promotedPlanDocs,
+    }),
+    execution: sanitizeWorkExecutionPacket({
+      ...current.execution,
+      workId: activeWorkId,
+      phase,
+      executionScope: phase === 'plan' ? 'plan' : current.execution.executionScope,
+      updatedAt: now,
+    }),
+    verification:
+      phase === 'implementation'
+        ? sanitizeWorkVerificationPacket({
+            ...current.verification,
+            workId: activeWorkId,
+            status:
+              current.verification.status === 'verified'
+                ? current.verification.status
+                : 'pending',
+            updatedAt: now,
+          })
+        : current.verification,
+    phase: sanitizeWorkPhasePacket({
+      ...current.phase,
+      workId: activeWorkId,
+      currentPhase: phase,
+      phaseReason,
+      updatedAt: now,
+    }),
+  }
+}
+
+function writeWorkflowPackets(
+  packets: WorkflowPackets,
+  root: string,
+): WorkflowPackets {
+  const paths = getActiveWorkflowPacketPaths(root)
+  writeJsonFile(paths.intent, packets.intent)
+  writeJsonFile(paths.research, packets.research)
+  writeJsonFile(paths.plan, packets.plan)
+  writeJsonFile(paths.execution, packets.execution)
+  writeJsonFile(paths.verification, packets.verification)
+  writeJsonFile(paths.phase, packets.phase)
+  return packets
+}
+
+export function getActiveWorkflowPlanProjection(
+  packets: WorkflowPackets,
+  index: WorkIndex,
+): {
+  workId: string | null
+  phase: WorkPhase
+  planStatus: WorkPlanStatus
+  planFilePath: string | null
+  hasPlanArtifact: boolean
+  planSummary: string | null
+} {
+  const workId =
+    index.activeWorkId ??
+    packets.phase.workId ??
+    packets.intent.workId ??
+    packets.plan.workId
+  const planFilePath =
+    packets.plan.promotedPlanDocs.length > 0 ? packets.plan.promotedPlanDocs[0] : null
+  return {
+    workId,
+    phase: packets.phase.currentPhase,
+    planStatus: packets.plan.status,
+    planFilePath,
+    hasPlanArtifact:
+      packets.plan.status !== 'missing' ||
+      packets.plan.promotedPlanDocs.length > 0 ||
+      !!packets.plan.planSummary,
+    planSummary: packets.plan.planSummary,
+  }
+}
+
+export function readActiveWorkflowPlanProjection(root: string): {
+  workId: string | null
+  phase: WorkPhase
+  planStatus: WorkPlanStatus
+  planFilePath: string | null
+  hasPlanArtifact: boolean
+  planSummary: string | null
+} {
+  return getActiveWorkflowPlanProjection(
+    readWorkflowPackets(root),
+    readWorkIndex(root),
+  )
+}
+
 export function startActiveWorkstream(
   input: StartActiveWorkstreamInput,
   root: string,
@@ -1264,6 +1512,265 @@ export function startActiveWorkstream(
   )
 
   return { index, packets }
+}
+
+export function ensureActivePlanningWorkstream(
+  input: EnsurePlanningWorkstreamInput,
+  root: string,
+): {
+  created: boolean
+  index: WorkIndex
+  packets: WorkflowPackets
+  resolution: WorkflowResolution
+} {
+  ensureWorkflowStateFiles(root)
+  const currentIndex = readWorkIndex(root)
+  const currentPackets = readWorkflowPackets(root)
+  const now = Date.now()
+  const phaseReason =
+    normalizeText(input.phaseReason) ??
+    'Plan mode is active for the current workstream.'
+
+  if (!currentIndex.activeWorkId) {
+    const titleHint =
+      normalizeText(input.titleHint) ??
+      summarizePlanContent(input.planContent ?? null) ??
+      normalizeText(input.intentSummary) ??
+      'Active plan mode workstream'
+    const workId = createWorkstreamId(titleHint, now)
+    const started = startActiveWorkstream(
+      {
+        workId,
+        title: titleHint,
+        summary:
+          normalizeText(input.intentSummary) ??
+          summarizePlanContent(input.planContent ?? null) ??
+          titleHint,
+        currentPhase: 'plan',
+        phaseReason,
+        workStandardsProfileId: input.workStandardsProfileId ?? null,
+        intentSummary:
+          normalizeText(input.intentSummary) ??
+          summarizePlanContent(input.planContent ?? null) ??
+          titleHint,
+      },
+      root,
+    )
+    const packets = writeWorkflowPackets(
+      updatePlanLifecyclePackets(started.packets, {
+        phase: 'plan',
+        phaseReason,
+        planStatus: 'draft',
+        planFilePath: input.planFilePath,
+        planContent: input.planContent,
+        titleHint,
+        intentSummary: input.intentSummary,
+      }),
+      root,
+    )
+    const index = updateWorkIndex(
+      current => ({
+        version: 1,
+        activeWorkId: workId,
+        tasks: current.tasks.map(entry =>
+          entry.workId === workId
+            ? syncActiveWorkstreamIndexEntry(
+                entry,
+                'plan',
+                packets.plan.planSummary,
+                phaseReason,
+                now,
+              )
+            : entry,
+        ),
+      }),
+      root,
+    )
+    return {
+      created: true,
+      index,
+      packets,
+      resolution: resolveWorkflowPhase(packets, index),
+    }
+  }
+
+  const packets = writeWorkflowPackets(
+    updatePlanLifecyclePackets(currentPackets, {
+      phase: 'plan',
+      phaseReason,
+      planStatus:
+        currentPackets.plan.status === 'approved' ? 'approved' : 'draft',
+      planFilePath: input.planFilePath,
+      planContent: input.planContent,
+      titleHint: input.titleHint,
+      intentSummary: input.intentSummary,
+    }),
+    root,
+  )
+  const index = updateWorkIndex(
+    current => ({
+      version: 1,
+      activeWorkId: current.activeWorkId,
+      tasks: current.tasks.map(entry =>
+        entry.workId === current.activeWorkId
+          ? syncActiveWorkstreamIndexEntry(
+              entry,
+              'plan',
+              packets.plan.planSummary,
+              phaseReason,
+              now,
+            )
+          : entry,
+      ),
+    }),
+    root,
+  )
+  return {
+    created: false,
+    index,
+    packets,
+    resolution: resolveWorkflowPhase(packets, index),
+  }
+}
+
+export function markActivePlanApproved(
+  input: ApproveActivePlanInput,
+  root: string,
+): {
+  created: boolean
+  index: WorkIndex
+  packets: WorkflowPackets
+  resolution: WorkflowResolution
+} {
+  const ensured = ensureActivePlanningWorkstream(
+    {
+      titleHint: summarizePlanContent(input.planContent ?? null),
+      intentSummary: summarizePlanContent(input.planContent ?? null),
+      planFilePath: input.planFilePath,
+      planContent: input.planContent,
+      phaseReason:
+        normalizeText(input.phaseReason) ??
+        'Plan approved and implementation is now active.',
+    },
+    root,
+  )
+  const now = Date.now()
+  const phaseReason =
+    normalizeText(input.phaseReason) ??
+    'Plan approved and implementation is now active.'
+  const packets = writeWorkflowPackets(
+    updatePlanLifecyclePackets(ensured.packets, {
+      phase: 'implementation',
+      phaseReason,
+      planStatus: 'approved',
+      planFilePath: input.planFilePath,
+      planContent: input.planContent,
+      titleHint: summarizePlanContent(input.planContent ?? null),
+      intentSummary: summarizePlanContent(input.planContent ?? null),
+    }),
+    root,
+  )
+  const index = updateWorkIndex(
+    current => ({
+      version: 1,
+      activeWorkId: current.activeWorkId,
+      tasks: current.tasks.map(entry =>
+        entry.workId === current.activeWorkId
+          ? syncActiveWorkstreamIndexEntry(
+              entry,
+              'implementation',
+              packets.plan.planSummary,
+              phaseReason,
+              now,
+            )
+          : entry,
+      ),
+    }),
+    root,
+  )
+  return {
+    created: ensured.created,
+    index,
+    packets,
+    resolution: resolveWorkflowPhase(packets, index),
+  }
+}
+
+export function setActiveWorkstreamPhase(
+  input: SetActiveWorkstreamPhaseInput,
+  root: string,
+): {
+  index: WorkIndex
+  packets: WorkflowPackets
+  resolution: WorkflowResolution
+} {
+  ensureWorkflowStateFiles(root)
+  const index = readWorkIndex(root)
+  const packets = readWorkflowPackets(root)
+  if (!index.activeWorkId) {
+    return {
+      index,
+      packets,
+      resolution: resolveWorkflowPhase(packets, index),
+    }
+  }
+
+  const now = Date.now()
+  const phaseReason = normalizeText(input.phaseReason)
+  const nextPackets = writeWorkflowPackets(
+    {
+      ...packets,
+      execution: sanitizeWorkExecutionPacket({
+        ...packets.execution,
+        workId: index.activeWorkId,
+        phase: input.phase,
+        updatedAt: now,
+      }),
+      verification:
+        input.phase === 'implementation'
+          ? sanitizeWorkVerificationPacket({
+              ...packets.verification,
+              workId: index.activeWorkId,
+              status:
+                packets.verification.status === 'verified'
+                  ? packets.verification.status
+                  : 'pending',
+              updatedAt: now,
+            })
+          : packets.verification,
+      phase: sanitizeWorkPhasePacket({
+        ...packets.phase,
+        workId: index.activeWorkId,
+        currentPhase: input.phase,
+        phaseReason,
+        updatedAt: now,
+      }),
+    },
+    root,
+  )
+  const nextIndex = updateWorkIndex(
+    current => ({
+      version: 1,
+      activeWorkId: current.activeWorkId,
+      tasks: current.tasks.map(entry =>
+        entry.workId === current.activeWorkId
+          ? syncActiveWorkstreamIndexEntry(
+              entry,
+              input.phase,
+              nextPackets.plan.planSummary,
+              phaseReason,
+              now,
+            )
+          : entry,
+      ),
+    }),
+    root,
+  )
+  return {
+    index: nextIndex,
+    packets: nextPackets,
+    resolution: resolveWorkflowPhase(nextPackets, nextIndex),
+  }
 }
 
 export function resumeActiveWorkstream(

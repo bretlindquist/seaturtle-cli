@@ -5,6 +5,9 @@ import { join } from 'node:path'
 
 import {
   archiveActiveWorkstream,
+  ensureActivePlanningWorkstream,
+  markActivePlanApproved,
+  readActiveWorkflowPlanProjection,
   createDefaultWorkPlanPacket,
   createDefaultWorkResearchPacket,
   createDefaultWorkVerificationPacket,
@@ -15,6 +18,7 @@ import {
   resolveWorkflowPhase,
   resumeActiveWorkstream,
   startActiveWorkstream,
+  setActiveWorkstreamPhase,
   updateWorkExecutionPacket,
   updateWorkPhasePacket,
   updateWorkPlanPacket,
@@ -257,6 +261,55 @@ function run(): void {
     assert.equal(afterArchive.resolution.phase, 'idle')
     assert.equal(afterArchive.resolution.autoworkEligibilityHint, 'no-active-workstream')
 
+    const planning = ensureActivePlanningWorkstream(
+      {
+        titleHint: 'Wire plan mode to workflow state',
+        intentSummary: 'Make plan mode consume the workflow-state source of truth.',
+        planFilePath: '/tmp/work-contract-plan.md',
+        planContent: '# Final Plan\n\n- Wire plan mode to workflow state',
+        phaseReason: 'Plan mode entered for the next consumer wave.',
+      },
+      root,
+    )
+    assert.equal(planning.created, true)
+    assert.equal(planning.resolution.phase, 'plan')
+    assert.equal(planning.packets.plan.status, 'draft')
+    assert.equal(
+      planning.packets.plan.promotedPlanDocs[0],
+      '/tmp/work-contract-plan.md',
+      'planning lifecycle should persist the promoted plan artifact path',
+    )
+
+    const planProjection = readActiveWorkflowPlanProjection(root)
+    assert.equal(planProjection.planFilePath, '/tmp/work-contract-plan.md')
+    assert.equal(planProjection.hasPlanArtifact, true)
+
+    const approvedPlan = markActivePlanApproved(
+      {
+        planFilePath: '/tmp/work-contract-plan.md',
+        planContent: '# Final Plan\n\n- Wire plan mode to workflow state',
+        phaseReason: 'Plan approved and implementation can begin.',
+      },
+      root,
+    )
+    assert.equal(approvedPlan.packets.plan.status, 'approved')
+    assert.equal(approvedPlan.resolution.phase, 'implementation')
+    assert.equal(
+      approvedPlan.resolution.autoworkEligibilityHint,
+      'research-needed',
+      'approved promoted plans do not bypass the research gate before the plan compiler wave exists',
+    )
+
+    const reviewPhase = setActiveWorkstreamPhase(
+      {
+        phase: 'review',
+        phaseReason: 'Broad review is pending after implementation.',
+      },
+      root,
+    )
+    assert.equal(reviewPhase.resolution.phase, 'review')
+    assert.equal(reviewPhase.resolution.requiresBroadReview, true)
+
     const replaced = replaceActiveWorkstream(
       {
         workId: '2026-04-29-footer-runtime',
@@ -268,7 +321,7 @@ function run(): void {
     )
     assert.equal(replaced.index.activeWorkId, '2026-04-29-footer-runtime')
     assert.equal(replaced.packets.phase.currentPhase, 'research')
-    assert.equal(replaced.previous, null, 'replace should be a no-op archive when nothing is active')
+    assert(replaced.previous, 'replace should archive the previous active workstream before starting the next one')
 
     console.log('workflow state self-test passed')
   } finally {

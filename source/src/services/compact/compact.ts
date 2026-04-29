@@ -38,6 +38,8 @@ import {
   getDeferredToolsDeltaAttachment,
   getMcpInstructionsDeltaAttachment,
 } from '../../utils/attachments.js'
+import { getCtProjectRoot } from '../projectIdentity/paths.js'
+import { readActiveWorkflowPlanProjection } from '../projectIdentity/workflowState.js'
 import { getMemoryPath } from '../../utils/config.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import {
@@ -1485,7 +1487,11 @@ export function createPlanAttachmentIfNeeded(
     return null
   }
 
-  const planFilePath = getPlanFilePath(agentId)
+  const workflowPlan =
+    agentId === undefined
+      ? readActiveWorkflowPlanProjection(getCtProjectRoot())
+      : null
+  const planFilePath = workflowPlan?.planFilePath ?? getPlanFilePath(agentId)
 
   return createAttachmentMessage({
     type: 'plan_file_reference',
@@ -1556,8 +1562,12 @@ export async function createPlanModeAttachmentIfNeeded(
     return null
   }
 
-  const planFilePath = getPlanFilePath(context.agentId)
-  const planExists = getPlan(context.agentId) !== null
+  const workflowPlan =
+    context.agentId === undefined
+      ? readActiveWorkflowPlanProjection(getCtProjectRoot())
+      : null
+  const planFilePath = workflowPlan?.planFilePath ?? getPlanFilePath(context.agentId)
+  const planExists = workflowPlan?.hasPlanArtifact ?? (getPlan(context.agentId) !== null)
 
   return createAttachmentMessage({
     type: 'plan_mode',

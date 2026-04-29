@@ -34,6 +34,8 @@ import {
   getTaskListId,
   isTodoV2Enabled,
 } from './tasks.js'
+import { getCtProjectRoot } from '../services/projectIdentity/paths.js'
+import { readActiveWorkflowPlanProjection } from '../services/projectIdentity/workflowState.js'
 import { getPlanFilePath, getPlan } from './plans.js'
 import { getConnectedIdeName } from './ide.js'
 import {
@@ -294,6 +296,26 @@ export const RELEVANT_MEMORIES_CONFIG = {
 export const VERIFY_PLAN_REMINDER_CONFIG = {
   TURNS_BETWEEN_REMINDERS: 10,
 } as const
+
+function getActivePlanArtifactProjection(agentId?: AgentId): {
+  planFilePath: string
+  planExists: boolean
+} {
+  if (agentId) {
+    const planFilePath = getPlanFilePath(agentId)
+    return {
+      planFilePath,
+      planExists: getPlan(agentId) !== null,
+    }
+  }
+
+  const workflowPlan = readActiveWorkflowPlanProjection(getCtProjectRoot())
+  const fallbackPlanPath = getPlanFilePath()
+  return {
+    planFilePath: workflowPlan.planFilePath ?? fallbackPlanPath,
+    planExists: workflowPlan.hasPlanArtifact || getPlan() !== null,
+  }
+}
 
 export type FileAttachment = {
   type: 'file'
@@ -1242,13 +1264,14 @@ async function getPlanModeAttachments(
     }
   }
 
-  const planFilePath = getPlanFilePath(toolUseContext.agentId)
-  const existingPlan = getPlan(toolUseContext.agentId)
+  const { planFilePath, planExists } = getActivePlanArtifactProjection(
+    toolUseContext.agentId,
+  )
 
   const attachments: Attachment[] = []
 
   // Check for re-entry: flag is set AND plan file exists
-  if (hasExitedPlanModeInSession() && existingPlan !== null) {
+  if (hasExitedPlanModeInSession() && planExists) {
     attachments.push({ type: 'plan_mode_reentry', planFilePath })
     setHasExitedPlanMode(false) // Clear flag - one-time guidance
   }
@@ -1270,7 +1293,7 @@ async function getPlanModeAttachments(
     reminderType,
     isSubAgent: !!toolUseContext.agentId,
     planFilePath,
-    planExists: existingPlan !== null,
+    planExists,
   })
 
   return attachments
@@ -1297,8 +1320,9 @@ async function getPlanModeExitAttachment(
   // Clear the flag - this is a one-time notification
   setNeedsPlanModeExitAttachment(false)
 
-  const planFilePath = getPlanFilePath(toolUseContext.agentId)
-  const planExists = getPlan(toolUseContext.agentId) !== null
+  const { planFilePath, planExists } = getActivePlanArtifactProjection(
+    toolUseContext.agentId,
+  )
 
   // Note: skill discovery does NOT fire on plan exit. By the time the plan is
   // written, it's too late — the model should have had relevant skills WHILE

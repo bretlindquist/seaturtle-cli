@@ -9,6 +9,12 @@ import {
   setNeedsPlanModeExitAttachment,
 } from '../../bootstrap/state.js'
 import { logEvent } from '../../services/analytics/index.js'
+import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import {
+  ensureActivePlanningWorkstream,
+  markActivePlanApproved,
+  setActiveWorkstreamPhase,
+} from '../../services/projectIdentity/workflowState.js'
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/metadata.js'
 import {
   buildTool,
@@ -259,6 +265,14 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
       await writeFile(filePath, inputPlan, 'utf-8').catch(e => logError(e))
       void persistFileSnapshotIfRemote()
     }
+    ensureActivePlanningWorkstream(
+      {
+        planFilePath: filePath,
+        planContent: plan ?? null,
+        phaseReason: 'Plan draft updated while exiting plan mode.',
+      },
+      getCtProjectRoot(),
+    )
 
     // Check if this is a teammate that requires leader approval
     if (isTeammate() && isPlanModeRequired()) {
@@ -310,6 +324,24 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
           requestId,
         },
       }
+    }
+    if (plan && plan.trim()) {
+      markActivePlanApproved(
+        {
+          planFilePath: filePath,
+          planContent: plan,
+          phaseReason: 'Plan approved and implementation is now active.',
+        },
+        getCtProjectRoot(),
+      )
+    } else {
+      setActiveWorkstreamPhase(
+        {
+          phase: 'implementation',
+          phaseReason: 'Plan mode exited without a persisted plan artifact.',
+        },
+        getCtProjectRoot(),
+      )
     }
 
     // Note: Background verification hook is registered in REPL.tsx AFTER context clear

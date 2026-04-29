@@ -3,7 +3,14 @@ import * as React from 'react';
 import { handlePlanModeTransition } from '../../bootstrap/state.js';
 import type { LocalJSXCommandContext } from '../../commands.js';
 import { Box, Text } from '../../ink.js';
+import { getCtProjectRoot } from '../../services/projectIdentity/paths.js';
+import {
+  ensureActivePlanningWorkstream,
+  getActiveWorkflowPlanProjection,
+  resumeActiveWorkstream,
+} from '../../services/projectIdentity/workflowState.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
+import type { Message } from '../../types/message.js';
 import { getExternalEditor } from '../../utils/editor.js';
 import { toIDEDisplayName } from '../../utils/ide.js';
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js';
@@ -11,6 +18,40 @@ import { prepareContextForPlanMode } from '../../utils/permissions/permissionSet
 import { getPlan, getPlanFilePath } from '../../utils/plans.js';
 import { editFileInEditor } from '../../utils/promptEditor.js';
 import { renderToString } from '../../utils/staticRender.js';
+
+function normalizeIntentHint(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  return normalized || null;
+}
+
+function getLatestUserIntentHint(messages: Message[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (message?.type !== 'user' || message.isMeta) {
+      continue;
+    }
+    const content = message.message.content;
+    if (typeof content === 'string') {
+      return normalizeIntentHint(content);
+    }
+    if (Array.isArray(content)) {
+      const text = content
+        .filter(block => block?.type === 'text' && typeof block.text === 'string')
+        .map(block => block.text.trim())
+        .filter(Boolean)
+        .join(' ');
+      const normalized = normalizeIntentHint(text);
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+  return null;
+}
+
 function PlanDisplay(t0) {
   const $ = _c(11);
   const {
@@ -81,6 +122,14 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
       })
     }));
     const description = args.trim();
+    const intentHint = description && description !== 'open' ? description : getLatestUserIntentHint(appState.messages);
+    ensureActivePlanningWorkstream({
+      titleHint: intentHint,
+      intentSummary: intentHint,
+      planFilePath: getPlanFilePath(),
+      planContent: getPlan(),
+      phaseReason: 'Entered plan mode from /plan.',
+    }, getCtProjectRoot());
     if (description && description !== 'open') {
       onDone('Enabled plan mode', {
         shouldQuery: true
@@ -92,10 +141,16 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
   }
 
   // Already in plan mode - show the current plan
+  const workflow = resumeActiveWorkstream(getCtProjectRoot());
+  const workflowPlan = getActiveWorkflowPlanProjection(workflow.packets, workflow.index);
   const planContent = getPlan();
-  const planPath = getPlanFilePath();
+  const planPath = workflowPlan.planFilePath ?? getPlanFilePath();
   if (!planContent) {
-    onDone('Already in plan mode. No plan written yet.');
+    if (workflowPlan.workId) {
+      onDone(`Already in plan mode for ${workflowPlan.workId}. No plan written yet.`);
+    } else {
+      onDone('Already in plan mode. No plan written yet.');
+    }
     return null;
   }
 
