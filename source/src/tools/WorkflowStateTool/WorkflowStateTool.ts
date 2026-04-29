@@ -4,11 +4,15 @@ import { z } from 'zod/v4'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
 import {
+  archiveActiveWorkstream,
+  importWorkflowHandoffPacket,
   peekActiveWorkstream,
   projectAutoworkPlanPacketState,
   setActiveWorkstreamPhase,
+  sanitizeWorkflowHandoffPacket,
   type WorkChunkStatus,
   type WorkExecutionScope,
+  type WorkflowHandoffPacket,
   type WorkPhase,
   type WorkPlanStatus,
   type WorkResearchStatus,
@@ -50,6 +54,60 @@ const WorkVerificationStatusSchema = z.enum([
   'verified',
   'failed',
 ])
+const WorkflowHandoffResolutionSchema = z.strictObject({
+  workId: z.string(),
+  phase: WorkPhaseSchema,
+  reason: z.string(),
+  autoworkEligibilityHint: z.enum([
+    'no-active-workstream',
+    'intent-needed',
+    'research-needed',
+    'plan-needed',
+    'implementation-ready',
+    'verification-needed',
+    'review-needed',
+    'state-conflict',
+  ]),
+  recommendedCompactionPayload: z.enum([
+    'none',
+    'intent',
+    'research',
+    'plan',
+    'execution',
+    'verification',
+  ]),
+})
+const WorkflowHandoffIndexEntrySchema = z.strictObject({
+  workId: z.string(),
+  slug: z.string(),
+  title: z.string(),
+  status: z.enum(['active', 'archived', 'abandoned']),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+  archivedAt: z.number().int().nullable(),
+  phase: WorkPhaseSchema,
+  summary: z.string().nullable(),
+  lastPhaseReason: z.string().nullable(),
+  lastStopReason: z.string().nullable(),
+  archivePath: z.string().nullable(),
+})
+const WorkflowHandoffPacketsSchema = z.strictObject({
+  intent: z.unknown(),
+  research: z.unknown(),
+  plan: z.unknown(),
+  execution: z.unknown(),
+  verification: z.unknown(),
+  phase: z.unknown(),
+})
+const WorkflowHandoffPacketSchema = z.strictObject({
+  version: z.literal(1),
+  exportedAt: z.number().int(),
+  sourceRoot: z.string().nullable(),
+  indexEntry: WorkflowHandoffIndexEntrySchema,
+  packets: WorkflowHandoffPacketsSchema,
+  resolution: WorkflowHandoffResolutionSchema,
+  summaryLines: z.array(z.string()),
+})
 
 const WorkPlanChunkSchema = z.strictObject({
   id: z.string(),
@@ -149,6 +207,12 @@ const inputSchema = lazySchema(() =>
           phaseReason: z.string().nullable().optional(),
         })
         .optional(),
+      bootstrap: z
+        .strictObject({
+          replaceActive: z.boolean().optional(),
+          handoff: WorkflowHandoffPacketSchema,
+        })
+        .optional(),
     })
     .refine(
       value =>
@@ -158,7 +222,8 @@ const inputSchema = lazySchema(() =>
           value.plan ||
           value.execution ||
           value.verification ||
-          value.phase
+          value.phase ||
+          value.bootstrap
         ),
       {
         message: 'At least one workflow packet update must be provided.',
@@ -270,6 +335,61 @@ export const WorkflowStateTool = buildTool({
   async call(input) {
     const root = getCtProjectRoot()
     const active = peekActiveWorkstream(root)
+    if (input.bootstrap) {
+      const handoff = sanitizeWorkflowHandoffPacket(
+        input.bootstrap.handoff as WorkflowHandoffPacket,
+      )
+      if (!handoff) {
+        return {
+          data: {
+            success: false,
+            workId: null,
+            currentPhase: null,
+            updatedPackets: [],
+            error: 'Workflow handoff packet is invalid.',
+          },
+        }
+      }
+
+      if (active?.index.activeWorkId && input.bootstrap.replaceActive !== true) {
+        return {
+          data: {
+            success: false,
+            workId: active.index.activeWorkId,
+            currentPhase: active.resolution.phase,
+            updatedPackets: [],
+            error:
+              'An active workstream already exists. Set bootstrap.replaceActive=true to replace it.',
+          },
+        }
+      }
+
+      if (active?.index.activeWorkId && input.bootstrap.replaceActive === true) {
+        archiveActiveWorkstream(
+          `Replaced by imported workflow handoff ${handoff.resolution.workId}.`,
+          root,
+        )
+      }
+
+      const imported = importWorkflowHandoffPacket(handoff, root)
+      return {
+        data: {
+          success: true,
+          workId: imported.resolution.workId,
+          currentPhase: imported.resolution.phase,
+          updatedPackets: [
+            'bootstrap',
+            'intent',
+            'research',
+            'plan',
+            'execution',
+            'verification',
+            'phase',
+          ],
+        },
+      }
+    }
+
     const workId = active?.index.activeWorkId ?? active?.packets.phase.workId ?? null
     if (!active || !workId) {
       return {

@@ -233,6 +233,23 @@ export type WorkflowCompactionProjection = {
   summaryLines: string[]
 }
 
+export type WorkflowHandoffPacket = {
+  version: 1
+  exportedAt: number
+  sourceRoot: string | null
+  indexEntry: WorkIndexEntry
+  packets: WorkflowPackets
+  resolution: Pick<
+    WorkflowResolution,
+    | 'workId'
+    | 'phase'
+    | 'reason'
+    | 'autoworkEligibilityHint'
+    | 'recommendedCompactionPayload'
+  >
+  summaryLines: string[]
+}
+
 export type StartActiveWorkstreamInput = {
   workId: string
   title: string
@@ -863,6 +880,69 @@ export function sanitizeWorkIndex(input: unknown): WorkIndex {
     version: 1,
     activeWorkId: normalizeText(value.activeWorkId),
     tasks,
+  }
+}
+
+export function sanitizeWorkflowHandoffPacket(
+  input: unknown,
+): WorkflowHandoffPacket | null {
+  if (!input || typeof input !== 'object') {
+    return null
+  }
+
+  const value = input as Partial<WorkflowHandoffPacket>
+  const indexEntry = sanitizeWorkIndexEntry(value.indexEntry)
+  if (!indexEntry) {
+    return null
+  }
+
+  const packetsValue =
+    value.packets && typeof value.packets === 'object'
+      ? (value.packets as Partial<WorkflowPackets>)
+      : null
+  if (!packetsValue) {
+    return null
+  }
+
+  const packets: WorkflowPackets = {
+    intent: sanitizeWorkIntentPacket(packetsValue.intent),
+    research: sanitizeWorkResearchPacket(packetsValue.research),
+    plan: sanitizeWorkPlanPacket(packetsValue.plan),
+    execution: sanitizeWorkExecutionPacket(packetsValue.execution),
+    verification: sanitizeWorkVerificationPacket(packetsValue.verification),
+    phase: sanitizeWorkPhasePacket(packetsValue.phase),
+  }
+
+  const resolutionValue =
+    value.resolution && typeof value.resolution === 'object'
+      ? (value.resolution as Partial<WorkflowHandoffPacket['resolution']>)
+      : null
+  const workId = normalizeText(resolutionValue?.workId) ?? indexEntry.workId
+
+  return {
+    version: 1,
+    exportedAt:
+      normalizeOptionalTimestamp(value.exportedAt) ?? Date.now(),
+    sourceRoot: normalizeText(value.sourceRoot),
+    indexEntry,
+    packets,
+    resolution: {
+      workId,
+      phase: sanitizePhase(resolutionValue?.phase ?? packets.phase.currentPhase),
+      reason:
+        normalizeText(resolutionValue?.reason) ??
+        packets.phase.phaseReason ??
+        `Imported workflow handoff for ${workId}.`,
+      autoworkEligibilityHint:
+        resolutionValue?.autoworkEligibilityHint === undefined
+          ? 'state-conflict'
+          : resolutionValue.autoworkEligibilityHint,
+      recommendedCompactionPayload:
+        resolutionValue?.recommendedCompactionPayload === undefined
+          ? 'none'
+          : resolutionValue.recommendedCompactionPayload,
+    },
+    summaryLines: uniqueTextList(value.summaryLines),
   }
 }
 
@@ -1661,6 +1741,45 @@ function buildWorkflowCompactionSummaryLines(
   return lines
 }
 
+function resolveActiveWorkIndexEntry(
+  packets: WorkflowPackets,
+  index: WorkIndex,
+  resolution: WorkflowResolution,
+): WorkIndexEntry | null {
+  const direct = resolution.workId
+    ? index.tasks.find(entry => entry.workId === resolution.workId) ?? null
+    : null
+  if (direct) {
+    return direct
+  }
+
+  if (!resolution.workId) {
+    return null
+  }
+
+  const now = Date.now()
+  const title =
+    packets.intent.intentSummary ??
+    packets.plan.planSummary ??
+    packets.intent.goals[0] ??
+    resolution.workId
+
+  return sanitizeWorkIndexEntry({
+    workId: resolution.workId,
+    slug: buildWorkSlug(title, resolution.workId),
+    title,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now,
+    archivedAt: null,
+    phase: resolution.phase,
+    summary: packets.intent.intentSummary ?? packets.plan.planSummary ?? null,
+    lastPhaseReason: resolution.reason,
+    lastStopReason: packets.execution.stopReason,
+    archivePath: null,
+  })
+}
+
 export function getActiveWorkflowCompactionProjection(
   packets: WorkflowPackets,
   index: WorkIndex,
@@ -1686,6 +1805,55 @@ export function readActiveWorkflowCompactionProjection(
   return getActiveWorkflowCompactionProjection(
     readWorkflowPackets(root),
     readWorkIndex(root),
+  )
+}
+
+export function getActiveWorkflowHandoffPacket(
+  packets: WorkflowPackets,
+  index: WorkIndex,
+  root: string | null = null,
+): WorkflowHandoffPacket | null {
+  const resolution = resolveWorkflowPhase(packets, index)
+  if (!resolution.workId) {
+    return null
+  }
+
+  const indexEntry = resolveActiveWorkIndexEntry(packets, index, resolution)
+  if (!indexEntry) {
+    return null
+  }
+
+  return {
+    version: 1,
+    exportedAt: Date.now(),
+    sourceRoot: root,
+    indexEntry: sanitizeWorkIndexEntry(indexEntry)!,
+    packets: {
+      intent: sanitizeWorkIntentPacket(packets.intent),
+      research: sanitizeWorkResearchPacket(packets.research),
+      plan: sanitizeWorkPlanPacket(packets.plan),
+      execution: sanitizeWorkExecutionPacket(packets.execution),
+      verification: sanitizeWorkVerificationPacket(packets.verification),
+      phase: sanitizeWorkPhasePacket(packets.phase),
+    },
+    resolution: {
+      workId: resolution.workId,
+      phase: resolution.phase,
+      reason: resolution.reason,
+      autoworkEligibilityHint: resolution.autoworkEligibilityHint,
+      recommendedCompactionPayload: resolution.recommendedCompactionPayload,
+    },
+    summaryLines: buildWorkflowCompactionSummaryLines(packets, resolution),
+  }
+}
+
+export function readActiveWorkflowHandoffPacket(
+  root: string,
+): WorkflowHandoffPacket | null {
+  return getActiveWorkflowHandoffPacket(
+    readWorkflowPackets(root),
+    readWorkIndex(root),
+    root,
   )
 }
 
@@ -2113,6 +2281,89 @@ export function replaceActiveWorkstream(
     previous,
     index: next.index,
     packets: next.packets,
+  }
+}
+
+export function importWorkflowHandoffPacket(
+  handoff: WorkflowHandoffPacket,
+  root: string,
+): { index: WorkIndex; packets: WorkflowPackets; resolution: WorkflowResolution } {
+  const sanitized = sanitizeWorkflowHandoffPacket(handoff)
+  if (!sanitized) {
+    throw new Error('Invalid workflow handoff packet.')
+  }
+
+  const workId = sanitized.resolution.workId
+  if (!workId) {
+    throw new Error('Workflow handoff packet is missing an active workId.')
+  }
+
+  const importedPackets: WorkflowPackets = {
+    intent: sanitizeWorkIntentPacket({
+      ...sanitized.packets.intent,
+      workId,
+    }),
+    research: sanitizeWorkResearchPacket({
+      ...sanitized.packets.research,
+      workId,
+    }),
+    plan: sanitizeWorkPlanPacket({
+      ...sanitized.packets.plan,
+      workId,
+    }),
+    execution: sanitizeWorkExecutionPacket({
+      ...sanitized.packets.execution,
+      workId,
+      phase: sanitized.resolution.phase,
+    }),
+    verification: sanitizeWorkVerificationPacket({
+      ...sanitized.packets.verification,
+      workId,
+    }),
+    phase: sanitizeWorkPhasePacket({
+      ...sanitized.packets.phase,
+      workId,
+      currentPhase: sanitized.resolution.phase,
+      phaseReason: sanitized.resolution.reason,
+    }),
+  }
+
+  const currentIndex = readWorkIndex(root)
+  const activeEntry = sanitizeWorkIndexEntry({
+    ...sanitized.indexEntry,
+    workId,
+    status: 'active',
+    archivedAt: null,
+    archivePath: null,
+    phase: sanitized.resolution.phase,
+    summary:
+      sanitized.indexEntry.summary ??
+      importedPackets.intent.intentSummary ??
+      importedPackets.plan.planSummary,
+    lastPhaseReason: sanitized.resolution.reason,
+    lastStopReason: importedPackets.execution.stopReason,
+  })
+
+  if (!activeEntry) {
+    throw new Error('Workflow handoff packet is missing a valid active index entry.')
+  }
+
+  const nextIndex = sanitizeWorkIndex({
+    version: 1,
+    activeWorkId: workId,
+    tasks: [
+      activeEntry,
+      ...currentIndex.tasks.filter(entry => entry.workId !== workId),
+    ],
+  })
+
+  updateWorkIndex(() => nextIndex, root)
+  writeWorkflowPackets(importedPackets, root)
+
+  return {
+    index: nextIndex,
+    packets: importedPackets,
+    resolution: resolveWorkflowPhase(importedPackets, nextIndex),
   }
 }
 

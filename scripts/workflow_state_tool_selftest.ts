@@ -33,6 +33,16 @@ function run(): void {
     /updateWorkResearchPacket/,
     'expected workflow state tool to update research packet state directly',
   )
+  assert.match(
+    toolSource,
+    /bootstrap/,
+    'expected workflow state tool to support bootstrapping a workstream from a workflow handoff packet',
+  )
+  assert.match(
+    toolSource,
+    /importWorkflowHandoffPacket/,
+    'expected workflow state tool bootstrap to import authoritative workflow handoff packets',
+  )
 
   const toolsSource = read(projectRoot, 'source/src/tools.ts')
   assert.match(

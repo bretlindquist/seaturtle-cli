@@ -52,6 +52,7 @@ bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
 bun scripts/project_feedback_selftest.ts >/dev/null
 bun scripts/workflow_state_selftest.ts >/dev/null
+bun scripts/workflow_handoff_selftest.ts >/dev/null
 bun scripts/workflow_runtime_selftest.ts >/dev/null
 bun scripts/session_memory_workflow_selftest.ts >/dev/null
 bun scripts/workflow_compaction_projection_selftest.ts >/dev/null
