@@ -44,6 +44,11 @@ function run(): void {
     /Cloud swarm: \$\{formatCloudSwarmStatus\(backendPolicy\)\}/,
     'expected autowork status surfaces to show truthful cloud swarm status',
   )
+  assert.match(
+    commandSource,
+    /Cloud recommendation: \$\{formatCloudRecommendation\(backendPolicy\)\}/,
+    'expected autowork status surfaces to show the distinct cloud recommendation state',
+  )
 
   const capabilitySource = read(
     projectRoot,
@@ -58,6 +63,22 @@ function run(): void {
     capabilitySource,
     /runtime\.provider === 'openai-codex' \|\| runtime\.provider === 'gemini'/,
     'expected cloud capability support to reflect the providers that actually support provider-managed remote-host offload today',
+  )
+
+  assert.match(
+    policySource,
+    /cloudRecommendation: CloudSwarmRecommendation/,
+    'expected backend policy to carry a first-class cloud recommendation state',
+  )
+  assert.match(
+    policySource,
+    /shouldRecommendCloudOffload/,
+    'expected backend policy to classify when a lifecycle wave should escalate toward remote-host offload',
+  )
+  assert.match(
+    policySource,
+    /ct ssh-check --local[\s\S]*ct ssh <host> \[dir\]/,
+    'expected backend policy to preserve the live-gate-first remote offload next step',
   )
 
   const runnerSource = read(projectRoot, 'source/src/services/autowork/runner.ts')

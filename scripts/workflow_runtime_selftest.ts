@@ -20,18 +20,28 @@ function run(): void {
   )
   assert.match(
     runtimeSource,
-    /resolveAutoworkCloudOffloadCapability\(\{\s*active:/,
-    'expected workflow runtime projection to resolve cloud offload capability from the centralized seam',
+    /resolveAutoworkBackendPolicy\(/,
+    'expected workflow runtime projection to resolve cloud truth through the centralized backend policy seam',
   )
   assert.match(
     runtimeSource,
-    /cloudOffloadPath: cloudCapability\.path/,
+    /cloudOffloadPath: backendPolicy\.cloudPath/,
     'expected workflow runtime snapshots to carry the active cloud offload path',
   )
   assert.match(
     runtimeSource,
-    /cloudStatusText: cloudCapability\.reason/,
+    /cloudStatusText: backendPolicy\.cloudReason/,
     'expected workflow runtime snapshots to carry truthful cloud offload status text',
+  )
+  assert.match(
+    runtimeSource,
+    /cloudRecommendation: backendPolicy\.cloudRecommendation/,
+    'expected workflow runtime snapshots to carry the distinct cloud recommendation state',
+  )
+  assert.match(
+    runtimeSource,
+    /cloudRecommendationText: backendPolicy\.cloudRecommendationReason/,
+    'expected workflow runtime snapshots to carry the cloud recommendation explanation',
   )
 
   const footerSource = read(
@@ -47,6 +57,11 @@ function run(): void {
     footerSource,
     /function formatCloudValue/,
     'expected the footer to format cloud offload state through a dedicated value helper',
+  )
+  assert.match(
+    footerSource,
+    /snapshot\.cloudRecommendation === 'recommended'/,
+    'expected the footer to surface when cloud offload is the recommended next path',
   )
 }
 

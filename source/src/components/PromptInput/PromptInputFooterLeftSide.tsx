@@ -291,6 +291,9 @@ function formatCloudValue(snapshot: WorkflowRuntimeSnapshot): string {
     case 'active':
       return 'active'
     case 'available':
+      if (snapshot.cloudRecommendation === 'recommended') {
+        return 'suggested'
+      }
       return snapshot.cloudConfiguredHostCount > 0
         ? `ready x${snapshot.cloudConfiguredHostCount}`
         : 'ready'

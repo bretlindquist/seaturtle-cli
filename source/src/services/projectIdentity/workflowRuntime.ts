@@ -8,8 +8,11 @@ import { type AutoworkMode, peekAutoworkState } from '../autowork/state.js'
 import {
   type AutoworkCloudOffloadPath,
   type AutoworkCloudOffloadStatus,
-  resolveAutoworkCloudOffloadCapability,
 } from '../autowork/cloudOffloadCapability.js'
+import {
+  resolveAutoworkBackendPolicy,
+  type CloudSwarmRecommendation,
+} from '../autowork/backendPolicy.js'
 
 export type WorkflowRuntimeSnapshot = {
   version: 1
@@ -29,7 +32,10 @@ export type WorkflowRuntimeSnapshot = {
   cloudOffloadStatus: AutoworkCloudOffloadStatus
   cloudOffloadPath: AutoworkCloudOffloadPath
   cloudConfiguredHostCount: number
+  cloudRecommendation: CloudSwarmRecommendation
   cloudStatusText: string | null
+  cloudRecommendationText: string | null
+  cloudNextStep: string | null
   statusText: string | null
   lastActivityAt: number | null
 }
@@ -53,7 +59,10 @@ export function createDefaultWorkflowRuntimeSnapshot(): WorkflowRuntimeSnapshot 
     cloudOffloadStatus: 'unavailable',
     cloudOffloadPath: 'none',
     cloudConfiguredHostCount: 0,
+    cloudRecommendation: 'none',
     cloudStatusText: null,
+    cloudRecommendationText: null,
+    cloudNextStep: null,
     statusText: null,
     lastActivityAt: null,
   }
@@ -86,6 +95,33 @@ function isAutoworkActivelyRunning(
   )
 }
 
+function resolveRuntimeAutoworkMode(
+  autowork:
+    | ReturnType<typeof peekAutoworkState>
+    | null,
+  phase: WorkPhase,
+): AutoworkMode {
+  if (autowork?.currentMode && autowork.currentMode !== 'idle') {
+    return autowork.currentMode
+  }
+
+  switch (phase) {
+    case 'research':
+      return 'research'
+    case 'plan':
+      return 'plan-hardening'
+    case 'implementation':
+      return 'execution'
+    case 'verification':
+      return 'verification'
+    case 'review':
+      return 'audit-and-polish'
+    case 'intent':
+    case 'idle':
+      return 'idle'
+  }
+}
+
 export function readWorkflowRuntimeSnapshot(
   root: string,
 ): WorkflowRuntimeSnapshot {
@@ -98,10 +134,18 @@ export function readWorkflowRuntimeSnapshot(
   }
 
   const execution = workflow?.packets.execution
-  const cloudCapability = resolveAutoworkCloudOffloadCapability({
-    active:
-      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
-  })
+  const workflowPhase = workflow?.resolution.phase ?? execution?.phase ?? 'idle'
+  const autoworkMode = resolveRuntimeAutoworkMode(autowork, workflowPhase)
+  const backendPolicy = resolveAutoworkBackendPolicy(
+    autoworkMode,
+    {
+      heartbeatEnabled: execution?.heartbeatEnabled,
+      timeBudgetMs: execution?.timeBudgetMs,
+      deadlineAt: execution?.deadlineAt,
+      cloudOffloadActive:
+        execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
+    },
+  )
   const lastActivityAt =
     execution?.lastActivityAt ??
     execution?.updatedAt ??
@@ -112,8 +156,8 @@ export function readWorkflowRuntimeSnapshot(
   return {
     version: 1,
     workId: workflow?.resolution.workId ?? execution?.workId ?? null,
-    workflowPhase: workflow?.resolution.phase ?? execution?.phase ?? 'idle',
-    autoworkMode: autowork?.currentMode ?? 'idle',
+    workflowPhase,
+    autoworkMode,
     autoworkActive:
       execution?.heartbeatEnabled === true || isAutoworkActivelyRunning(autowork),
     activeChunkId: execution?.activeChunkId ?? autowork?.currentChunkId ?? null,
@@ -125,10 +169,13 @@ export function readWorkflowRuntimeSnapshot(
     swarmBackend: execution?.swarmBackend ?? 'none',
     swarmActive: execution?.swarmActive ?? false,
     swarmWorkerCount: execution?.swarmWorkerCount ?? 0,
-    cloudOffloadStatus: cloudCapability.status,
-    cloudOffloadPath: cloudCapability.path,
-    cloudConfiguredHostCount: cloudCapability.configuredHostCount,
-    cloudStatusText: cloudCapability.reason,
+    cloudOffloadStatus: backendPolicy.cloudSwarmStatus,
+    cloudOffloadPath: backendPolicy.cloudPath,
+    cloudConfiguredHostCount: backendPolicy.cloudConfiguredHostCount,
+    cloudRecommendation: backendPolicy.cloudRecommendation,
+    cloudStatusText: backendPolicy.cloudReason,
+    cloudRecommendationText: backendPolicy.cloudRecommendationReason,
+    cloudNextStep: backendPolicy.cloudNextStep,
     statusText: execution?.statusText ?? null,
     lastActivityAt,
   }

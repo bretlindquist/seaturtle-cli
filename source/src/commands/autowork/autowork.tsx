@@ -158,6 +158,37 @@ function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
   }
 }
 
+function formatCloudRecommendation(policy: AutoworkBackendPolicy): string {
+  switch (policy.cloudRecommendation) {
+    case 'active':
+      return 'active'
+    case 'recommended':
+      return 'recommended'
+    case 'optional':
+      return 'optional'
+    case 'none':
+      return policy.cloudSwarmStatus === 'unavailable'
+        ? 'unavailable'
+        : 'not recommended'
+  }
+}
+
+function resolveBackendPolicyForContext(
+  context: AutoworkStartupContext,
+): AutoworkBackendPolicy {
+  const execution = context.repoRoot
+    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
+    : null
+
+  return resolveAutoworkBackendPolicy(context.mode, {
+    heartbeatEnabled: execution?.heartbeatEnabled,
+    timeBudgetMs: execution?.timeBudgetMs,
+    deadlineAt: execution?.deadlineAt,
+    cloudOffloadActive:
+      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
+  })
+}
+
 function formatChecks(
   context: AutoworkStartupContext,
   doctor: boolean,
@@ -180,10 +211,7 @@ function formatStatusSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveAutoworkBackendPolicy(context.mode, {
-    cloudOffloadActive:
-      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
-  })
+  const backendPolicy = resolveBackendPolicyForContext(context)
   const quip = getAutoworkLaunchQuip(
     entryPoint,
     `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
@@ -208,6 +236,7 @@ function formatStatusSummary(
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Orchestration: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
+    `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -238,10 +267,7 @@ function formatDoctorSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveAutoworkBackendPolicy(context.mode, {
-    cloudOffloadActive:
-      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
-  })
+  const backendPolicy = resolveBackendPolicyForContext(context)
   const lines = [
     'Autowork doctor',
     '',
@@ -256,6 +282,7 @@ function formatDoctorSummary(
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Orchestration: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
+    `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -270,6 +297,14 @@ function formatDoctorSummary(
   ]
 
   lines.push('', `Backend policy: ${backendPolicy.reason}`)
+
+  if (backendPolicy.cloudRecommendationReason) {
+    lines.push(`Cloud policy: ${backendPolicy.cloudRecommendationReason}`)
+  }
+
+  if (backendPolicy.cloudNextStep) {
+    lines.push(`Cloud next step: ${backendPolicy.cloudNextStep}`)
+  }
 
   if (workflowResolution?.issues.length) {
     lines.push('', 'Workflow issues:', ...workflowResolution.issues.map(issue => `- ${issue}`))

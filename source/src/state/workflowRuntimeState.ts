@@ -27,7 +27,10 @@ function snapshotsEqual(
     left.cloudOffloadStatus === right.cloudOffloadStatus &&
     left.cloudOffloadPath === right.cloudOffloadPath &&
     left.cloudConfiguredHostCount === right.cloudConfiguredHostCount &&
+    left.cloudRecommendation === right.cloudRecommendation &&
     left.cloudStatusText === right.cloudStatusText &&
+    left.cloudRecommendationText === right.cloudRecommendationText &&
+    left.cloudNextStep === right.cloudNextStep &&
     left.statusText === right.statusText &&
     left.lastActivityAt === right.lastActivityAt
   )

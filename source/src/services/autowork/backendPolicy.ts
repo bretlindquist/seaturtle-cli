@@ -15,6 +15,11 @@ export type AutoworkBackendTarget =
 export type LocalSwarmExecutorMode = 'in-process' | 'tmux'
 
 export type CloudSwarmStatus = 'unavailable' | 'available' | 'active'
+export type CloudSwarmRecommendation =
+  | 'none'
+  | 'optional'
+  | 'recommended'
+  | 'active'
 
 export type AutoworkBackendPolicy = {
   target: AutoworkBackendTarget
@@ -22,9 +27,12 @@ export type AutoworkBackendPolicy = {
   localSwarmEnabled: boolean
   localExecutorMode: LocalSwarmExecutorMode | null
   cloudSwarmStatus: CloudSwarmStatus
+  cloudRecommendation: CloudSwarmRecommendation
   cloudPath: AutoworkCloudOffloadCapability['path']
   cloudConfiguredHostCount: number
   cloudReason: string | null
+  cloudRecommendationReason: string | null
+  cloudNextStep: string | null
   reason: string
 }
 
@@ -33,6 +41,9 @@ type AutoworkBackendPolicyOptions = {
   localExecutorMode?: LocalSwarmExecutorMode | null
   cloudCapability?: AutoworkCloudOffloadCapability
   cloudOffloadActive?: boolean
+  heartbeatEnabled?: boolean
+  timeBudgetMs?: number | null
+  deadlineAt?: number | null
 }
 
 function shouldPreferLocalSwarm(mode: AutoworkMode): boolean {
@@ -62,6 +73,92 @@ function getMainThreadReason(mode: AutoworkMode): string {
   }
 }
 
+function hasPersistentRuntimeWindow(
+  options: AutoworkBackendPolicyOptions,
+): boolean {
+  return (
+    options.heartbeatEnabled === true ||
+    options.timeBudgetMs !== null && options.timeBudgetMs !== undefined ||
+    options.deadlineAt !== null && options.deadlineAt !== undefined
+  )
+}
+
+function shouldRecommendCloudOffload(
+  mode: AutoworkMode,
+  options: AutoworkBackendPolicyOptions,
+): boolean {
+  if (!hasPersistentRuntimeWindow(options)) {
+    return false
+  }
+
+  switch (mode) {
+    case 'discovery':
+    case 'research':
+    case 'plan-hardening':
+    case 'audit-and-polish':
+      return true
+    case 'execution':
+    case 'verification':
+    case 'idle':
+      return false
+  }
+}
+
+function getCloudNextStep(mode: AutoworkMode): string {
+  return `Run ct ssh-check --local first, then use ct ssh <host> [dir] to move this ${mode} wave onto the provider-managed remote-host path.`
+}
+
+function getCloudRecommendation(
+  mode: AutoworkMode,
+  cloudCapability: AutoworkCloudOffloadCapability,
+  options: AutoworkBackendPolicyOptions,
+): Pick<
+  AutoworkBackendPolicy,
+  'cloudRecommendation' | 'cloudRecommendationReason' | 'cloudNextStep'
+> {
+  if (cloudCapability.status === 'active') {
+    return {
+      cloudRecommendation: 'active',
+      cloudRecommendationReason:
+        'Provider-managed remote-host offload is already the active orchestration path for this run.',
+      cloudNextStep: null,
+    }
+  }
+
+  if (cloudCapability.status !== 'available') {
+    return {
+      cloudRecommendation: 'none',
+      cloudRecommendationReason: null,
+      cloudNextStep: null,
+    }
+  }
+
+  if (shouldRecommendCloudOffload(mode, options)) {
+    return {
+      cloudRecommendation: 'recommended',
+      cloudRecommendationReason:
+        `This ${mode} wave has an active heartbeat/runtime window, so provider-managed remote-host offload is the best next path for sustained orchestration.`,
+      cloudNextStep: getCloudNextStep(mode),
+    }
+  }
+
+  if (mode === 'execution' || mode === 'verification') {
+    return {
+      cloudRecommendation: 'none',
+      cloudRecommendationReason:
+        'Implementation and verification stay on the main thread so edits, validation, and completion claims remain authoritative.',
+      cloudNextStep: null,
+    }
+  }
+
+  return {
+    cloudRecommendation: 'optional',
+    cloudRecommendationReason:
+      `Provider-managed remote-host offload is ready for this ${mode} wave, but a persistent runtime window is not active yet.`,
+    cloudNextStep: getCloudNextStep(mode),
+  }
+}
+
 export function resolveAutoworkBackendPolicy(
   mode: AutoworkMode,
   options: AutoworkBackendPolicyOptions = {},
@@ -76,6 +173,11 @@ export function resolveAutoworkBackendPolicy(
     resolveAutoworkCloudOffloadCapability({
       active: options.cloudOffloadActive,
     })
+  const cloudRecommendation = getCloudRecommendation(
+    mode,
+    cloudCapability,
+    options,
+  )
 
   if (cloudCapability.status === 'active') {
     return {
@@ -84,9 +186,12 @@ export function resolveAutoworkBackendPolicy(
       localSwarmEnabled,
       localExecutorMode,
       cloudSwarmStatus: cloudCapability.status,
+      cloudRecommendation: cloudRecommendation.cloudRecommendation,
       cloudPath: cloudCapability.path,
       cloudConfiguredHostCount: cloudCapability.configuredHostCount,
       cloudReason: cloudCapability.reason,
+      cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
+      cloudNextStep: cloudRecommendation.cloudNextStep,
       reason:
         'Cloud offload is currently active, so autowork should report the remote-host execution path as authoritative.',
     }
@@ -103,9 +208,12 @@ export function resolveAutoworkBackendPolicy(
       localSwarmEnabled: true,
       localExecutorMode,
       cloudSwarmStatus: cloudCapability.status,
+      cloudRecommendation: cloudRecommendation.cloudRecommendation,
       cloudPath: cloudCapability.path,
       cloudConfiguredHostCount: cloudCapability.configuredHostCount,
       cloudReason: cloudCapability.reason,
+      cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
+      cloudNextStep: cloudRecommendation.cloudNextStep,
       reason: `This ${mode} wave can use the local swarm path (${localExecutorMode}) without moving orchestration truth off the main thread.`,
     }
   }
@@ -116,9 +224,12 @@ export function resolveAutoworkBackendPolicy(
     localSwarmEnabled,
     localExecutorMode,
     cloudSwarmStatus: cloudCapability.status,
+    cloudRecommendation: cloudRecommendation.cloudRecommendation,
     cloudPath: cloudCapability.path,
     cloudConfiguredHostCount: cloudCapability.configuredHostCount,
     cloudReason: cloudCapability.reason,
+    cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
+    cloudNextStep: cloudRecommendation.cloudNextStep,
     reason: getMainThreadReason(mode),
   }
 }
