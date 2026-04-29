@@ -651,6 +651,15 @@ export type Attachment =
       planContent: string
     }
   | {
+      type: 'workflow_state_reference'
+      workId: string
+      phase: string
+      reason: string
+      recommendedCompactionPayload: string
+      autoworkEligibilityHint: string
+      content: string
+    }
+  | {
       type: 'mcp_resource'
       server: string
       uri: string

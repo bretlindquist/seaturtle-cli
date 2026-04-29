@@ -245,6 +245,10 @@ export function AttachmentMessage({
       return <Line>
           Plan file referenced ({getDisplayPath(attachment.planFilePath)})
         </Line>;
+    case 'workflow_state_reference':
+      return <Line>
+          Workflow state referenced ({attachment.phase} · {attachment.workId})
+        </Line>;
     case 'invoked_skills':
       {
         if (attachment.skills.length === 0) {

@@ -220,6 +220,15 @@ export type WorkflowResolution = {
   issues: string[]
 }
 
+export type WorkflowCompactionProjection = {
+  workId: string
+  phase: WorkPhase
+  reason: string
+  recommendedCompactionPayload: WorkflowResolution['recommendedCompactionPayload']
+  autoworkEligibilityHint: WorkflowResolution['autoworkEligibilityHint']
+  summaryLines: string[]
+}
+
 export type StartActiveWorkstreamInput = {
   workId: string
   title: string
@@ -1474,6 +1483,145 @@ export function readActiveWorkflowPlanProjection(root: string): {
   planSummary: string | null
 } {
   return getActiveWorkflowPlanProjection(
+    readWorkflowPackets(root),
+    readWorkIndex(root),
+  )
+}
+
+function appendProjectionSection(
+  lines: string[],
+  heading: string,
+  values: string[],
+): void {
+  if (values.length === 0) {
+    return
+  }
+  lines.push(`${heading}:`)
+  for (const value of values) {
+    lines.push(`- ${value}`)
+  }
+}
+
+function buildWorkflowCompactionSummaryLines(
+  packets: WorkflowPackets,
+  resolution: WorkflowResolution,
+): string[] {
+  const lines = [
+    `Workstream: ${resolution.workId}`,
+    `Phase: ${resolution.phase}`,
+    `Reason: ${resolution.reason}`,
+    `Recommended compaction payload: ${resolution.recommendedCompactionPayload}`,
+    `Autowork eligibility: ${resolution.autoworkEligibilityHint}`,
+  ]
+
+  const intentLines = [
+    packets.intent.intentSummary,
+    ...packets.intent.goals.map(goal => `Goal: ${goal}`),
+    ...packets.intent.constraints.map(constraint => `Constraint: ${constraint}`),
+    ...packets.intent.successCriteria.map(
+      criterion => `Success criterion: ${criterion}`,
+    ),
+    ...packets.intent.openQuestions.map(question => `Open question: ${question}`),
+  ].filter((value): value is string => !!value)
+
+  const researchLines = [
+    packets.research.researchQuestion
+      ? `Research question: ${packets.research.researchQuestion}`
+      : null,
+    packets.research.recommendation
+      ? `Recommendation: ${packets.research.recommendation}`
+      : null,
+    ...packets.research.findings.map(finding => `Finding: ${finding}`),
+    ...packets.research.validatedAssumptions.map(
+      value => `Validated assumption: ${value}`,
+    ),
+    ...packets.research.openRisks.map(risk => `Open risk: ${risk}`),
+  ].filter((value): value is string => !!value)
+
+  const planLines = [
+    packets.plan.planSummary ? `Plan summary: ${packets.plan.planSummary}` : null,
+    `Plan status: ${packets.plan.status}`,
+    ...packets.plan.chunks.slice(0, 8).map(chunk => {
+      const suffix =
+        chunk.id === packets.execution.activeChunkId ? ' (active chunk)' : ''
+      return `${chunk.id} [${chunk.status}] ${chunk.title}${suffix}`
+    }),
+  ].filter((value): value is string => !!value)
+
+  const executionLines = [
+    packets.execution.activeChunkId
+      ? `Active chunk: ${packets.execution.activeChunkId}`
+      : null,
+    packets.execution.statusText
+      ? `Status: ${packets.execution.statusText}`
+      : null,
+    packets.execution.lastMeaningfulChange
+      ? `Last meaningful change: ${packets.execution.lastMeaningfulChange}`
+      : null,
+    ...packets.execution.currentActions.map(action => `Current action: ${action}`),
+    ...packets.execution.nextVerificationSteps.map(
+      step => `Next verification step: ${step}`,
+    ),
+    ...packets.execution.continuationDebt.map(
+      debt => `Continuation debt: ${debt}`,
+    ),
+    ...packets.execution.blockedOn.map(blocker => `Blocked on: ${blocker}`),
+    packets.execution.stopReason
+      ? `Stop reason: ${packets.execution.stopReason}`
+      : null,
+  ].filter((value): value is string => !!value)
+
+  const verificationLines = [
+    `Verification status: ${packets.verification.status}`,
+    packets.verification.lastVerifiedCommit
+      ? `Last verified commit: ${packets.verification.lastVerifiedCommit}`
+      : null,
+    packets.verification.qualityGateStatus
+      ? `Quality gate status: ${packets.verification.qualityGateStatus}`
+      : null,
+    ...packets.verification.openDefects.map(defect => `Open defect: ${defect}`),
+    ...packets.verification.reviewFindings.map(
+      finding => `Review finding: ${finding}`,
+    ),
+    ...packets.verification.followups.map(followup => `Follow-up: ${followup}`),
+  ].filter((value): value is string => !!value)
+
+  appendProjectionSection(lines, 'Intent', intentLines)
+  appendProjectionSection(lines, 'Research', researchLines)
+  appendProjectionSection(lines, 'Plan', planLines)
+  appendProjectionSection(lines, 'Execution', executionLines)
+  appendProjectionSection(lines, 'Verification', verificationLines)
+
+  if (resolution.issues.length > 0) {
+    appendProjectionSection(lines, 'Workflow issues', resolution.issues)
+  }
+
+  return lines
+}
+
+export function getActiveWorkflowCompactionProjection(
+  packets: WorkflowPackets,
+  index: WorkIndex,
+): WorkflowCompactionProjection | null {
+  const resolution = resolveWorkflowPhase(packets, index)
+  if (!resolution.workId) {
+    return null
+  }
+
+  return {
+    workId: resolution.workId,
+    phase: resolution.phase,
+    reason: resolution.reason,
+    recommendedCompactionPayload: resolution.recommendedCompactionPayload,
+    autoworkEligibilityHint: resolution.autoworkEligibilityHint,
+    summaryLines: buildWorkflowCompactionSummaryLines(packets, resolution),
+  }
+}
+
+export function readActiveWorkflowCompactionProjection(
+  root: string,
+): WorkflowCompactionProjection | null {
+  return getActiveWorkflowCompactionProjection(
     readWorkflowPackets(root),
     readWorkIndex(root),
   )

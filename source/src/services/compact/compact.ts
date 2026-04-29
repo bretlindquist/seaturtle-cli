@@ -39,7 +39,10 @@ import {
   getMcpInstructionsDeltaAttachment,
 } from '../../utils/attachments.js'
 import { getCtProjectRoot } from '../projectIdentity/paths.js'
-import { readActiveWorkflowPlanProjection } from '../projectIdentity/workflowState.js'
+import {
+  readActiveWorkflowCompactionProjection,
+  readActiveWorkflowPlanProjection,
+} from '../projectIdentity/workflowState.js'
 import { getMemoryPath } from '../../utils/config.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import {
@@ -555,6 +558,12 @@ export async function compactConversation(
     if (planAttachment) {
       postCompactFileAttachments.push(planAttachment)
     }
+    const workflowStateAttachment = createWorkflowStateAttachmentIfNeeded(
+      context.agentId,
+    )
+    if (workflowStateAttachment) {
+      postCompactFileAttachments.push(workflowStateAttachment)
+    }
 
     // Add plan mode instructions if currently in plan mode, so the model
     // continues operating in plan mode after compaction
@@ -950,6 +959,12 @@ export async function partialCompactConversation(
     const planAttachment = createPlanAttachmentIfNeeded(context.agentId)
     if (planAttachment) {
       postCompactFileAttachments.push(planAttachment)
+    }
+    const workflowStateAttachment = createWorkflowStateAttachmentIfNeeded(
+      context.agentId,
+    )
+    if (workflowStateAttachment) {
+      postCompactFileAttachments.push(workflowStateAttachment)
     }
 
     // Add plan mode instructions if currently in plan mode
@@ -1497,6 +1512,29 @@ export function createPlanAttachmentIfNeeded(
     type: 'plan_file_reference',
     planFilePath,
     planContent,
+  })
+}
+
+export function createWorkflowStateAttachmentIfNeeded(
+  agentId?: AgentId,
+): AttachmentMessage | null {
+  if (agentId !== undefined) {
+    return null
+  }
+
+  const projection = readActiveWorkflowCompactionProjection(getCtProjectRoot())
+  if (!projection) {
+    return null
+  }
+
+  return createAttachmentMessage({
+    type: 'workflow_state_reference',
+    workId: projection.workId,
+    phase: projection.phase,
+    reason: projection.reason,
+    recommendedCompactionPayload: projection.recommendedCompactionPayload,
+    autoworkEligibilityHint: projection.autoworkEligibilityHint,
+    content: projection.summaryLines.join('\n'),
   })
 }
 

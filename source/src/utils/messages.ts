@@ -3646,6 +3646,21 @@ Read the team config to discover your teammates' names. Check the task list peri
         }),
       ])
     }
+    case 'workflow_state_reference': {
+      return wrapMessagesInSystemReminder([
+        createUserMessage({
+          content:
+            `Active workflow state for workstream ${attachment.workId}:\n` +
+            `- Phase: ${attachment.phase}\n` +
+            `- Reason: ${attachment.reason}\n` +
+            `- Recommended compaction payload: ${attachment.recommendedCompactionPayload}\n` +
+            `- Autowork eligibility: ${attachment.autoworkEligibilityHint}\n\n` +
+            `${attachment.content}\n\n` +
+            `Use this workflow state as the authoritative source of truth for what should continue after compaction.`,
+          isMeta: true,
+        }),
+      ])
+    }
     case 'invoked_skills': {
       if (attachment.skills.length === 0) {
         return []

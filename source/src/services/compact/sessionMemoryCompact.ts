@@ -37,6 +37,7 @@ import {
   buildPostCompactMessages,
   type CompactionResult,
   createPlanAttachmentIfNeeded,
+  createWorkflowStateAttachmentIfNeeded,
 } from './compact.js'
 import { classifyLargeSessionCompactionRisk } from './compactionSafety.js'
 import { estimateMessageTokens } from './microCompact.js'
@@ -546,7 +547,11 @@ function createCompactionResultFromSessionMemory(
   ]
 
   const planAttachment = createPlanAttachmentIfNeeded(agentId)
-  const attachments = planAttachment ? [planAttachment] : []
+  const workflowStateAttachment = createWorkflowStateAttachmentIfNeeded(agentId)
+  const attachments = [
+    ...(planAttachment ? [planAttachment] : []),
+    ...(workflowStateAttachment ? [workflowStateAttachment] : []),
+  ]
 
   return {
     boundaryMarker: annotateBoundaryWithPreservedSegment(
