@@ -1223,6 +1223,12 @@ async function run(): Promise<CommanderCommand> {
     const sdkUrl = (options as {
       sdkUrl?: string;
     }).sdkUrl ?? undefined;
+    const workflowHandoffFile = (options as {
+      workflowHandoffFile?: string;
+    }).workflowHandoffFile ?? undefined;
+    const replaceWorkflowHandoff = (options as {
+      replaceWorkflowHandoff?: boolean;
+    }).replaceWorkflowHandoff === true;
 
     // Allow env var to enable partial messages (used by sandbox gateway for baku)
     const effectiveIncludePartialMessages = includePartialMessages || isEnvTruthy(process.env.CLAUDE_CODE_INCLUDE_PARTIAL_MESSAGES);
@@ -1387,6 +1393,37 @@ async function run(): Promise<CommanderCommand> {
     if (isAgentSwarmsEnabled() && storedTeammateOpts?.agentId && storedTeammateOpts?.agentName && storedTeammateOpts?.teamName) {
       const addendum = getTeammatePromptAddendum().TEAMMATE_SYSTEM_PROMPT_ADDENDUM;
       appendSystemPrompt = appendSystemPrompt ? `${appendSystemPrompt}\n\n${addendum}` : addendum;
+    }
+
+    if (workflowHandoffFile) {
+      try {
+        const filePath = resolve(workflowHandoffFile);
+        const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+        const {
+          getCtProjectRoot
+        } = await import('./services/projectIdentity/paths.js');
+        const {
+          archiveActiveWorkstream,
+          importWorkflowHandoffPacket,
+          peekActiveWorkstream
+        } = await import('./services/projectIdentity/workflowState.js');
+        const root = getCtProjectRoot();
+        const active = peekActiveWorkstream(root);
+        if (active?.index.activeWorkId && !replaceWorkflowHandoff) {
+          process.stderr.write(chalk.red(`Error: Active workstream ${active.index.activeWorkId} already exists. Use --replace-workflow-handoff to replace it.\n`));
+          process.exit(1);
+        }
+        if (active?.index.activeWorkId && replaceWorkflowHandoff) {
+          archiveActiveWorkstream(
+            'Replaced by startup workflow handoff import.',
+            root,
+          );
+        }
+        importWorkflowHandoffPacket(parsed, root);
+      } catch (error) {
+        process.stderr.write(chalk.red(`Error importing workflow handoff: ${errorMessage(error)}\n`));
+        process.exit(1);
+      }
     }
     const {
       mode: permissionMode,
@@ -3868,6 +3905,8 @@ async function run(): Promise<CommanderCommand> {
   program.addOption(new Option('--parent-session-id <id>', 'Parent session ID for analytics correlation').hideHelp());
   program.addOption(new Option('--teammate-mode <mode>', 'How to spawn teammates: "tmux", "in-process", or "auto"').choices(['auto', 'tmux', 'in-process']).hideHelp());
   program.addOption(new Option('--agent-type <type>', 'Custom agent type for this teammate').hideHelp());
+  program.addOption(new Option('--workflow-handoff-file <file>', 'Import an authoritative workflow handoff packet before the first turn. Internal remote-orchestration seam.').hideHelp());
+  program.addOption(new Option('--replace-workflow-handoff', 'Replace any active workstream before importing --workflow-handoff-file. Internal remote-orchestration seam.').hideHelp());
 
   // Enable SDK URL for all builds but hide from help
   program.addOption(new Option('--sdk-url <url>', 'Use remote WebSocket endpoint for SDK I/O streaming (only with -p and stream-json format)').hideHelp());
