@@ -2,6 +2,7 @@ import { basename, dirname, resolve } from 'path'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
+import { WORKFLOW_STATE_TOOL_NAME } from '../../tools/WorkflowStateTool/constants.js'
 import {
   getCtWorkExecutionPath,
   getCtWorkIntentPath,
@@ -377,14 +378,15 @@ function buildAutoworkLifecyclePrompt(
     'Required workflow:',
     `1. ${getLifecycleActionLine(mode)}`,
     '2. Read the authoritative packet files before editing anything.',
-    '3. Keep the packet JSON valid and aligned: no contradictory phase/readiness stories.',
-    '4. Preserve single source of truth by updating workflow packet state instead of inventing parallel scratch notes.',
+    `3. Use ${WORKFLOW_STATE_TOOL_NAME} for workflow packet updates instead of hand-editing the JSON files.`,
+    '4. Keep packet state valid and aligned: no contradictory phase/readiness stories.',
+    '5. Preserve single source of truth by updating workflow packet state instead of inventing parallel scratch notes.',
     mode === 'plan-hardening'
-      ? '5. If the tracked plan file needs hardening, keep it aligned with the workflow plan packet chunk graph.'
-      : '5. Do not begin implementation chunks unless the workflow state legitimately advances there.',
+      ? `6. If the tracked plan file needs hardening, edit the tracked plan file, then use ${WORKFLOW_STATE_TOOL_NAME} to sync the workflow plan packet from it.`
+      : '6. Do not begin implementation chunks unless the workflow state legitimately advances there.',
     mode === 'audit-and-polish'
-      ? '6. Review for production-grade completeness, record findings in verification/workflow state, and make only narrow fixes that are required by the review.'
-      : '6. End with the workflow state advanced as far as the evidence supports, then stop.',
+      ? `7. Review for production-grade completeness, record findings with ${WORKFLOW_STATE_TOOL_NAME}, and make only narrow fixes that are required by the review.`
+      : `7. End with the workflow state advanced as far as the evidence supports using ${WORKFLOW_STATE_TOOL_NAME}, then stop.`,
     '',
     `When finished, the queued ${nextStep} command will reassess the workflow state and continue from the next correct phase.`,
     '</system-reminder>',

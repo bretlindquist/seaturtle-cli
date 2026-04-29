@@ -1439,7 +1439,7 @@ function updatePlanLifecyclePackets(
   }
 }
 
-function mapAutoworkChunkStatusToWorkChunkStatus(
+export function mapAutoworkChunkStatusToWorkChunkStatus(
   status: AutoworkChunkStatus,
 ): WorkChunkStatus {
   switch (status) {
@@ -1457,7 +1457,7 @@ function mapAutoworkChunkStatusToWorkChunkStatus(
   }
 }
 
-function projectAutoworkPlanPacketState(
+export function projectAutoworkPlanPacketState(
   planFilePath: string,
   planContent: string,
 ): Pick<WorkPlanPacket, 'chunkOrder' | 'chunks'> | null {
