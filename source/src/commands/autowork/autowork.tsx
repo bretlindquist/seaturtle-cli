@@ -25,8 +25,15 @@ import {
   type AutoworkExecutionScope,
   type AutoworkRunMode,
 } from '../../services/autowork/state.js'
+import {
+  DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS,
+  formatAutoworkRuntimeWindowLabel,
+  parseAutoworkBudgetInput,
+} from '../../services/autowork/runtimeWindow.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import { peekActiveWorkstream } from '../../services/projectIdentity/workflowState.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
+import { formatDuration } from '../../utils/format.js'
 import type {
   LocalJSXCommandCall,
   LocalJSXCommandContext,
@@ -104,6 +111,9 @@ function formatStatusSummary(
   context: AutoworkStartupContext,
   planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
 ): string {
+  const execution = context.repoRoot
+    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
+    : null
   const quip = getAutoworkLaunchQuip(
     entryPoint,
     `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
@@ -118,6 +128,8 @@ function formatStatusSummary(
     `Plan source: ${formatPlanResolutionSource(planSource)}`,
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
+    `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
+    `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -137,6 +149,9 @@ function formatDoctorSummary(
   context: AutoworkStartupContext,
   planSource: Extract<AutoworkPlanResolutionResult, { ok: true }>['source'],
 ): string {
+  const execution = context.repoRoot
+    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
+    : null
   const lines = [
     'Autowork doctor',
     '',
@@ -145,6 +160,8 @@ function formatDoctorSummary(
     `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
+    `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
+    `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -183,6 +200,25 @@ function formatDoctorSummary(
   }
 
   return lines.join('\n')
+}
+
+function parseAutoworkRunTail(
+  tail: string,
+): { ok: true; timeBudgetMs: number | null } | { ok: false; message: string } {
+  const trimmed = tail.trim()
+  if (!trimmed) {
+    return { ok: true, timeBudgetMs: null }
+  }
+
+  const parsed = parseAutoworkBudgetInput(trimmed)
+  if (!parsed.ok) {
+    return { ok: false, message: parsed.message }
+  }
+
+  return {
+    ok: true,
+    timeBudgetMs: parsed.timeBudgetMs,
+  }
 }
 
 async function getAutoworkContext(
@@ -293,6 +329,7 @@ async function selectAutoworkPlan(
 async function runAutowork(
   entryPoint: EntryPoint,
   executionScope: AutoworkExecutionScope = 'plan',
+  timeBudgetMs: number | null = null,
 ): Promise<
   | {
       ok: true
@@ -320,6 +357,7 @@ async function runAutowork(
     resolved.planPath,
     entryPoint,
     executionScope,
+    timeBudgetMs,
   )
   if (!launch.ok) {
     return { ok: false, message: launch.message }
@@ -591,12 +629,14 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           `- ${baseName} dangerous`,
           `- ${baseName} use <path>`,
           `- ${baseName} run`,
+          `- ${baseName} run 8h`,
           `- ${baseName} step`,
           `- ${baseName} status`,
           `- ${baseName} doctor`,
           `- ${baseName} verify`,
           '',
           `${baseName} run carries the approved tracked plan to completion, one guarded chunk at a time.`,
+          `${baseName} run 8h or ${baseName} run for 8 hours carries the plan inside a bounded autowork window.`,
           `${baseName} step executes only one guarded chunk, then stops after verification.`,
           'Dangerous mode is heavily discouraged and is a separate operator choice that relaxes selected checkpoint failures into recorded debt.',
         ].join('\n'),
@@ -623,8 +663,14 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (head === 'run' && !tail) {
-      const execution = await runAutowork(entryPoint, 'plan')
+    if (head === 'run') {
+      const parsedTail = parseAutoworkRunTail(tail)
+      if (!parsedTail.ok) {
+        onDone(parsedTail.message, { display: 'system' })
+        return null
+      }
+
+      const execution = await runAutowork(entryPoint, 'plan', parsedTail.timeBudgetMs)
       syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
@@ -638,8 +684,14 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
       return null
     }
 
-    if (head === 'step' && !tail) {
-      const execution = await runAutowork(entryPoint, 'step')
+    if (head === 'step') {
+      const parsedTail = parseAutoworkRunTail(tail)
+      if (!parsedTail.ok) {
+        onDone(parsedTail.message, { display: 'system' })
+        return null
+      }
+
+      const execution = await runAutowork(entryPoint, 'step', parsedTail.timeBudgetMs)
       syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
@@ -695,6 +747,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `- /${entryPoint} dangerous`,
         `- /${entryPoint} use <path>`,
         `- /${entryPoint} run`,
+        `- /${entryPoint} run 8h`,
         `- /${entryPoint} step`,
         `- /${entryPoint} status`,
         `- /${entryPoint} doctor`,

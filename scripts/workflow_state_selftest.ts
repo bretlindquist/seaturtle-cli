@@ -202,6 +202,8 @@ function run(): void {
         activeChunkId: 'wave-1',
         startedAt: Date.now(),
         updatedAt: Date.now(),
+        timeBudgetMs: 8 * 60 * 60 * 1000,
+        deadlineAt: Date.now() + 8 * 60 * 60 * 1000,
         heartbeatEnabled: true,
         heartbeatIntervalMs: 300000,
         swarmBackend: 'cloud',

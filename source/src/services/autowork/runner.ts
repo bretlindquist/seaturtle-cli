@@ -39,10 +39,15 @@ import {
 } from './policy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
 import {
+  peekActiveWorkstream,
   setActiveWorkstreamPhase,
   updateWorkExecutionPacket,
   updateWorkVerificationPacket,
 } from '../projectIdentity/workflowState.js'
+import {
+  type AutoworkRuntimeWindow,
+  resolveAutoworkRuntimeWindow,
+} from './runtimeWindow.js'
 
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
 
@@ -387,6 +392,50 @@ function persistTelegramNoticeSignature(
   )
 }
 
+function resolveStoppedWorkPhase(repoRoot: string): 'implementation' | 'verification' | 'review' {
+  const workflow = peekActiveWorkstream(repoRoot)
+  const phase = workflow?.packets.execution.phase ?? workflow?.resolution.phase
+  if (phase === 'verification' || phase === 'review') {
+    return phase
+  }
+  return 'implementation'
+}
+
+function syncAutoworkStopped(
+  repoRoot: string,
+  statusText: string,
+  phaseReason: string,
+): void {
+  const now = Date.now()
+  const phase = resolveStoppedWorkPhase(repoRoot)
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      phase,
+      updatedAt: now,
+      timeBudgetMs: null,
+      deadlineAt: null,
+      heartbeatEnabled: false,
+      currentActions: [],
+      blockedOn: [phaseReason],
+      nextVerificationSteps: [],
+      stopReason: phaseReason,
+      swarmActive: false,
+      swarmWorkerCount: 0,
+      statusText,
+      lastActivityAt: now,
+    }),
+    repoRoot,
+  )
+  setActiveWorkstreamPhase(
+    {
+      phase,
+      phaseReason,
+    },
+    repoRoot,
+  )
+}
+
 function persistAutoworkStop(
   context: AutoworkStartupContext,
   code: string,
@@ -418,6 +467,7 @@ function persistAutoworkStop(
     }),
     context.repoRoot,
   )
+  syncAutoworkStopped(context.repoRoot, message, message)
 
   if (shouldNotify) {
     void sendAutoworkTelegramStopNotice({
@@ -440,6 +490,7 @@ function syncAutoworkExecutionStarted(
   chunkId: string,
   executionScope: AutoworkExecutionScope,
   entryPoint: AutoworkEntryPoint,
+  runtimeWindow: AutoworkRuntimeWindow,
 ): void {
   const now = Date.now()
   updateWorkExecutionPacket(
@@ -450,6 +501,11 @@ function syncAutoworkExecutionStarted(
       executionScope,
       startedAt: now,
       updatedAt: now,
+      timeBudgetMs: runtimeWindow.timeBudgetMs,
+      deadlineAt: runtimeWindow.deadlineAt,
+      heartbeatEnabled: runtimeWindow.heartbeatEnabled,
+      heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
+      checkpointPolicy: runtimeWindow.checkpointPolicy,
       currentActions: [`Executing ${chunkId}`],
       blockedOn: [],
       nextVerificationSteps: [`/${entryPoint} verify`],
@@ -481,9 +537,14 @@ function syncAutoworkVerificationBlocked(
       phase: 'verification',
       activeChunkId: chunkId,
       updatedAt: now,
+      timeBudgetMs: null,
+      deadlineAt: null,
+      heartbeatEnabled: false,
       currentActions: [],
       blockedOn: [reason],
       stopReason: reason,
+      swarmActive: false,
+      swarmWorkerCount: 0,
       statusText: `Verification blocked for ${chunkId}`,
       lastActivityAt: now,
     }),
@@ -514,12 +575,16 @@ function syncAutoworkVerificationComplete(
   chunkId: string,
   nextPendingChunkId: string | null,
   validationRuns: string[],
+  keepRuntimeWindowActive: boolean,
 ): void {
   const now = Date.now()
   const phase = nextPendingChunkId ? 'implementation' : 'review'
-  const statusText = nextPendingChunkId
-    ? `Ready to continue with ${nextPendingChunkId}`
-    : `Chunk ${chunkId} verified`
+  const statusText =
+    nextPendingChunkId === null
+      ? `Chunk ${chunkId} verified`
+      : keepRuntimeWindowActive
+        ? `Ready to continue with ${nextPendingChunkId}`
+        : `Next approved chunk ${nextPendingChunkId} is ready`
 
   updateWorkExecutionPacket(
     current => ({
@@ -527,10 +592,15 @@ function syncAutoworkVerificationComplete(
       phase,
       activeChunkId: null,
       updatedAt: now,
+      timeBudgetMs: keepRuntimeWindowActive ? current.timeBudgetMs : null,
+      deadlineAt: keepRuntimeWindowActive ? current.deadlineAt : null,
+      heartbeatEnabled: keepRuntimeWindowActive ? current.heartbeatEnabled : false,
       currentActions: [],
       blockedOn: [],
       nextVerificationSteps: [],
       stopReason: null,
+      swarmActive: false,
+      swarmWorkerCount: 0,
       statusText,
       lastActivityAt: now,
     }),
@@ -551,9 +621,12 @@ function syncAutoworkVerificationComplete(
   setActiveWorkstreamPhase(
     {
       phase,
-      phaseReason: nextPendingChunkId
-        ? `Chunk ${chunkId} verified. Remaining approved work continues with ${nextPendingChunkId}.`
-        : `Chunk ${chunkId} verified. Broad review is now active.`,
+      phaseReason:
+        nextPendingChunkId === null
+          ? `Chunk ${chunkId} verified. Broad review is now active.`
+          : keepRuntimeWindowActive
+            ? `Chunk ${chunkId} verified. Remaining approved work continues with ${nextPendingChunkId}.`
+            : `Chunk ${chunkId} verified. Remaining approved work is paused at ${nextPendingChunkId}.`,
     },
     repoRoot,
   )
@@ -646,10 +719,29 @@ export async function prepareAutoworkSafeExecution(
   planPath: string,
   entryPoint: AutoworkEntryPoint,
   executionScope: AutoworkExecutionScope = 'plan',
+  requestedTimeBudgetMs: number | null = null,
 ): Promise<AutoworkSafeExecutionLaunch> {
   const context = await inspectAndSelectAutoworkMode(planPath)
   if (!context.repoRoot) {
     return { ok: false, message: 'Autowork requires a git repository.' }
+  }
+
+  const workflow = peekActiveWorkstream(context.repoRoot)
+  const runtimeWindow = resolveAutoworkRuntimeWindow(
+    workflow?.packets.execution ?? null,
+    { requestedTimeBudgetMs },
+  )
+  if (runtimeWindow.expired) {
+    const message =
+      'Autowork time budget expired at the last checkpoint. Start a new window before continuing.'
+    persistAutoworkStop(
+      context,
+      'time_budget_expired',
+      message,
+      'time-budget',
+      context.state.currentChunkId ?? context.nextPendingChunkId ?? undefined,
+    )
+    return { ok: false, message }
   }
 
   if (!context.eligibility.ok) {
@@ -760,6 +852,7 @@ export async function prepareAutoworkSafeExecution(
     nextChunk.id,
     executionScope,
     entryPoint,
+    runtimeWindow,
   )
 
   return {
@@ -968,6 +1061,11 @@ export async function verifyAutoworkSafeExecution(
           )[0] ?? null
       : null
 
+  const activeWorkflow = peekActiveWorkstream(context.repoRoot)
+  const runtimeWindow = resolveAutoworkRuntimeWindow(
+    activeWorkflow?.packets.execution ?? null,
+  )
+
   updateAutoworkState(
     current => ({
       ...current,
@@ -995,10 +1093,15 @@ export async function verifyAutoworkSafeExecution(
     validationResults.length > 0
       ? validationResults.map(result => result.command)
       : [finalValidationResult.command],
+    context.state.executionScope === 'plan' &&
+      !runtimeWindow.expired &&
+      nextPendingChunkId !== null,
   )
 
   const shouldContinuePlan =
-    context.state.executionScope === 'plan' && nextPendingChunkId !== null
+    context.state.executionScope === 'plan' &&
+    nextPendingChunkId !== null &&
+    !runtimeWindow.expired
 
   if (
     context.state.runMode === 'dangerous' &&
@@ -1049,6 +1152,9 @@ export async function verifyAutoworkSafeExecution(
         ? 'Tree: dirty'
         : 'Tree: clean',
       `Next chunk: ${nextPendingChunkId ?? 'none'}`,
+      runtimeWindow.expired && nextPendingChunkId
+        ? 'Autowork time budget reached its checkpoint boundary. Start a new window to continue the remaining approved work.'
+        : null,
       shouldContinuePlan
         ? `Queued next step: /${entryPoint} run`
         : context.state.executionScope === 'step' && nextPendingChunkId

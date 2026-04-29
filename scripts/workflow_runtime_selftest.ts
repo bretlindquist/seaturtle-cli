@@ -40,6 +40,8 @@ function run(): void {
         phase: 'implementation',
         activeChunkId: 'wave-2',
         executionScope: 'plan',
+        timeBudgetMs: 8 * 60 * 60 * 1000,
+        deadlineAt: 8 * 60 * 60 * 1000 + 1111,
         heartbeatEnabled: true,
         heartbeatIntervalMs: 300000,
         swarmBackend: 'cloud',
@@ -70,6 +72,8 @@ function run(): void {
     assert.equal(active.autoworkActive, true)
     assert.equal(active.activeChunkId, 'wave-2')
     assert.equal(active.executionScope, 'plan')
+    assert.equal(active.timeBudgetMs, 8 * 60 * 60 * 1000)
+    assert.equal(active.deadlineAt, 8 * 60 * 60 * 1000 + 1111)
     assert.equal(active.heartbeatEnabled, true)
     assert.equal(active.heartbeatIntervalMs, 300000)
     assert.equal(active.swarmBackend, 'cloud')
@@ -91,7 +95,11 @@ function run(): void {
     )
 
     const inactive = readWorkflowRuntimeSnapshot(root)
-    assert.equal(inactive.autoworkActive, false)
+    assert.equal(
+      inactive.autoworkActive,
+      true,
+      'heartbeat-enabled workflow execution should keep autowork active even between chunks',
+    )
     assert.equal(inactive.autoworkMode, 'execution')
     assert.equal(inactive.workflowPhase, 'implementation')
   } finally {

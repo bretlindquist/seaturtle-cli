@@ -17,6 +17,8 @@ function snapshotsEqual(
     left.autoworkActive === right.autoworkActive &&
     left.activeChunkId === right.activeChunkId &&
     left.executionScope === right.executionScope &&
+    left.timeBudgetMs === right.timeBudgetMs &&
+    left.deadlineAt === right.deadlineAt &&
     left.heartbeatEnabled === right.heartbeatEnabled &&
     left.heartbeatIntervalMs === right.heartbeatIntervalMs &&
     left.swarmBackend === right.swarmBackend &&

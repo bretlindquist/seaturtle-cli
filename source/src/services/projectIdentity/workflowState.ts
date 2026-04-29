@@ -119,6 +119,7 @@ export type WorkExecutionPacket = {
   startedAt: number | null
   updatedAt: number | null
   timeBudgetMs: number | null
+  deadlineAt: number | null
   heartbeatEnabled: boolean
   heartbeatIntervalMs: number | null
   checkpointPolicy: string | null
@@ -323,6 +324,7 @@ export function createDefaultWorkExecutionPacket(): WorkExecutionPacket {
     startedAt: null,
     updatedAt: null,
     timeBudgetMs: null,
+    deadlineAt: null,
     heartbeatEnabled: false,
     heartbeatIntervalMs: null,
     checkpointPolicy: null,
@@ -732,6 +734,7 @@ export function sanitizeWorkExecutionPacket(
       typeof value.timeBudgetMs === 'number' && value.timeBudgetMs >= 0
         ? value.timeBudgetMs
         : null,
+    deadlineAt: normalizeOptionalTimestamp(value.deadlineAt),
     heartbeatEnabled: !!value.heartbeatEnabled,
     heartbeatIntervalMs:
       typeof value.heartbeatIntervalMs === 'number' &&

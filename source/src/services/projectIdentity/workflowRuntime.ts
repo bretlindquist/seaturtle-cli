@@ -14,6 +14,8 @@ export type WorkflowRuntimeSnapshot = {
   autoworkActive: boolean
   activeChunkId: string | null
   executionScope: WorkExecutionScope
+  timeBudgetMs: number | null
+  deadlineAt: number | null
   heartbeatEnabled: boolean
   heartbeatIntervalMs: number | null
   swarmBackend: WorkSwarmBackend
@@ -32,6 +34,8 @@ export function createDefaultWorkflowRuntimeSnapshot(): WorkflowRuntimeSnapshot 
     autoworkActive: false,
     activeChunkId: null,
     executionScope: 'none',
+    timeBudgetMs: null,
+    deadlineAt: null,
     heartbeatEnabled: false,
     heartbeatIntervalMs: null,
     swarmBackend: 'none',
@@ -93,9 +97,12 @@ export function readWorkflowRuntimeSnapshot(
     workId: workflow?.resolution.workId ?? execution?.workId ?? null,
     workflowPhase: workflow?.resolution.phase ?? execution?.phase ?? 'idle',
     autoworkMode: autowork?.currentMode ?? 'idle',
-    autoworkActive: isAutoworkActivelyRunning(autowork),
+    autoworkActive:
+      execution?.heartbeatEnabled === true || isAutoworkActivelyRunning(autowork),
     activeChunkId: execution?.activeChunkId ?? autowork?.currentChunkId ?? null,
     executionScope: execution?.executionScope ?? 'none',
+    timeBudgetMs: execution?.timeBudgetMs ?? null,
+    deadlineAt: execution?.deadlineAt ?? null,
     heartbeatEnabled: execution?.heartbeatEnabled ?? false,
     heartbeatIntervalMs: execution?.heartbeatIntervalMs ?? null,
     swarmBackend: execution?.swarmBackend ?? 'none',
