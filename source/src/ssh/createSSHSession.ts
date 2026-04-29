@@ -33,6 +33,11 @@ type ProgressCallbacks = {
   onProgress?: (message: string) => void
 }
 
+export type RemoteHostOffloadBuildReadiness = {
+  ready: boolean
+  reason: string | null
+}
+
 export class SSHSessionError extends Error {
   constructor(message: string) {
     super(message)
@@ -150,10 +155,27 @@ function resolveRemoteTarget(unameSystem: string, unameArch: string): RemoteTarg
 }
 
 function requireLocalSourceBuild(): void {
-  if (!existsSync(distCliPath)) {
+  const readiness = getRemoteHostOffloadBuildReadiness()
+  if (!readiness.ready) {
     throw new SSHSessionError(
-      'dist/cli.js is missing. Build SeaTurtle first with `node scripts/build-cli.mjs --no-minify` before using `ct ssh` in this source build.',
+      readiness.reason ??
+        'Remote-host offload is not ready in this source build.',
     )
+  }
+}
+
+export function getRemoteHostOffloadBuildReadiness(): RemoteHostOffloadBuildReadiness {
+  if (isInBundledMode() || existsSync(distCliPath)) {
+    return {
+      ready: true,
+      reason: null,
+    }
+  }
+
+  return {
+    ready: false,
+    reason:
+      'dist/cli.js is missing. Build SeaTurtle first with `node scripts/build-cli.mjs --no-minify` before using `ct ssh` in this source build.',
   }
 }
 

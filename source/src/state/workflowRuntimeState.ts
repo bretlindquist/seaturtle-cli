@@ -24,6 +24,10 @@ function snapshotsEqual(
     left.swarmBackend === right.swarmBackend &&
     left.swarmActive === right.swarmActive &&
     left.swarmWorkerCount === right.swarmWorkerCount &&
+    left.cloudOffloadStatus === right.cloudOffloadStatus &&
+    left.cloudOffloadPath === right.cloudOffloadPath &&
+    left.cloudConfiguredHostCount === right.cloudConfiguredHostCount &&
+    left.cloudStatusText === right.cloudStatusText &&
     left.statusText === right.statusText &&
     left.lastActivityAt === right.lastActivityAt
   )

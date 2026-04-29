@@ -5,6 +5,11 @@ import {
   peekActiveWorkstream,
 } from './workflowState.js'
 import { type AutoworkMode, peekAutoworkState } from '../autowork/state.js'
+import {
+  type AutoworkCloudOffloadPath,
+  type AutoworkCloudOffloadStatus,
+  resolveAutoworkCloudOffloadCapability,
+} from '../autowork/cloudOffloadCapability.js'
 
 export type WorkflowRuntimeSnapshot = {
   version: 1
@@ -21,6 +26,10 @@ export type WorkflowRuntimeSnapshot = {
   swarmBackend: WorkSwarmBackend
   swarmActive: boolean
   swarmWorkerCount: number
+  cloudOffloadStatus: AutoworkCloudOffloadStatus
+  cloudOffloadPath: AutoworkCloudOffloadPath
+  cloudConfiguredHostCount: number
+  cloudStatusText: string | null
   statusText: string | null
   lastActivityAt: number | null
 }
@@ -41,6 +50,10 @@ export function createDefaultWorkflowRuntimeSnapshot(): WorkflowRuntimeSnapshot 
     swarmBackend: 'none',
     swarmActive: false,
     swarmWorkerCount: 0,
+    cloudOffloadStatus: 'unavailable',
+    cloudOffloadPath: 'none',
+    cloudConfiguredHostCount: 0,
+    cloudStatusText: null,
     statusText: null,
     lastActivityAt: null,
   }
@@ -85,6 +98,10 @@ export function readWorkflowRuntimeSnapshot(
   }
 
   const execution = workflow?.packets.execution
+  const cloudCapability = resolveAutoworkCloudOffloadCapability({
+    active:
+      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
+  })
   const lastActivityAt =
     execution?.lastActivityAt ??
     execution?.updatedAt ??
@@ -108,6 +125,10 @@ export function readWorkflowRuntimeSnapshot(
     swarmBackend: execution?.swarmBackend ?? 'none',
     swarmActive: execution?.swarmActive ?? false,
     swarmWorkerCount: execution?.swarmWorkerCount ?? 0,
+    cloudOffloadStatus: cloudCapability.status,
+    cloudOffloadPath: cloudCapability.path,
+    cloudConfiguredHostCount: cloudCapability.configuredHostCount,
+    cloudStatusText: cloudCapability.reason,
     statusText: execution?.statusText ?? null,
     lastActivityAt,
   }

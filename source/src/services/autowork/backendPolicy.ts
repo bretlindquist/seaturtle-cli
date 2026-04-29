@@ -2,6 +2,10 @@ import { getResolvedTeammateMode } from '../../utils/swarm/backends/registry.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import type { WorkSwarmBackend } from '../projectIdentity/workflowState.js'
 import type { AutoworkMode } from './state.js'
+import {
+  resolveAutoworkCloudOffloadCapability,
+  type AutoworkCloudOffloadCapability,
+} from './cloudOffloadCapability.js'
 
 export type AutoworkBackendTarget =
   | 'main-thread'
@@ -10,7 +14,7 @@ export type AutoworkBackendTarget =
 
 export type LocalSwarmExecutorMode = 'in-process' | 'tmux'
 
-export type CloudSwarmStatus = 'unavailable' | 'idle' | 'active'
+export type CloudSwarmStatus = 'unavailable' | 'available' | 'active'
 
 export type AutoworkBackendPolicy = {
   target: AutoworkBackendTarget
@@ -18,6 +22,8 @@ export type AutoworkBackendPolicy = {
   localSwarmEnabled: boolean
   localExecutorMode: LocalSwarmExecutorMode | null
   cloudSwarmStatus: CloudSwarmStatus
+  cloudPath: AutoworkCloudOffloadCapability['path']
+  cloudConfiguredHostCount: number
   cloudReason: string | null
   reason: string
 }
@@ -25,12 +31,9 @@ export type AutoworkBackendPolicy = {
 type AutoworkBackendPolicyOptions = {
   localSwarmEnabled?: boolean
   localExecutorMode?: LocalSwarmExecutorMode | null
-  cloudSwarmStatus?: CloudSwarmStatus
-  cloudReason?: string | null
+  cloudCapability?: AutoworkCloudOffloadCapability
+  cloudOffloadActive?: boolean
 }
-
-const CLOUD_SWARM_UNAVAILABLE_REASON =
-  'Cloud swarm is not implemented in SeaTurtle yet, so autowork must stay on local execution paths.'
 
 function shouldPreferLocalSwarm(mode: AutoworkMode): boolean {
   switch (mode) {
@@ -68,9 +71,26 @@ export function resolveAutoworkBackendPolicy(
   const localExecutorMode =
     options.localExecutorMode ??
     (localSwarmEnabled ? getResolvedTeammateMode() : null)
-  const cloudSwarmStatus = options.cloudSwarmStatus ?? 'unavailable'
-  const cloudReason =
-    options.cloudReason ?? CLOUD_SWARM_UNAVAILABLE_REASON
+  const cloudCapability =
+    options.cloudCapability ??
+    resolveAutoworkCloudOffloadCapability({
+      active: options.cloudOffloadActive,
+    })
+
+  if (cloudCapability.status === 'active') {
+    return {
+      target: 'cloud-swarm',
+      swarmBackend: 'cloud',
+      localSwarmEnabled,
+      localExecutorMode,
+      cloudSwarmStatus: cloudCapability.status,
+      cloudPath: cloudCapability.path,
+      cloudConfiguredHostCount: cloudCapability.configuredHostCount,
+      cloudReason: cloudCapability.reason,
+      reason:
+        'Cloud offload is currently active, so autowork should report the remote-host execution path as authoritative.',
+    }
+  }
 
   if (
     shouldPreferLocalSwarm(mode) &&
@@ -82,8 +102,10 @@ export function resolveAutoworkBackendPolicy(
       swarmBackend: 'local',
       localSwarmEnabled: true,
       localExecutorMode,
-      cloudSwarmStatus,
-      cloudReason,
+      cloudSwarmStatus: cloudCapability.status,
+      cloudPath: cloudCapability.path,
+      cloudConfiguredHostCount: cloudCapability.configuredHostCount,
+      cloudReason: cloudCapability.reason,
       reason: `This ${mode} wave can use the local swarm path (${localExecutorMode}) without moving orchestration truth off the main thread.`,
     }
   }
@@ -93,9 +115,10 @@ export function resolveAutoworkBackendPolicy(
     swarmBackend: 'none',
     localSwarmEnabled,
     localExecutorMode,
-    cloudSwarmStatus,
-    cloudReason,
+    cloudSwarmStatus: cloudCapability.status,
+    cloudPath: cloudCapability.path,
+    cloudConfiguredHostCount: cloudCapability.configuredHostCount,
+    cloudReason: cloudCapability.reason,
     reason: getMainThreadReason(mode),
   }
 }
-

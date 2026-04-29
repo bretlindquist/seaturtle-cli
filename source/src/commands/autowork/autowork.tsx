@@ -149,8 +149,10 @@ function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
   switch (policy.cloudSwarmStatus) {
     case 'active':
       return 'active'
-    case 'idle':
-      return 'idle'
+    case 'available':
+      return policy.cloudConfiguredHostCount > 0
+        ? `available via ct ssh (${policy.cloudConfiguredHostCount} saved host${policy.cloudConfiguredHostCount === 1 ? '' : 's'})`
+        : 'available via ct ssh'
     case 'unavailable':
       return policy.cloudReason ?? 'unavailable'
   }
@@ -178,7 +180,10 @@ function formatStatusSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveAutoworkBackendPolicy(context.mode)
+  const backendPolicy = resolveAutoworkBackendPolicy(context.mode, {
+    cloudOffloadActive:
+      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
+  })
   const quip = getAutoworkLaunchQuip(
     entryPoint,
     `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
@@ -233,7 +238,10 @@ function formatDoctorSummary(
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
   const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveAutoworkBackendPolicy(context.mode)
+  const backendPolicy = resolveAutoworkBackendPolicy(context.mode, {
+    cloudOffloadActive:
+      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
+  })
   const lines = [
     'Autowork doctor',
     '',

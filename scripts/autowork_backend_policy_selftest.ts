@@ -29,8 +29,8 @@ function run(): void {
   )
   assert.match(
     policySource,
-    /CLOUD_SWARM_UNAVAILABLE_REASON/,
-    'expected cloud swarm unavailability to be expressed explicitly in the backend policy seam',
+    /resolveAutoworkCloudOffloadCapability/,
+    'expected backend policy to consume the centralized cloud offload capability seam',
   )
 
   const commandSource = read(projectRoot, 'source/src/commands/autowork/autowork.tsx')
@@ -43,6 +43,21 @@ function run(): void {
     commandSource,
     /Cloud swarm: \$\{formatCloudSwarmStatus\(backendPolicy\)\}/,
     'expected autowork status surfaces to show truthful cloud swarm status',
+  )
+
+  const capabilitySource = read(
+    projectRoot,
+    'source/src/services/autowork/cloudOffloadCapability.ts',
+  )
+  assert.match(
+    capabilitySource,
+    /Remote-host offload is available via ct ssh/,
+    'expected cloud capability truth to be anchored in the ct ssh offload path',
+  )
+  assert.match(
+    capabilitySource,
+    /runtime\.provider === 'openai-codex' \|\| runtime\.provider === 'gemini'/,
+    'expected cloud capability support to reflect the providers that actually support provider-managed remote-host offload today',
   )
 
   const runnerSource = read(projectRoot, 'source/src/services/autowork/runner.ts')

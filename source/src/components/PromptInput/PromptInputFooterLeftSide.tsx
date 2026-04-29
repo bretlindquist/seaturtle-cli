@@ -286,6 +286,19 @@ function formatSwarmValue(snapshot: WorkflowRuntimeSnapshot): string {
     : `${snapshot.swarmBackend} idle`
 }
 
+function formatCloudValue(snapshot: WorkflowRuntimeSnapshot): string {
+  switch (snapshot.cloudOffloadStatus) {
+    case 'active':
+      return 'active'
+    case 'available':
+      return snapshot.cloudConfiguredHostCount > 0
+        ? `ready x${snapshot.cloudConfiguredHostCount}`
+        : 'ready'
+    case 'unavailable':
+      return 'off'
+  }
+}
+
 function SwarmActivityIndicator({
   active,
 }: {
@@ -484,6 +497,12 @@ function ModeIndicator({
     value={formatSwarmValue(workflowRuntime)}
     focused={false}
   /> : null;
+  const cloudPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+    key="workflow-cloud"
+    label="Cloud"
+    value={formatCloudValue(workflowRuntime)}
+    focused={false}
+  /> : null;
   const controlHint = shouldShowModeHint ? (
     <Text dimColor key="control-hint">
       <KeyboardShortcutHint
@@ -507,6 +526,7 @@ function ModeIndicator({
   ...(autoworkPart ? [autoworkPart] : []),
   ...(heartbeatPart ? [heartbeatPart] : []),
   ...(swarmPart ? [swarmPart] : []),
+  ...(cloudPart ? [cloudPart] : []),
   ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
