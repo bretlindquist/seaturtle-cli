@@ -5,7 +5,7 @@ import { feature } from 'bun:bundle';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const coordinatorModule = feature('COORDINATOR_MODE') ? require('../../coordinator/coordinatorMode.js') as typeof import('../../coordinator/coordinatorMode.js') : undefined;
 /* eslint-enable @typescript-eslint/no-require-imports */
-import { Box, Text, Link } from '../../ink.js';
+import { Box, Text, Link, useAnimationFrame } from '../../ink.js';
 import * as React from 'react';
 import figures from 'figures';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -52,6 +52,10 @@ import { getMarketingNameForModel, modelDisplayString } from '../../utils/model/
 import { getModelOptions } from '../../utils/model/modelOptions.js';
 import { getPreferredMainRuntimeProvider } from '../../utils/model/providers.js';
 import { type EffortValue, getDisplayedEffortLevel, modelSupportsEffort } from '../../utils/effort.js';
+import {
+  createDefaultWorkflowRuntimeSnapshot,
+  type WorkflowRuntimeSnapshot,
+} from '../../services/projectIdentity/workflowRuntime.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -61,6 +65,7 @@ const NO_OP_SUBSCRIBE = (_cb: () => void) => () => {};
 const NULL = () => null;
 const MAX_VOICE_HINT_SHOWS = 3;
 const FOOTER_TURTLE = '🐢';
+const DEFAULT_WORKFLOW_RUNTIME = createDefaultWorkflowRuntimeSnapshot();
 type Props = {
   exitMessage: {
     show: boolean;
@@ -246,6 +251,60 @@ function FooterControl({
     </Text>
   )
 }
+
+function shouldShowWorkflowRuntime(snapshot: WorkflowRuntimeSnapshot): boolean {
+  return (
+    snapshot.workId !== null ||
+    snapshot.workflowPhase !== 'idle' ||
+    snapshot.autoworkMode !== 'idle' ||
+    snapshot.autoworkActive ||
+    snapshot.heartbeatEnabled ||
+    snapshot.swarmBackend !== 'none' ||
+    snapshot.swarmActive
+  )
+}
+
+function formatHeartbeatValue(snapshot: WorkflowRuntimeSnapshot): string {
+  if (!snapshot.heartbeatEnabled || snapshot.heartbeatIntervalMs === null) {
+    return 'off'
+  }
+
+  return formatDuration(snapshot.heartbeatIntervalMs, {
+    mostSignificantOnly: true,
+  })
+}
+
+function formatSwarmValue(snapshot: WorkflowRuntimeSnapshot): string {
+  if (snapshot.swarmBackend === 'none') {
+    return 'off'
+  }
+
+  const workerSuffix =
+    snapshot.swarmWorkerCount > 0 ? ` x${snapshot.swarmWorkerCount}` : ''
+  return snapshot.swarmActive
+    ? `${snapshot.swarmBackend}${workerSuffix}`
+    : `${snapshot.swarmBackend} idle`
+}
+
+function SwarmActivityIndicator({
+  active,
+}: {
+  active: boolean
+}): React.ReactNode {
+  const [activityRef, time] = useAnimationFrame(active ? 120 : null)
+  if (!active) {
+    return null
+  }
+
+  const frames = ['·  ', '·· ', '···', ' ··', '  ·', ' · ']
+  const frame = frames[Math.floor(time / 120) % frames.length] ?? frames[0]
+  return (
+    <Text ref={activityRef} color="warning">
+      {frame}
+    </Text>
+  )
+}
+
 function ModeIndicator({
   mode,
   toolPermissionContext,
@@ -264,6 +323,7 @@ function ModeIndicator({
   const modeCycleShortcut = useShortcutDisplay('chat:cycleMode', 'Chat', 'shift+tab');
   const activeMainLoopModel = useMainLoopModel();
   const activeEffortValue = useAppState(s_8 => s_8.effortValue);
+  const workflowRuntime = useAppState(s_9 => s_9.workflowRuntime ?? DEFAULT_WORKFLOW_RUNTIME);
   const tasks = useAppState(s => s.tasks);
   const teamContext = useAppState(s_0 => s_0.teamContext);
   // Set once in initialState (main.tsx --remote mode) and never mutated — lazy
@@ -400,6 +460,30 @@ function ModeIndicator({
     value={workingDirectoryValue}
     focused={false}
   />;
+  const workflowPhasePart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+    key="workflow-phase"
+    label="Workflow"
+    value={workflowRuntime.workflowPhase}
+    focused={false}
+  /> : null;
+  const autoworkPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+    key="workflow-autowork"
+    label="Autowork"
+    value={workflowRuntime.autoworkActive ? 'on' : 'off'}
+    focused={false}
+  /> : null;
+  const heartbeatPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+    key="workflow-heartbeat"
+    label="Heartbeat"
+    value={formatHeartbeatValue(workflowRuntime)}
+    focused={false}
+  /> : null;
+  const swarmPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+    key="workflow-swarm"
+    label="Swarm"
+    value={formatSwarmValue(workflowRuntime)}
+    focused={false}
+  /> : null;
   const controlHint = shouldShowModeHint ? (
     <Text dimColor key="control-hint">
       <KeyboardShortcutHint
@@ -419,7 +503,11 @@ function ModeIndicator({
   providerModelPart,
   ...(providerEffortPart ? [providerEffortPart] : []),
   workingDirectoryPart,
-  ...(controlHint ? [controlHint] : []),
+  ...(workflowPhasePart ? [workflowPhasePart] : []),
+  ...(autoworkPart ? [autoworkPart] : []),
+  ...(heartbeatPart ? [heartbeatPart] : []),
+  ...(swarmPart ? [swarmPart] : []),
+  ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
             <Text color="ide">{figures.circleDouble} remote</Text>
@@ -435,7 +523,7 @@ function ModeIndicator({
   const hasRunningAgentTasks = Object.values(tasks).some(t_3 => t_3.type === 'local_agent' && t_3.status === 'running');
 
   // Get hint parts separately for potential second-line rendering
-  const hintParts = showHint ? getSpinnerHintParts(isLoading, escShortcut, todosShortcut, killAgentsShortcut, hasTaskItems, expandedView, hasAnyInProcessTeammates, hasRunningAgentTasks, isKillAgentsConfirmShowing) : [];
+  const hintParts = [ ...(controlHint ? [controlHint] : []), ...(showHint ? getSpinnerHintParts(isLoading, escShortcut, todosShortcut, killAgentsShortcut, hasTaskItems, expandedView, hasAnyInProcessTeammates, hasRunningAgentTasks, isKillAgentsConfirmShowing) : []) ];
   if (isViewingCompletedTeammate) {
     parts.push(<Text dimColor key="esc-return">
         <KeyboardShortcutHint shortcut={escShortcut} action="return to team lead" />
@@ -448,15 +536,17 @@ function ModeIndicator({
 
   // When we have teammate pills, always render them on their own line above other parts
   if (hasTeammatePills) {
-    // Don't append spinner hints when viewing a completed teammate —
-    // the "esc to return to team lead" hint already replaces "esc to interrupt"
-    const otherParts = [...parts, ...(isViewingCompletedTeammate ? [] : hintParts)];
     return <Box flexDirection="column">
         <Box>
           <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} />
         </Box>
-        {otherParts.length > 0 && <Box>
-            <Byline>{otherParts}</Byline>
+        {parts.length > 0 && <Box>
+            <Byline>{parts}</Byline>
+          </Box>}
+        {hintParts.length > 0 && <Box>
+            <Text dimColor wrap="truncate">
+              <Byline>{hintParts}</Byline>
+            </Text>
           </Box>}
       </Box>;
   }
@@ -470,7 +560,7 @@ function ModeIndicator({
   // below still treat "pill present" as non-empty.
   const tasksPart = hasBackgroundTasks && !hasTeammatePills && !shouldHideTasksFooter(tasks, showSpinnerTree) ? <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} /> : null;
   if (parts.length === 0 && !tasksPart && !modePart && showHint) {
-    parts.push(<Text dimColor key="shortcuts-hint">
+    hintParts.push(<Text dimColor key="shortcuts-hint">
         ? for shortcuts
       </Text>);
   }
@@ -506,12 +596,12 @@ function ModeIndicator({
         </Byline>
       </Text>);
   } else if (feature('VOICE_MODE') && parts.length > 0 && showHint && voiceEnabled && voiceState === 'idle' && hintParts.length === 0 && voiceHintUnderCap) {
-    parts.push(<Text dimColor key="voice-hint">
+    hintParts.push(<Text dimColor key="voice-hint">
         hold {voiceKeyShortcut} to speak
       </Text>);
   }
   if ((tasksPart || hasCoordinatorTasks) && showHint && !hasTeams) {
-    parts.push(<Text dimColor key="manage-tasks">
+    hintParts.push(<Text dimColor key="manage-tasks">
         {tasksSelected ? <KeyboardShortcutHint shortcut="Enter" action="view tasks" /> : <KeyboardShortcutHint shortcut="↓" action="manage" />}
       </Text>);
   }
@@ -524,20 +614,25 @@ function ModeIndicator({
   // part (e.g. the selection copy/native-select hints) grow the column
   // from 0→1 row. Always render 1 row in fullscreen; return a space when
   // empty so Yoga reserves the row without painting anything visible.
-  if (parts.length === 0 && !tasksPart && !modePart) {
+  if (parts.length === 0 && hintParts.length === 0 && !tasksPart && !modePart) {
     return isFullscreenEnvEnabled() ? <Text> </Text> : null;
   }
 
-  // flexShrink=0 keeps mode + pill at natural width; the remaining parts
-  // truncate at the tail as one string inside the Text wrapper.
-  return <Box height={1} overflow="hidden">
-      {tasksPart && <Box flexShrink={0}>
-          {tasksPart}
-          {parts.length > 0 && <Text dimColor> · </Text>}
+  return <Box flexDirection="column">
+      {(tasksPart || parts.length > 0) && <Box height={1} overflow="hidden">
+          {tasksPart && <Box flexShrink={0}>
+              {tasksPart}
+              {parts.length > 0 && <Text dimColor> · </Text>}
+            </Box>}
+          {parts.length > 0 && <Text wrap="truncate">
+              <Byline>{parts}</Byline>
+            </Text>}
         </Box>}
-      {parts.length > 0 && <Text wrap="truncate">
-          <Byline>{parts}</Byline>
-        </Text>}
+      {hintParts.length > 0 && <Box height={1} overflow="hidden">
+          <Text dimColor wrap="truncate">
+            <Byline>{hintParts}</Byline>
+          </Text>
+        </Box>}
     </Box>;
 }
 

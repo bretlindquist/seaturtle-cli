@@ -37,6 +37,8 @@ import { getInitialSettings } from '../utils/settings/settings.js'
 import type { SettingsJson } from '../utils/settings/types.js'
 import { shouldEnableThinkingByDefault } from '../utils/thinking.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
+import type { WorkflowRuntimeSnapshot } from '../services/projectIdentity/workflowRuntime.js'
+import { getDefaultWorkflowRuntimeState } from './workflowRuntimeState.js'
 import type { Store } from './store.js'
 
 export type CompletionBoundary =
@@ -156,6 +158,7 @@ export type AppState = DeepImmutable<{
   replBridgeInitialName: string | undefined
   // Always-on bridge: first-time remote dialog pending (set by /remote-control command)
   showRemoteCallout: boolean
+  workflowRuntime: WorkflowRuntimeSnapshot
 }> & {
   // Unified task state - excluded from DeepImmutable because TaskState contains function types
   tasks: { [taskId: string]: TaskState }
@@ -502,6 +505,7 @@ export function getDefaultAppState(): AppState {
     replBridgeError: undefined,
     replBridgeInitialName: undefined,
     showRemoteCallout: false,
+    workflowRuntime: getDefaultWorkflowRuntimeState(),
     toolPermissionContext: {
       ...getEmptyToolPermissionContext(),
       mode: initialMode,

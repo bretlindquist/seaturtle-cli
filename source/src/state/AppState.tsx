@@ -7,6 +7,8 @@ import { logForDebugging } from '../utils/debug.js';
 import { reconcileBypassPermissionsAvailability } from '../utils/permissions/permissionSetup.js';
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js';
 import { createStore } from './store.js';
+import { getCtProjectRoot } from '../services/projectIdentity/paths.js';
+import { syncWorkflowRuntimeState } from './workflowRuntimeState.js';
 
 // DCE: voice context is ant-only. External builds get a passthrough.
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -34,7 +36,7 @@ type Props = {
 };
 const HasAppStateContext = React.createContext<boolean>(false);
 export function AppStateProvider(t0) {
-  const $ = _c(13);
+  const $ = _c(17);
   const {
     children,
     initialState,
@@ -46,7 +48,14 @@ export function AppStateProvider(t0) {
   }
   let t1;
   if ($[0] !== initialState || $[1] !== onChangeAppState) {
-    t1 = () => createStore(initialState ?? getDefaultAppState(), onChangeAppState);
+    t1 = () => {
+      const defaults = getDefaultAppState();
+      return createStore(initialState ? {
+        ...defaults,
+        ...initialState,
+        workflowRuntime: initialState.workflowRuntime ?? defaults.workflowRuntime
+      } : defaults, onChangeAppState);
+    };
     $[0] = initialState;
     $[1] = onChangeAppState;
     $[2] = t1;
@@ -75,41 +84,60 @@ export function AppStateProvider(t0) {
     t2 = $[4];
   }
   let t3;
-  if ($[5] === Symbol.for("react.memo_cache_sentinel")) {
+  if ($[5] !== store) {
     t3 = [];
-    $[5] = t3;
+    $[5] = store;
+    $[6] = t3;
   } else {
-    t3 = $[5];
+    t3 = $[6];
   }
   useEffect(t2, t3);
   let t4;
-  if ($[6] !== store.setState) {
-    t4 = source => applySettingsChange(source, store.setState);
-    $[6] = store.setState;
-    $[7] = t4;
+  if ($[7] !== store) {
+    t4 = () => {
+      syncWorkflowRuntimeState(getCtProjectRoot(), store.setState);
+    };
+    $[7] = store;
+    $[8] = t4;
   } else {
-    t4 = $[7];
+    t4 = $[8];
   }
-  const onSettingsChange = useEffectEvent(t4);
-  useSettingsChange(onSettingsChange);
   let t5;
-  if ($[8] !== children) {
-    t5 = <MailboxProvider><VoiceProvider>{children}</VoiceProvider></MailboxProvider>;
-    $[8] = children;
+  if ($[9] === Symbol.for("react.memo_cache_sentinel")) {
+    t5 = [];
     $[9] = t5;
   } else {
     t5 = $[9];
   }
+  useEffect(t4, t5);
   let t6;
-  if ($[10] !== store || $[11] !== t5) {
-    t6 = <HasAppStateContext.Provider value={true}><AppStoreContext.Provider value={store}>{t5}</AppStoreContext.Provider></HasAppStateContext.Provider>;
-    $[10] = store;
-    $[11] = t5;
-    $[12] = t6;
+  if ($[10] !== store.setState) {
+    t6 = source => applySettingsChange(source, store.setState);
+    $[10] = store.setState;
+    $[11] = t6;
   } else {
-    t6 = $[12];
+    t6 = $[11];
   }
-  return t6;
+  const onSettingsChange = useEffectEvent(t6);
+  useSettingsChange(onSettingsChange);
+  let t7;
+  if ($[12] !== children) {
+    t7 = <MailboxProvider><VoiceProvider>{children}</VoiceProvider></MailboxProvider>;
+    $[12] = children;
+    $[13] = t7;
+  } else {
+    t7 = $[13];
+  }
+  let t8;
+  if ($[14] !== store || $[15] !== t7) {
+    t8 = <HasAppStateContext.Provider value={true}><AppStoreContext.Provider value={store}>{t7}</AppStoreContext.Provider></HasAppStateContext.Provider>;
+    $[14] = store;
+    $[15] = t7;
+    $[16] = t8;
+  } else {
+    t8 = $[16];
+  }
+  return t8;
 }
 function useAppStore(): AppStateStore {
   // eslint-disable-next-line react-hooks/rules-of-hooks

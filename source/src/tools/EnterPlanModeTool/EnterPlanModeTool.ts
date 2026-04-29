@@ -9,6 +9,7 @@ import type { Message } from '../../types/message.js'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
 import { ensureActivePlanningWorkstream } from '../../services/projectIdentity/workflowState.js'
+import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
@@ -140,6 +141,7 @@ export const EnterPlanModeTool: Tool<InputSchema, Output> = buildTool({
       },
       getCtProjectRoot(),
     )
+    syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
 
     return {
       data: {

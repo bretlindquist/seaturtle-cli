@@ -38,6 +38,11 @@ import {
   type AutoworkRunPolicy,
 } from './policy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
+import {
+  setActiveWorkstreamPhase,
+  updateWorkExecutionPacket,
+  updateWorkVerificationPacket,
+} from '../projectIdentity/workflowState.js'
 
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
 
@@ -430,6 +435,130 @@ function persistAutoworkStop(
   }
 }
 
+function syncAutoworkExecutionStarted(
+  repoRoot: string,
+  chunkId: string,
+  executionScope: AutoworkExecutionScope,
+  entryPoint: AutoworkEntryPoint,
+): void {
+  const now = Date.now()
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      phase: 'implementation',
+      activeChunkId: chunkId,
+      executionScope,
+      startedAt: now,
+      updatedAt: now,
+      currentActions: [`Executing ${chunkId}`],
+      blockedOn: [],
+      nextVerificationSteps: [`/${entryPoint} verify`],
+      continuationDebt: [],
+      stopReason: null,
+      statusText: `Executing ${chunkId}`,
+      lastActivityAt: now,
+    }),
+    repoRoot,
+  )
+  setActiveWorkstreamPhase(
+    {
+      phase: 'implementation',
+      phaseReason: `Autowork is executing ${chunkId}.`,
+    },
+    repoRoot,
+  )
+}
+
+function syncAutoworkVerificationBlocked(
+  repoRoot: string,
+  chunkId: string,
+  reason: string,
+): void {
+  const now = Date.now()
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      phase: 'verification',
+      activeChunkId: chunkId,
+      updatedAt: now,
+      currentActions: [],
+      blockedOn: [reason],
+      stopReason: reason,
+      statusText: `Verification blocked for ${chunkId}`,
+      lastActivityAt: now,
+    }),
+    repoRoot,
+  )
+  updateWorkVerificationPacket(
+    current => ({
+      ...current,
+      status: 'failed',
+      updatedAt: now,
+      openDefects: current.openDefects.includes(reason)
+        ? current.openDefects
+        : [...current.openDefects, reason],
+    }),
+    repoRoot,
+  )
+  setActiveWorkstreamPhase(
+    {
+      phase: 'verification',
+      phaseReason: reason,
+    },
+    repoRoot,
+  )
+}
+
+function syncAutoworkVerificationComplete(
+  repoRoot: string,
+  chunkId: string,
+  nextPendingChunkId: string | null,
+  validationRuns: string[],
+): void {
+  const now = Date.now()
+  const phase = nextPendingChunkId ? 'implementation' : 'review'
+  const statusText = nextPendingChunkId
+    ? `Ready to continue with ${nextPendingChunkId}`
+    : `Chunk ${chunkId} verified`
+
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      phase,
+      activeChunkId: null,
+      updatedAt: now,
+      currentActions: [],
+      blockedOn: [],
+      nextVerificationSteps: [],
+      stopReason: null,
+      statusText,
+      lastActivityAt: now,
+    }),
+    repoRoot,
+  )
+  updateWorkVerificationPacket(
+    current => ({
+      ...current,
+      status: 'verified',
+      updatedAt: now,
+      verifiedChunkIds: current.verifiedChunkIds.includes(chunkId)
+        ? current.verifiedChunkIds
+        : [...current.verifiedChunkIds, chunkId],
+      validationRuns: Array.from(new Set([...current.validationRuns, ...validationRuns])),
+    }),
+    repoRoot,
+  )
+  setActiveWorkstreamPhase(
+    {
+      phase,
+      phaseReason: nextPendingChunkId
+        ? `Chunk ${chunkId} verified. Remaining approved work continues with ${nextPendingChunkId}.`
+        : `Chunk ${chunkId} verified. Broad review is now active.`,
+    },
+    repoRoot,
+  )
+}
+
 export async function inspectAndSelectAutoworkMode(
   planPath: string,
 ): Promise<AutoworkStartupContext> {
@@ -626,6 +755,12 @@ export async function prepareAutoworkSafeExecution(
     }),
     context.repoRoot,
   )
+  syncAutoworkExecutionStarted(
+    context.repoRoot,
+    nextChunk.id,
+    executionScope,
+    entryPoint,
+  )
 
   return {
     ok: true,
@@ -696,6 +831,11 @@ export async function verifyAutoworkSafeExecution(
           implementedButUnverified: true,
         }),
         context.repoRoot,
+      )
+      syncAutoworkVerificationBlocked(
+        context.repoRoot,
+        activeChunk.id,
+        `Validation failed for ${activeChunk.id}: ${command.command}`,
       )
 
       return {
@@ -847,6 +987,14 @@ export async function verifyAutoworkSafeExecution(
       implementedButUnverified: false,
     }),
     context.repoRoot,
+  )
+  syncAutoworkVerificationComplete(
+    context.repoRoot,
+    activeChunk.id,
+    nextPendingChunkId,
+    validationResults.length > 0
+      ? validationResults.map(result => result.command)
+      : [finalValidationResult.command],
   )
 
   const shouldContinuePlan =

@@ -1,12 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname } from 'path'
-import { safeParseJSON } from '../../utils/json.js'
-import { jsonStringify } from '../../utils/slowOperations.js'
-import { writeFileSyncAndFlush_DEPRECATED } from '../../utils/file.js'
-import { getFsImplementation } from '../../utils/fsOperations.js'
-import {
-  getCtAutoworkStatePath,
-  getCtProjectRoot,
-} from '../projectIdentity/paths.js'
+import { getCtAutoworkStatePath } from '../projectIdentity/pathLayout.js'
 
 export type AutoworkMode =
   | 'discovery'
@@ -80,6 +74,16 @@ export type AutoworkState = {
   runCount: number
 }
 
+function getDefaultProjectRoot(): string {
+  // Avoid pulling the heavier project-root resolver into pure state tests
+  // until a caller actually relies on implicit root discovery.
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const { getCtProjectRoot } =
+    require('../projectIdentity/paths.js') as typeof import('../projectIdentity/paths.js')
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  return getCtProjectRoot()
+}
+
 function createDefaultAutoworkState(): AutoworkState {
   return {
     version: 1,
@@ -108,24 +112,28 @@ function createDefaultAutoworkState(): AutoworkState {
 }
 
 function ensureParentDir(path: string): void {
-  getFsImplementation().mkdirSync(dirname(path))
+  mkdirSync(dirname(path), { recursive: true })
 }
 
 function writeJsonFile(path: string, value: unknown): void {
   ensureParentDir(path)
-  writeFileSyncAndFlush_DEPRECATED(path, jsonStringify(value, null, 2) + '\n', {
+  writeFileSync(path, JSON.stringify(value, null, 2) + '\n', {
     encoding: 'utf-8',
+    flush: true,
   })
 }
 
 function readJsonFile<T>(path: string): T | null {
-  const fs = getFsImplementation()
-  if (!fs.existsSync(path)) {
+  if (!existsSync(path)) {
     return null
   }
 
-  const raw = fs.readFileSync(path, { encoding: 'utf-8' })
-  return safeParseJSON(raw) as T | null
+  const raw = readFileSync(path, { encoding: 'utf-8' })
+  try {
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
 }
 
 function uniqueNonEmptyStrings(values: unknown): string[] {
@@ -316,12 +324,10 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
 }
 
 export function ensureAutoworkStateFile(
-  root: string = getCtProjectRoot(),
+  root: string = getDefaultProjectRoot(),
 ): { path: string; created: boolean } {
   const path = getCtAutoworkStatePath(root)
-  const fs = getFsImplementation()
-
-  if (!fs.existsSync(path)) {
+  if (!existsSync(path)) {
     writeJsonFile(path, createDefaultAutoworkState())
     return { path, created: true }
   }
@@ -330,7 +336,7 @@ export function ensureAutoworkStateFile(
 }
 
 export function readAutoworkState(
-  root: string = getCtProjectRoot(),
+  root: string = getDefaultProjectRoot(),
 ): AutoworkState {
   ensureAutoworkStateFile(root)
   return sanitizeAutoworkState(
@@ -340,7 +346,7 @@ export function readAutoworkState(
 
 export function writeAutoworkState(
   value: AutoworkState,
-  root: string = getCtProjectRoot(),
+  root: string = getDefaultProjectRoot(),
 ): AutoworkState {
   const next = sanitizeAutoworkState(value)
   writeJsonFile(getCtAutoworkStatePath(root), next)
@@ -349,9 +355,20 @@ export function writeAutoworkState(
 
 export function updateAutoworkState(
   updater: (current: AutoworkState) => AutoworkState,
-  root: string = getCtProjectRoot(),
+  root: string = getDefaultProjectRoot(),
 ): AutoworkState {
   const next = sanitizeAutoworkState(updater(readAutoworkState(root)))
   writeJsonFile(getCtAutoworkStatePath(root), next)
   return next
+}
+
+export function peekAutoworkState(
+  root: string = getDefaultProjectRoot(),
+): AutoworkState | null {
+  const path = getCtAutoworkStatePath(root)
+  if (!existsSync(path)) {
+    return null
+  }
+
+  return sanitizeAutoworkState(readJsonFile<AutoworkState>(path))
 }

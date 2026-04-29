@@ -15,6 +15,7 @@ import {
   markActivePlanApproved,
   setActiveWorkstreamPhase,
 } from '../../services/projectIdentity/workflowState.js'
+import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 import type { AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS } from '../../services/analytics/metadata.js'
 import {
   buildTool,
@@ -273,6 +274,7 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
       },
       getCtProjectRoot(),
     )
+    syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
 
     // Check if this is a teammate that requires leader approval
     if (isTeammate() && isPlanModeRequired()) {
@@ -343,6 +345,7 @@ export const ExitPlanModeV2Tool: Tool<InputSchema, Output> = buildTool({
         getCtProjectRoot(),
       )
     }
+    syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
 
     // Note: Background verification hook is registered in REPL.tsx AFTER context clear
     // via registerPlanVerificationHook(). Registering here would be cleared during context clear.

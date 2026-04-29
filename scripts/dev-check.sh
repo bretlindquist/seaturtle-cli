@@ -52,6 +52,7 @@ bun scripts/side_question_context_selftest.ts >/dev/null
 bun scripts/project_todo_selftest.ts >/dev/null
 bun scripts/project_feedback_selftest.ts >/dev/null
 bun scripts/workflow_state_selftest.ts >/dev/null
+bun scripts/workflow_runtime_selftest.ts >/dev/null
 bun scripts/feedback_command_local_sink_selftest.ts >/dev/null
 bun scripts/ct_tip_selftest.ts >/dev/null
 bun scripts/help_docs_surface_selftest.ts >/dev/null

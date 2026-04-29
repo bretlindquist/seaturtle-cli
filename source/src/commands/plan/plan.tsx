@@ -9,6 +9,7 @@ import {
   getActiveWorkflowPlanProjection,
   resumeActiveWorkstream,
 } from '../../services/projectIdentity/workflowState.js';
+import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js';
 import type { LocalJSXCommandOnDone } from '../../types/command.js';
 import type { Message } from '../../types/message.js';
 import { getExternalEditor } from '../../utils/editor.js';
@@ -130,6 +131,7 @@ export async function call(onDone: LocalJSXCommandOnDone, context: LocalJSXComma
       planContent: getPlan(),
       phaseReason: 'Entered plan mode from /plan.',
     }, getCtProjectRoot());
+    syncWorkflowRuntimeState(getCtProjectRoot(), setAppState);
     if (description && description !== 'open') {
       onDone('Enabled plan mode', {
         shouldQuery: true

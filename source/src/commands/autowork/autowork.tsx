@@ -25,7 +25,12 @@ import {
   type AutoworkExecutionScope,
   type AutoworkRunMode,
 } from '../../services/autowork/state.js'
-import type { LocalJSXCommandCall } from '../../types/command.js'
+import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
+import type {
+  LocalJSXCommandCall,
+  LocalJSXCommandContext,
+} from '../../types/command.js'
 
 type EntryPoint = 'autowork' | 'swim'
 
@@ -442,9 +447,11 @@ function subtitleForEntryPoint(entryPoint: EntryPoint): string {
 function AutoworkMenu({
   entryPoint,
   onDone,
+  setAppState,
 }: {
   entryPoint: EntryPoint
   onDone: OnDone
+  setAppState: LocalJSXCommandContext['setAppState']
 }): React.ReactNode {
   return (
     <Dialog
@@ -513,6 +520,7 @@ function AutoworkMenu({
                 entryPoint,
                 value === 'step' ? 'step' : 'plan',
               )
+              syncWorkflowRuntimeState(getCtProjectRoot(), setAppState)
               if (!execution.ok) {
                 onDone(execution.message, { display: 'system' })
                 return
@@ -566,7 +574,7 @@ function AutoworkMenu({
 }
 
 export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall {
-  return async (onDone, _context, args) => {
+  return async (onDone, context, args) => {
     const rawArgs = args?.trim() || ''
     const { head, tail } = splitCommandArgs(rawArgs)
     const normalizedArgs = rawArgs.toLowerCase()
@@ -617,6 +625,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
 
     if (head === 'run' && !tail) {
       const execution = await runAutowork(entryPoint, 'plan')
+      syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
             display: 'system',
@@ -631,6 +640,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
 
     if (head === 'step' && !tail) {
       const execution = await runAutowork(entryPoint, 'step')
+      syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
             display: 'system',
@@ -645,6 +655,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
 
     if (head === 'verify' && !tail) {
       const verification = await verifyAutowork(entryPoint)
+      syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(verification.message, verification.ok && verification.nextInput
         ? {
             display: 'system',
@@ -672,7 +683,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
     }
 
     if (rawArgs === '' || normalizedArgs === 'start') {
-      return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} />
+      return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} setAppState={context.setAppState} />
     }
 
     onDone(
