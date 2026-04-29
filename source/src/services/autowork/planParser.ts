@@ -2,8 +2,10 @@ import { dirname, relative, resolve, sep } from 'path'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
+import { peekActiveWorkstream } from '../projectIdentity/workflowState.js'
 import {
   parseAutoworkPlanContent,
+  type AutoworkChunkStatus,
   type AutoworkPlanChunk,
   type AutoworkPlanParseFailure,
 } from './planChunkParser.js'
@@ -35,6 +37,62 @@ function fail(
     chunkId: options?.chunkId,
     line: options?.line,
   }
+}
+
+function mapWorkflowChunkStatusToAutoworkStatus(
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked',
+): AutoworkChunkStatus {
+  switch (status) {
+    case 'pending':
+      return 'pending'
+    case 'in_progress':
+      return 'in-progress'
+    case 'completed':
+      return 'completed'
+    case 'blocked':
+      return 'blocked'
+  }
+}
+
+function getWorkflowBackedPlanChunks(
+  repoRoot: string,
+  resolvedPath: string,
+): AutoworkPlanChunk[] | null {
+  const workflow = peekActiveWorkstream(repoRoot)
+  if (!workflow || !workflow.resolution.hasExecutablePlan) {
+    return null
+  }
+
+  const matchingPromotedPath = workflow.packets.plan.promotedPlanDocs.find(
+    candidate => resolve(candidate) === resolvedPath,
+  )
+  if (!matchingPromotedPath) {
+    return null
+  }
+
+  const chunkById = new Map(
+    workflow.packets.plan.chunks.map(chunk => [chunk.id, chunk] as const),
+  )
+  const orderedChunks = workflow.packets.plan.chunkOrder
+    .map(chunkId => chunkById.get(chunkId) ?? null)
+    .filter((chunk): chunk is NonNullable<typeof chunk> => chunk !== null)
+
+  if (orderedChunks.length === 0) {
+    return null
+  }
+
+  return orderedChunks.map((chunk, index) => ({
+    id: chunk.id,
+    name: chunk.title,
+    status: mapWorkflowChunkStatusToAutoworkStatus(chunk.status),
+    purpose: chunk.purpose ?? chunk.title,
+    files: chunk.files,
+    dependencies: chunk.dependencies,
+    risks: chunk.risks,
+    validation: chunk.validation.join('\n'),
+    done: chunk.done.join('\n'),
+    startLine: index + 1,
+  }))
 }
 
 async function isTrackedPlanFile(path: string, repoRoot: string): Promise<boolean> {
@@ -84,6 +142,16 @@ export async function parseAutoworkPlanFile(
       'plan_not_tracked',
       'Autowork plan file must be tracked by git before execution can begin.',
     )
+  }
+
+  const workflowChunks = getWorkflowBackedPlanChunks(repoRoot, resolvedPath)
+  if (workflowChunks) {
+    return {
+      ok: true,
+      path: resolvedPath,
+      repoRoot,
+      chunks: workflowChunks,
+    }
   }
 
   const content = fs.readFileSync(resolvedPath, { encoding: 'utf-8' })
