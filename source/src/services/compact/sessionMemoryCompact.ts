@@ -38,6 +38,7 @@ import {
   type CompactionResult,
   createPlanAttachmentIfNeeded,
 } from './compact.js'
+import { classifyLargeSessionCompactionRisk } from './compactionSafety.js'
 import { estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
@@ -431,6 +432,69 @@ export function shouldUseSessionMemoryCompaction(): boolean {
   return shouldUse
 }
 
+export type SessionMemoryCompactionDecision =
+  | {
+      shouldAttempt: false
+      reason: 'disabled'
+      isForcedByLargeSession: false
+      messageCount: number
+      estimatedTokenCount: number
+    }
+  | {
+      shouldAttempt: true
+      reason: 'feature_flag' | 'forced_large_session'
+      isForcedByLargeSession: boolean
+      messageCount: number
+      estimatedTokenCount: number
+    }
+
+export function getSessionMemoryCompactionDecision(
+  messages: Message[],
+): SessionMemoryCompactionDecision {
+  const largeSessionRisk = classifyLargeSessionCompactionRisk(messages)
+
+  if (isEnvTruthy(process.env.DISABLE_CLAUDE_CODE_SM_COMPACT)) {
+    return {
+      shouldAttempt: false,
+      reason: 'disabled',
+      isForcedByLargeSession: false,
+      messageCount: largeSessionRisk.messageCount,
+      estimatedTokenCount: largeSessionRisk.estimatedTokenCount,
+    }
+  }
+
+  if (
+    isEnvTruthy(process.env.ENABLE_CLAUDE_CODE_SM_COMPACT) ||
+    shouldUseSessionMemoryCompaction()
+  ) {
+    return {
+      shouldAttempt: true,
+      reason: 'feature_flag',
+      isForcedByLargeSession: false,
+      messageCount: largeSessionRisk.messageCount,
+      estimatedTokenCount: largeSessionRisk.estimatedTokenCount,
+    }
+  }
+
+  if (largeSessionRisk.isLargeSession) {
+    return {
+      shouldAttempt: true,
+      reason: 'forced_large_session',
+      isForcedByLargeSession: true,
+      messageCount: largeSessionRisk.messageCount,
+      estimatedTokenCount: largeSessionRisk.estimatedTokenCount,
+    }
+  }
+
+  return {
+    shouldAttempt: false,
+    reason: 'disabled',
+    isForcedByLargeSession: false,
+    messageCount: largeSessionRisk.messageCount,
+    estimatedTokenCount: largeSessionRisk.estimatedTokenCount,
+  }
+}
+
 /**
  * Create a CompactionResult from session memory
  */
@@ -516,7 +580,8 @@ export async function trySessionMemoryCompaction(
   agentId?: AgentId,
   autoCompactThreshold?: number,
 ): Promise<CompactionResult | null> {
-  if (!shouldUseSessionMemoryCompaction()) {
+  const decision = getSessionMemoryCompactionDecision(messages)
+  if (!decision.shouldAttempt) {
     return null
   }
 

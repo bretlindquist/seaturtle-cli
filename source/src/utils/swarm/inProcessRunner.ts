@@ -30,6 +30,7 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
+import { trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import { appendTeammateMessage } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
@@ -1087,20 +1088,26 @@ export async function runInProcessTeammate(
           onCompactProgress: undefined,
           setStreamMode: undefined,
         }
-        const compactedSummary = await compactConversation(
-          allMessages,
-          isolatedContext,
-          {
-            systemPrompt: asSystemPrompt([]),
-            userContext: {},
-            systemContext: {},
-            toolUseContext: isolatedContext,
-            forkContextMessages: [],
-          },
-          true, // suppressFollowUpQuestions
-          undefined, // customInstructions
-          true, // isAutoCompact
-        )
+        const compactedSummary =
+          (await trySessionMemoryCompaction(
+            allMessages,
+            isolatedContext.agentId,
+            getAutoCompactThreshold(toolUseContext.options.mainLoopModel),
+          )) ??
+          (await compactConversation(
+            allMessages,
+            isolatedContext,
+            {
+              systemPrompt: asSystemPrompt([]),
+              userContext: {},
+              systemContext: {},
+              toolUseContext: isolatedContext,
+              forkContextMessages: [],
+            },
+            true, // suppressFollowUpQuestions
+            undefined, // customInstructions
+            true, // isAutoCompact
+          ))
         contextMessages = buildPostCompactMessages(compactedSummary)
         // Reset microcompact state since full compact replaces all
         // messages — old tool IDs are no longer relevant

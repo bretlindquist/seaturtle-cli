@@ -112,6 +112,7 @@ import {
   roughTokenCountEstimation,
   roughTokenCountEstimationForMessages,
 } from '../tokenEstimation.js'
+import { projectLegacyCompactionMessages } from './compactionSafety.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import {
   getCompactPrompt,
@@ -398,7 +399,8 @@ export async function compactConversation(
       throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     }
 
-    const preCompactTokenCount = tokenCountWithEstimation(messages)
+    const compactWindowMessages = getMessagesAfterCompactBoundary(messages)
+    const preCompactTokenCount = tokenCountWithEstimation(compactWindowMessages)
 
     const appState = context.getAppState()
     void logPermissionContextForAnts(appState.toolPermissionContext, 'summary')
@@ -442,8 +444,13 @@ export async function compactConversation(
       content: compactPrompt,
     })
 
-    let messagesToSummarize = messages
-    let retryCacheSafeParams = cacheSafeParams
+    const safetyProjection =
+      projectLegacyCompactionMessages(compactWindowMessages)
+    let messagesToSummarize = safetyProjection.messages
+    let retryCacheSafeParams = {
+      ...cacheSafeParams,
+      forkContextMessages: messagesToSummarize,
+    }
     let summaryResponse: AssistantMessage
     let summary: string | null
     let ptlAttempts = 0
@@ -598,12 +605,12 @@ export async function compactConversation(
     const boundaryMarker = createCompactBoundaryMessage(
       isAutoCompact ? 'auto' : 'manual',
       preCompactTokenCount ?? 0,
-      messages.at(-1)?.uuid,
+      compactWindowMessages.at(-1)?.uuid,
     )
     // Carry loaded-tool state — the summary doesn't preserve tool_reference
     // blocks, so the post-compact schema filter needs this to keep sending
     // already-loaded deferred tool schemas to the API.
-    const preCompactDiscovered = extractDiscoveredToolNames(messages)
+    const preCompactDiscovered = extractDiscoveredToolNames(compactWindowMessages)
     if (preCompactDiscovered.size > 0) {
       boundaryMarker.compactMetadata.preCompactDiscoveredTools = [
         ...preCompactDiscovered,
@@ -686,7 +693,7 @@ export async function compactConversation(
       // as reactiveCompact.ts.
       ...(() => {
         try {
-          return tokenStatsToStatsigMetrics(analyzeContext(messages))
+          return tokenStatsToStatsigMetrics(analyzeContext(compactWindowMessages))
         } catch (error) {
           logError(error as Error)
           return {}
@@ -713,7 +720,9 @@ export async function compactConversation(
     // Write a reduced transcript segment for the pre-compaction messages
     // (assistant mode only). Fire-and-forget — errors are logged internally.
     if (feature('KAIROS')) {
-      void sessionTranscriptModule?.writeSessionTranscriptSegment(messages)
+      void sessionTranscriptModule?.writeSessionTranscriptSegment(
+        compactWindowMessages,
+      )
     }
 
     context.onCompactProgress?.({
@@ -1293,7 +1302,7 @@ async function streamCompactSummary({
         messages: normalizeMessagesForAPI(
           stripImagesFromMessages(
             stripReinjectedAttachments([
-              ...getMessagesAfterCompactBoundary(messages),
+              ...messages,
               summaryRequest,
             ]),
           ),
