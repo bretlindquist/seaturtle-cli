@@ -128,6 +128,7 @@ bun scripts/autowork_workflow_plan_parser_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_run_selftest.ts >/dev/null
 bun scripts/autowork_workflow_bootstrap_selftest.ts >/dev/null
 bun scripts/autowork_headless_status_selftest.ts >/dev/null
+bun scripts/ssh_autowork_offload_selftest.ts >/dev/null
 bun scripts/workflow_state_tool_selftest.ts >/dev/null
 bun scripts/autowork_backend_policy_selftest.ts >/dev/null
 bun scripts/autowork_cloud_offload_capability_selftest.ts >/dev/null

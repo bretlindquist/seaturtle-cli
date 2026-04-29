@@ -28,6 +28,7 @@ const distCliPath = join(repoRoot, 'dist', 'cli.js')
 const artifactCacheRoot = join(tmpdir(), 'seaturtle-ssh-artifacts')
 
 const MAX_STDERR_BYTES = 32_768
+const WORKFLOW_HANDOFF_FILENAME = 'workflow-handoff.json'
 
 type ProgressCallbacks = {
   onProgress?: (message: string) => void
@@ -64,6 +65,8 @@ type CreateSSHSessionOptions = {
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
   extraCliArgs?: string[]
+  workflowHandoffJson?: string
+  replaceWorkflowHandoff?: boolean
 }
 
 type CreateLocalSSHSessionOptions = {
@@ -71,6 +74,8 @@ type CreateLocalSSHSessionOptions = {
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
   extraCliArgs?: string[]
+  workflowHandoffJson?: string
+  replaceWorkflowHandoff?: boolean
 }
 
 type RemoteTarget = {
@@ -258,6 +263,22 @@ function collectRemoteCliArgs(params: {
   }
 
   return args
+}
+
+function appendWorkflowHandoffCliArgs(
+  args: string[],
+  workflowHandoffFile: string | null,
+  replaceWorkflowHandoff: boolean | undefined,
+): string[] {
+  if (!workflowHandoffFile) {
+    return args
+  }
+
+  const next = [...args, '--workflow-handoff-file', workflowHandoffFile]
+  if (replaceWorkflowHandoff) {
+    next.push('--replace-workflow-handoff')
+  }
+  return next
 }
 
 async function buildRemoteAuthMaterial(): Promise<RemoteAuthMaterial> {
@@ -512,17 +533,28 @@ function localSpawnCommand(): { command: string; args: string[] } {
 export function createLocalSSHSession(
   options: CreateLocalSSHSessionOptions,
 ): SSHSession {
-  const cliArgs = collectRemoteCliArgs(options)
   const authMaterial = buildRemoteAuthMaterialSync()
   if ('error' in authMaterial) {
     throw new SSHSessionError(authMaterial.error)
   }
 
   const tempDir = mkdtempSync(join(tmpdir(), 'seaturtle-ssh-local-'))
+  const workflowHandoffPath = options.workflowHandoffJson
+    ? join(tempDir, WORKFLOW_HANDOFF_FILENAME)
+    : null
+  if (workflowHandoffPath) {
+    writeFileSync(workflowHandoffPath, options.workflowHandoffJson!)
+  }
   if (authMaterial.codexAuthJson) {
     mkdirSync(join(tempDir, 'codex-home'), { recursive: true })
     writeFileSync(join(tempDir, 'codex-home', 'auth.json'), authMaterial.codexAuthJson)
   }
+
+  const cliArgs = appendWorkflowHandoffCliArgs(
+    collectRemoteCliArgs(options),
+    workflowHandoffPath,
+    options.replaceWorkflowHandoff,
+  )
 
   const env = {
     ...process.env,
@@ -601,7 +633,14 @@ export async function createSSHSession(
     )
   }
 
-  const cliArgs = collectRemoteCliArgs(options)
+  const workflowHandoffPath = options.workflowHandoffJson
+    ? `${remoteDir}/${WORKFLOW_HANDOFF_FILENAME}`
+    : null
+  const cliArgs = appendWorkflowHandoffCliArgs(
+    collectRemoteCliArgs(options),
+    workflowHandoffPath,
+    options.replaceWorkflowHandoff,
+  )
   const launchScript = buildLaunchScript({
     remoteDir,
     remoteCwd,
@@ -613,6 +652,12 @@ export async function createSSHSession(
   const localTempDir = mkdtempSync(join(tmpdir(), 'seaturtle-ssh-stage-'))
   const localLaunchPath = join(localTempDir, 'launch.sh')
   writeFileSync(localLaunchPath, launchScript, { mode: 0o700 })
+  const localWorkflowHandoffPath = options.workflowHandoffJson
+    ? join(localTempDir, WORKFLOW_HANDOFF_FILENAME)
+    : null
+  if (localWorkflowHandoffPath) {
+    writeFileSync(localWorkflowHandoffPath, options.workflowHandoffJson!)
+  }
 
   try {
     callbacks.onProgress?.('Uploading SeaTurtle runtime')
@@ -622,6 +667,15 @@ export async function createSSHSession(
     runChecked('scp', [localLaunchPath, `${options.host}:${remoteDir}/launch.sh`], {
       stdio: 'inherit',
     })
+    if (localWorkflowHandoffPath && workflowHandoffPath) {
+      runChecked(
+        'scp',
+        [localWorkflowHandoffPath, `${options.host}:${workflowHandoffPath}`],
+        {
+          stdio: 'inherit',
+        },
+      )
+    }
     runChecked(
       'ssh',
       [options.host, 'sh', '-lc', `chmod 700 ${quotePosix(`${remoteDir}/ct`)} ${quotePosix(`${remoteDir}/launch.sh`)}`],

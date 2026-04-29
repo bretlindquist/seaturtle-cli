@@ -4273,6 +4273,62 @@ async function run(): Promise<CommanderCommand> {
         process.exit(1);
       }
     });
+    program.command('ssh-autowork').description('[Internal] Run one autowork inspection action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to inspect').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork inspection action to run remotely').choices(['status', 'doctor']).default('status')).option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
+      const parsed = Number.parseInt(value, 10);
+      if (!Number.isFinite(parsed) || parsed <= 0) {
+        throw new Error(`Invalid timeout: ${value}`);
+      }
+      return parsed;
+    }).action(async (opts: {
+      host?: string;
+      dir?: string;
+      local?: boolean;
+      entryPoint: 'autowork' | 'swim';
+      action: 'status' | 'doctor';
+      permissionMode?: string;
+      dangerouslySkipPermissions?: boolean;
+      timeoutMs?: number;
+    }) => {
+      if (!opts.local && !opts.host) {
+        process.stderr.write('Usage: ct ssh-autowork --host <user@host | ssh-config-alias> [--dir <dir>]\n       ct ssh-autowork --local [--dir <dir>]\n');
+        process.exit(1);
+      }
+      const {
+        runRemoteAutoworkOffload
+      } = await import('./services/autowork/remoteOffload.js');
+      const action = {
+        kind: opts.action,
+        entryPoint: opts.entryPoint
+      };
+      try {
+        const result = await runRemoteAutoworkOffload({
+          host: opts.host,
+          cwd: opts.dir,
+          local: opts.local === true,
+          localVersion: MACRO.VERSION,
+          permissionMode: opts.permissionMode,
+          dangerouslySkipPermissions: opts.dangerouslySkipPermissions === true,
+          timeoutMs: opts.timeoutMs,
+          action
+        }, process.stderr.isTTY && !opts.local ? {
+          onProgress: msg => {
+            process.stderr.write(`\r  ${msg}\x1b[K`);
+          }
+        } : {});
+        if (process.stderr.isTTY && !opts.local) {
+          process.stderr.write('\n');
+        }
+        const body = result.output || 'Remote autowork inspection completed with no text output.';
+        process.stdout.write(`${body.endsWith('\n') ? body : `${body}\n`}`);
+        process.exit(0);
+      } catch (err) {
+        if (process.stderr.isTTY && !opts.local) {
+          process.stderr.write('\n');
+        }
+        process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
+        process.exit(1);
+      }
+    });
   }
 
   // claude connect — subcommand only handles -p (headless) mode.
