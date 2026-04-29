@@ -8,13 +8,8 @@ import { Box, Text } from '../../ink.js'
 import {
   inspectAndSelectAutoworkMode,
   prepareAutoworkSafeExecution,
-  type AutoworkStartupContext,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
-import {
-  resolveAutoworkBackendPolicy,
-  type AutoworkBackendPolicy,
-} from '../../services/autowork/backendPolicy.js'
 import {
   getAutoworkDangerousQuip,
   getAutoworkLaunchQuip,
@@ -22,7 +17,6 @@ import {
 import {
   resolveActiveAutoworkPlanFile,
   resolveExplicitAutoworkPlanPath,
-  type AutoworkPlanResolutionResult,
 } from '../../services/autowork/planResolution.js'
 import {
   readAutoworkState,
@@ -30,18 +24,15 @@ import {
   type AutoworkExecutionScope,
   type AutoworkRunMode,
 } from '../../services/autowork/state.js'
-import {
-  DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS,
-  formatAutoworkRuntimeWindowLabel,
-  parseAutoworkBudgetInput,
-} from '../../services/autowork/runtimeWindow.js'
+import { parseAutoworkBudgetInput } from '../../services/autowork/runtimeWindow.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
+import { markActivePlanApproved } from '../../services/projectIdentity/workflowState.js'
 import {
-  markActivePlanApproved,
-  peekActiveWorkstream,
-} from '../../services/projectIdentity/workflowState.js'
+  formatAutoworkDoctorSummary,
+  formatAutoworkStatusSummary,
+  resolveAutoworkInspectionContext,
+} from '../../services/autowork/inspectionSummary.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
-import { formatDuration } from '../../utils/format.js'
 import type {
   LocalJSXCommandCall,
   LocalJSXCommandContext,
@@ -82,261 +73,6 @@ function splitCommandArgs(args: string): { head: string; tail: string } {
   }
 }
 
-function titleCaseRunMode(runMode: AutoworkRunMode): string {
-  return runMode === 'dangerous' ? 'dangerous' : 'safe'
-}
-
-function formatExecutionScope(scope: AutoworkExecutionScope): string {
-  return scope === 'step' ? 'one chunk only' : 'plan to completion'
-}
-
-function formatPlanResolutionSource(
-  source:
-    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
-    | 'workflow-bootstrap',
-): string {
-  switch (source) {
-    case 'selected-path':
-      return 'explicit selection'
-    case 'workflow-state':
-      return 'workflow state'
-    case 'state':
-      return 'persisted autowork state'
-    case 'tracked-root':
-      return 'single tracked root-level fallback'
-    case 'workflow-bootstrap':
-      return 'workflow bootstrap'
-  }
-}
-
-function formatWorkflowEligibilityHint(
-  hint: NonNullable<AutoworkStartupContext['workflowResolution']>['autoworkEligibilityHint'],
-): string {
-  switch (hint) {
-    case 'no-active-workstream':
-      return 'no active workstream'
-    case 'intent-needed':
-      return 'intent needed'
-    case 'research-needed':
-      return 'research needed'
-    case 'plan-needed':
-      return 'plan needed'
-    case 'implementation-ready':
-      return 'implementation ready'
-    case 'verification-needed':
-      return 'verification needed'
-    case 'review-needed':
-      return 'review needed'
-    case 'state-conflict':
-      return 'state conflict'
-  }
-}
-
-function formatBackendTarget(policy: AutoworkBackendPolicy): string {
-  switch (policy.target) {
-    case 'main-thread':
-      return 'main thread'
-    case 'local-swarm':
-      return policy.localExecutorMode
-        ? `local swarm (${policy.localExecutorMode})`
-        : 'local swarm'
-    case 'cloud-swarm':
-      return 'cloud swarm'
-  }
-}
-
-function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
-  switch (policy.cloudSwarmStatus) {
-    case 'active':
-      return 'active'
-    case 'available':
-      return policy.cloudConfiguredHostCount > 0
-        ? `available via ct ssh (${policy.cloudConfiguredHostCount} saved host${policy.cloudConfiguredHostCount === 1 ? '' : 's'})`
-        : 'available via ct ssh'
-    case 'unavailable':
-      return policy.cloudReason ?? 'unavailable'
-  }
-}
-
-function formatCloudRecommendation(policy: AutoworkBackendPolicy): string {
-  switch (policy.cloudRecommendation) {
-    case 'active':
-      return 'active'
-    case 'recommended':
-      return 'recommended'
-    case 'optional':
-      return 'optional'
-    case 'none':
-      return policy.cloudSwarmStatus === 'unavailable'
-        ? 'unavailable'
-        : 'not recommended'
-  }
-}
-
-function resolveBackendPolicyForContext(
-  context: AutoworkStartupContext,
-): AutoworkBackendPolicy {
-  const execution = context.repoRoot
-    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
-    : null
-
-  return resolveAutoworkBackendPolicy(context.mode, {
-    heartbeatEnabled: execution?.heartbeatEnabled,
-    timeBudgetMs: execution?.timeBudgetMs,
-    deadlineAt: execution?.deadlineAt,
-    cloudOffloadActive:
-      execution?.swarmBackend === 'cloud' && execution?.swarmActive === true,
-  })
-}
-
-function formatChecks(
-  context: AutoworkStartupContext,
-  doctor: boolean,
-): string[] {
-  return context.eligibility.checks.map(check =>
-    doctor
-      ? `- ${check.name}: ${check.ok ? 'ok' : 'failed'} - ${check.summary}`
-      : `- ${check.name}: ${check.ok ? 'ok' : 'failed'}`,
-  )
-}
-
-function formatStatusSummary(
-  entryPoint: EntryPoint,
-  context: AutoworkStartupContext,
-  planSource:
-    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
-    | 'workflow-bootstrap',
-): string {
-  const execution = context.repoRoot
-    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
-    : null
-  const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveBackendPolicyForContext(context)
-  const quip = getAutoworkLaunchQuip(
-    entryPoint,
-    `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
-  )
-
-  return [
-    quip,
-    '',
-    `Mode: ${context.mode}`,
-    `Why: ${context.modeReason}`,
-    `Plan: ${context.planPath ?? 'none yet'}`,
-    `Plan source: ${formatPlanResolutionSource(planSource)}`,
-    workflowResolution
-      ? `Workflow phase: ${workflowResolution.phase}`
-      : 'Workflow phase: unavailable',
-    workflowResolution
-      ? `Workflow readiness: ${formatWorkflowEligibilityHint(workflowResolution.autoworkEligibilityHint)}`
-      : 'Workflow readiness: unavailable',
-    `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
-    `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
-    `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
-    `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
-    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
-    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
-    `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
-    `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
-    `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
-    `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
-    '',
-    'Current readiness:',
-    ...formatChecks(context, false),
-    '',
-    context.mode === 'execution'
-      ? `Next: use /${entryPoint} run to continue the approved plan from ${context.nextPendingChunkId ?? 'the next chunk'}, or /${entryPoint} step to execute only one chunk.`
-      : context.mode === 'verification'
-        ? `Next: use /${entryPoint} verify to enforce the checkpoint for ${context.state.currentChunkId ?? 'the active chunk'}.`
-        : context.mode === 'research' ||
-            context.mode === 'plan-hardening' ||
-            context.mode === 'audit-and-polish' ||
-            context.mode === 'discovery'
-          ? `Next: use /${entryPoint} run to continue the current ${context.mode} wave from workflow state.`
-        : `Next: use /${entryPoint} doctor for the fuller checkpoint breakdown.`,
-  ].join('\n')
-}
-
-function formatDoctorSummary(
-  context: AutoworkStartupContext,
-  planSource:
-    | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
-    | 'workflow-bootstrap',
-): string {
-  const execution = context.repoRoot
-    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
-    : null
-  const workflowResolution = context.workflowResolution
-  const backendPolicy = resolveBackendPolicyForContext(context)
-  const lines = [
-    'Autowork doctor',
-    '',
-    `Plan: ${context.planPath ?? 'none yet'}`,
-    `Plan source: ${formatPlanResolutionSource(planSource)}`,
-    `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
-    `Workflow phase: ${workflowResolution?.phase ?? 'unavailable'}`,
-    `Workflow readiness: ${workflowResolution ? formatWorkflowEligibilityHint(workflowResolution.autoworkEligibilityHint) : 'unavailable'}`,
-    `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
-    `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
-    `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
-    `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
-    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
-    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
-    `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
-    `Selected mode: ${context.mode}`,
-    `Reason: ${context.modeReason}`,
-    `Current branch: ${context.inspection.branch ?? 'unknown'}`,
-    `Uncommitted changes: ${context.inspection.hasUncommittedChanges ? 'yes' : 'no'}`,
-    `Executable plan available: ${context.inspection.hasExecutablePlanFile ? 'yes' : 'no'}`,
-    `Recently completed unverified chunk: ${context.inspection.hasRecentlyCompletedUnverifiedChunk ? 'yes' : 'no'}`,
-    `Validation known for last chunk: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
-    `Ignore hygiene ok: ${context.inspection.ignoreHygieneOk ? 'yes' : 'no'}`,
-    '',
-    'Eligibility checks:',
-    ...formatChecks(context, true),
-  ]
-
-  lines.push('', `Backend policy: ${backendPolicy.reason}`)
-
-  if (backendPolicy.cloudRecommendationReason) {
-    lines.push(`Cloud policy: ${backendPolicy.cloudRecommendationReason}`)
-  }
-
-  if (backendPolicy.cloudNextStep) {
-    lines.push(`Cloud next step: ${backendPolicy.cloudNextStep}`)
-  }
-
-  if (workflowResolution?.issues.length) {
-    lines.push('', 'Workflow issues:', ...workflowResolution.issues.map(issue => `- ${issue}`))
-  }
-
-  if (!context.eligibility.ok && context.eligibility.parseFailure) {
-    lines.push(
-      '',
-      `Plan parse failure: ${context.eligibility.parseFailure.code}`,
-      context.eligibility.parseFailure.message,
-    )
-  }
-
-  if (context.inspection.latestRelevantCommits.length > 0) {
-    lines.push(
-      '',
-      'Latest commits:',
-      ...context.inspection.latestRelevantCommits.map(line => `- ${line}`),
-    )
-  }
-
-  if (context.inspection.gitStatusShort.length > 0) {
-    lines.push(
-      '',
-      'git status --short:',
-      ...context.inspection.gitStatusShort.map(line => `- ${line}`),
-    )
-  }
-
-  return lines.join('\n')
-}
-
 function parseAutoworkRunTail(
   tail: string,
 ): { ok: true; timeBudgetMs: number | null } | { ok: false; message: string } {
@@ -353,59 +89,6 @@ function parseAutoworkRunTail(
   return {
     ok: true,
     timeBudgetMs: parsed.timeBudgetMs,
-  }
-}
-
-async function getAutoworkContext(
-  entryPoint: EntryPoint,
-): Promise<
-  | {
-      ok: true
-      context: AutoworkStartupContext
-      planSource:
-        | Extract<AutoworkPlanResolutionResult, { ok: true }>['source']
-        | 'workflow-bootstrap'
-    }
-  | { ok: false; message: string }
-> {
-  const resolved = await resolveActiveAutoworkPlanFile()
-  if (!resolved.ok) {
-    const workflowBootstrapContext = await inspectAndSelectAutoworkMode(null)
-    if (workflowBootstrapContext.repoRoot && workflowBootstrapContext.mode !== 'execution') {
-      return {
-        ok: true,
-        context: workflowBootstrapContext,
-        planSource: 'workflow-bootstrap',
-      }
-    }
-
-    const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
-    return {
-      ok: false,
-      message: [
-        resolved.message,
-        '',
-        resolved.candidates.length > 0
-          ? [
-              `Candidates:\n${resolved.candidates.map(candidate => `- ${candidate}`).join('\n')}`,
-              '',
-              `Next: pin one explicitly with ${baseName} use <path>.`,
-            ].join('\n')
-          : [
-              'Next:',
-              '- create a tracked dated plan file like `2026-04-05-feature-name-state.md`',
-              `- or pin one explicitly with ${baseName} use <path>`,
-            ].join('\n'),
-        '',
-        `Then rerun ${baseName} status or ${baseName} doctor.`,
-      ].join('\n'),
-    }
-  }
-
-  return {
-    ok: true,
-    context: await inspectAndSelectAutoworkMode(resolved.planPath),
-    planSource: resolved.source,
   }
 }
 
@@ -737,7 +420,7 @@ function AutoworkMenu({
               return
             }
 
-            const resolved = await getAutoworkContext(entryPoint)
+            const resolved = await resolveAutoworkInspectionContext(entryPoint)
             if (!resolved.ok) {
               onDone(resolved.message, { display: 'system' })
               return
@@ -745,8 +428,11 @@ function AutoworkMenu({
 
             onDone(
               value === 'doctor'
-                ? formatDoctorSummary(resolved.context, resolved.planSource)
-                : formatStatusSummary(
+                ? formatAutoworkDoctorSummary(
+                    resolved.context,
+                    resolved.planSource,
+                  )
+                : formatAutoworkStatusSummary(
                     entryPoint,
                     resolved.context,
                     resolved.planSource,
@@ -873,7 +559,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
     }
 
     if ((head === 'status' || head === 'doctor') && !tail) {
-      const resolved = await getAutoworkContext(entryPoint)
+      const resolved = await resolveAutoworkInspectionContext(entryPoint)
       if (!resolved.ok) {
         onDone(resolved.message, { display: 'system' })
         return null
@@ -881,8 +567,15 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
 
       onDone(
         head === 'doctor'
-          ? formatDoctorSummary(resolved.context, resolved.planSource)
-          : formatStatusSummary(entryPoint, resolved.context, resolved.planSource),
+          ? formatAutoworkDoctorSummary(
+              resolved.context,
+              resolved.planSource,
+            )
+          : formatAutoworkStatusSummary(
+              entryPoint,
+              resolved.context,
+              resolved.planSource,
+            ),
         { display: 'system' },
       )
       return null

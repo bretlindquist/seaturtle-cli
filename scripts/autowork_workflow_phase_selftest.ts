@@ -56,22 +56,26 @@ function run(): void {
     'expected autowork mode selection to consume workflow resolution directly',
   )
 
+  const inspectionSource = read(
+    projectRoot,
+    'source/src/services/autowork/inspectionSummary.ts',
+  )
   const commandSource = read(
     projectRoot,
     'source/src/commands/autowork/autowork.tsx',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /formatWorkflowEligibilityHint/,
     'expected autowork command output to name workflow readiness clearly',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /Workflow phase:/,
     'expected autowork status surfaces to show workflow phase',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /Workflow readiness:/,
     'expected autowork status surfaces to show workflow readiness',
   )

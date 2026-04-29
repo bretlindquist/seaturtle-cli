@@ -34,6 +34,7 @@ import { addToHistory } from './history.js';
 import type { Root } from './ink.js';
 import { launchRepl } from './replLauncher.js';
 import { hasGrowthBookEnvOverride, initializeGrowthBook, refreshGrowthBookAfterAuthChange } from './services/analytics/growthbook.js';
+import { EMPTY_USAGE } from './services/api/logging.js';
 import { fetchBootstrapData } from './services/api/bootstrap.js';
 import { type DownloadResult, downloadSessionFiles, type FilesApiConfig, parseFileSpecs } from './services/api/filesApi.js';
 import { prefetchPassesEligibility } from './services/api/referral.js';
@@ -883,6 +884,80 @@ async function getInputPrompt(prompt: string, inputFormat: 'text' | 'stream-json
   }
   return prompt;
 }
+
+async function importWorkflowHandoffAtStartup(
+  workflowHandoffFile: string | undefined,
+  replaceWorkflowHandoff: boolean,
+): Promise<void> {
+  if (!workflowHandoffFile) {
+    return
+  }
+
+  const filePath = resolve(workflowHandoffFile)
+  const parsed = JSON.parse(readFileSync(filePath, 'utf8'))
+  const {
+    getCtProjectRoot
+  } = await import('./services/projectIdentity/paths.js')
+  const {
+    archiveActiveWorkstream,
+    importWorkflowHandoffPacket,
+    peekActiveWorkstream
+  } = await import('./services/projectIdentity/workflowState.js')
+  const root = getCtProjectRoot()
+  const active = peekActiveWorkstream(root)
+  if (active?.index.activeWorkId && !replaceWorkflowHandoff) {
+    throw new Error(
+      `Active workstream ${active.index.activeWorkId} already exists. Use --replace-workflow-handoff to replace it.`,
+    )
+  }
+  if (active?.index.activeWorkId && replaceWorkflowHandoff) {
+    archiveActiveWorkstream(
+      'Replaced by startup workflow handoff import.',
+      root,
+    )
+  }
+  importWorkflowHandoffPacket(parsed, root)
+}
+
+function parseHeadlessAutoworkInspectionFromArgv(
+  argv: string[],
+): {
+  action: 'status' | 'doctor'
+  outputFormat: string | undefined
+  workflowHandoffFile: string | undefined
+  replaceWorkflowHandoff: boolean
+} | null {
+  const hasPrintFlag = argv.includes('-p') || argv.includes('--print')
+  if (!hasPrintFlag) {
+    return null
+  }
+
+  const hasStatus = argv.includes('--autowork-status')
+  const hasDoctor = argv.includes('--autowork-doctor')
+  if (!hasStatus && !hasDoctor) {
+    return null
+  }
+  if (hasStatus && hasDoctor) {
+    throw new Error(
+      '--autowork-status and --autowork-doctor cannot be used together.',
+    )
+  }
+
+  const outputFormatIndex = argv.findIndex(arg => arg === '--output-format')
+  const workflowHandoffIndex = argv.findIndex(
+    arg => arg === '--workflow-handoff-file',
+  )
+
+  return {
+    action: hasDoctor ? 'doctor' : 'status',
+    outputFormat:
+      outputFormatIndex >= 0 ? argv[outputFormatIndex + 1] : undefined,
+    workflowHandoffFile:
+      workflowHandoffIndex >= 0 ? argv[workflowHandoffIndex + 1] : undefined,
+    replaceWorkflowHandoff: argv.includes('--replace-workflow-handoff'),
+  }
+}
+
 async function run(): Promise<CommanderCommand> {
   profileCheckpoint('run_function_start');
 
@@ -903,6 +978,49 @@ async function run(): Promise<CommanderCommand> {
   }
   const program = new CommanderCommand().configureHelp(createSortedHelpConfig()).enablePositionalOptions();
   profileCheckpoint('run_commander_initialized');
+
+  const earlyHeadlessAutoworkInspection = parseHeadlessAutoworkInspectionFromArgv(
+    process.argv,
+  )
+  if (earlyHeadlessAutoworkInspection) {
+    try {
+      await importWorkflowHandoffAtStartup(
+        earlyHeadlessAutoworkInspection.workflowHandoffFile,
+        earlyHeadlessAutoworkInspection.replaceWorkflowHandoff,
+      )
+      const {
+        runHeadlessAutoworkInspection
+      } = await import('./cli/headlessAutoworkInspection.js')
+      await runHeadlessAutoworkInspection(
+        earlyHeadlessAutoworkInspection.action,
+        earlyHeadlessAutoworkInspection.outputFormat,
+      )
+    } catch (error) {
+      const message = errorMessage(error)
+      if (earlyHeadlessAutoworkInspection.outputFormat === 'stream-json') {
+        process.stdout.write(
+          `${JSON.stringify({
+            type: 'result',
+            subtype: 'error_during_execution',
+            duration_ms: 0,
+            duration_api_ms: 0,
+            is_error: true,
+            num_turns: 0,
+            stop_reason: null,
+            session_id: '',
+            total_cost_usd: 0,
+            usage: EMPTY_USAGE,
+            modelUsage: {},
+            permission_denials: [],
+            errors: [message],
+          })}\n`,
+        )
+      } else {
+        process.stderr.write(`Error: ${message}\n`)
+      }
+      process.exit(1)
+    }
+  }
 
   // Use preAction hook to run initialization only when executing a command,
   // not when displaying help. This avoids the need for env variable signaling.
@@ -1229,6 +1347,16 @@ async function run(): Promise<CommanderCommand> {
     const replaceWorkflowHandoff = (options as {
       replaceWorkflowHandoff?: boolean;
     }).replaceWorkflowHandoff === true;
+    const headlessAutoworkAction = (options as {
+      autoworkStatus?: boolean;
+      autoworkDoctor?: boolean;
+    }).autoworkDoctor
+      ? 'doctor'
+      : (options as {
+            autoworkStatus?: boolean;
+          }).autoworkStatus
+        ? 'status'
+        : undefined;
 
     // Allow env var to enable partial messages (used by sandbox gateway for baku)
     const effectiveIncludePartialMessages = includePartialMessages || isEnvTruthy(process.env.CLAUDE_CODE_INCLUDE_PARTIAL_MESSAGES);
@@ -1397,29 +1525,10 @@ async function run(): Promise<CommanderCommand> {
 
     if (workflowHandoffFile) {
       try {
-        const filePath = resolve(workflowHandoffFile);
-        const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-        const {
-          getCtProjectRoot
-        } = await import('./services/projectIdentity/paths.js');
-        const {
-          archiveActiveWorkstream,
-          importWorkflowHandoffPacket,
-          peekActiveWorkstream
-        } = await import('./services/projectIdentity/workflowState.js');
-        const root = getCtProjectRoot();
-        const active = peekActiveWorkstream(root);
-        if (active?.index.activeWorkId && !replaceWorkflowHandoff) {
-          process.stderr.write(chalk.red(`Error: Active workstream ${active.index.activeWorkId} already exists. Use --replace-workflow-handoff to replace it.\n`));
-          process.exit(1);
-        }
-        if (active?.index.activeWorkId && replaceWorkflowHandoff) {
-          archiveActiveWorkstream(
-            'Replaced by startup workflow handoff import.',
-            root,
-          );
-        }
-        importWorkflowHandoffPacket(parsed, root);
+        await importWorkflowHandoffAtStartup(
+          workflowHandoffFile,
+          replaceWorkflowHandoff,
+        );
       } catch (error) {
         process.stderr.write(chalk.red(`Error importing workflow handoff: ${errorMessage(error)}\n`));
         process.exit(1);
@@ -1861,6 +1970,17 @@ async function run(): Promise<CommanderCommand> {
       console.error(`Error: Invalid input format "${inputFormat}".`);
       process.exit(1);
     }
+    if ((options as {
+      autoworkStatus?: boolean;
+      autoworkDoctor?: boolean;
+    }).autoworkStatus && (options as {
+      autoworkStatus?: boolean;
+      autoworkDoctor?: boolean;
+    }).autoworkDoctor) {
+      // biome-ignore lint/suspicious/noConsole:: intentional console output
+      console.error('Error: --autowork-status and --autowork-doctor cannot be used together.');
+      process.exit(1);
+    }
     if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
       // biome-ignore lint/suspicious/noConsole:: intentional console output
       console.error(`Error: --input-format=stream-json requires output-format=stream-json.`);
@@ -1896,6 +2016,10 @@ async function run(): Promise<CommanderCommand> {
     // Validate --no-session-persistence is only used with print mode
     if (options.sessionPersistence === false && !isNonInteractiveSession) {
       writeToStderr(`Error: --no-session-persistence can only be used with --print mode.`);
+      process.exit(1);
+    }
+    if (headlessAutoworkAction) {
+      writeToStderr(`Error: --autowork-status and --autowork-doctor require --print mode.`);
       process.exit(1);
     }
     const effectivePrompt = prompt || '';
@@ -3907,6 +4031,8 @@ async function run(): Promise<CommanderCommand> {
   program.addOption(new Option('--agent-type <type>', 'Custom agent type for this teammate').hideHelp());
   program.addOption(new Option('--workflow-handoff-file <file>', 'Import an authoritative workflow handoff packet before the first turn. Internal remote-orchestration seam.').hideHelp());
   program.addOption(new Option('--replace-workflow-handoff', 'Replace any active workstream before importing --workflow-handoff-file. Internal remote-orchestration seam.').hideHelp());
+  program.addOption(new Option('--autowork-status', 'Emit the current autowork workflow status without a user prompt. Internal remote-orchestration seam.').hideHelp());
+  program.addOption(new Option('--autowork-doctor', 'Emit the current autowork workflow doctor report without a user prompt. Internal remote-orchestration seam.').hideHelp());
 
   // Enable SDK URL for all builds but hide from help
   program.addOption(new Option('--sdk-url <url>', 'Use remote WebSocket endpoint for SDK I/O streaming (only with -p and stream-json format)').hideHelp());

@@ -30,14 +30,17 @@ function run(): void {
     'expected lifecycle entry to bootstrap an authoritative active workstream container before workflow updates',
   )
 
-  const commandSource = read(projectRoot, 'source/src/commands/autowork/autowork.tsx')
-  assert.match(
-    commandSource,
-    /inspectAndSelectAutoworkMode\(null\)/,
-    'expected /autowork context loading to fall back to workflow bootstrap when no plan file resolves',
+  const inspectionSource = read(
+    projectRoot,
+    'source/src/services/autowork/inspectionSummary.ts',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
+    /inspectAndSelectAutoworkMode\(null\)/,
+    'expected autowork inspection loading to fall back to workflow bootstrap when no plan file resolves',
+  )
+  assert.match(
+    inspectionSource,
     /workflow bootstrap/,
     'expected autowork status surfaces to report workflow-bootstrap plan sourcing truthfully',
   )

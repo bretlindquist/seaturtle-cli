@@ -55,6 +55,10 @@ function run(): void {
     projectRoot,
     'source/src/commands/autowork/autowork.tsx',
   )
+  const inspectionSource = read(
+    projectRoot,
+    'source/src/services/autowork/inspectionSummary.ts',
+  )
   assert.match(
     commandSource,
     /splitCommandArgs/,
@@ -86,7 +90,7 @@ function run(): void {
     'expected explicit autowork plan selection to advance workflow state too',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /case 'workflow-state':/,
     'expected autowork status formatting to name workflow-state plan resolution',
   )

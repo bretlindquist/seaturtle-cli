@@ -4,6 +4,7 @@ import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
 import { WORKFLOW_STATE_TOOL_NAME } from '../../tools/WorkflowStateTool/constants.js'
 import {
+  getCtProjectRoot,
   getCtWorkExecutionPath,
   getCtWorkIntentPath,
   getCtWorkPhasePath,

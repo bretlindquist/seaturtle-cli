@@ -41,12 +41,12 @@ function run(): void {
     'expected lifecycle waves to re-enter autowork through the same run loop',
   )
 
-  const commandSource = read(
+  const inspectionSource = read(
     projectRoot,
-    'source/src/commands/autowork/autowork.tsx',
+    'source/src/services/autowork/inspectionSummary.ts',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /continue the current \$\{context\.mode\} wave from workflow state/,
     'expected autowork status messaging to explain the lifecycle-wave continuation path',
   )

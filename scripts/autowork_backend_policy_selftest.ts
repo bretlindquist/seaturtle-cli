@@ -33,19 +33,22 @@ function run(): void {
     'expected backend policy to consume the centralized cloud offload capability seam',
   )
 
-  const commandSource = read(projectRoot, 'source/src/commands/autowork/autowork.tsx')
+  const inspectionSource = read(
+    projectRoot,
+    'source/src/services/autowork/inspectionSummary.ts',
+  )
   assert.match(
-    commandSource,
+    inspectionSource,
     /Orchestration: \$\{formatBackendTarget\(backendPolicy\)\}/,
     'expected autowork status surfaces to show the selected orchestration backend',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /Cloud swarm: \$\{formatCloudSwarmStatus\(backendPolicy\)\}/,
     'expected autowork status surfaces to show truthful cloud swarm status',
   )
   assert.match(
-    commandSource,
+    inspectionSource,
     /Cloud recommendation: \$\{formatCloudRecommendation\(backendPolicy\)\}/,
     'expected autowork status surfaces to show the distinct cloud recommendation state',
   )
