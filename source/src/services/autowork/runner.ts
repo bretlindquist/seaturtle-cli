@@ -40,6 +40,7 @@ import {
 import { resolveAutoworkValidationPlan } from './validation.js'
 import {
   peekActiveWorkstream,
+  type WorkflowResolution,
   setActiveWorkstreamPhase,
   updateWorkExecutionPacket,
   updateWorkVerificationPacket,
@@ -109,6 +110,7 @@ export type AutoworkStartupContext = {
   inspection: AutoworkStartupInspection
   parsedPlan: AutoworkPlanParseResult
   eligibility: AutoworkEligibilityResult
+  workflowResolution: WorkflowResolution | null
   mode: AutoworkMode
   modeReason: string
   nextPendingChunkId: string | null
@@ -638,6 +640,7 @@ export async function inspectAndSelectAutoworkMode(
   const resolvedPlanPath = resolve(planPath)
   const repoRoot = findCanonicalGitRoot(dirname(resolvedPlanPath))
   const state = readAutoworkState(repoRoot ?? undefined)
+  const workflow = repoRoot ? peekActiveWorkstream(repoRoot) : null
 
   const [branch, gitStatusShort, latestRelevantCommits, parsedPlan, eligibility, hygiene] =
     repoRoot
@@ -699,7 +702,12 @@ export async function inspectAndSelectAutoworkMode(
     capturedAt: Date.now(),
   }
 
-  const decision = selectAutoworkMode(inspection, state, parsedPlan)
+  const decision = selectAutoworkMode(
+    inspection,
+    state,
+    parsedPlan,
+    workflow?.resolution ?? null,
+  )
 
   return {
     repoRoot,
@@ -709,6 +717,7 @@ export async function inspectAndSelectAutoworkMode(
     inspection,
     parsedPlan,
     eligibility,
+    workflowResolution: workflow?.resolution ?? null,
     mode: decision.mode,
     modeReason: decision.reason,
     nextPendingChunkId: decision.nextPendingChunkId,

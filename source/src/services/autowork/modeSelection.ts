@@ -4,6 +4,7 @@ import type {
   AutoworkStartupInspection,
   AutoworkState,
 } from './state.js'
+import type { WorkflowResolution } from '../projectIdentity/workflowState.js'
 
 const RESEARCH_STOP_CODES = new Set([
   'blocking_unknown',
@@ -22,13 +23,6 @@ function getPendingChunkIds(chunks: AutoworkPlanChunk[]): string[] {
 
 function hasSuccessfulChunks(chunks: AutoworkPlanChunk[]): boolean {
   return chunks.some(chunk => SUCCESSFUL_CHUNK_STATUSES.has(chunk.status))
-}
-
-function allChunksSuccessful(chunks: AutoworkPlanChunk[]): boolean {
-  return (
-    chunks.length > 0 &&
-    chunks.every(chunk => SUCCESSFUL_CHUNK_STATUSES.has(chunk.status))
-  )
 }
 
 function hasBlockedChunks(chunks: AutoworkPlanChunk[]): boolean {
@@ -94,10 +88,74 @@ export type AutoworkModeDecision = {
   nextPendingChunkId: string | null
 }
 
+function selectWorkflowGatedMode(
+  workflowResolution: WorkflowResolution | null,
+): AutoworkModeDecision | null {
+  if (!workflowResolution) {
+    return null
+  }
+
+  if (!workflowResolution.ok) {
+    return {
+      mode: 'plan-hardening',
+      reason:
+        workflowResolution.issues[0] ??
+        workflowResolution.reason ??
+        'Workflow state is inconsistent and needs hardening before autowork can continue.',
+      nextPendingChunkId: null,
+    }
+  }
+
+  switch (workflowResolution.autoworkEligibilityHint) {
+    case 'no-active-workstream':
+    case 'intent-needed':
+      return {
+        mode: 'discovery',
+        reason: workflowResolution.reason,
+        nextPendingChunkId: null,
+      }
+    case 'research-needed':
+      return {
+        mode: 'research',
+        reason: workflowResolution.reason,
+        nextPendingChunkId: null,
+      }
+    case 'plan-needed':
+      return {
+        mode: 'plan-hardening',
+        reason: workflowResolution.reason,
+        nextPendingChunkId: null,
+      }
+    case 'verification-needed':
+      return {
+        mode: 'verification',
+        reason: workflowResolution.reason,
+        nextPendingChunkId: workflowResolution.activeChunkId,
+      }
+    case 'review-needed':
+      return {
+        mode: 'audit-and-polish',
+        reason: workflowResolution.reason,
+        nextPendingChunkId: null,
+      }
+    case 'state-conflict':
+      return {
+        mode: 'plan-hardening',
+        reason:
+          workflowResolution.issues[0] ??
+          'Workflow state is conflicting and needs hardening before autowork can continue.',
+        nextPendingChunkId: null,
+      }
+    case 'implementation-ready':
+      return null
+  }
+}
+
 export function selectAutoworkMode(
   inspection: AutoworkStartupInspection,
   state: AutoworkState,
   parsedPlan: AutoworkPlanParseResult,
+  workflowResolution: WorkflowResolution | null = null,
 ): AutoworkModeDecision {
   if (!inspection.branch || inspection.latestRelevantCommits.length === 0) {
     return {
@@ -105,6 +163,11 @@ export function selectAutoworkMode(
       reason: 'Startup inspection did not produce enough repo state to continue safely.',
       nextPendingChunkId: null,
     }
+  }
+
+  const workflowGated = selectWorkflowGatedMode(workflowResolution)
+  if (workflowGated) {
+    return workflowGated
   }
 
   if (inspection.hasRecentlyCompletedUnverifiedChunk) {

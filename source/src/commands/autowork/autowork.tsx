@@ -101,6 +101,29 @@ function formatPlanResolutionSource(
   }
 }
 
+function formatWorkflowEligibilityHint(
+  hint: NonNullable<AutoworkStartupContext['workflowResolution']>['autoworkEligibilityHint'],
+): string {
+  switch (hint) {
+    case 'no-active-workstream':
+      return 'no active workstream'
+    case 'intent-needed':
+      return 'intent needed'
+    case 'research-needed':
+      return 'research needed'
+    case 'plan-needed':
+      return 'plan needed'
+    case 'implementation-ready':
+      return 'implementation ready'
+    case 'verification-needed':
+      return 'verification needed'
+    case 'review-needed':
+      return 'review needed'
+    case 'state-conflict':
+      return 'state conflict'
+  }
+}
+
 function formatChecks(
   context: AutoworkStartupContext,
   doctor: boolean,
@@ -120,6 +143,7 @@ function formatStatusSummary(
   const execution = context.repoRoot
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
+  const workflowResolution = context.workflowResolution
   const quip = getAutoworkLaunchQuip(
     entryPoint,
     `${context.planPath}:${context.mode}:${context.nextPendingChunkId ?? 'none'}`,
@@ -132,6 +156,12 @@ function formatStatusSummary(
     `Why: ${context.modeReason}`,
     `Plan: ${context.planPath}`,
     `Plan source: ${formatPlanResolutionSource(planSource)}`,
+    workflowResolution
+      ? `Workflow phase: ${workflowResolution.phase}`
+      : 'Workflow phase: unavailable',
+    workflowResolution
+      ? `Workflow readiness: ${formatWorkflowEligibilityHint(workflowResolution.autoworkEligibilityHint)}`
+      : 'Workflow readiness: unavailable',
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
@@ -158,12 +188,15 @@ function formatDoctorSummary(
   const execution = context.repoRoot
     ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
     : null
+  const workflowResolution = context.workflowResolution
   const lines = [
     'Autowork doctor',
     '',
     `Plan: ${context.planPath}`,
     `Plan source: ${formatPlanResolutionSource(planSource)}`,
     `Repo root: ${context.repoRoot ?? 'not in git repo'}`,
+    `Workflow phase: ${workflowResolution?.phase ?? 'unavailable'}`,
+    `Workflow readiness: ${workflowResolution ? formatWorkflowEligibilityHint(workflowResolution.autoworkEligibilityHint) : 'unavailable'}`,
     `Run mode: ${titleCaseRunMode(context.state.runMode)}`,
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
@@ -180,6 +213,10 @@ function formatDoctorSummary(
     'Eligibility checks:',
     ...formatChecks(context, true),
   ]
+
+  if (workflowResolution?.issues.length) {
+    lines.push('', 'Workflow issues:', ...workflowResolution.issues.map(issue => `- ${issue}`))
+  }
 
   if (!context.eligibility.ok && context.eligibility.parseFailure) {
     lines.push(

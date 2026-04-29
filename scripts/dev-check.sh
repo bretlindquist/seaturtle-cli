@@ -120,6 +120,7 @@ bun scripts/file_edit_stale_drift_selftest.ts >/dev/null
 bun scripts/agent_worktree_result_notice_selftest.ts >/dev/null
 bun scripts/task_output_retention_selftest.ts >/dev/null
 bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
+bun scripts/autowork_workflow_phase_selftest.ts >/dev/null
 bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/teammate_mode_snapshot_selftest.ts >/dev/null
 bun scripts/transcript_search_close_refresh_selftest.ts >/dev/null
