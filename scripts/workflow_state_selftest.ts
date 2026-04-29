@@ -7,6 +7,7 @@ import {
   archiveActiveWorkstream,
   ensureActivePlanningWorkstream,
   markActivePlanApproved,
+  peekActiveWorkstream,
   readActiveWorkflowPlanProjection,
   createDefaultWorkPlanPacket,
   createDefaultWorkResearchPacket,
@@ -47,6 +48,17 @@ function run(): void {
   const root = mkdtempSync(join(tmpdir(), 'seaturtle-workflow-state-'))
 
   try {
+    assert.equal(
+      peekActiveWorkstream(root),
+      null,
+      'peekActiveWorkstream should not invent workflow state for a fresh root',
+    )
+    assert.equal(
+      existsSync(getCtStateDir(root)),
+      false,
+      'peeking workflow state should not create the .ct/state directory',
+    )
+
     const ensured = ensureWorkflowStateFiles(root)
     assert(existsSync(getCtStateDir(root)), 'workflow state dir should be created')
     assert(existsSync(getCtWorkIndexPath(root)), 'work index should be created')

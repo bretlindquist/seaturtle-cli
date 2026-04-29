@@ -39,6 +39,14 @@ export function getStatusPropertyHelpText(label: string): string {
       return 'Use /telegram to pair, inspect, or repair it.'
     case 'Context window':
       return 'How much session context remains before compaction matters.'
+    case 'Active workstream':
+      return 'The project-scoped workstream currently tracked by the workflow contract.'
+    case 'Workflow phase':
+      return 'Which lifecycle phase the active workstream is in right now.'
+    case 'Workflow readiness':
+      return 'What the workflow contract says is needed before autonomous execution can continue cleanly.'
+    case 'Plan artifact':
+      return 'The promoted human-facing plan document currently linked to the active workstream.'
     default:
       return ''
   }

@@ -22,6 +22,7 @@ import {
   buildSandboxProperties,
   buildSettingSourcesProperties,
   buildTelegramProperties,
+  buildWorkstreamProperties,
   type Diagnostic,
   getStatusModelDisplayLabel,
   getStatusPermissionLabel,
@@ -89,6 +90,7 @@ function buildPrimarySection({
         },
         { label: 'Session', value: sessionId },
         { label: 'Session name', value: nameValue },
+        ...buildWorkstreamProperties(),
         ...buildContextWindowProperties({
           mainLoopModel,
           messages,

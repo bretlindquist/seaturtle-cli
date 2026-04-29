@@ -30,6 +30,18 @@ function run(): void {
     getStatusPropertyHelpText('5h limit').includes('five-hour'),
     'expected 5h limit help to explain the OpenAI/Codex rolling window',
   )
+  assert(
+    getStatusPropertyHelpText('Active workstream').includes('workstream'),
+    'expected Active workstream help to explain workflow ownership',
+  )
+  assert(
+    getStatusPropertyHelpText('Workflow phase').includes('lifecycle phase'),
+    'expected Workflow phase help to explain current workflow lifecycle state',
+  )
+  assert(
+    getStatusPropertyHelpText('Plan artifact').includes('plan document'),
+    'expected Plan artifact help to explain the promoted plan path',
+  )
 }
 
 run()

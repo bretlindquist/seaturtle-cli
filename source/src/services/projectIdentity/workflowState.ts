@@ -1476,6 +1476,49 @@ export function readActiveWorkflowPlanProjection(root: string): {
   )
 }
 
+export function peekActiveWorkstream(root: string): {
+  index: WorkIndex
+  packets: WorkflowPackets
+  resolution: WorkflowResolution
+} | null {
+  const indexValue = readJsonFile<WorkIndex>(getCtWorkIndexPath(root))
+  const packetPaths = getActiveWorkflowPacketPaths(root)
+  const packetValues = {
+    intent: readJsonFile<WorkIntentPacket>(packetPaths.intent),
+    research: readJsonFile<WorkResearchPacket>(packetPaths.research),
+    plan: readJsonFile<WorkPlanPacket>(packetPaths.plan),
+    execution: readJsonFile<WorkExecutionPacket>(packetPaths.execution),
+    verification: readJsonFile<WorkVerificationPacket>(packetPaths.verification),
+    phase: readJsonFile<WorkPhasePacket>(packetPaths.phase),
+  }
+  if (
+    indexValue === null &&
+    packetValues.intent === null &&
+    packetValues.research === null &&
+    packetValues.plan === null &&
+    packetValues.execution === null &&
+    packetValues.verification === null &&
+    packetValues.phase === null
+  ) {
+    return null
+  }
+
+  const index = sanitizeWorkIndex(indexValue)
+  const packets: WorkflowPackets = {
+    intent: sanitizeWorkIntentPacket(packetValues.intent),
+    research: sanitizeWorkResearchPacket(packetValues.research),
+    plan: sanitizeWorkPlanPacket(packetValues.plan),
+    execution: sanitizeWorkExecutionPacket(packetValues.execution),
+    verification: sanitizeWorkVerificationPacket(packetValues.verification),
+    phase: sanitizeWorkPhasePacket(packetValues.phase),
+  }
+  return {
+    index,
+    packets,
+    resolution: resolveWorkflowPhase(packets, index),
+  }
+}
+
 export function startActiveWorkstream(
   input: StartActiveWorkstreamInput,
   root: string,

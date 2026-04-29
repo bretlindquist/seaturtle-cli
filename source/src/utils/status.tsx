@@ -15,6 +15,8 @@ import {
 } from '../services/api/openaiCodexTelemetry.js';
 import { getTelegramConfigSnapshot } from '../services/telegram/config.js';
 import { getTelegramTranscriptionConfig } from '../services/telegram/transcription.js';
+import { getCtProjectRoot } from '../services/projectIdentity/paths.js';
+import { getActiveWorkflowPlanProjection, peekActiveWorkstream } from '../services/projectIdentity/workflowState.js';
 import { getAccountInformation, isClaudeAISubscriber } from './auth.js';
 import { getLargeMemoryFiles, getMemoryFiles, MAX_MEMORY_CHARACTER_COUNT } from './claudemd.js';
 import { getDoctorDiagnostic } from './doctorDiagnostic.js';
@@ -198,6 +200,62 @@ export function buildContextWindowProperties({
     label: 'Context window',
     value: `${contextPercentages.remaining}% left (${formatNumber(usedTokens)} used / ${formatNumber(contextWindowSize)})`
   }];
+}
+function formatWorkflowEligibilityHint(value: 'no-active-workstream' | 'intent-needed' | 'research-needed' | 'plan-needed' | 'implementation-ready' | 'verification-needed' | 'review-needed' | 'state-conflict'): string {
+  switch (value) {
+    case 'no-active-workstream':
+      return 'No active workstream';
+    case 'intent-needed':
+      return 'Intent capture needed';
+    case 'research-needed':
+      return 'Research needed';
+    case 'plan-needed':
+      return 'Executable plan needed';
+    case 'implementation-ready':
+      return 'Implementation ready';
+    case 'verification-needed':
+      return 'Verification needed';
+    case 'review-needed':
+      return 'Broad review needed';
+    case 'state-conflict':
+      return 'State conflict';
+  }
+}
+export function buildWorkstreamProperties(): Property[] {
+  const workflow = peekActiveWorkstream(getCtProjectRoot());
+  if (!workflow) {
+    return [{
+      label: 'Active workstream',
+      value: <Text dimColor>No active workstream</Text>
+    }];
+  }
+  const {
+    resolution
+  } = workflow;
+  const workflowPlan = getActiveWorkflowPlanProjection(workflow.packets, workflow.index);
+  if (!resolution.workId) {
+    return [{
+      label: 'Active workstream',
+      value: <Text dimColor>No active workstream</Text>
+    }];
+  }
+  const properties: Property[] = [{
+    label: 'Active workstream',
+    value: resolution.workId
+  }, {
+    label: 'Workflow phase',
+    value: resolution.phase
+  }, {
+    label: 'Workflow readiness',
+    value: formatWorkflowEligibilityHint(resolution.autoworkEligibilityHint)
+  }];
+  if (workflowPlan.planFilePath) {
+    properties.push({
+      label: 'Plan artifact',
+      value: getDisplayPath(workflowPlan.planFilePath)
+    });
+  }
+  return properties;
 }
 export function buildSettingSourcesProperties(): Property[] {
   const enabledSources = getEnabledSettingSources();
