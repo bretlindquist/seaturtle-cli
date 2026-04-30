@@ -13,6 +13,16 @@ function run(): void {
 
   assert.match(
     processorSource,
+    /export function dequeueNextExecutionBatch\(/,
+    'expected queue execution selection to live behind one shared helper seam',
+  )
+  assert.match(
+    processorSource,
+    /const commands = dequeueNextExecutionBatch\(isMainThread\)/,
+    'expected the interactive queue processor to consume the shared execution selection seam',
+  )
+  assert.match(
+    processorSource,
     /isPromptLikeInputMode\(next\.mode\)/,
     'expected prompt-like queued commands to be recognized as a dedicated one-at-a-time path',
   )
@@ -23,18 +33,18 @@ function run(): void {
   )
   assert.match(
     processorSource,
-    /Drain remaining non-prompt system items with the same mode at once/,
-    'expected batching to be limited to non-prompt system queue items',
+    /Remaining non-prompt system items can still batch when/,
+    'expected batching to remain limited to the shared non-prompt system queue path',
   )
   assert.match(
     processorSource,
-    /const commands = dequeueAllMatching\(/,
-    'expected system queue batching to remain on the dedicated dequeueAllMatching path',
+    /return dequeueAllMatching\(cmd =>/,
+    'expected system queue batching to remain on the dedicated shared helper path',
   )
   assert.match(
     headlessSource,
-    /Prompt-like queued commands advance one item at a time so\s+\/\/ headless mode matches the interactive queue semantics\./,
-    'expected headless queue draining to document the same one-at-a-time prompt semantics',
+    /dequeueNextExecutionBatch\(isMainThread\)/,
+    'expected headless queue draining to reuse the shared queue execution selection seam',
   )
   assert.doesNotMatch(
     headlessSource,

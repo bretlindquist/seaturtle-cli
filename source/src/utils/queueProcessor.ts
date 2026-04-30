@@ -4,6 +4,7 @@ import {
   dequeue,
   dequeueAllMatching,
   hasCommandsInQueue,
+  isSlashCommand,
   peek,
 } from './messageQueueManager.js'
 
@@ -15,20 +16,75 @@ type ProcessQueueResult = {
   processed: boolean
 }
 
+type QueueFilter = (cmd: QueuedCommand) => boolean
+
+function matchesExecutionBatch(
+  cmd: QueuedCommand,
+  options: {
+    filter?: QueueFilter
+    targetMode: QueuedCommand['mode']
+    targetPriority: QueuedCommand['priority']
+    targetMidTurnIntent: QueuedCommand['midTurnIntent']
+  },
+): boolean {
+  return (
+    (!options.filter || options.filter(cmd)) &&
+    !isSlashCommand(cmd) &&
+    cmd.mode === options.targetMode &&
+    cmd.priority === options.targetPriority &&
+    cmd.midTurnIntent === options.targetMidTurnIntent
+  )
+}
+
 /**
- * Check if a queued command is a slash command (value starts with '/').
+ * Single source of truth for between-turn queue execution selection.
+ *
+ * Prompt-like steering, slash commands, and bash commands always advance one
+ * command at a time. Remaining non-prompt system items can still batch when
+ * they share the same execution shape.
  */
-function isSlashCommand(cmd: QueuedCommand): boolean {
-  if (typeof cmd.value === 'string') {
-    return cmd.value.trim().startsWith('/')
+export function dequeueNextExecutionBatch(
+  filter?: QueueFilter,
+): QueuedCommand[] {
+  const next = peek(filter)
+  if (!next) {
+    return []
   }
-  // For ContentBlockParam[], check the first text block
-  for (const block of cmd.value) {
-    if (block.type === 'text') {
-      return block.text.trim().startsWith('/')
-    }
+
+  if (
+    isSlashCommand(next) ||
+    next.mode === 'bash' ||
+    isPromptLikeInputMode(next.mode)
+  ) {
+    const cmd = dequeue(filter)
+    return cmd ? [cmd] : []
   }
-  return false
+
+  const targetMode = next.mode
+  const targetPriority = next.priority
+  const targetMidTurnIntent = next.midTurnIntent
+  const shouldProcessIndividually = targetMidTurnIntent === 'park_for_later'
+
+  if (shouldProcessIndividually) {
+    const cmd = dequeue(cmd =>
+      matchesExecutionBatch(cmd, {
+        filter,
+        targetMode,
+        targetPriority,
+        targetMidTurnIntent,
+      }),
+    )
+    return cmd ? [cmd] : []
+  }
+
+  return dequeueAllMatching(cmd =>
+    matchesExecutionBatch(cmd, {
+      filter,
+      targetMode,
+      targetPriority,
+      targetMidTurnIntent,
+    }),
+  )
 }
 
 /**
@@ -61,50 +117,7 @@ export function processQueueIfReady({
   // queued user prompt stalls permanently.
   const isMainThread = (cmd: QueuedCommand) => cmd.agentId === undefined
 
-  const next = peek(isMainThread)
-  if (!next) {
-    return { processed: false }
-  }
-
-  // Slash commands, bash commands, and prompt-like operator steering should all
-  // advance one item at a time so queue order stays deterministic.
-  if (
-    isSlashCommand(next) ||
-    next.mode === 'bash' ||
-    isPromptLikeInputMode(next.mode)
-  ) {
-    const cmd = dequeue(isMainThread)!
-    void executeInput([cmd])
-    return { processed: true }
-  }
-
-  // Drain remaining non-prompt system items with the same mode at once.
-  const targetMode = next.mode
-  const targetPriority = next.priority
-  const targetMidTurnIntent = next.midTurnIntent
-  const shouldProcessIndividually = targetMidTurnIntent === 'park_for_later'
-
-  if (shouldProcessIndividually) {
-    const cmd = dequeue(
-      cmd =>
-        isMainThread(cmd) &&
-        !isSlashCommand(cmd) &&
-        cmd.mode === targetMode &&
-        cmd.priority === targetPriority &&
-        cmd.midTurnIntent === targetMidTurnIntent,
-    )!
-    void executeInput([cmd])
-    return { processed: true }
-  }
-
-  const commands = dequeueAllMatching(
-    cmd =>
-      isMainThread(cmd) &&
-      !isSlashCommand(cmd) &&
-      cmd.mode === targetMode &&
-      cmd.priority === targetPriority &&
-      cmd.midTurnIntent === targetMidTurnIntent,
-  )
+  const commands = dequeueNextExecutionBatch(isMainThread)
   if (commands.length === 0) {
     return { processed: false }
   }

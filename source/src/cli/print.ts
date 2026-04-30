@@ -52,6 +52,7 @@ import {
   subscribeToCommandQueue,
   getCommandsByMaxPriority,
 } from 'src/utils/messageQueueManager.js'
+import { dequeueNextExecutionBatch } from 'src/utils/queueProcessor.js'
 import { notifyCommandLifecycle } from 'src/utils/commandLifecycle.js'
 import {
   getSessionState,
@@ -1973,10 +1974,15 @@ function runHeadlessStreaming(
       let waitingForAgents = false
 
       // Extract command processing into a named function for the do-while
-      // pattern. Prompt-like queued commands advance one item at a time so
-      // headless mode matches the interactive queue semantics.
+      // pattern. Queue selection comes from the shared between-turn execution
+      // policy so headless mode does not carry a private queue story.
       const drainCommandQueue = async () => {
-        while ((command = dequeue(isMainThread))) {
+        let queuedBatch: QueuedCommand[] = []
+        while (
+          (queuedBatch = dequeueNextExecutionBatch(isMainThread)).length > 0
+        ) {
+          for (const nextCommand of queuedBatch) {
+            command = nextCommand
           if (
             !isPromptLikeInputMode(command.mode) &&
             command.mode !== 'orphaned-permission' &&
@@ -2373,6 +2379,7 @@ function runHeadlessStreaming(
           logHeadlessProfilerTurn()
           logQueryProfileReport()
           headlessProfilerStartTurn()
+          }
         }
       }
 
