@@ -308,7 +308,6 @@ import {
 import { runWithWorkload, WORKLOAD_CRON } from 'src/utils/workloadContext.js'
 import type { UUID } from 'crypto'
 import { randomUUID } from 'crypto'
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages.mjs'
 import type { AppState } from 'src/state/AppStateStore.js'
 import {
   fileHistoryRewind,
@@ -424,48 +423,6 @@ function trackReceivedMessageUuid(uuid: UUID): boolean {
     }
   }
   return true // new UUID
-}
-
-type PromptValue = string | ContentBlockParam[]
-
-function toBlocks(v: PromptValue): ContentBlockParam[] {
-  return typeof v === 'string' ? [{ type: 'text', text: v }] : v
-}
-
-/**
- * Join prompt values from multiple queued commands into one. Strings are
- * newline-joined; if any value is a block array, all values are normalized
- * to blocks and concatenated.
- */
-export function joinPromptValues(values: PromptValue[]): PromptValue {
-  if (values.length === 1) return values[0]!
-  if (values.every(v => typeof v === 'string')) {
-    return values.join('\n')
-  }
-  return values.flatMap(toBlocks)
-}
-
-/**
- * Whether `next` can be batched into the same ask() call as `head`. Only
- * prompt-mode commands batch, and only when the workload tag matches (so the
- * combined turn is attributed correctly) and the isMeta flag matches (so a
- * proactive tick can't merge into a user prompt and lose its hidden-in-
- * transcript marking when the head is spread over the merged command).
- */
-export function canBatchWith(
-  head: QueuedCommand,
-  next: QueuedCommand | undefined,
-): boolean {
-  return (
-    next !== undefined &&
-    isPromptLikeInputMode(next.mode) &&
-    isPromptLikeInputMode(head.mode) &&
-    next.priority === head.priority &&
-    next.workload === head.workload &&
-    next.isMeta === head.isMeta &&
-    next.midTurnIntent === head.midTurnIntent &&
-    head.midTurnIntent !== 'park_for_later'
-  )
 }
 
 export async function runHeadless(
@@ -2015,10 +1972,9 @@ function runHeadlessStreaming(
       let command: QueuedCommand | undefined
       let waitingForAgents = false
 
-      // Extract command processing into a named function for the do-while pattern.
-      // Drains the queue, batching consecutive prompt-mode commands into one
-      // ask() call so messages that queued up during a long turn coalesce
-      // into a single follow-up turn instead of N separate turns.
+      // Extract command processing into a named function for the do-while
+      // pattern. Prompt-like queued commands advance one item at a time so
+      // headless mode matches the interactive queue semantics.
       const drainCommandQueue = async () => {
         while ((command = dequeue(isMainThread))) {
           if (
@@ -2031,43 +1987,7 @@ function runHeadlessStreaming(
             )
           }
 
-          // Non-prompt commands (task-notification, orphaned-permission) carry
-          // side effects or orphanedPermission state, so they process singly.
-          // Prompt commands greedily collect followers with matching workload.
-          const batch: QueuedCommand[] = [command]
-          if (isPromptLikeInputMode(command.mode)) {
-            while (canBatchWith(command, peek(isMainThread))) {
-              batch.push(dequeue(isMainThread)!)
-            }
-            if (batch.length > 1) {
-              command = {
-                ...command,
-                value: joinPromptValues(batch.map(c => c.value)),
-                uuid: batch.findLast(c => c.uuid)?.uuid ?? command.uuid,
-              }
-            }
-          }
-          const batchUuids = batch.map(c => c.uuid).filter(u => u !== undefined)
-
-          // QueryEngine will emit a replay for command.uuid (the last uuid in
-          // the batch) via its messagesToAck path. Emit replays here for the
-          // rest so consumers that track per-uuid delivery (clank's
-          // asyncMessages footer, CCR) see an ack for every message they sent,
-          // not just the one that survived the merge.
-          if (options.replayUserMessages && batch.length > 1) {
-            for (const c of batch) {
-              if (c.uuid && c.uuid !== command.uuid) {
-                output.enqueue({
-                  type: 'user',
-                  message: { role: 'user', content: c.value },
-                  session_id: getSessionId(),
-                  parent_tool_use_id: null,
-                  uuid: c.uuid,
-                  isReplay: true,
-                } satisfies SDKUserMessageReplay)
-              }
-            }
-          }
+          const batchUuids = [command.uuid].filter(u => u !== undefined)
 
           // Combine all MCP clients. appState.mcp is populated incrementally
           // per-server by main.tsx (mirrors useManageMCPConnections). Reading

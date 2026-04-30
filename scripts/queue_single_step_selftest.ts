@@ -9,6 +9,7 @@ function read(root: string, relativePath: string): string {
 function run(): void {
   const repoRoot = join(import.meta.dir, '..')
   const processorSource = read(repoRoot, 'source/src/utils/queueProcessor.ts')
+  const headlessSource = read(repoRoot, 'source/src/cli/print.ts')
 
   assert.match(
     processorSource,
@@ -29,6 +30,21 @@ function run(): void {
     processorSource,
     /const commands = dequeueAllMatching\(/,
     'expected system queue batching to remain on the dedicated dequeueAllMatching path',
+  )
+  assert.match(
+    headlessSource,
+    /Prompt-like queued commands advance one item at a time so\s+\/\/ headless mode matches the interactive queue semantics\./,
+    'expected headless queue draining to document the same one-at-a-time prompt semantics',
+  )
+  assert.doesNotMatch(
+    headlessSource,
+    /while \(canBatchWith\(command, peek\(isMainThread\)\)\)/,
+    'expected headless queue draining to stop greedily batching prompt-like commands',
+  )
+  assert.doesNotMatch(
+    headlessSource,
+    /joinPromptValues\(batch\.map\(c => c\.value\)\)/,
+    'expected headless queue draining to stop merging queued prompt payloads into one turn',
   )
 }
 
