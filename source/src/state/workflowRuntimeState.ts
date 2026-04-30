@@ -24,6 +24,9 @@ function snapshotsEqual(
     left.swarmBackend === right.swarmBackend &&
     left.swarmActive === right.swarmActive &&
     left.swarmWorkerCount === right.swarmWorkerCount &&
+    left.backendPolicyTarget === right.backendPolicyTarget &&
+    left.backendPolicyExecutorMode === right.backendPolicyExecutorMode &&
+    left.backendPolicyText === right.backendPolicyText &&
     left.cloudOffloadStatus === right.cloudOffloadStatus &&
     left.cloudOffloadPath === right.cloudOffloadPath &&
     left.cloudConfiguredHostCount === right.cloudConfiguredHostCount &&

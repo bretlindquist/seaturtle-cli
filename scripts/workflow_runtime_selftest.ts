@@ -25,6 +25,16 @@ function run(): void {
   )
   assert.match(
     runtimeSource,
+    /backendPolicyTarget: backendPolicy\.target/,
+    'expected workflow runtime snapshots to carry the preferred backend policy target explicitly',
+  )
+  assert.match(
+    runtimeSource,
+    /backendPolicyText: formatBackendPolicyText\(/,
+    'expected workflow runtime snapshots to carry a formatted preferred backend policy label',
+  )
+  assert.match(
+    runtimeSource,
     /cloudOffloadPath: backendPolicy\.cloudPath/,
     'expected workflow runtime snapshots to carry the active cloud offload path',
   )
@@ -47,6 +57,21 @@ function run(): void {
   const footerSource = read(
     projectRoot,
     'source/src/components/PromptInput/PromptInputFooterLeftSide.tsx',
+  )
+  assert.match(
+    footerSource,
+    /label="Assist"/,
+    'expected the footer to surface the preferred local lifecycle sidecar path explicitly',
+  )
+  assert.match(
+    footerSource,
+    /function formatAssistValue/,
+    'expected the footer to format preferred lifecycle sidecar policy through a dedicated helper',
+  )
+  assert.match(
+    footerSource,
+    /snapshot\.backendPolicyTarget !== 'local-swarm'/,
+    'expected the footer to keep assist state separate from actual swarm activity unless local swarm is the preferred sidecar path',
   )
   assert.match(
     footerSource,

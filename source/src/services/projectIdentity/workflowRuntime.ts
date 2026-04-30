@@ -11,6 +11,8 @@ import {
 } from '../autowork/cloudOffloadCapability.js'
 import {
   resolveAutoworkBackendPolicy,
+  type AutoworkBackendTarget,
+  type LocalSwarmExecutorMode,
   type CloudOffloadRecommendation,
 } from '../autowork/backendPolicy.js'
 
@@ -29,6 +31,9 @@ export type WorkflowRuntimeSnapshot = {
   swarmBackend: WorkSwarmBackend
   swarmActive: boolean
   swarmWorkerCount: number
+  backendPolicyTarget: AutoworkBackendTarget
+  backendPolicyExecutorMode: LocalSwarmExecutorMode | null
+  backendPolicyText: string | null
   cloudOffloadStatus: AutoworkCloudOffloadStatus
   cloudOffloadPath: AutoworkCloudOffloadPath
   cloudConfiguredHostCount: number
@@ -56,6 +61,9 @@ export function createDefaultWorkflowRuntimeSnapshot(): WorkflowRuntimeSnapshot 
     swarmBackend: 'none',
     swarmActive: false,
     swarmWorkerCount: 0,
+    backendPolicyTarget: 'main-thread',
+    backendPolicyExecutorMode: null,
+    backendPolicyText: null,
     cloudOffloadStatus: 'unavailable',
     cloudOffloadPath: 'none',
     cloudConfiguredHostCount: 0,
@@ -65,6 +73,20 @@ export function createDefaultWorkflowRuntimeSnapshot(): WorkflowRuntimeSnapshot 
     cloudNextStep: null,
     statusText: null,
     lastActivityAt: null,
+  }
+}
+
+function formatBackendPolicyText(
+  target: AutoworkBackendTarget,
+  localExecutorMode: LocalSwarmExecutorMode | null,
+): string | null {
+  switch (target) {
+    case 'main-thread':
+      return null
+    case 'local-swarm':
+      return localExecutorMode ? `local (${localExecutorMode})` : 'local'
+    case 'cloud-offload':
+      return 'cloud offload'
   }
 }
 
@@ -169,6 +191,12 @@ export function readWorkflowRuntimeSnapshot(
     swarmBackend: execution?.swarmBackend ?? 'none',
     swarmActive: execution?.swarmActive ?? false,
     swarmWorkerCount: execution?.swarmWorkerCount ?? 0,
+    backendPolicyTarget: backendPolicy.target,
+    backendPolicyExecutorMode: backendPolicy.localExecutorMode,
+    backendPolicyText: formatBackendPolicyText(
+      backendPolicy.target,
+      backendPolicy.localExecutorMode,
+    ),
     cloudOffloadStatus: backendPolicy.cloudOffloadStatus,
     cloudOffloadPath: backendPolicy.cloudPath,
     cloudConfiguredHostCount: backendPolicy.cloudConfiguredHostCount,

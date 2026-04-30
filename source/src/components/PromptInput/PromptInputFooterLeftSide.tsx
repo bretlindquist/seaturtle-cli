@@ -302,6 +302,14 @@ function formatCloudValue(snapshot: WorkflowRuntimeSnapshot): string {
   }
 }
 
+function formatAssistValue(snapshot: WorkflowRuntimeSnapshot): string | null {
+  if (snapshot.backendPolicyTarget !== 'local-swarm') {
+    return null
+  }
+
+  return snapshot.backendPolicyText ?? 'local'
+}
+
 function SwarmActivityIndicator({
   active,
 }: {
@@ -500,6 +508,13 @@ function ModeIndicator({
     value={formatSwarmValue(workflowRuntime)}
     focused={false}
   /> : null;
+  const assistValue = shouldShowWorkflowRuntime(workflowRuntime) ? formatAssistValue(workflowRuntime) : null;
+  const assistPart = assistValue ? <FooterControl
+    key="workflow-assist"
+    label="Assist"
+    value={assistValue}
+    focused={false}
+  /> : null;
   const cloudPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
     key="workflow-cloud"
     label="Cloud"
@@ -528,6 +543,7 @@ function ModeIndicator({
   ...(workflowPhasePart ? [workflowPhasePart] : []),
   ...(autoworkPart ? [autoworkPart] : []),
   ...(heartbeatPart ? [heartbeatPart] : []),
+  ...(assistPart ? [assistPart] : []),
   ...(swarmPart ? [swarmPart] : []),
   ...(cloudPart ? [cloudPart] : []),
   ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : []),
