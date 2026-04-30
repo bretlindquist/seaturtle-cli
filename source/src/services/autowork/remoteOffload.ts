@@ -10,9 +10,10 @@ import type { AutoworkEntryPoint } from './runner.js'
 
 const DEFAULT_REMOTE_ACTION_TIMEOUT_MS = 60_000
 
-export type RemoteAutoworkInspectionAction = {
-  kind: 'status' | 'doctor'
+export type RemoteAutoworkAction = {
+  kind: 'run' | 'step' | 'verify' | 'status' | 'doctor'
   entryPoint: AutoworkEntryPoint
+  timeBudget?: string
 }
 
 export type RemoteAutoworkOffloadOptions = {
@@ -22,7 +23,7 @@ export type RemoteAutoworkOffloadOptions = {
   localVersion: string
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
-  action: RemoteAutoworkInspectionAction
+  action: RemoteAutoworkAction
   timeoutMs?: number
 }
 
@@ -37,14 +38,24 @@ type ProgressCallbacks = {
   onProgress?: (message: string) => void
 }
 
-function getInspectionFlag(
-  action: RemoteAutoworkInspectionAction,
-): '--autowork-status' | '--autowork-doctor' {
+function buildAutoworkPrompt(action: RemoteAutoworkAction): string {
+  const base = `/${action.entryPoint}`
+
   switch (action.kind) {
+    case 'run':
+      return action.timeBudget?.trim()
+        ? `${base} run ${action.timeBudget.trim()}`
+        : `${base} run`
+    case 'step':
+      return action.timeBudget?.trim()
+        ? `${base} step ${action.timeBudget.trim()}`
+        : `${base} step`
+    case 'verify':
+      return `${base} verify`
     case 'status':
-      return '--autowork-status'
+      return `${base} status`
     case 'doctor':
-      return '--autowork-doctor'
+      return `${base} doctor`
   }
 }
 
@@ -56,17 +67,15 @@ function createSession(
   const workflowHandoffJson = workflowHandoff
     ? JSON.stringify(workflowHandoff, null, 2)
     : undefined
-  // Headless SSH children run the print/stream-json path, where local JSX
-  // slash commands like /autowork are not available. Use the dedicated
-  // hidden inspection flags instead of sending slash-command prompts.
-  const extraCliArgs = [getInspectionFlag(options.action)]
+  const prompt = buildAutoworkPrompt(options.action)
 
   if (options.local) {
     return createLocalSSHSession({
       cwd: options.cwd,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      extraCliArgs,
+      prompt,
+      structuredInput: false,
       workflowHandoffJson,
       replaceWorkflowHandoff: !!workflowHandoffJson,
     })
@@ -85,7 +94,8 @@ function createSession(
       localVersion: options.localVersion,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      extraCliArgs,
+      prompt,
+      structuredInput: false,
       workflowHandoffJson,
       replaceWorkflowHandoff: !!workflowHandoffJson,
     },
@@ -93,8 +103,8 @@ function createSession(
   )
 }
 
-function parseHeadlessInspectionOutput(stdout: string): string {
-  const resultLine = stdout
+function parseHeadlessOffloadOutput(stdout: string): string {
+  const lines = stdout
     .split('\n')
     .map(line => line.trim())
     .filter(Boolean)
@@ -105,11 +115,20 @@ function parseHeadlessInspectionOutput(stdout: string): string {
           subtype?: string
           result?: string
           errors?: string[]
+          message?: {
+            content?: Array<{
+              type?: string
+              text?: string
+            }>
+          }
         }
       } catch {
         return null
       }
     })
+    .filter(value => value !== null)
+
+  const resultLine = lines
     .find(
       value =>
         value?.type === 'result' &&
@@ -122,17 +141,31 @@ function parseHeadlessInspectionOutput(stdout: string): string {
 
   if (resultLine.subtype === 'error_during_execution') {
     throw new SSHSessionError(
-      resultLine.errors?.join('\n') || 'Remote autowork inspection failed.',
+      resultLine.errors?.join('\n') || 'Remote autowork offload failed.',
     )
   }
 
-  if (typeof resultLine.result !== 'string' || resultLine.result.trim().length === 0) {
-    throw new SSHSessionError(
-      'Remote autowork inspection completed without a text result.',
-    )
+  if (typeof resultLine.result === 'string' && resultLine.result.trim().length > 0) {
+    return resultLine.result.trim()
   }
 
-  return resultLine.result.trim()
+  const assistantText = [...lines]
+    .reverse()
+    .find(
+      value =>
+        value?.type === 'assistant' &&
+        value.message?.content?.[0]?.type === 'text' &&
+        typeof value.message.content[0].text === 'string' &&
+        value.message.content[0].text.trim().length > 0,
+    )?.message?.content?.[0]?.text
+
+  if (assistantText?.trim()) {
+    return assistantText.trim()
+  }
+
+  throw new SSHSessionError(
+    'Remote autowork offload completed without a text result.',
+  )
 }
 
 export async function runRemoteAutoworkOffload(
@@ -174,7 +207,7 @@ export async function runRemoteAutoworkOffload(
         if (code !== 0) {
           throw new SSHSessionError(
             stderrChunks.join('').trim() ||
-              `Remote autowork inspection exited with code ${code ?? 'unknown'}.`,
+              `Remote autowork offload exited with code ${code ?? 'unknown'}.`,
           )
         }
 
@@ -182,7 +215,7 @@ export async function runRemoteAutoworkOffload(
           mode: options.local ? 'local' : 'remote',
           host: options.local ? null : (options.host ?? null),
           remoteCwd: session.remoteCwd,
-          output: parseHeadlessInspectionOutput(stdoutChunks.join('')),
+          output: parseHeadlessOffloadOutput(stdoutChunks.join('')),
         } satisfies RemoteAutoworkOffloadResult)
       } catch (error) {
         finish(reject, error)
@@ -193,7 +226,7 @@ export async function runRemoteAutoworkOffload(
       finish(
         reject,
         new SSHSessionError(
-          `Remote autowork inspection timed out after ${timeoutMs}ms.`,
+          `Remote autowork offload timed out after ${timeoutMs}ms.`,
         ),
       )
     }, timeoutMs)

@@ -2789,7 +2789,15 @@ async function run(): Promise<CommanderCommand> {
 
       // Headless mode supports all prompt commands and some local commands
       // If disableSlashCommands is true, return empty array
-      const commandsHeadless = disableSlashCommands ? [] : commands.filter(command => command.type === 'prompt' && !command.disableNonInteractive || command.type === 'local' && command.supportsNonInteractive);
+      const commandsHeadless = disableSlashCommands
+        ? []
+        : commands.filter(
+            command =>
+              (command.type === 'prompt' && !command.disableNonInteractive) ||
+              (command.type === 'local' && command.supportsNonInteractive) ||
+              (command.type === 'local-jsx' &&
+                command.supportsNonInteractive === true),
+          );
       const defaultState = getDefaultAppState();
       const headlessInitialState: AppState = {
         ...defaultState,
@@ -4273,7 +4281,7 @@ async function run(): Promise<CommanderCommand> {
         process.exit(1);
       }
     });
-    program.command('ssh-autowork').description('[Internal] Run one autowork inspection action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to inspect').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork inspection action to run remotely').choices(['status', 'doctor']).default('status')).option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
+    program.command('ssh-autowork').description('[Internal] Run one autowork action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to run').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork action to run remotely').choices(['run', 'step', 'verify', 'status', 'doctor']).default('status')).option('--time-budget <budget>', 'Optional autowork budget such as 30m or 8h for run/step actions').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
       const parsed = Number.parseInt(value, 10);
       if (!Number.isFinite(parsed) || parsed <= 0) {
         throw new Error(`Invalid timeout: ${value}`);
@@ -4284,7 +4292,8 @@ async function run(): Promise<CommanderCommand> {
       dir?: string;
       local?: boolean;
       entryPoint: 'autowork' | 'swim';
-      action: 'status' | 'doctor';
+      action: 'run' | 'step' | 'verify' | 'status' | 'doctor';
+      timeBudget?: string;
       permissionMode?: string;
       dangerouslySkipPermissions?: boolean;
       timeoutMs?: number;
@@ -4298,7 +4307,8 @@ async function run(): Promise<CommanderCommand> {
       } = await import('./services/autowork/remoteOffload.js');
       const action = {
         kind: opts.action,
-        entryPoint: opts.entryPoint
+        entryPoint: opts.entryPoint,
+        timeBudget: opts.timeBudget
       };
       try {
         const result = await runRemoteAutoworkOffload({

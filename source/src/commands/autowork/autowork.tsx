@@ -319,6 +319,23 @@ function subtitleForEntryPoint(entryPoint: EntryPoint): string {
     : 'Operator-forward tracked-plan orchestration with explicit validation, commit, and stop gates.'
 }
 
+function buildNonInteractiveUsage(entryPoint: EntryPoint): string {
+  return [
+    `${titleForEntryPoint(entryPoint)} is available in headless mode only with an explicit action.`,
+    '',
+    `Use one of:`,
+    `- /${entryPoint} safe`,
+    `- /${entryPoint} dangerous`,
+    `- /${entryPoint} use <path>`,
+    `- /${entryPoint} run`,
+    `- /${entryPoint} run 8h`,
+    `- /${entryPoint} step`,
+    `- /${entryPoint} status`,
+    `- /${entryPoint} doctor`,
+    `- /${entryPoint} verify`,
+  ].join('\n')
+}
+
 function AutoworkMenu({
   entryPoint,
   onDone,
@@ -582,6 +599,10 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
     }
 
     if (rawArgs === '' || normalizedArgs === 'start') {
+      if (context.options.isNonInteractiveSession) {
+        onDone(buildNonInteractiveUsage(entryPoint), { display: 'system' })
+        return null
+      }
       return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} setAppState={context.setAppState} />
     }
 

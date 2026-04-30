@@ -205,6 +205,7 @@ export type CommandBase = {
     | 'mcp' // Where the command was loaded from
   kind?: 'workflow' // Distinguishes workflow-backed commands (badged in autocomplete)
   immediate?: boolean // If true, command executes immediately without waiting for a stop point (bypasses queue)
+  supportsNonInteractive?: boolean // If true, this command can run in --print/headless mode without rendering terminal UI
   isSensitive?: boolean // If true, args are redacted from the conversation history
   /** Defaults to `name`. Only override when the displayed name differs (e.g. plugin prefix stripping). */
   userFacingName?: () => string

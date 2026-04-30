@@ -65,6 +65,8 @@ type CreateSSHSessionOptions = {
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
   extraCliArgs?: string[]
+  prompt?: string
+  structuredInput?: boolean
   workflowHandoffJson?: string
   replaceWorkflowHandoff?: boolean
 }
@@ -74,6 +76,8 @@ type CreateLocalSSHSessionOptions = {
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
   extraCliArgs?: string[]
+  prompt?: string
+  structuredInput?: boolean
   workflowHandoffJson?: string
   replaceWorkflowHandoff?: boolean
 }
@@ -231,16 +235,20 @@ function collectRemoteCliArgs(params: {
   permissionMode?: string
   dangerouslySkipPermissions?: boolean
   extraCliArgs?: string[]
+  prompt?: string
+  structuredInput?: boolean
 }): string[] {
   const args = [
     '--print',
     '--output-format',
     'stream-json',
-    '--input-format',
-    'stream-json',
     '--verbose',
     '--include-partial-messages',
   ]
+
+  if (params.structuredInput !== false) {
+    args.push('--input-format', 'stream-json')
+  }
 
   const runtime = getMainLoopProviderRuntime()
   const model = getMainLoopModel()
@@ -260,6 +268,9 @@ function collectRemoteCliArgs(params: {
   }
   if (params.extraCliArgs?.length) {
     args.push(...params.extraCliArgs)
+  }
+  if (params.prompt) {
+    args.push(params.prompt)
   }
 
   return args

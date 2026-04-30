@@ -8,6 +8,7 @@ const autowork = {
   argumentHint:
     '[run|step|status|doctor|safe|dangerous|verify|use <plan>|run 8h]',
   immediate: true,
+  supportsNonInteractive: true,
   disableModelInvocation: true,
   userInvocable: true,
   load: () => import('./autowork.js'),

@@ -31,7 +31,7 @@ function runCli(
   projectRoot: string,
   sourceRepo: string,
   targetRepo: string,
-  action: 'status' | 'doctor',
+  action: 'run' | 'status' | 'doctor',
 ): string {
   const cliPath = join(projectRoot, 'dist', 'cli.js')
   const result = spawnSync(
@@ -101,6 +101,9 @@ function run(): void {
     assert.match(status, /Workflow phase: research/)
     assert.match(status, /Heartbeat: on \(/)
     assert.match(status, /Cloud swarm:/)
+
+    const runGuidance = runCli(projectRoot, sourceRepo, targetRepo, 'run')
+    assert.match(runGuidance, /Then rerun \/autowork run after the tracked plan is ready\./)
 
     const doctor = runCli(projectRoot, sourceRepo, targetRepo, 'doctor')
     assert.match(doctor, /Autowork doctor/)
