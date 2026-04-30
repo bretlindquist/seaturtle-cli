@@ -552,7 +552,7 @@ async function runAutowork(
         }
       }
 
-      const started = launchLocalLifecycleSwarm({
+      const started = await launchLocalLifecycleSwarm({
         entryPoint,
         repoRoot: startupContext.repoRoot,
         mode: startupContext.mode,

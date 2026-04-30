@@ -1,3 +1,4 @@
+import { createTaskStateBase, type TaskContext } from '../../Task.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { runAsyncAgentLifecycle } from '../../tools/AgentTool/agentToolUtils.js'
@@ -6,14 +7,23 @@ import {
   isBuiltInAgent,
   type AgentDefinition,
 } from '../../tools/AgentTool/loadAgentsDir.js'
-import { runAgent } from '../../tools/AgentTool/runAgent.js'
 import {
+  enqueueAgentNotification,
   registerAsyncAgent,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { registerTask } from '../../utils/task/framework.js'
+import { runAgent } from '../../tools/AgentTool/runAgent.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import {
+  deleteLocalLifecycleSwarmMetadata,
+  listLocalLifecycleSwarmMetadata,
+  writeLocalLifecycleSwarmMetadata,
+  type LocalLifecycleSwarmMetadata,
+} from '../../utils/sessionStorage.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { updateWorkExecutionPacket } from '../projectIdentity/workflowState.js'
 import type { AutoworkBackendPolicy } from './backendPolicy.js'
@@ -50,6 +60,7 @@ function syncLocalLifecycleSwarmActivity(
   setAppState: ToolUseContext['setAppState'],
   options: {
     active: boolean
+    statusText?: string | null
   },
 ): void {
   updateWorkExecutionPacket(
@@ -58,11 +69,62 @@ function syncLocalLifecycleSwarmActivity(
       swarmBackend: options.active ? 'local' : 'none',
       swarmActive: options.active,
       swarmWorkerCount: options.active ? 1 : 0,
+      statusText: options.statusText ?? current.statusText,
       lastActivityAt: Date.now(),
     }),
     repoRoot,
   )
   syncWorkflowRuntimeState(repoRoot, setAppState)
+}
+
+function getLocalLifecycleSwarmEndedStatusText(
+  metadata: Pick<LocalLifecycleSwarmMetadata, 'entryPoint' | 'mode'>,
+): string {
+  return `Local lifecycle swarm ended: ${metadata.entryPoint} ${metadata.mode}`
+}
+
+function getInterruptedLocalLifecycleSwarmMessage(
+  metadata: Pick<LocalLifecycleSwarmMetadata, 'entryPoint' | 'mode'>,
+): string {
+  return `Local lifecycle swarm interrupted: ${metadata.entryPoint} ${metadata.mode} ended when the previous SeaTurtle session exited.`
+}
+
+function createInterruptedLocalLifecycleTask(
+  metadata: LocalLifecycleSwarmMetadata,
+): LocalAgentTaskState {
+  return {
+    ...createTaskStateBase(
+      metadata.taskId,
+      'local_agent',
+      metadata.description,
+      metadata.toolUseId,
+    ),
+    type: 'local_agent',
+    status: 'failed',
+    agentId: metadata.taskId,
+    prompt: metadata.prompt,
+    agentType: metadata.agentType,
+    retrieved: false,
+    lastReportedToolCount: 0,
+    lastReportedTokenCount: 0,
+    isBackgrounded: true,
+    pendingMessages: [],
+    retain: false,
+    diskLoaded: false,
+    startTime: metadata.startTime,
+    endTime: Date.now(),
+    error: getInterruptedLocalLifecycleSwarmMessage(metadata),
+  }
+}
+
+async function cleanupLocalLifecycleSwarmMetadata(taskId: string): Promise<void> {
+  try {
+    await deleteLocalLifecycleSwarmMetadata(taskId)
+  } catch (error) {
+    logForDebugging(
+      `Failed to delete local lifecycle swarm metadata for ${taskId}: ${String(error)}`,
+    )
+  }
 }
 
 function resolveLifecycleSwarmAgent(
@@ -105,9 +167,9 @@ export function canLaunchLocalLifecycleSwarm(
   )
 }
 
-export function launchLocalLifecycleSwarm(
+export async function launchLocalLifecycleSwarm(
   options: LocalLifecycleSwarmLaunchOptions,
-): LocalLifecycleSwarmLaunchResult {
+): Promise<LocalLifecycleSwarmLaunchResult> {
   const {
     entryPoint,
     repoRoot,
@@ -130,6 +192,27 @@ export function launchLocalLifecycleSwarm(
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
   const agentId = createAgentId(`autowork-${mode}`)
   const description = `${entryPoint} ${mode} local swarm`
+  const metadata: LocalLifecycleSwarmMetadata = {
+    taskId: agentId,
+    localCwd: repoRoot,
+    entryPoint,
+    mode,
+    description,
+    prompt,
+    agentType: selectedAgent.agentType,
+    toolUseId: toolUseContext.toolUseId,
+    startTime: Date.now(),
+  }
+
+  try {
+    await writeLocalLifecycleSwarmMetadata(agentId, metadata)
+  } catch (error) {
+    return {
+      ok: false,
+      message: `SeaTurtle could not persist local lifecycle swarm restore metadata: ${String(error)}`,
+    }
+  }
+
   const task = registerAsyncAgent({
     agentId,
     description,
@@ -141,9 +224,10 @@ export function launchLocalLifecycleSwarm(
 
   syncLocalLifecycleSwarmActivity(repoRoot, rootSetAppState, {
     active: true,
+    statusText: `Local lifecycle swarm running: ${entryPoint} ${mode}`,
   })
 
-  const metadata = {
+  const runtimeMetadata = {
     prompt,
     resolvedAgentModel: getAgentModel(
       selectedAgent.model,
@@ -177,7 +261,7 @@ export function launchLocalLifecycleSwarm(
           abortController: task.abortController!,
         },
       }),
-    metadata,
+    metadata: runtimeMetadata,
     description,
     toolUseContext,
     rootSetAppState,
@@ -187,12 +271,43 @@ export function launchLocalLifecycleSwarm(
   }).finally(() => {
     syncLocalLifecycleSwarmActivity(repoRoot, rootSetAppState, {
       active: false,
+      statusText: getLocalLifecycleSwarmEndedStatusText({
+        entryPoint,
+        mode,
+      }),
     })
+    void cleanupLocalLifecycleSwarmMetadata(agentId)
   })
 
   return {
     ok: true,
     task,
     agent: selectedAgent,
+  }
+}
+
+export async function restoreLocalLifecycleSwarmTasks(
+  context: TaskContext,
+): Promise<void> {
+  const persisted = await listLocalLifecycleSwarmMetadata()
+
+  for (const metadata of persisted) {
+    registerTask(
+      createInterruptedLocalLifecycleTask(metadata),
+      context.setAppState,
+    )
+    enqueueAgentNotification({
+      taskId: metadata.taskId,
+      description: metadata.description,
+      status: 'failed',
+      error: getInterruptedLocalLifecycleSwarmMessage(metadata),
+      setAppState: context.setAppState,
+      toolUseId: metadata.toolUseId,
+    })
+    syncLocalLifecycleSwarmActivity(metadata.localCwd, context.setAppState, {
+      active: false,
+      statusText: getInterruptedLocalLifecycleSwarmMessage(metadata),
+    })
+    await cleanupLocalLifecycleSwarmMetadata(metadata.taskId)
   }
 }

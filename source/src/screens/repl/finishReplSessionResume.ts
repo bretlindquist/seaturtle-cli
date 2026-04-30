@@ -30,6 +30,7 @@ export async function finishReplSessionResume({
   bashTools,
   bashToolsProcessedIdx,
   adoptResumedSessionFile,
+  restoreLocalLifecycleSwarmTasks,
   restoreRemoteAgentTasks,
   restoreRemoteAutoworkTasks,
   store,
@@ -58,6 +59,7 @@ export async function finishReplSessionResume({
   bashTools: { current: Set<string> };
   bashToolsProcessedIdx: { current: number };
   adoptResumedSessionFile: () => void;
+  restoreLocalLifecycleSwarmTasks: (args: any) => Promise<void>;
   restoreRemoteAgentTasks: (args: any) => Promise<void>;
   restoreRemoteAutoworkTasks: (args: any) => Promise<void>;
   store: any;
@@ -118,6 +120,11 @@ export async function finishReplSessionResume({
     restoreWorktreeForResume(log.worktreeSession);
     adoptResumedSessionFile();
     void restoreRemoteAgentTasks({
+      abortController: new AbortController(),
+      getAppState: () => store.getState(),
+      setAppState,
+    });
+    void restoreLocalLifecycleSwarmTasks({
       abortController: new AbortController(),
       getAppState: () => store.getState(),
       setAppState,

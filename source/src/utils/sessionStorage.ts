@@ -334,6 +334,18 @@ export type RemoteAutoworkMetadata = {
   spawnedAt: number
 }
 
+export type LocalLifecycleSwarmMetadata = {
+  taskId: string
+  localCwd: string
+  entryPoint: 'autowork' | 'swim'
+  mode: 'discovery' | 'research' | 'plan-hardening' | 'audit-and-polish'
+  description: string
+  prompt: string
+  agentType: string
+  toolUseId?: string
+  startTime: number
+}
+
 function getRemoteAgentsDir(): string {
   // Same sessionProjectDir fallback as getAgentTranscriptPath — the project
   // dir (containing the .jsonl), not the session dir, so sessionId is joined.
@@ -350,8 +362,20 @@ function getRemoteAutoworksDir(): string {
   return join(projectDir, getSessionId(), 'remote-autoworks')
 }
 
+function getLocalLifecycleSwarmsDir(): string {
+  const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
+  return join(projectDir, getSessionId(), 'local-lifecycle-swarms')
+}
+
 function getRemoteAutoworkMetadataPath(taskId: string): string {
   return join(getRemoteAutoworksDir(), `remote-autowork-${taskId}.meta.json`)
+}
+
+function getLocalLifecycleSwarmMetadataPath(taskId: string): string {
+  return join(
+    getLocalLifecycleSwarmsDir(),
+    `local-lifecycle-swarm-${taskId}.meta.json`,
+  )
 }
 
 export function getRemoteAutoworkStatusPath(taskId: string): string {
@@ -485,6 +509,67 @@ export async function listRemoteAutoworkMetadata(): Promise<
     } catch (e) {
       logForDebugging(
         `listRemoteAutoworkMetadata: skipping ${entry.name}: ${String(e)}`,
+      )
+    }
+  }
+  return results
+}
+
+export async function writeLocalLifecycleSwarmMetadata(
+  taskId: string,
+  metadata: LocalLifecycleSwarmMetadata,
+): Promise<void> {
+  const path = getLocalLifecycleSwarmMetadataPath(taskId)
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, JSON.stringify(metadata))
+}
+
+export async function readLocalLifecycleSwarmMetadata(
+  taskId: string,
+): Promise<LocalLifecycleSwarmMetadata | null> {
+  const path = getLocalLifecycleSwarmMetadataPath(taskId)
+  try {
+    const raw = await readFile(path, 'utf-8')
+    return JSON.parse(raw) as LocalLifecycleSwarmMetadata
+  } catch (e) {
+    if (isFsInaccessible(e)) return null
+    throw e
+  }
+}
+
+export async function deleteLocalLifecycleSwarmMetadata(
+  taskId: string,
+): Promise<void> {
+  const path = getLocalLifecycleSwarmMetadataPath(taskId)
+  try {
+    await unlink(path)
+  } catch (e) {
+    if (isFsInaccessible(e)) return
+    throw e
+  }
+}
+
+export async function listLocalLifecycleSwarmMetadata(): Promise<
+  LocalLifecycleSwarmMetadata[]
+> {
+  const dir = getLocalLifecycleSwarmsDir()
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (e) {
+    if (isFsInaccessible(e)) return []
+    throw e
+  }
+
+  const results: LocalLifecycleSwarmMetadata[] = []
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.meta.json')) continue
+    try {
+      const raw = await readFile(join(dir, entry.name), 'utf-8')
+      results.push(JSON.parse(raw) as LocalLifecycleSwarmMetadata)
+    } catch (e) {
+      logForDebugging(
+        `listLocalLifecycleSwarmMetadata: skipping ${entry.name}: ${String(e)}`,
       )
     }
   }

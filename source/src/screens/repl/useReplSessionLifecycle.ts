@@ -2,6 +2,7 @@ import type { UUID } from 'crypto';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getOriginalCwd } from '../../bootstrap/state.js';
 import type { ResumeEntrypoint } from '../../commands.js';
+import { restoreLocalLifecycleSwarmTasks } from '../../services/autowork/localLifecycleSwarm.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js';
 import type { Message as MessageType } from '../../types/message.js';
 import type { LogOption } from '../../types/logs.js';
@@ -98,6 +99,7 @@ export function useReplSessionLifecycle({
           bashTools,
           bashToolsProcessedIdx,
           adoptResumedSessionFile,
+          restoreLocalLifecycleSwarmTasks,
           restoreRemoteAgentTasks,
           restoreRemoteAutoworkTasks,
           store,
@@ -139,6 +141,11 @@ export function useReplSessionLifecycle({
     if (initialMessages && initialMessages.length > 0) {
       restoreReadFileState(initialMessages, getOriginalCwd());
       void restoreRemoteAgentTasks({
+        abortController: new AbortController(),
+        getAppState: () => store.getState(),
+        setAppState,
+      });
+      void restoreLocalLifecycleSwarmTasks({
         abortController: new AbortController(),
         getAppState: () => store.getState(),
         setAppState,
