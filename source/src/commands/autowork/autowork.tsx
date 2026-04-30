@@ -14,7 +14,11 @@ import {
   canLaunchLocalLifecycleSwarm,
   launchLocalLifecycleSwarm,
 } from '../../services/autowork/localLifecycleSwarm.js'
-import { resolveAutoworkBackendPolicy } from '../../services/autowork/backendPolicy.js'
+import {
+  formatRequestedTimeBudget,
+  resolveAutoworkBackendPolicy,
+  resolveAutoworkLaunchAuthority,
+} from '../../services/autowork/backendPolicy.js'
 import { resolveAutoworkCloudOffloadCapability } from '../../services/autowork/cloudOffloadCapability.js'
 import {
   getAutoworkDangerousQuip,
@@ -180,19 +184,6 @@ function parseCloudOffloadArgs(
   }
 }
 
-function formatRequestedTimeBudget(timeBudgetMs: number): string {
-  const minute = 60 * 1000
-  const hour = 60 * minute
-  const day = 24 * hour
-  if (timeBudgetMs % day === 0) {
-    return `${timeBudgetMs / day}d`
-  }
-  if (timeBudgetMs % hour === 0) {
-    return `${timeBudgetMs / hour}h`
-  }
-  return `${Math.max(1, Math.round(timeBudgetMs / minute))}m`
-}
-
 async function startCloudOffload(
   entryPoint: EntryPoint,
   context: LocalJSXCommandContext,
@@ -263,82 +254,6 @@ async function launchCloudOffload(
     timeBudget: parsed.timeBudget,
     origin: 'explicit',
   })
-}
-
-async function maybeAutoLaunchCloudOffload(
-  entryPoint: EntryPoint,
-  context: LocalJSXCommandContext,
-  executionScope: AutoworkExecutionScope,
-  timeBudgetMs: number | null,
-): Promise<
-  | { kind: 'launched'; message: string }
-  | { kind: 'blocked'; message: string }
-  | { kind: 'continue-local' }
-> {
-  if (process.env.SEATURTLE_AUTOWORK_OFFLOAD_CHILD === '1') {
-    return { kind: 'continue-local' }
-  }
-
-  if (executionScope !== 'plan' || timeBudgetMs === null) {
-    return { kind: 'continue-local' }
-  }
-
-  const inspection = await resolveAutoworkInspectionContext(entryPoint)
-  if (!inspection.ok) {
-    return { kind: 'continue-local' }
-  }
-
-  const executionPacket = inspection.context.repoRoot
-    ? peekActiveWorkstream(inspection.context.repoRoot)?.packets.execution ?? null
-    : null
-  const backendPolicy = resolveAutoworkBackendPolicy(inspection.context.mode, {
-    heartbeatEnabled: true,
-    timeBudgetMs,
-    deadlineAt: executionPacket?.deadlineAt ?? null,
-    cloudOffloadActive:
-      executionPacket?.swarmBackend === 'cloud' && executionPacket?.swarmActive === true,
-  })
-
-  switch (backendPolicy.cloudAutoLaunch.mode) {
-    case 'local': {
-      const launched = await startCloudOffload(entryPoint, context, {
-        action: 'run',
-        local: true,
-        timeBudget: formatRequestedTimeBudget(timeBudgetMs),
-        origin: 'auto',
-        reason: backendPolicy.cloudAutoLaunch.reason,
-      })
-      return launched.ok
-        ? { kind: 'launched', message: launched.message }
-        : { kind: 'blocked', message: launched.message }
-    }
-    case 'saved-host': {
-      const launched = await startCloudOffload(entryPoint, context, {
-        action: 'run',
-        local: false,
-        host: backendPolicy.cloudAutoLaunch.host,
-        timeBudget: formatRequestedTimeBudget(timeBudgetMs),
-        origin: 'auto',
-        reason: backendPolicy.cloudAutoLaunch.reason,
-      })
-      return launched.ok
-        ? { kind: 'launched', message: launched.message }
-        : { kind: 'blocked', message: launched.message }
-    }
-    case 'explicit-host-required':
-      return {
-        kind: 'blocked',
-        message: [
-          `${titleForEntryPoint(entryPoint)} should move this bounded ${inspection.context.mode} wave onto cloud offload, but the host choice is ambiguous.`,
-          '',
-          backendPolicy.cloudAutoLaunch.reason,
-          '',
-          `Next: use /${entryPoint} cloud <ssh-host> run ${formatRequestedTimeBudget(timeBudgetMs)} to choose one explicitly.`,
-        ].join('\n'),
-      }
-    case 'none':
-      return { kind: 'continue-local' }
-  }
 }
 
 async function selectAutoworkPlan(
@@ -473,28 +388,6 @@ async function runAutowork(
     }
   | { ok: false; message: string }
 > {
-  const maybeCloudLaunch = await maybeAutoLaunchCloudOffload(
-    entryPoint,
-    context,
-    executionScope,
-    timeBudgetMs,
-  )
-  if (maybeCloudLaunch.kind === 'launched') {
-    return {
-      ok: true,
-      message: maybeCloudLaunch.message,
-      shouldQuery: false,
-      metaMessages: [],
-      nextInput: '',
-    }
-  }
-  if (maybeCloudLaunch.kind === 'blocked') {
-    return {
-      ok: false,
-      message: maybeCloudLaunch.message,
-    }
-  }
-
   const entry = await resolveAutoworkRunEntry(
     entryPoint,
     executionScope === 'step' ? 'step' : 'run',
@@ -534,15 +427,75 @@ async function runAutowork(
         executionPacket?.swarmBackend === 'cloud' &&
         executionPacket?.swarmActive === true,
     })
+    const launchAuthority = resolveAutoworkLaunchAuthority(
+      startupContext.mode,
+      backendPolicy,
+      {
+        executionScope,
+        timeBudgetMs,
+        offloadChild: process.env.SEATURTLE_AUTOWORK_OFFLOAD_CHILD === '1',
+        canLaunchLocalLifecycleSwarm: canLaunchLocalLifecycleSwarm(
+          startupContext.mode,
+          backendPolicy,
+          context,
+          context.canUseTool,
+        ),
+      },
+    )
 
-    if (
-      canLaunchLocalLifecycleSwarm(
-        startupContext.mode,
-        backendPolicy,
-        context,
-        context.canUseTool,
-      )
-    ) {
+    if (launchAuthority.kind === 'launch-cloud-local') {
+      const launched = await startCloudOffload(entryPoint, context, {
+        action: 'run',
+        local: true,
+        timeBudget:
+          timeBudgetMs === null
+            ? undefined
+            : formatRequestedTimeBudget(timeBudgetMs),
+        origin: 'auto',
+        reason: launchAuthority.reason,
+      })
+      return launched.ok
+        ? {
+            ok: true,
+            message: launched.message,
+            shouldQuery: false,
+            metaMessages: [],
+            nextInput: '',
+          }
+        : { ok: false, message: launched.message }
+    }
+
+    if (launchAuthority.kind === 'launch-cloud-saved-host') {
+      const launched = await startCloudOffload(entryPoint, context, {
+        action: 'run',
+        local: false,
+        host: launchAuthority.host,
+        timeBudget:
+          timeBudgetMs === null
+            ? undefined
+            : formatRequestedTimeBudget(timeBudgetMs),
+        origin: 'auto',
+        reason: launchAuthority.reason,
+      })
+      return launched.ok
+        ? {
+            ok: true,
+            message: launched.message,
+            shouldQuery: false,
+            metaMessages: [],
+            nextInput: '',
+          }
+        : { ok: false, message: launched.message }
+    }
+
+    if (launchAuthority.kind === 'blocked') {
+      return {
+        ok: false,
+        message: launchAuthority.message,
+      }
+    }
+
+    if (launchAuthority.kind === 'launch-local-swarm') {
       const prompt = launch.metaMessages[0]
       if (typeof prompt !== 'string') {
         return {

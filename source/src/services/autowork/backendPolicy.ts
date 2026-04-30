@@ -2,7 +2,7 @@ import { getResolvedTeammateMode } from '../../utils/swarm/backends/registry.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { WorkSwarmBackend } from '../projectIdentity/workflowState.js'
-import type { AutoworkMode } from './state.js'
+import type { AutoworkExecutionScope, AutoworkMode } from './state.js'
 import { resolveAutoworkLifecycleDelegationPolicy } from './delegationPolicy.js'
 import {
   resolveAutoworkCloudOffloadCapability,
@@ -42,6 +42,13 @@ export type AutoworkCloudAutoLaunchDecision =
       reason: string
     }
 
+export type AutoworkLaunchAuthority =
+  | { kind: 'continue-local' }
+  | { kind: 'blocked'; message: string }
+  | { kind: 'launch-cloud-local'; reason: string }
+  | { kind: 'launch-cloud-saved-host'; host: string; reason: string }
+  | { kind: 'launch-local-swarm' }
+
 export type AutoworkBackendPolicy = {
   target: AutoworkBackendTarget
   swarmBackend: WorkSwarmBackend
@@ -68,6 +75,13 @@ type AutoworkBackendPolicyOptions = {
   timeBudgetMs?: number | null
   deadlineAt?: number | null
   savedSshHosts?: string[]
+}
+
+type AutoworkLaunchAuthorityOptions = {
+  executionScope: AutoworkExecutionScope
+  timeBudgetMs: number | null
+  offloadChild?: boolean
+  canLaunchLocalLifecycleSwarm?: boolean
 }
 
 function getSavedSshHosts(): string[] {
@@ -333,4 +347,65 @@ export function resolveAutoworkBackendPolicy(
     cloudAutoLaunch,
     reason: getMainThreadReason(mode),
   }
+}
+
+export function formatRequestedTimeBudget(timeBudgetMs: number): string {
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (timeBudgetMs % day === 0) {
+    return `${timeBudgetMs / day}d`
+  }
+  if (timeBudgetMs % hour === 0) {
+    return `${timeBudgetMs / hour}h`
+  }
+  return `${Math.max(1, Math.round(timeBudgetMs / minute))}m`
+}
+
+export function resolveAutoworkLaunchAuthority(
+  mode: AutoworkMode,
+  backendPolicy: AutoworkBackendPolicy,
+  options: AutoworkLaunchAuthorityOptions,
+): AutoworkLaunchAuthority {
+  if (options.offloadChild === true) {
+    return { kind: 'continue-local' }
+  }
+
+  const hasBoundedPlanRun =
+    options.executionScope === 'plan' && options.timeBudgetMs !== null
+
+  if (hasBoundedPlanRun) {
+    switch (backendPolicy.cloudAutoLaunch.mode) {
+      case 'local':
+        return {
+          kind: 'launch-cloud-local',
+          reason: backendPolicy.cloudAutoLaunch.reason,
+        }
+      case 'saved-host':
+        return {
+          kind: 'launch-cloud-saved-host',
+          host: backendPolicy.cloudAutoLaunch.host,
+          reason: backendPolicy.cloudAutoLaunch.reason,
+        }
+      case 'explicit-host-required':
+        return {
+          kind: 'blocked',
+          message: [
+            `Autowork should move this bounded ${mode} wave onto cloud offload, but the host choice is ambiguous.`,
+            '',
+            backendPolicy.cloudAutoLaunch.reason,
+            '',
+            `Next: use /autowork cloud <ssh-host> run ${formatRequestedTimeBudget(options.timeBudgetMs)} to choose one explicitly.`,
+          ].join('\n'),
+        }
+      case 'none':
+        break
+    }
+  }
+
+  if (options.canLaunchLocalLifecycleSwarm === true) {
+    return { kind: 'launch-local-swarm' }
+  }
+
+  return { kind: 'continue-local' }
 }

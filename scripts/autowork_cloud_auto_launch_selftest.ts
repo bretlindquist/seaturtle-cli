@@ -49,9 +49,9 @@ function run(): void {
     'expected the autowork command to surface truthful auto-offload messaging when policy launches the background cloud path',
   )
   assert.match(
-    commandSource,
-    /cloud <ssh-host> run \$\{formatRequestedTimeBudget\(timeBudgetMs\)\}/,
-    'expected ambiguous multi-host auto-offload states to route the operator back to an explicit host choice',
+    policySource,
+    /cloud <ssh-host> run \$\{formatRequestedTimeBudget\(options\.timeBudgetMs\)\}/,
+    'expected ambiguous multi-host auto-offload states to route the operator back to an explicit host choice from the shared backend policy seam',
   )
 }
 
