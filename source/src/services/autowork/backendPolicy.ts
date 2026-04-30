@@ -1,5 +1,6 @@
 import { getResolvedTeammateMode } from '../../utils/swarm/backends/registry.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { WorkSwarmBackend } from '../projectIdentity/workflowState.js'
 import type { AutoworkMode } from './state.js'
 import {
@@ -21,6 +22,25 @@ export type CloudSwarmRecommendation =
   | 'recommended'
   | 'active'
 
+export type AutoworkCloudAutoLaunchDecision =
+  | {
+      mode: 'none'
+      reason: string | null
+    }
+  | {
+      mode: 'local'
+      reason: string
+    }
+  | {
+      mode: 'saved-host'
+      host: string
+      reason: string
+    }
+  | {
+      mode: 'explicit-host-required'
+      reason: string
+    }
+
 export type AutoworkBackendPolicy = {
   target: AutoworkBackendTarget
   swarmBackend: WorkSwarmBackend
@@ -33,6 +53,7 @@ export type AutoworkBackendPolicy = {
   cloudReason: string | null
   cloudRecommendationReason: string | null
   cloudNextStep: string | null
+  cloudAutoLaunch: AutoworkCloudAutoLaunchDecision
   reason: string
 }
 
@@ -44,6 +65,13 @@ type AutoworkBackendPolicyOptions = {
   heartbeatEnabled?: boolean
   timeBudgetMs?: number | null
   deadlineAt?: number | null
+  savedSshHosts?: string[]
+}
+
+function getSavedSshHosts(): string[] {
+  return (getInitialSettings().sshConfigs ?? [])
+    .map(config => config.sshHost.trim())
+    .filter(Boolean)
 }
 
 function shouldPreferLocalSwarm(mode: AutoworkMode): boolean {
@@ -159,6 +187,59 @@ function getCloudRecommendation(
   }
 }
 
+function getCloudAutoLaunchDecision(
+  mode: AutoworkMode,
+  cloudCapability: AutoworkCloudOffloadCapability,
+  options: AutoworkBackendPolicyOptions,
+): AutoworkCloudAutoLaunchDecision {
+  if (cloudCapability.status === 'active') {
+    return {
+      mode: 'none',
+      reason:
+        'Cloud offload is already active, so no new cloud launch decision is needed.',
+    }
+  }
+
+  if (cloudCapability.status !== 'available') {
+    return {
+      mode: 'none',
+      reason: null,
+    }
+  }
+
+  if (!shouldRecommendCloudOffload(mode, options)) {
+    return {
+      mode: 'none',
+      reason:
+        'Cloud auto-launch is reserved for bounded lifecycle waves that need sustained orchestration.',
+    }
+  }
+
+  const savedSshHosts = options.savedSshHosts ?? getSavedSshHosts()
+  if (savedSshHosts.length === 0) {
+    return {
+      mode: 'local',
+      reason:
+        'No saved SSH configs are present, so the local provider child is the deterministic cloud offload target for this bounded lifecycle wave.',
+    }
+  }
+
+  if (savedSshHosts.length === 1) {
+    return {
+      mode: 'saved-host',
+      host: savedSshHosts[0]!,
+      reason:
+        'Exactly one saved SSH config is present, so SeaTurtle can offload this bounded lifecycle wave without guessing the remote host.',
+    }
+  }
+
+  return {
+    mode: 'explicit-host-required',
+    reason:
+      'Multiple saved SSH configs are present, so SeaTurtle requires an explicit host choice before auto-offloading this bounded lifecycle wave.',
+  }
+}
+
 export function resolveAutoworkBackendPolicy(
   mode: AutoworkMode,
   options: AutoworkBackendPolicyOptions = {},
@@ -178,6 +259,11 @@ export function resolveAutoworkBackendPolicy(
     cloudCapability,
     options,
   )
+  const cloudAutoLaunch = getCloudAutoLaunchDecision(
+    mode,
+    cloudCapability,
+    options,
+  )
 
   if (cloudCapability.status === 'active') {
     return {
@@ -192,6 +278,7 @@ export function resolveAutoworkBackendPolicy(
       cloudReason: cloudCapability.reason,
       cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
       cloudNextStep: cloudRecommendation.cloudNextStep,
+      cloudAutoLaunch,
       reason:
         'Cloud offload is currently active, so autowork should report the remote-host execution path as authoritative.',
     }
@@ -214,6 +301,7 @@ export function resolveAutoworkBackendPolicy(
       cloudReason: cloudCapability.reason,
       cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
       cloudNextStep: cloudRecommendation.cloudNextStep,
+      cloudAutoLaunch,
       reason: `This ${mode} wave can use the local swarm path (${localExecutorMode}) without moving orchestration truth off the main thread.`,
     }
   }
@@ -230,6 +318,7 @@ export function resolveAutoworkBackendPolicy(
     cloudReason: cloudCapability.reason,
     cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
     cloudNextStep: cloudRecommendation.cloudNextStep,
+    cloudAutoLaunch,
     reason: getMainThreadReason(mode),
   }
 }

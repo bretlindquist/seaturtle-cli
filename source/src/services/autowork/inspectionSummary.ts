@@ -114,6 +114,19 @@ function formatCloudRecommendation(policy: AutoworkBackendPolicy): string {
   }
 }
 
+function formatCloudAutoLaunch(policy: AutoworkBackendPolicy): string {
+  switch (policy.cloudAutoLaunch.mode) {
+    case 'local':
+      return 'auto -> local provider child'
+    case 'saved-host':
+      return `auto -> ${policy.cloudAutoLaunch.host}`
+    case 'explicit-host-required':
+      return 'explicit host required'
+    case 'none':
+      return policy.cloudRecommendation === 'active' ? 'already active' : 'off'
+  }
+}
+
 function resolveBackendPolicyForContext(
   context: AutoworkStartupContext,
   policyMode: AutoworkInspectionPolicyMode = 'default',
@@ -256,6 +269,7 @@ export function formatAutoworkStatusSummary(
     `Orchestration: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
+    `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -303,6 +317,7 @@ export function formatAutoworkDoctorSummary(
     `Orchestration: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
+    `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -324,6 +339,10 @@ export function formatAutoworkDoctorSummary(
 
   if (backendPolicy.cloudNextStep) {
     lines.push(`Cloud next step: ${backendPolicy.cloudNextStep}`)
+  }
+
+  if (backendPolicy.cloudAutoLaunch.reason) {
+    lines.push(`Cloud launch policy: ${backendPolicy.cloudAutoLaunch.reason}`)
   }
 
   if (workflowResolution?.issues.length) {

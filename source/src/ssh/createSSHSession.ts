@@ -69,6 +69,7 @@ type CreateSSHSessionOptions = {
   structuredInput?: boolean
   workflowHandoffJson?: string
   replaceWorkflowHandoff?: boolean
+  extraEnv?: Record<string, string>
 }
 
 type CreateLocalSSHSessionOptions = {
@@ -80,6 +81,7 @@ type CreateLocalSSHSessionOptions = {
   structuredInput?: boolean
   workflowHandoffJson?: string
   replaceWorkflowHandoff?: boolean
+  extraEnv?: Record<string, string>
 }
 
 type RemoteTarget = {
@@ -570,6 +572,7 @@ export function createLocalSSHSession(
   const env = {
     ...process.env,
     ...authMaterial.providerEnv,
+    ...options.extraEnv,
     ...(authMaterial.codexAuthJson
       ? { CODEX_HOME: join(tempDir, 'codex-home') }
       : {}),
@@ -655,7 +658,10 @@ export async function createSSHSession(
   const launchScript = buildLaunchScript({
     remoteDir,
     remoteCwd,
-    providerEnv: authMaterial.providerEnv,
+    providerEnv: {
+      ...authMaterial.providerEnv,
+      ...options.extraEnv,
+    },
     cliArgs,
     hasCodexAuth: !!authMaterial.codexAuthJson,
   })

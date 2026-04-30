@@ -13,6 +13,7 @@ import {
 import type { AutoworkEntryPoint } from './runner.js'
 
 const DEFAULT_REMOTE_ACTION_TIMEOUT_MS = 60_000
+const AUTOWORK_OFFLOAD_CHILD_ENV = 'SEATURTLE_AUTOWORK_OFFLOAD_CHILD'
 
 export type RemoteAutoworkAction = {
   kind: 'run' | 'step' | 'verify' | 'status' | 'doctor'
@@ -80,6 +81,7 @@ function createSession(
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
       extraCliArgs: ['--emit-workflow-handoff-stream'],
+      extraEnv: { [AUTOWORK_OFFLOAD_CHILD_ENV]: '1' },
       prompt,
       structuredInput: false,
       workflowHandoffJson,
@@ -101,6 +103,7 @@ function createSession(
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
       extraCliArgs: ['--emit-workflow-handoff-stream'],
+      extraEnv: { [AUTOWORK_OFFLOAD_CHILD_ENV]: '1' },
       prompt,
       structuredInput: false,
       workflowHandoffJson,

@@ -10,6 +10,7 @@ import {
   prepareAutoworkSafeExecution,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
+import { resolveAutoworkBackendPolicy } from '../../services/autowork/backendPolicy.js'
 import { resolveAutoworkCloudOffloadCapability } from '../../services/autowork/cloudOffloadCapability.js'
 import {
   getAutoworkDangerousQuip,
@@ -27,7 +28,10 @@ import {
 } from '../../services/autowork/state.js'
 import { parseAutoworkBudgetInput } from '../../services/autowork/runtimeWindow.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
-import { markActivePlanApproved } from '../../services/projectIdentity/workflowState.js'
+import {
+  markActivePlanApproved,
+  peekActiveWorkstream,
+} from '../../services/projectIdentity/workflowState.js'
 import { launchRemoteAutoworkTask } from '../../tasks/RemoteAutoworkTask/RemoteAutoworkTask.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
@@ -161,29 +165,39 @@ function parseCloudOffloadArgs(
   }
 }
 
-async function launchCloudOffload(
+function formatRequestedTimeBudget(timeBudgetMs: number): string {
+  const minute = 60 * 1000
+  const hour = 60 * minute
+  const day = 24 * hour
+  if (timeBudgetMs % day === 0) {
+    return `${timeBudgetMs / day}d`
+  }
+  if (timeBudgetMs % hour === 0) {
+    return `${timeBudgetMs / hour}h`
+  }
+  return `${Math.max(1, Math.round(timeBudgetMs / minute))}m`
+}
+
+async function startCloudOffload(
   entryPoint: EntryPoint,
   context: LocalJSXCommandContext,
-  tail: string,
+  options: {
+    action: 'run' | 'step'
+    local: boolean
+    host?: string
+    timeBudget?: string
+    origin: 'explicit' | 'auto'
+    reason?: string | null
+  },
 ): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
-  const capability = resolveAutoworkCloudOffloadCapability()
-  if (capability.status === 'unavailable') {
-    return { ok: false, message: capability.reason }
-  }
-
-  const parsed = parseCloudOffloadArgs(tail)
-  if (!parsed.ok) {
-    return parsed
-  }
-
   const started = await launchRemoteAutoworkTask(
     {
       entryPoint,
-      action: parsed.action,
-      host: parsed.host,
+      action: options.action,
+      host: options.host,
       cwd: getCtProjectRoot(),
-      local: parsed.local,
-      timeBudget: parsed.timeBudget,
+      local: options.local,
+      timeBudget: options.timeBudget,
       permissionMode: context.getAppState().toolPermissionContext.mode,
       dangerouslySkipPermissions:
         context.getAppState().toolPermissionContext.dangerouslySkipPermissions,
@@ -199,13 +213,116 @@ async function launchCloudOffload(
   return {
     ok: true,
     message: [
-      `${titleForEntryPoint(entryPoint)} cloud offload started.`,
+      options.origin === 'auto'
+        ? `${titleForEntryPoint(entryPoint)} auto-offloaded to cloud supervision.`
+        : `${titleForEntryPoint(entryPoint)} cloud offload started.`,
       '',
       `Task: ${started.taskId}`,
-      `Target: ${parsed.local ? 'local provider child' : parsed.host}`,
-      `Action: ${entryPoint} ${parsed.action}${parsed.timeBudget ? ` ${parsed.timeBudget}` : ''}`,
+      `Target: ${options.local ? 'local provider child' : options.host}`,
+      `Action: ${entryPoint} ${options.action}${options.timeBudget ? ` ${options.timeBudget}` : ''}`,
+      ...(options.reason ? ['', `Why: ${options.reason}`] : []),
       'Next: use /tasks to inspect the run, or /autowork status for workflow state.',
     ].join('\n'),
+  }
+}
+
+async function launchCloudOffload(
+  entryPoint: EntryPoint,
+  context: LocalJSXCommandContext,
+  tail: string,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const capability = resolveAutoworkCloudOffloadCapability()
+  if (capability.status === 'unavailable') {
+    return { ok: false, message: capability.reason }
+  }
+
+  const parsed = parseCloudOffloadArgs(tail)
+  if (!parsed.ok) {
+    return parsed
+  }
+
+  return startCloudOffload(entryPoint, context, {
+    action: parsed.action,
+    local: parsed.local,
+    host: parsed.host,
+    timeBudget: parsed.timeBudget,
+    origin: 'explicit',
+  })
+}
+
+async function maybeAutoLaunchCloudOffload(
+  entryPoint: EntryPoint,
+  context: LocalJSXCommandContext,
+  executionScope: AutoworkExecutionScope,
+  timeBudgetMs: number | null,
+): Promise<
+  | { kind: 'launched'; message: string }
+  | { kind: 'blocked'; message: string }
+  | { kind: 'continue-local' }
+> {
+  if (process.env.SEATURTLE_AUTOWORK_OFFLOAD_CHILD === '1') {
+    return { kind: 'continue-local' }
+  }
+
+  if (executionScope !== 'plan' || timeBudgetMs === null) {
+    return { kind: 'continue-local' }
+  }
+
+  const inspection = await resolveAutoworkInspectionContext(entryPoint)
+  if (!inspection.ok) {
+    return { kind: 'continue-local' }
+  }
+
+  const executionPacket = inspection.context.repoRoot
+    ? peekActiveWorkstream(inspection.context.repoRoot)?.packets.execution ?? null
+    : null
+  const backendPolicy = resolveAutoworkBackendPolicy(inspection.context.mode, {
+    heartbeatEnabled: true,
+    timeBudgetMs,
+    deadlineAt: executionPacket?.deadlineAt ?? null,
+    cloudOffloadActive:
+      executionPacket?.swarmBackend === 'cloud' && executionPacket?.swarmActive === true,
+  })
+
+  switch (backendPolicy.cloudAutoLaunch.mode) {
+    case 'local': {
+      const launched = await startCloudOffload(entryPoint, context, {
+        action: 'run',
+        local: true,
+        timeBudget: formatRequestedTimeBudget(timeBudgetMs),
+        origin: 'auto',
+        reason: backendPolicy.cloudAutoLaunch.reason,
+      })
+      return launched.ok
+        ? { kind: 'launched', message: launched.message }
+        : { kind: 'blocked', message: launched.message }
+    }
+    case 'saved-host': {
+      const launched = await startCloudOffload(entryPoint, context, {
+        action: 'run',
+        local: false,
+        host: backendPolicy.cloudAutoLaunch.host,
+        timeBudget: formatRequestedTimeBudget(timeBudgetMs),
+        origin: 'auto',
+        reason: backendPolicy.cloudAutoLaunch.reason,
+      })
+      return launched.ok
+        ? { kind: 'launched', message: launched.message }
+        : { kind: 'blocked', message: launched.message }
+    }
+    case 'explicit-host-required':
+      return {
+        kind: 'blocked',
+        message: [
+          `${titleForEntryPoint(entryPoint)} should move this bounded ${inspection.context.mode} wave onto cloud offload, but the host choice is ambiguous.`,
+          '',
+          backendPolicy.cloudAutoLaunch.reason,
+          '',
+          `Next: use /${entryPoint} cloud <ssh-host> run ${formatRequestedTimeBudget(timeBudgetMs)} to choose one explicitly.`,
+        ].join('\n'),
+      }
+    case 'none':
+      return { kind: 'continue-local' }
   }
 }
 
@@ -282,18 +399,41 @@ async function selectAutoworkPlan(
 
 async function runAutowork(
   entryPoint: EntryPoint,
+  context: LocalJSXCommandContext,
   executionScope: AutoworkExecutionScope = 'plan',
   timeBudgetMs: number | null = null,
 ): Promise<
   | {
       ok: true
       message: string
-      shouldQuery: true
+      shouldQuery: boolean
       metaMessages: string[]
       nextInput: string
     }
   | { ok: false; message: string }
 > {
+  const maybeCloudLaunch = await maybeAutoLaunchCloudOffload(
+    entryPoint,
+    context,
+    executionScope,
+    timeBudgetMs,
+  )
+  if (maybeCloudLaunch.kind === 'launched') {
+    return {
+      ok: true,
+      message: maybeCloudLaunch.message,
+      shouldQuery: false,
+      metaMessages: [],
+      nextInput: '',
+    }
+  }
+  if (maybeCloudLaunch.kind === 'blocked') {
+    return {
+      ok: false,
+      message: maybeCloudLaunch.message,
+    }
+  }
+
   const resolved = await resolveActiveAutoworkPlanFile()
   if (!resolved.ok) {
     const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
@@ -446,6 +586,7 @@ function buildNonInteractiveUsage(entryPoint: EntryPoint): string {
     `- /${entryPoint} use <path>`,
     `- /${entryPoint} run`,
     `- /${entryPoint} run 8h`,
+    `- /${entryPoint} cloud run 8h`,
     `- /${entryPoint} step`,
     `- /${entryPoint} status`,
     `- /${entryPoint} doctor`,
@@ -456,11 +597,11 @@ function buildNonInteractiveUsage(entryPoint: EntryPoint): string {
 function AutoworkMenu({
   entryPoint,
   onDone,
-  setAppState,
+  context,
 }: {
   entryPoint: EntryPoint
   onDone: OnDone
-  setAppState: LocalJSXCommandContext['setAppState']
+  context: LocalJSXCommandContext
 }): React.ReactNode {
   return (
     <Dialog
@@ -527,9 +668,10 @@ function AutoworkMenu({
             if (value === 'run' || value === 'step') {
               const execution = await runAutowork(
                 entryPoint,
+                context,
                 value === 'step' ? 'step' : 'plan',
               )
-              syncWorkflowRuntimeState(getCtProjectRoot(), setAppState)
+              syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
               if (!execution.ok) {
                 onDone(execution.message, { display: 'system' })
                 return
@@ -537,10 +679,14 @@ function AutoworkMenu({
 
               onDone(execution.message, {
                 display: 'system',
-                shouldQuery: execution.shouldQuery,
-                metaMessages: execution.metaMessages,
-                nextInput: execution.nextInput,
-                submitNextInput: true,
+                ...(execution.shouldQuery
+                  ? {
+                      shouldQuery: execution.shouldQuery,
+                      metaMessages: execution.metaMessages,
+                      nextInput: execution.nextInput,
+                      submitNextInput: true,
+                    }
+                  : {}),
               })
               return
             }
@@ -604,6 +750,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           `- ${baseName} use <path>`,
           `- ${baseName} run`,
           `- ${baseName} run 8h`,
+          `- ${baseName} cloud run 8h`,
           `- ${baseName} step`,
           `- ${baseName} cloud local run 8h`,
           `- ${baseName} cloud <ssh-host> run 8h`,
@@ -613,6 +760,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           '',
           `${baseName} run carries the approved tracked plan to completion, one guarded chunk at a time.`,
           `${baseName} run 8h or ${baseName} run for 8 hours carries the plan inside a bounded autowork window.`,
+          `When that bounded run enters a long-lived lifecycle wave and cloud offload is deterministic, SeaTurtle can auto-offload it into supervised background execution.`,
           `${baseName} step executes only one guarded chunk, then stops after verification.`,
           'Dangerous mode is heavily discouraged and is a separate operator choice that relaxes selected checkpoint failures into recorded debt.',
         ].join('\n'),
@@ -652,15 +800,19 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         return null
       }
 
-      const execution = await runAutowork(entryPoint, 'plan', parsedTail.timeBudgetMs)
+      const execution = await runAutowork(entryPoint, context, 'plan', parsedTail.timeBudgetMs)
       syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
             display: 'system',
-            shouldQuery: execution.shouldQuery,
-            metaMessages: execution.metaMessages,
-            nextInput: execution.nextInput,
-            submitNextInput: true,
+            ...(execution.shouldQuery
+              ? {
+                  shouldQuery: execution.shouldQuery,
+                  metaMessages: execution.metaMessages,
+                  nextInput: execution.nextInput,
+                  submitNextInput: true,
+                }
+              : {}),
           }
         : { display: 'system' })
       return null
@@ -673,15 +825,19 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         return null
       }
 
-      const execution = await runAutowork(entryPoint, 'step', parsedTail.timeBudgetMs)
+      const execution = await runAutowork(entryPoint, context, 'step', parsedTail.timeBudgetMs)
       syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(execution.message, execution.ok
         ? {
             display: 'system',
-            shouldQuery: execution.shouldQuery,
-            metaMessages: execution.metaMessages,
-            nextInput: execution.nextInput,
-            submitNextInput: true,
+            ...(execution.shouldQuery
+              ? {
+                  shouldQuery: execution.shouldQuery,
+                  metaMessages: execution.metaMessages,
+                  nextInput: execution.nextInput,
+                  submitNextInput: true,
+                }
+              : {}),
           }
         : { display: 'system' })
       return null
@@ -728,7 +884,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         onDone(buildNonInteractiveUsage(entryPoint), { display: 'system' })
         return null
       }
-      return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} setAppState={context.setAppState} />
+      return <AutoworkMenu entryPoint={entryPoint} onDone={onDone} context={context} />
     }
 
     onDone(
@@ -741,6 +897,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `- /${entryPoint} use <path>`,
         `- /${entryPoint} run`,
         `- /${entryPoint} run 8h`,
+        `- /${entryPoint} cloud run 8h`,
         `- /${entryPoint} step`,
         `- /${entryPoint} cloud local run 8h`,
         `- /${entryPoint} cloud <ssh-host> run 8h`,

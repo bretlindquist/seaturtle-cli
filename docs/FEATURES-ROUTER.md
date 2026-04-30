@@ -220,6 +220,7 @@ Next steps:
   - create or approve one tracked executable plan
   - use `/autowork run 8h` when you want bounded persistent orchestration
   - use `/autowork run` when you want the same orchestration without a fixed window
+  - bounded `/autowork run 8h` can auto-offload into supervised cloud execution when the lifecycle wave is long-running and the target is deterministic
   - use `/autowork cloud local run 8h` when you want a supervised background run against a local provider child
   - use `/autowork cloud <ssh-host> run 8h` when you want a supervised background run on the provider-managed remote-host path
   - use `/autowork status` to check the live window, heartbeat, and next chunk
@@ -229,6 +230,10 @@ Next steps:
 - Use `/autowork use <path>` or `/swim use <path>` when you need to pin one specific executable plan file
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
 - Use `/autowork run 8h`, `/autowork run for 8 hours`, or `/autowork step 30m` when you want a bounded runtime window
+- bounded lifecycle `/autowork run 8h` windows auto-offload when cloud policy recommends it and the target is deterministic
+- if no SSH config is saved, that automatic offload uses the local provider child
+- if exactly one SSH config is saved, that automatic offload uses the saved host
+- if multiple SSH configs are saved, SeaTurtle refuses to guess and requires `/autowork cloud <ssh-host> run 8h`
 - Use `/autowork cloud run 8h` when exactly one SSH config is saved and you want that host selected automatically
 - Use `/autowork cloud local run 8h` or `/autowork cloud <ssh-host> run 8h` when you want the run launched as a supervised background cloud-offload task
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk

@@ -52,6 +52,11 @@ function run(): void {
     /Cloud recommendation: \$\{formatCloudRecommendation\(backendPolicy\)\}/,
     'expected autowork status surfaces to show the distinct cloud recommendation state',
   )
+  assert.match(
+    inspectionSource,
+    /Cloud auto-launch: \$\{formatCloudAutoLaunch\(backendPolicy\)\}/,
+    'expected autowork status surfaces to show the distinct cloud auto-launch decision',
+  )
 
   const capabilitySource = read(
     projectRoot,
@@ -77,6 +82,16 @@ function run(): void {
     policySource,
     /shouldRecommendCloudOffload/,
     'expected backend policy to classify when a lifecycle wave should escalate toward remote-host offload',
+  )
+  assert.match(
+    policySource,
+    /getCloudAutoLaunchDecision/,
+    'expected backend policy to centralize deterministic cloud auto-launch selection',
+  )
+  assert.match(
+    policySource,
+    /mode: 'explicit-host-required'/,
+    'expected backend policy to refuse guessing when multiple saved SSH configs exist',
   )
   assert.match(
     policySource,
