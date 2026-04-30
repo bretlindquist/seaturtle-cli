@@ -4284,7 +4284,7 @@ async function run(): Promise<CommanderCommand> {
         process.exit(1);
       }
     });
-    program.command('ssh-autowork').description('[Internal] Run one autowork action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to run').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork action to run remotely').choices(['run', 'step', 'verify', 'status', 'doctor']).default('status')).option('--time-budget <budget>', 'Optional autowork budget such as 30m or 8h for run/step actions').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--background-status-file <path>', '[Internal] Write a structured terminal status file for background supervision.').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
+    program.command('ssh-autowork').description('[Internal] Run one autowork action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to run').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork action to run remotely').choices(['run', 'step', 'verify', 'status', 'doctor']).default('status')).option('--time-budget <budget>', 'Optional autowork budget such as 30m or 8h for run/step actions').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--background-status-file <path>', '[Internal] Write a structured terminal status file for background supervision.').option('--workflow-handoff-output-file <path>', '[Internal] Mirror live workflow handoff updates locally during background supervision.').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
       const parsed = Number.parseInt(value, 10);
       if (!Number.isFinite(parsed) || parsed <= 0) {
         throw new Error(`Invalid timeout: ${value}`);
@@ -4300,6 +4300,7 @@ async function run(): Promise<CommanderCommand> {
       permissionMode?: string;
       dangerouslySkipPermissions?: boolean;
       backgroundStatusFile?: string;
+      workflowHandoffOutputFile?: string;
       timeoutMs?: number;
     }) => {
       if (!opts.local && !opts.host) {
@@ -4310,6 +4311,7 @@ async function run(): Promise<CommanderCommand> {
         writeRemoteAutoworkStatusFile
       } = await import('./services/autowork/offloadStatusFile.js');
       const {
+        mirrorRemoteAutoworkWorkflowHandoff,
         runRemoteAutoworkOffload
       } = await import('./services/autowork/remoteOffload.js');
       const action = {
@@ -4330,7 +4332,22 @@ async function run(): Promise<CommanderCommand> {
         }, process.stderr.isTTY && !opts.local ? {
           onProgress: msg => {
             process.stderr.write(`\r  ${msg}\x1b[K`);
-          }
+          },
+          onWorkflowHandoff: handoff => {
+            if (opts.workflowHandoffOutputFile) {
+              mirrorRemoteAutoworkWorkflowHandoff(
+                opts.workflowHandoffOutputFile,
+                handoff,
+              );
+            }
+          },
+        } : opts.workflowHandoffOutputFile ? {
+          onWorkflowHandoff: handoff => {
+            mirrorRemoteAutoworkWorkflowHandoff(
+              opts.workflowHandoffOutputFile!,
+              handoff,
+            );
+          },
         } : {});
         if (process.stderr.isTTY && !opts.local) {
           process.stderr.write('\n');

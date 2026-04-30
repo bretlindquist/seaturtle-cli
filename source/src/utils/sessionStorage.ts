@@ -330,6 +330,7 @@ export type RemoteAutoworkMetadata = {
   action: 'run' | 'step' | 'verify' | 'status' | 'doctor'
   timeBudget?: string
   statusFile: string
+  handoffFile: string
   spawnedAt: number
 }
 
@@ -355,6 +356,10 @@ function getRemoteAutoworkMetadataPath(taskId: string): string {
 
 export function getRemoteAutoworkStatusPath(taskId: string): string {
   return join(getRemoteAutoworksDir(), `remote-autowork-${taskId}.status.json`)
+}
+
+export function getRemoteAutoworkHandoffPath(taskId: string): string {
+  return join(getRemoteAutoworksDir(), `remote-autowork-${taskId}.handoff.json`)
 }
 
 /**

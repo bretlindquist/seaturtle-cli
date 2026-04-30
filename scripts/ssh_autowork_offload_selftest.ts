@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -32,6 +33,7 @@ function runCli(
   sourceRepo: string,
   targetRepo: string,
   action: 'run' | 'status' | 'doctor',
+  workflowHandoffOutputFile?: string,
 ): string {
   const cliPath = join(projectRoot, 'dist', 'cli.js')
   const result = spawnSync(
@@ -44,6 +46,9 @@ function runCli(
       targetRepo,
       '--action',
       action,
+      ...(workflowHandoffOutputFile
+        ? ['--workflow-handoff-output-file', workflowHandoffOutputFile]
+        : []),
     ],
     {
       cwd: sourceRepo,
@@ -97,10 +102,23 @@ function run(): void {
       sourceRepo,
     )
 
-    const status = runCli(projectRoot, sourceRepo, targetRepo, 'status')
+    const handoffFile = join(tempRoot, 'handoff.json')
+    const status = runCli(
+      projectRoot,
+      sourceRepo,
+      targetRepo,
+      'status',
+      handoffFile,
+    )
     assert.match(status, /Workflow phase: research/)
     assert.match(status, /Heartbeat: on \(/)
     assert.match(status, /Cloud swarm:/)
+    const handoff = JSON.parse(readFileSync(handoffFile, 'utf8')) as {
+      resolution?: { phase?: string }
+      packets?: { execution?: { heartbeatEnabled?: boolean } }
+    }
+    assert.equal(handoff.resolution?.phase, 'research')
+    assert.equal(handoff.packets?.execution?.heartbeatEnabled, true)
 
     const runGuidance = runCli(projectRoot, sourceRepo, targetRepo, 'run')
     assert.match(runGuidance, /Then rerun \/autowork run after the tracked plan is ready\./)

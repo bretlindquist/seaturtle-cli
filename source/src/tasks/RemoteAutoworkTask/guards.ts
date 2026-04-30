@@ -11,6 +11,7 @@ export type RemoteAutoworkTaskState = TaskStateBase & {
   timeBudget?: string
   pid: number
   statusFile: string
+  handoffFile: string
   result?: {
     code: number
     summary: string

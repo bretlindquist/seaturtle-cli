@@ -11,9 +11,12 @@ import {
   type SSHSession,
 } from '../../ssh/createSSHSession.js'
 import type { AutoworkEntryPoint } from './runner.js'
+import { writeRemoteAutoworkHandoffMirrorFile } from './offloadStatusFile.js'
 
 const DEFAULT_REMOTE_ACTION_TIMEOUT_MS = 60_000
 const AUTOWORK_OFFLOAD_CHILD_ENV = 'SEATURTLE_AUTOWORK_OFFLOAD_CHILD'
+const WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV =
+  'SEATURTLE_WORKFLOW_HANDOFF_STREAM_INTERVAL_MS'
 
 export type RemoteAutoworkAction = {
   kind: 'run' | 'step' | 'verify' | 'status' | 'doctor'
@@ -42,6 +45,7 @@ export type RemoteAutoworkOffloadResult = {
 
 type ProgressCallbacks = {
   onProgress?: (message: string) => void
+  onWorkflowHandoff?: (handoff: WorkflowHandoffPacket) => void
 }
 
 function buildAutoworkPrompt(action: RemoteAutoworkAction): string {
@@ -81,7 +85,10 @@ function createSession(
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
       extraCliArgs: ['--emit-workflow-handoff-stream'],
-      extraEnv: { [AUTOWORK_OFFLOAD_CHILD_ENV]: '1' },
+      extraEnv: {
+        [AUTOWORK_OFFLOAD_CHILD_ENV]: '1',
+        [WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV]: '2000',
+      },
       prompt,
       structuredInput: false,
       workflowHandoffJson,
@@ -103,7 +110,10 @@ function createSession(
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
       extraCliArgs: ['--emit-workflow-handoff-stream'],
-      extraEnv: { [AUTOWORK_OFFLOAD_CHILD_ENV]: '1' },
+      extraEnv: {
+        [AUTOWORK_OFFLOAD_CHILD_ENV]: '1',
+        [WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV]: '2000',
+      },
       prompt,
       structuredInput: false,
       workflowHandoffJson,
@@ -208,6 +218,7 @@ export async function runRemoteAutoworkOffload(
     const timeoutMs = options.timeoutMs ?? DEFAULT_REMOTE_ACTION_TIMEOUT_MS
     const stdoutChunks: string[] = []
     const stderrChunks: string[] = []
+    let stdoutBuffer = ''
     let settled = false
 
     function finish(fn: (value?: unknown) => void, value?: unknown): void {
@@ -224,7 +235,32 @@ export async function runRemoteAutoworkOffload(
     session.proc.stderr.setEncoding('utf8')
 
     session.proc.stdout.on('data', chunk => {
-      stdoutChunks.push(String(chunk))
+      const text = String(chunk)
+      stdoutChunks.push(text)
+      stdoutBuffer += text
+      const lines = stdoutBuffer.split('\n')
+      stdoutBuffer = lines.pop() ?? ''
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed) {
+          continue
+        }
+        try {
+          const parsed = JSON.parse(trimmed) as {
+            type?: string
+            subtype?: string
+            workflow_handoff?: WorkflowHandoffPacket
+          }
+          if (
+            parsed.type === 'system' &&
+            parsed.subtype === 'workflow_handoff' &&
+            parsed.workflow_handoff
+          ) {
+            callbacks.onWorkflowHandoff?.(parsed.workflow_handoff)
+          }
+        } catch {
+        }
+      }
     })
     session.proc.stderr.on('data', chunk => {
       stderrChunks.push(String(chunk))
@@ -268,4 +304,11 @@ export async function runRemoteAutoworkOffload(
       )
     }, timeoutMs)
   })
+}
+
+export function mirrorRemoteAutoworkWorkflowHandoff(
+  outputFile: string,
+  handoff: WorkflowHandoffPacket,
+): void {
+  writeRemoteAutoworkHandoffMirrorFile(outputFile, handoff)
 }

@@ -882,78 +882,119 @@ export async function runHeadless(
       ? createStreamlinedTransformer()
       : null
   let emittedWorkflowHandoff = false
+  const workflowHandoffIntervalMs = (() => {
+    const raw = process.env.SEATURTLE_WORKFLOW_HANDOFF_STREAM_INTERVAL_MS?.trim()
+    if (!raw) {
+      return 0
+    }
+    const parsed = Number.parseInt(raw, 10)
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+  })()
+  let lastWorkflowHandoffFingerprint: string | null = null
+  const emitWorkflowHandoff = (force: boolean = false): void => {
+    if (
+      options.emitWorkflowHandoffStream !== true ||
+      options.outputFormat !== 'stream-json' ||
+      !options.verbose
+    ) {
+      return
+    }
+    const handoff = readActiveWorkflowHandoffPacket(getCtProjectRoot())
+    if (!handoff) {
+      return
+    }
+    const fingerprint = jsonStringify(handoff)
+    if (!force && fingerprint === lastWorkflowHandoffFingerprint) {
+      return
+    }
+    lastWorkflowHandoffFingerprint = fingerprint
+    writeToStdout(
+      jsonStringify({
+        type: 'system',
+        subtype: 'workflow_handoff',
+        workflow_handoff: handoff,
+      }) + '\n',
+    )
+  }
+  const workflowHandoffInterval =
+    workflowHandoffIntervalMs > 0 &&
+    options.emitWorkflowHandoffStream === true &&
+    options.outputFormat === 'stream-json' &&
+    options.verbose
+      ? setInterval(() => {
+          emitWorkflowHandoff(false)
+        }, workflowHandoffIntervalMs)
+      : null
+  workflowHandoffInterval?.unref?.()
 
   headlessProfilerCheckpoint('before_runHeadlessStreaming')
-  for await (const message of runHeadlessStreaming(
-    structuredIO,
-    appState.mcp.clients,
-    [...commands, ...appState.mcp.commands],
-    filteredTools,
-    initialMessages,
-    canUseTool,
-    sdkMcpConfigs,
-    getAppState,
-    setAppState,
-    agents,
-    options,
-    turnInterruptionState,
-  )) {
-    if (
-      !emittedWorkflowHandoff &&
-      options.emitWorkflowHandoffStream === true &&
-      options.outputFormat === 'stream-json' &&
-      options.verbose &&
-      message.type === 'result'
-    ) {
-      const handoff = readActiveWorkflowHandoffPacket(getCtProjectRoot())
-      if (handoff) {
-        writeToStdout(
-          jsonStringify({
-            type: 'system',
-            subtype: 'workflow_handoff',
-            workflow_handoff: handoff,
-          }) + '\n',
-        )
+  try {
+    for await (const message of runHeadlessStreaming(
+      structuredIO,
+      appState.mcp.clients,
+      [...commands, ...appState.mcp.commands],
+      filteredTools,
+      initialMessages,
+      canUseTool,
+      sdkMcpConfigs,
+      getAppState,
+      setAppState,
+      agents,
+      options,
+      turnInterruptionState,
+    )) {
+      if (
+        !emittedWorkflowHandoff &&
+        options.emitWorkflowHandoffStream === true &&
+        options.outputFormat === 'stream-json' &&
+        options.verbose &&
+        message.type === 'result'
+      ) {
+        emitWorkflowHandoff(true)
+        emittedWorkflowHandoff = true
       }
-      emittedWorkflowHandoff = true
-    }
 
-    if (transformToStreamlined) {
-      // Streamlined mode: transform messages and stream immediately
-      const transformed = transformToStreamlined(message)
-      if (transformed) {
-        await structuredIO.write(transformed)
+      if (transformToStreamlined) {
+        // Streamlined mode: transform messages and stream immediately
+        const transformed = transformToStreamlined(message)
+        if (transformed) {
+          await structuredIO.write(transformed)
+        }
+      } else if (options.outputFormat === 'stream-json' && options.verbose) {
+        await structuredIO.write(message)
       }
-    } else if (options.outputFormat === 'stream-json' && options.verbose) {
-      await structuredIO.write(message)
+      // Should not be getting control messages or stream events in non-stream mode.
+      // Also filter out streamlined types since they're only produced by the transformer.
+      // SDK-only system events are excluded so lastMessage stays at the result
+      // (session_state_changed(idle) and any late task_notification drain after
+      // result in the finally block).
+      if (
+        message.type !== 'control_response' &&
+        message.type !== 'control_request' &&
+        message.type !== 'control_cancel_request' &&
+        !(
+          message.type === 'system' &&
+          (message.subtype === 'session_state_changed' ||
+            message.subtype === 'task_notification' ||
+            message.subtype === 'task_started' ||
+            message.subtype === 'task_progress' ||
+            message.subtype === 'post_turn_summary')
+        ) &&
+        message.type !== 'stream_event' &&
+        message.type !== 'keep_alive' &&
+        message.type !== 'streamlined_text' &&
+        message.type !== 'streamlined_tool_use_summary' &&
+        message.type !== 'prompt_suggestion'
+      ) {
+        if (needsFullArray) {
+          messages.push(message)
+        }
+        lastMessage = message
+      }
     }
-    // Should not be getting control messages or stream events in non-stream mode.
-    // Also filter out streamlined types since they're only produced by the transformer.
-    // SDK-only system events are excluded so lastMessage stays at the result
-    // (session_state_changed(idle) and any late task_notification drain after
-    // result in the finally block).
-    if (
-      message.type !== 'control_response' &&
-      message.type !== 'control_request' &&
-      message.type !== 'control_cancel_request' &&
-      !(
-        message.type === 'system' &&
-        (message.subtype === 'session_state_changed' ||
-          message.subtype === 'task_notification' ||
-          message.subtype === 'task_started' ||
-          message.subtype === 'task_progress' ||
-          message.subtype === 'post_turn_summary')
-      ) &&
-      message.type !== 'stream_event' &&
-      message.type !== 'keep_alive' &&
-      message.type !== 'streamlined_text' &&
-      message.type !== 'streamlined_tool_use_summary' &&
-      message.type !== 'prompt_suggestion'
-    ) {
-      if (needsFullArray) {
-        messages.push(message)
-      }
-      lastMessage = message
+  } finally {
+    if (workflowHandoffInterval) {
+      clearInterval(workflowHandoffInterval)
     }
   }
 

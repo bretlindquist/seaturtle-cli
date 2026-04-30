@@ -8,18 +8,25 @@ import { registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { initTaskOutput } from '../../utils/task/diskOutput.js'
 import {
   deleteRemoteAutoworkMetadata,
+  getRemoteAutoworkHandoffPath,
   getRemoteAutoworkStatusPath,
   listRemoteAutoworkMetadata,
   type RemoteAutoworkMetadata,
   writeRemoteAutoworkMetadata,
 } from '../../utils/sessionStorage.js'
-import { readRemoteAutoworkStatusFile } from '../../services/autowork/offloadStatusFile.js'
+import {
+  readRemoteAutoworkHandoffMirrorFile,
+  readRemoteAutoworkStatusFile,
+} from '../../services/autowork/offloadStatusFile.js'
 import { isProcessRunning } from '../../utils/genericProcessUtils.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { createTaskStateBase } from '../../Task.js'
 import type { RemoteAutoworkTaskState } from './guards.js'
-import { updateWorkExecutionPacket } from '../../services/projectIdentity/workflowState.js'
+import {
+  importWorkflowHandoffPacket,
+  updateWorkExecutionPacket,
+} from '../../services/projectIdentity/workflowState.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 
 const POLL_INTERVAL_MS = 1_000
@@ -55,6 +62,7 @@ function buildCliArgs(
   taskId: string,
   options: RemoteAutoworkLaunchOptions,
   statusFile: string,
+  handoffFile: string,
 ): string[] {
   const args = [
     'ssh-autowork',
@@ -64,6 +72,8 @@ function buildCliArgs(
     options.action,
     '--background-status-file',
     statusFile,
+    '--workflow-handoff-output-file',
+    handoffFile,
   ]
 
   if (options.local) {
@@ -140,7 +150,11 @@ function enqueueRemoteAutoworkMetadataNotification(
   })
 }
 
-async function removeMetadataAndStatusFile(taskId: string, statusFile: string): Promise<void> {
+async function removeMetadataAndSidecars(
+  taskId: string,
+  statusFile: string,
+  handoffFile: string,
+): Promise<void> {
   try {
     await deleteRemoteAutoworkMetadata(taskId)
   } catch (e) {
@@ -148,6 +162,9 @@ async function removeMetadataAndStatusFile(taskId: string, statusFile: string): 
   }
   try {
     await unlink(statusFile)
+  } catch {}
+  try {
+    await unlink(handoffFile)
   } catch {}
 }
 
@@ -171,6 +188,45 @@ function syncCloudOffloadExecutionState(
     root,
   )
   syncWorkflowRuntimeState(root, setAppState)
+}
+
+function getRemoteAutoworkHandoffFile(
+  meta: Pick<RemoteAutoworkMetadata, 'taskId'> & {
+    handoffFile?: string
+  },
+): string {
+  return meta.handoffFile || getRemoteAutoworkHandoffPath(meta.taskId)
+}
+
+function importRunningWorkflowHandoff(
+  meta: RemoteAutoworkMetadata,
+  setAppState: SetAppState,
+  lastImportedAt: number,
+): number {
+  const handoff = readRemoteAutoworkHandoffMirrorFile(
+    getRemoteAutoworkHandoffFile(meta),
+  )
+  if (!handoff || handoff.exportedAt <= lastImportedAt) {
+    return lastImportedAt
+  }
+
+  importWorkflowHandoffPacket(handoff, meta.localCwd)
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      swarmBackend: 'cloud',
+      swarmActive: true,
+      swarmWorkerCount: 1,
+      statusText:
+        handoff.packets.execution.statusText ??
+        `Cloud offload running: ${meta.entryPoint} ${meta.action}`,
+      lastActivityAt:
+        handoff.packets.execution.lastActivityAt ?? current.lastActivityAt,
+    }),
+    meta.localCwd,
+  )
+  syncWorkflowRuntimeState(meta.localCwd, setAppState)
+  return handoff.exportedAt
 }
 
 function applyTerminalStatus(
@@ -222,7 +278,11 @@ function applyTerminalStatus(
           ? `Remote autowork ${meta.entryPoint} ${meta.action} finished while the session was away.`
           : status.error || `Remote autowork ${meta.entryPoint} ${meta.action} failed while the session was away.`,
       )
-      void removeMetadataAndStatusFile(meta.taskId, meta.statusFile)
+      void removeMetadataAndSidecars(
+        meta.taskId,
+        meta.statusFile,
+        getRemoteAutoworkHandoffFile(meta),
+      )
     }
     return true
   }
@@ -236,7 +296,11 @@ function applyTerminalStatus(
     statusText:
       completedTask.result?.summary ?? `Cloud offload finished: ${completedTask.description}`,
   })
-  void removeMetadataAndStatusFile(taskId, statusFile)
+  void removeMetadataAndSidecars(
+    taskId,
+    statusFile,
+    completedTask.handoffFile,
+  )
   return true
 }
 
@@ -244,7 +308,14 @@ function startRemoteAutoworkPolling(
   meta: RemoteAutoworkMetadata,
   setAppState: SetAppState,
 ): void {
+  let lastImportedAt = 0
   const timer = setInterval(() => {
+    lastImportedAt = importRunningWorkflowHandoff(
+      meta,
+      setAppState,
+      lastImportedAt,
+    )
+
     if (applyTerminalStatus(meta.taskId, meta.statusFile, setAppState, meta)) {
       clearInterval(timer)
       return
@@ -273,7 +344,11 @@ function startRemoteAutoworkPolling(
       statusText: `Cloud offload failed: ${meta.entryPoint} ${meta.action} exited without a status file.`,
     })
     clearInterval(timer)
-    void removeMetadataAndStatusFile(meta.taskId, meta.statusFile)
+    void removeMetadataAndSidecars(
+      meta.taskId,
+      meta.statusFile,
+      getRemoteAutoworkHandoffFile(meta),
+    )
   }, POLL_INTERVAL_MS)
   timer.unref()
 }
@@ -296,6 +371,7 @@ function createTaskStateFromMetadata(
     timeBudget: meta.timeBudget,
     pid: meta.pid,
     statusFile: meta.statusFile,
+    handoffFile: getRemoteAutoworkHandoffFile(meta),
   }
 }
 
@@ -336,7 +412,11 @@ export const RemoteAutoworkTask: Task = {
       active: false,
       statusText: taskState.result?.summary ?? `Cloud offload stopped: ${taskState.description}`,
     })
-    void removeMetadataAndStatusFile(taskId, taskState.statusFile)
+    void removeMetadataAndSidecars(
+      taskId,
+      taskState.statusFile,
+      taskState.handoffFile,
+    )
   },
 }
 
@@ -348,10 +428,11 @@ export async function launchRemoteAutoworkTask(
   await initTaskOutput(taskId)
   const outputFile = getTaskOutputPath(taskId)
   const statusFile = getRemoteAutoworkStatusPath(taskId)
+  const handoffFile = getRemoteAutoworkHandoffPath(taskId)
   const local = localSpawnCommand()
   const stdoutFd = openSync(outputFile, 'a')
   const stderrFd = openSync(outputFile, 'a')
-  const args = buildCliArgs(taskId, options, statusFile)
+  const args = buildCliArgs(taskId, options, statusFile, handoffFile)
   const child = spawn(local.command, [...local.args, ...args], {
     cwd: options.cwd ?? process.cwd(),
     env: process.env,
@@ -373,6 +454,7 @@ export async function launchRemoteAutoworkTask(
     action: options.action,
     timeBudget: options.timeBudget,
     statusFile,
+    handoffFile,
     spawnedAt: Date.now(),
   }
 
@@ -399,7 +481,11 @@ export async function restoreRemoteAutoworkTasks(
         active: false,
         statusText: `Cloud offload ended without a recoverable child: ${meta.entryPoint} ${meta.action}`,
       })
-      void removeMetadataAndStatusFile(meta.taskId, meta.statusFile)
+      void removeMetadataAndSidecars(
+        meta.taskId,
+        meta.statusFile,
+        getRemoteAutoworkHandoffFile(meta),
+      )
       continue
     }
     registerTask(createTaskStateFromMetadata(meta), context.setAppState)
