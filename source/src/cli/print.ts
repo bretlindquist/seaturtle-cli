@@ -114,6 +114,8 @@ import {
 } from 'src/utils/gracefulShutdown.js'
 import { registerCleanup } from 'src/utils/cleanupRegistry.js'
 import { createIdleTimeoutManager } from 'src/utils/idleTimeout.js'
+import { getCtProjectRoot } from 'src/services/projectIdentity/paths.js'
+import { readActiveWorkflowHandoffPacket } from 'src/services/projectIdentity/workflowState.js'
 import type {
   SDKStatus,
   ModelInfo,
@@ -501,6 +503,7 @@ export async function runHeadless(
     enableAuthStatus: boolean | undefined
     agent: string | undefined
     workload: string | undefined
+    emitWorkflowHandoffStream?: boolean | undefined
     setupTrigger?: 'init' | 'maintenance' | undefined
     sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
     setSDKStatus?: (status: SDKStatus) => void
@@ -878,6 +881,7 @@ export async function runHeadless(
     options.outputFormat === 'stream-json'
       ? createStreamlinedTransformer()
       : null
+  let emittedWorkflowHandoff = false
 
   headlessProfilerCheckpoint('before_runHeadlessStreaming')
   for await (const message of runHeadlessStreaming(
@@ -894,6 +898,26 @@ export async function runHeadless(
     options,
     turnInterruptionState,
   )) {
+    if (
+      !emittedWorkflowHandoff &&
+      options.emitWorkflowHandoffStream === true &&
+      options.outputFormat === 'stream-json' &&
+      options.verbose &&
+      message.type === 'result'
+    ) {
+      const handoff = readActiveWorkflowHandoffPacket(getCtProjectRoot())
+      if (handoff) {
+        writeToStdout(
+          jsonStringify({
+            type: 'system',
+            subtype: 'workflow_handoff',
+            workflow_handoff: handoff,
+          }) + '\n',
+        )
+      }
+      emittedWorkflowHandoff = true
+    }
+
     if (transformToStreamlined) {
       // Streamlined mode: transform messages and stream immediately
       const transformed = transformToStreamlined(message)

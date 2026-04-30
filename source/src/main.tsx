@@ -3033,6 +3033,8 @@ async function run(): Promise<CommanderCommand> {
         enableAuthStatus: options.enableAuthStatus,
         agent: agentCli,
         workload: options.workload,
+        emitWorkflowHandoffStream:
+          options.emitWorkflowHandoffStream ?? undefined,
         setupTrigger: setupTrigger ?? undefined,
         sessionStartHooksPromise
       });
@@ -4039,6 +4041,7 @@ async function run(): Promise<CommanderCommand> {
   program.addOption(new Option('--agent-type <type>', 'Custom agent type for this teammate').hideHelp());
   program.addOption(new Option('--workflow-handoff-file <file>', 'Import an authoritative workflow handoff packet before the first turn. Internal remote-orchestration seam.').hideHelp());
   program.addOption(new Option('--replace-workflow-handoff', 'Replace any active workstream before importing --workflow-handoff-file. Internal remote-orchestration seam.').hideHelp());
+  program.addOption(new Option('--emit-workflow-handoff-stream', 'Emit the active workflow handoff packet in stream-json output before the final result. Internal remote-orchestration seam.').hideHelp());
   program.addOption(new Option('--autowork-status', 'Emit the current autowork workflow status without a user prompt. Internal remote-orchestration seam.').hideHelp());
   program.addOption(new Option('--autowork-doctor', 'Emit the current autowork workflow doctor report without a user prompt. Internal remote-orchestration seam.').hideHelp());
 

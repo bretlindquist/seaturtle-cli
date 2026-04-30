@@ -1,5 +1,9 @@
 import { getCtProjectRoot } from '../projectIdentity/paths.js'
-import { readActiveWorkflowHandoffPacket } from '../projectIdentity/workflowState.js'
+import {
+  importWorkflowHandoffPacket,
+  readActiveWorkflowHandoffPacket,
+  type WorkflowHandoffPacket,
+} from '../projectIdentity/workflowState.js'
 import {
   createLocalSSHSession,
   createSSHSession,
@@ -32,6 +36,7 @@ export type RemoteAutoworkOffloadResult = {
   host: string | null
   remoteCwd: string
   output: string
+  workflowHandoff: WorkflowHandoffPacket | null
 }
 
 type ProgressCallbacks = {
@@ -74,6 +79,7 @@ function createSession(
       cwd: options.cwd,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+      extraCliArgs: ['--emit-workflow-handoff-stream'],
       prompt,
       structuredInput: false,
       workflowHandoffJson,
@@ -94,6 +100,7 @@ function createSession(
       localVersion: options.localVersion,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+      extraCliArgs: ['--emit-workflow-handoff-stream'],
       prompt,
       structuredInput: false,
       workflowHandoffJson,
@@ -103,7 +110,10 @@ function createSession(
   )
 }
 
-function parseHeadlessOffloadOutput(stdout: string): string {
+function parseHeadlessOffloadOutput(stdout: string): {
+  output: string
+  workflowHandoff: WorkflowHandoffPacket | null
+} {
   const lines = stdout
     .split('\n')
     .map(line => line.trim())
@@ -121,6 +131,7 @@ function parseHeadlessOffloadOutput(stdout: string): string {
               text?: string
             }>
           }
+          workflow_handoff?: WorkflowHandoffPacket
         }
       } catch {
         return null
@@ -145,8 +156,21 @@ function parseHeadlessOffloadOutput(stdout: string): string {
     )
   }
 
+  const workflowHandoff =
+    [...lines]
+      .reverse()
+      .find(
+        value =>
+          value?.type === 'system' &&
+          value.subtype === 'workflow_handoff' &&
+          value.workflow_handoff,
+      )?.workflow_handoff ?? null
+
   if (typeof resultLine.result === 'string' && resultLine.result.trim().length > 0) {
-    return resultLine.result.trim()
+    return {
+      output: resultLine.result.trim(),
+      workflowHandoff,
+    }
   }
 
   const assistantText = [...lines]
@@ -160,7 +184,10 @@ function parseHeadlessOffloadOutput(stdout: string): string {
     )?.message?.content?.[0]?.text
 
   if (assistantText?.trim()) {
-    return assistantText.trim()
+    return {
+      output: assistantText.trim(),
+      workflowHandoff,
+    }
   }
 
   throw new SSHSessionError(
@@ -211,11 +238,18 @@ export async function runRemoteAutoworkOffload(
           )
         }
 
+        const parsed = parseHeadlessOffloadOutput(stdoutChunks.join(''))
+        const localRoot = getCtProjectRoot()
+        if (parsed.workflowHandoff) {
+          importWorkflowHandoffPacket(parsed.workflowHandoff, localRoot)
+        }
+
         finish(resolve, {
           mode: options.local ? 'local' : 'remote',
           host: options.local ? null : (options.host ?? null),
           remoteCwd: session.remoteCwd,
-          output: parseHeadlessOffloadOutput(stdoutChunks.join('')),
+          output: parsed.output,
+          workflowHandoff: parsed.workflowHandoff,
         } satisfies RemoteAutoworkOffloadResult)
       } catch (error) {
         finish(reject, error)
