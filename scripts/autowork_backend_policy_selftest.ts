@@ -24,6 +24,16 @@ function run(): void {
   )
   assert.match(
     policySource,
+    /localSwarmIntegrated = options\.localSwarmIntegrated \?\? false/,
+    'expected local swarm policy selection to be gated behind an explicit autowork integration seam',
+  )
+  assert.match(
+    policySource,
+    /if \(\s*localSwarmIntegrated[\s\S]*shouldPreferLocalSwarm\(mode\)/,
+    'expected backend policy to refuse selecting local swarm until the autowork scheduler actually integrates that executor path',
+  )
+  assert.match(
+    policySource,
     /case 'execution':[\s\S]*case 'verification':[\s\S]*return false/,
     'expected execution and verification to remain on the main thread',
   )

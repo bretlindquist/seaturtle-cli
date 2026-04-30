@@ -60,6 +60,7 @@ export type AutoworkBackendPolicy = {
 type AutoworkBackendPolicyOptions = {
   localSwarmEnabled?: boolean
   localExecutorMode?: LocalSwarmExecutorMode | null
+  localSwarmIntegrated?: boolean
   cloudCapability?: AutoworkCloudOffloadCapability
   cloudOffloadActive?: boolean
   heartbeatEnabled?: boolean
@@ -90,14 +91,17 @@ function shouldPreferLocalSwarm(mode: AutoworkMode): boolean {
 
 function getMainThreadReason(mode: AutoworkMode): string {
   switch (mode) {
+    case 'discovery':
+    case 'research':
+    case 'plan-hardening':
+    case 'audit-and-polish':
+      return 'Local swarm is not yet wired into the autowork scheduler, so this wave remains on the main thread.'
     case 'execution':
       return 'Implementation stays on the main thread so edits, validation, and commit gates remain deterministic.'
     case 'verification':
       return 'Verification stays on the main thread so quality gates and final completion claims remain authoritative.'
     case 'idle':
       return 'Autowork is idle, so no swarm backend is selected.'
-    default:
-      return 'Local swarm is unavailable for this session, so autowork remains on the main thread.'
   }
 }
 
@@ -249,6 +253,7 @@ export function resolveAutoworkBackendPolicy(
   const localExecutorMode =
     options.localExecutorMode ??
     (localSwarmEnabled ? getResolvedTeammateMode() : null)
+  const localSwarmIntegrated = options.localSwarmIntegrated ?? false
   const cloudCapability =
     options.cloudCapability ??
     resolveAutoworkCloudOffloadCapability({
@@ -285,6 +290,7 @@ export function resolveAutoworkBackendPolicy(
   }
 
   if (
+    localSwarmIntegrated &&
     shouldPreferLocalSwarm(mode) &&
     localSwarmEnabled &&
     localExecutorMode !== null
