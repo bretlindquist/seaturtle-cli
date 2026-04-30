@@ -19,6 +19,8 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { createTaskStateBase } from '../../Task.js'
 import type { RemoteAutoworkTaskState } from './guards.js'
+import { updateWorkExecutionPacket } from '../../services/projectIdentity/workflowState.js'
+import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 
 const POLL_INTERVAL_MS = 1_000
 
@@ -149,6 +151,28 @@ async function removeMetadataAndStatusFile(taskId: string, statusFile: string): 
   } catch {}
 }
 
+function syncCloudOffloadExecutionState(
+  root: string,
+  setAppState: SetAppState,
+  options: {
+    active: boolean
+    statusText: string
+  },
+): void {
+  updateWorkExecutionPacket(
+    current => ({
+      ...current,
+      swarmBackend: 'cloud',
+      swarmActive: options.active,
+      swarmWorkerCount: options.active ? 1 : 0,
+      lastActivityAt: Date.now(),
+      statusText: options.statusText,
+    }),
+    root,
+  )
+  syncWorkflowRuntimeState(root, setAppState)
+}
+
 function applyTerminalStatus(
   taskId: string,
   statusFile: string,
@@ -185,6 +209,12 @@ function applyTerminalStatus(
 
   if (!completedTask) {
     if (meta) {
+      syncCloudOffloadExecutionState(meta.localCwd, setAppState, {
+        active: false,
+        statusText: status.success
+          ? `Cloud offload finished: ${meta.entryPoint} ${meta.action}`
+          : status.error || `Cloud offload failed: ${meta.entryPoint} ${meta.action}`,
+      })
       enqueueRemoteAutoworkMetadataNotification(
         meta,
         status.success ? 'completed' : 'failed',
@@ -201,6 +231,11 @@ function applyTerminalStatus(
     completedTask,
     completedTask.result?.summary ?? completedTask.description,
   )
+  syncCloudOffloadExecutionState(completedTask.localCwd, setAppState, {
+    active: false,
+    statusText:
+      completedTask.result?.summary ?? `Cloud offload finished: ${completedTask.description}`,
+  })
   void removeMetadataAndStatusFile(taskId, statusFile)
   return true
 }
@@ -232,6 +267,10 @@ function startRemoteAutoworkPolling(
           summary: `Remote autowork ${getTaskSummary(task)} exited without a status file.`,
         },
       }
+    })
+    syncCloudOffloadExecutionState(meta.localCwd, setAppState, {
+      active: false,
+      statusText: `Cloud offload failed: ${meta.entryPoint} ${meta.action} exited without a status file.`,
     })
     clearInterval(timer)
     void removeMetadataAndStatusFile(meta.taskId, meta.statusFile)
@@ -288,11 +327,15 @@ export const RemoteAutoworkTask: Task = {
     try {
       process.kill(-taskState.pid, 'SIGTERM')
     } catch {
-      try {
-        process.kill(taskState.pid, 'SIGTERM')
-      } catch {}
-    }
+    try {
+      process.kill(taskState.pid, 'SIGTERM')
+    } catch {}
+  }
 
+    syncCloudOffloadExecutionState(taskState.localCwd, setAppState, {
+      active: false,
+      statusText: taskState.result?.summary ?? `Cloud offload stopped: ${taskState.description}`,
+    })
     void removeMetadataAndStatusFile(taskId, taskState.statusFile)
   },
 }
@@ -335,6 +378,10 @@ export async function launchRemoteAutoworkTask(
 
   await writeRemoteAutoworkMetadata(taskId, meta)
   registerTask(createTaskStateFromMetadata(meta, options.toolUseId), context.setAppState)
+  syncCloudOffloadExecutionState(meta.localCwd, context.setAppState, {
+    active: true,
+    statusText: `Cloud offload running: ${meta.entryPoint} ${meta.action}`,
+  })
   startRemoteAutoworkPolling(meta, context.setAppState)
   return { taskId }
 }
@@ -348,10 +395,18 @@ export async function restoreRemoteAutoworkTasks(
       continue
     }
     if (!isProcessRunning(meta.pid)) {
+      syncCloudOffloadExecutionState(meta.localCwd, context.setAppState, {
+        active: false,
+        statusText: `Cloud offload ended without a recoverable child: ${meta.entryPoint} ${meta.action}`,
+      })
       void removeMetadataAndStatusFile(meta.taskId, meta.statusFile)
       continue
     }
     registerTask(createTaskStateFromMetadata(meta), context.setAppState)
+    syncCloudOffloadExecutionState(meta.localCwd, context.setAppState, {
+      active: true,
+      statusText: `Cloud offload running: ${meta.entryPoint} ${meta.action}`,
+    })
     startRemoteAutoworkPolling(meta, context.setAppState)
   }
 }

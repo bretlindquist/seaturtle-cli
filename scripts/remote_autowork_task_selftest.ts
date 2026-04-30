@@ -71,6 +71,16 @@ function run(): void {
     /listRemoteAutoworkMetadata/,
     'expected remote autowork restore to read sidecar metadata',
   )
+  assert.match(
+    taskSource,
+    /updateWorkExecutionPacket/,
+    'expected remote autowork supervision to project cloud activity into the workflow execution packet',
+  )
+  assert.match(
+    taskSource,
+    /syncWorkflowRuntimeState/,
+    'expected remote autowork supervision to refresh footer/runtime projection after packet updates',
+  )
 
   const lifecycleSource = read(
     projectRoot,
