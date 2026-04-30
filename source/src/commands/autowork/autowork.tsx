@@ -10,6 +10,10 @@ import {
   prepareAutoworkSafeExecution,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
+import {
+  canLaunchLocalLifecycleSwarm,
+  launchLocalLifecycleSwarm,
+} from '../../services/autowork/localLifecycleSwarm.js'
 import { resolveAutoworkBackendPolicy } from '../../services/autowork/backendPolicy.js'
 import { resolveAutoworkCloudOffloadCapability } from '../../services/autowork/cloudOffloadCapability.js'
 import {
@@ -62,6 +66,17 @@ type ShellAction =
   | 'status'
   | 'doctor'
   | 'back'
+
+function isLifecycleMode(
+  mode: string,
+): mode is 'discovery' | 'research' | 'plan-hardening' | 'audit-and-polish' {
+  return (
+    mode === 'discovery' ||
+    mode === 'research' ||
+    mode === 'plan-hardening' ||
+    mode === 'audit-and-polish'
+  )
+}
 
 function splitCommandArgs(args: string): { head: string; tail: string } {
   const trimmed = args.trim()
@@ -491,6 +506,8 @@ async function runAutowork(
     }
   }
 
+  const startupContext = await inspectAndSelectAutoworkMode(entry.planPath)
+
   const launch = await prepareAutoworkSafeExecution(
     entry.planPath,
     entryPoint,
@@ -499,6 +516,74 @@ async function runAutowork(
   )
   if (!launch.ok) {
     return { ok: false, message: launch.message }
+  }
+
+  if (
+    startupContext.repoRoot &&
+    executionScope === 'plan' &&
+    isLifecycleMode(startupContext.mode)
+  ) {
+    const executionPacket =
+      peekActiveWorkstream(startupContext.repoRoot)?.packets.execution ?? null
+    const backendPolicy = resolveAutoworkBackendPolicy(startupContext.mode, {
+      heartbeatEnabled:
+        executionPacket?.heartbeatEnabled === true || timeBudgetMs !== null,
+      timeBudgetMs,
+      deadlineAt: executionPacket?.deadlineAt ?? null,
+      cloudOffloadActive:
+        executionPacket?.swarmBackend === 'cloud' &&
+        executionPacket?.swarmActive === true,
+    })
+
+    if (
+      canLaunchLocalLifecycleSwarm(
+        startupContext.mode,
+        backendPolicy,
+        context,
+        context.canUseTool,
+      )
+    ) {
+      const prompt = launch.metaMessages[0]
+      if (typeof prompt !== 'string') {
+        return {
+          ok: false,
+          message:
+            'SeaTurtle could not construct the lifecycle prompt required for local swarm autowork.',
+        }
+      }
+
+      const started = launchLocalLifecycleSwarm({
+        entryPoint,
+        repoRoot: startupContext.repoRoot,
+        mode: startupContext.mode,
+        prompt,
+        toolUseContext: context,
+        canUseTool: context.canUseTool!,
+      })
+
+      if (!started.ok) {
+        return {
+          ok: false,
+          message: started.message,
+        }
+      }
+
+      return {
+        ok: true,
+        message: [
+          `${titleForEntryPoint(entryPoint)} local swarm started.`,
+          '',
+          `Task: ${started.task.id}`,
+          `Agent: ${started.agent.agentType}`,
+          `Wave: ${startupContext.mode}`,
+          'Execution path: local swarm (in-process)',
+          'Next: inspect /tasks for the lifecycle worker, or /autowork status for workflow state.',
+        ].join('\n'),
+        shouldQuery: false,
+        metaMessages: [],
+        nextInput: '',
+      }
+    }
   }
 
   const quip = getAutoworkLaunchQuip(entryPoint, launch.chunkId)

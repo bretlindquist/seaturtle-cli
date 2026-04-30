@@ -27,8 +27,18 @@ function run(): void {
   )
   assert.match(
     runnerSource,
-    /if \(hasActiveCloudOffload\(peekActiveWorkstream\(context\.repoRoot\)\)\) \{\s*return \{\s*ok: false,\s*message: getActiveCloudOffloadGuardMessage\(entryPoint\)/,
+    /const workflow = peekActiveWorkstream\(context\.repoRoot\)\s*if \(hasActiveCloudOffload\(workflow\)\) \{\s*return \{\s*ok: false,\s*message: getActiveCloudOffloadGuardMessage\(entryPoint\)/,
     'expected verifyAutoworkSafeExecution to refuse local verification while cloud offload is active',
+  )
+  assert.match(
+    runnerSource,
+    /function hasActiveLocalLifecycleSwarm\(/,
+    'expected the autowork runner to centralize active local lifecycle swarm detection from workflow state',
+  )
+  assert.match(
+    runnerSource,
+    /Autowork already has an active local-swarm lifecycle run for this workstream\./,
+    'expected concurrent local autowork attempts to fail with a truthful local lifecycle swarm guard message',
   )
 }
 

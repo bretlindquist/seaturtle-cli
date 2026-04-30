@@ -299,7 +299,7 @@ export function resolveAutoworkBackendPolicy(
     localSwarmIntegrated &&
     shouldPreferLocalSwarm(mode) &&
     localSwarmEnabled &&
-    localExecutorMode !== null
+    localExecutorMode === 'in-process'
   ) {
     return {
       target: 'local-swarm',
@@ -314,7 +314,7 @@ export function resolveAutoworkBackendPolicy(
       cloudRecommendationReason: cloudRecommendation.cloudRecommendationReason,
       cloudNextStep: cloudRecommendation.cloudNextStep,
       cloudAutoLaunch,
-      reason: `This ${mode} wave can use the local swarm path (${localExecutorMode}) without moving orchestration truth off the main thread.`,
+      reason: `This ${mode} wave can use the supervised local swarm path (${localExecutorMode}) without moving orchestration truth off the machine.`,
     }
   }
 
