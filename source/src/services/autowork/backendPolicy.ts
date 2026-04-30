@@ -11,7 +11,7 @@ import {
 export type AutoworkBackendTarget =
   | 'main-thread'
   | 'local-swarm'
-  | 'cloud-swarm'
+  | 'cloud-offload'
 
 export type LocalSwarmExecutorMode = 'in-process' | 'tmux'
 
@@ -267,7 +267,7 @@ export function resolveAutoworkBackendPolicy(
 
   if (cloudCapability.status === 'active') {
     return {
-      target: 'cloud-swarm',
+      target: 'cloud-offload',
       swarmBackend: 'cloud',
       localSwarmEnabled,
       localExecutorMode,

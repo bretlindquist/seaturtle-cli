@@ -81,9 +81,29 @@ function formatBackendTarget(policy: AutoworkBackendPolicy): string {
       return policy.localExecutorMode
         ? `local swarm (${policy.localExecutorMode})`
         : 'local swarm'
-    case 'cloud-swarm':
-      return 'cloud swarm'
+    case 'cloud-offload':
+      return 'cloud offload'
   }
+}
+
+function formatActualExecutionPath(
+  context: AutoworkStartupContext,
+): string {
+  const execution = context.repoRoot
+    ? peekActiveWorkstream(context.repoRoot)?.packets.execution ?? null
+    : null
+
+  if (execution?.swarmBackend === 'cloud' && execution.swarmActive) {
+    return 'cloud offload'
+  }
+
+  if (execution?.swarmBackend === 'local' && execution.swarmActive) {
+    return execution.swarmWorkerCount > 0
+      ? `local swarm (${execution.swarmWorkerCount} worker${execution.swarmWorkerCount === 1 ? '' : 's'})`
+      : 'local swarm'
+  }
+
+  return 'main thread'
 }
 
 function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
@@ -266,7 +286,8 @@ export function formatAutoworkStatusSummary(
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
-    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
+    `Execution path: ${formatActualExecutionPath(context)}`,
+    `Backend policy: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
@@ -314,7 +335,8 @@ export function formatAutoworkDoctorSummary(
     `Execution scope: ${formatExecutionScope(context.state.executionScope)}`,
     `Autowork window: ${formatAutoworkRuntimeWindowLabel(execution)}`,
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
-    `Orchestration: ${formatBackendTarget(backendPolicy)}`,
+    `Execution path: ${formatActualExecutionPath(context)}`,
+    `Backend policy: ${formatBackendTarget(backendPolicy)}`,
     `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,

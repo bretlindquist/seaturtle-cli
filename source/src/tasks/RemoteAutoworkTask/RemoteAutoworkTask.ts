@@ -179,7 +179,7 @@ function syncCloudOffloadExecutionState(
   updateWorkExecutionPacket(
     current => ({
       ...current,
-      swarmBackend: 'cloud',
+      swarmBackend: options.active ? 'cloud' : 'none',
       swarmActive: options.active,
       swarmWorkerCount: options.active ? 1 : 0,
       lastActivityAt: Date.now(),

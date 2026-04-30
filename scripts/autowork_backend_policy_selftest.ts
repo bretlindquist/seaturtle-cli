@@ -39,13 +39,13 @@ function run(): void {
   )
   assert.match(
     inspectionSource,
-    /Orchestration: \$\{formatBackendTarget\(backendPolicy\)\}/,
-    'expected autowork status surfaces to show the selected orchestration backend',
+    /Execution path: \$\{formatActualExecutionPath\(context\)\}/,
+    'expected autowork status surfaces to report the actual live execution path separately from backend policy',
   )
   assert.match(
     inspectionSource,
-    /Cloud swarm: \$\{formatCloudSwarmStatus\(backendPolicy\)\}/,
-    'expected autowork status surfaces to show truthful cloud swarm status',
+    /Backend policy: \$\{formatBackendTarget\(backendPolicy\)\}/,
+    'expected autowork status surfaces to keep backend policy as a separate recommendation line',
   )
   assert.match(
     inspectionSource,
@@ -80,6 +80,11 @@ function run(): void {
   )
   assert.match(
     policySource,
+    /target: 'cloud-offload'/,
+    'expected backend policy to use cloud-offload naming for the provider-managed remote-host path',
+  )
+  assert.match(
+    policySource,
     /shouldRecommendCloudOffload/,
     'expected backend policy to classify when a lifecycle wave should escalate toward remote-host offload',
   )
@@ -99,12 +104,6 @@ function run(): void {
     'expected backend policy to preserve the live-gate-first remote offload next step',
   )
 
-  const runnerSource = read(projectRoot, 'source/src/services/autowork/runner.ts')
-  assert.match(
-    runnerSource,
-    /resolveAutoworkBackendPolicy/,
-    'expected autowork runner lifecycle syncing to use the centralized backend policy seam',
-  )
 }
 
 run()

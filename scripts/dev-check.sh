@@ -137,6 +137,7 @@ bun scripts/autowork_offload_handoff_sync_selftest.ts >/dev/null
 bun scripts/ssh_autowork_offload_selftest.ts >/dev/null
 bun scripts/workflow_state_tool_selftest.ts >/dev/null
 bun scripts/autowork_backend_policy_selftest.ts >/dev/null
+bun scripts/autowork_execution_path_truth_selftest.ts >/dev/null
 bun scripts/autowork_cloud_auto_launch_selftest.ts >/dev/null
 bun scripts/autowork_cloud_concurrency_guard_selftest.ts >/dev/null
 bun scripts/autowork_cloud_progress_sync_selftest.ts >/dev/null
