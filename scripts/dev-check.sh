@@ -130,6 +130,7 @@ bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
 bun scripts/autowork_workflow_phase_selftest.ts >/dev/null
 bun scripts/autowork_workflow_plan_parser_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_run_selftest.ts >/dev/null
+bun scripts/autowork_lifecycle_delegation_policy_selftest.ts >/dev/null
 bun scripts/autowork_workflow_bootstrap_selftest.ts >/dev/null
 bun scripts/autowork_headless_status_selftest.ts >/dev/null
 bun scripts/autowork_headless_command_selftest.ts >/dev/null

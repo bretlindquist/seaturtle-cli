@@ -48,6 +48,7 @@ import {
   type AutoworkRunPolicy,
 } from './policy.js'
 import { resolveAutoworkValidationPlan } from './validation.js'
+import { resolveAutoworkLifecycleDelegationPolicy } from './delegationPolicy.js'
 import {
   createWorkstreamId,
   peekActiveWorkstream,
@@ -375,6 +376,7 @@ function buildAutoworkLifecyclePrompt(
   const packetPathLines = buildLifecyclePacketPathLines(repoRoot)
   const workflowReason = context.workflowResolution?.reason ?? context.modeReason
   const nextStep = `/${entryPoint} run`
+  const delegationPolicy = resolveAutoworkLifecycleDelegationPolicy(mode)
 
   return [
     '<system-reminder>',
@@ -399,10 +401,33 @@ function buildAutoworkLifecyclePrompt(
     mode === 'audit-and-polish'
       ? `7. Review for production-grade completeness, record findings with ${WORKFLOW_STATE_TOOL_NAME}, and make only narrow fixes that are required by the review.`
       : `7. End with the workflow state advanced as far as the evidence supports using ${WORKFLOW_STATE_TOOL_NAME}, then stop.`,
+    delegationPolicy.mode === 'bounded-agent-sidecars'
+      ? ''
+      : null,
+    delegationPolicy.mode === 'bounded-agent-sidecars'
+      ? 'Delegation policy:'
+      : null,
+    delegationPolicy.mode === 'bounded-agent-sidecars'
+      ? `- You may use ${delegationPolicy.toolName} for bounded sidecar work when it materially helps this ${mode} wave.`
+      : null,
+    ...(
+      delegationPolicy.mode === 'bounded-agent-sidecars'
+        ? delegationPolicy.allowedWork.map(
+            line => `- Suitable delegation: ${line}`,
+          )
+        : []
+    ),
+    ...(
+      delegationPolicy.mode === 'bounded-agent-sidecars'
+        ? delegationPolicy.constraints.map(line => `- Constraint: ${line}`)
+        : []
+    ),
     '',
     `When finished, the queued ${nextStep} command will reassess the workflow state and continue from the next correct phase.`,
     '</system-reminder>',
-  ].join('\n')
+  ]
+    .filter((line): line is string => line !== null)
+    .join('\n')
 }
 
 function buildMissingPlanParseResult(root: string): AutoworkPlanParseResult {
