@@ -28,6 +28,10 @@ import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
 import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js'
 import { sleep } from '../../utils/sleep.js'
 import {
+  describeTransientTransportFailure,
+  isTransientTransportFailure,
+} from '../../services/api/errorUtils.js'
+import {
   buildEffectiveSystemPrompt,
   type SystemPrompt,
 } from '../../utils/systemPrompt.js'
@@ -39,14 +43,12 @@ const reactiveCompact = feature('REACTIVE_COMPACT')
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 const TRANSIENT_COMPACTION_TERMINATION_MESSAGE =
-  'Compaction transport terminated before completion. Retry /compact.'
+  'Compaction transport was temporarily unavailable. Retry /compact.'
 const TRANSIENT_COMPACTION_TERMINATION_RETRIES = 1
 const TRANSIENT_COMPACTION_TERMINATION_DELAY_MS = 250
 
 function isTransientCompactionTerminationError(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : String(error ?? '')
-  return /\bterminated\b/i.test(message)
+  return isTransientTransportFailure(error)
 }
 
 async function runCompactionWithTransientRetry<T>(
@@ -165,7 +167,12 @@ export const call: LocalCommandCall = async (args, context) => {
     if (abortController.signal.aborted) {
       throw new Error('Compaction canceled.')
     } else if (isTransientCompactionTerminationError(error)) {
-      throw new Error(TRANSIENT_COMPACTION_TERMINATION_MESSAGE)
+      const detail = describeTransientTransportFailure(error)
+      throw new Error(
+        detail
+          ? `${TRANSIENT_COMPACTION_TERMINATION_MESSAGE} (${detail})`
+          : TRANSIENT_COMPACTION_TERMINATION_MESSAGE,
+      )
     } else if (hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)) {
       throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     } else if (hasExactErrorMessage(error, ERROR_MESSAGE_INCOMPLETE_RESPONSE)) {

@@ -3,6 +3,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID } from 'crypto'
 import { API_ERROR_MESSAGE_PREFIX } from './errors.js'
+import { describeTransientTransportFailure } from './errorUtils.js'
 import {
   normalizeOpenAiToolParameterSchema,
   shouldUseStrictOpenAiToolSchema,
@@ -593,6 +594,11 @@ function formatOpenAiCodexHttpError(params: {
   statusText: string
   body: string
 }): string {
+  const transportFailure = describeTransientTransportFailure(params)
+  if (transportFailure) {
+    return `${API_ERROR_MESSAGE_PREFIX}: ${transportFailure}`
+  }
+
   const parsed = parseOpenAiCodexHttpErrorBody(params.body)
   const error = parsed?.error
 
@@ -2454,10 +2460,14 @@ async function runOpenAiCodexPlainText(params: {
     return createAssistantMessage({ content: text })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const transportFailure = describeTransientTransportFailure(error)
     return createAssistantAPIErrorMessage({
-      content: message.startsWith(API_ERROR_MESSAGE_PREFIX)
-        ? message
-        : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
+      content:
+        transportFailure !== null
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${transportFailure}`
+          : message.startsWith(API_ERROR_MESSAGE_PREFIX)
+            ? message
+            : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
     })
   }
 }
@@ -3659,10 +3669,14 @@ export async function* queryOpenAiCodexWithStreaming(params: {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const transportFailure = describeTransientTransportFailure(error)
     yield createAssistantAPIErrorMessage({
-      content: message.startsWith(API_ERROR_MESSAGE_PREFIX)
-        ? message
-        : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
+      content:
+        transportFailure !== null
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${transportFailure}`
+          : message.startsWith(API_ERROR_MESSAGE_PREFIX)
+            ? message
+            : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
     })
   }
 }

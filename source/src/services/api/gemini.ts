@@ -4,6 +4,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
 import { randomUUID } from 'crypto'
 import { API_ERROR_MESSAGE_PREFIX } from './errors.js'
+import { describeTransientTransportFailure } from './errorUtils.js'
 import {
   buildGeminiSystemInstruction,
   buildGeminiTools,
@@ -333,10 +334,14 @@ async function runGeminiPlainText(params: {
     return createAssistantMessage({ content })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const transportFailure = describeTransientTransportFailure(error)
     return createAssistantAPIErrorMessage({
-      content: message.startsWith(API_ERROR_MESSAGE_PREFIX)
-        ? message
-        : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
+      content:
+        transportFailure !== null
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${transportFailure}`
+          : message.startsWith(API_ERROR_MESSAGE_PREFIX)
+            ? message
+            : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
     })
   }
 }
@@ -745,10 +750,14 @@ export async function* queryGeminiWithStreaming(params: {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const transportFailure = describeTransientTransportFailure(error)
     yield createAssistantAPIErrorMessage({
-      content: message.startsWith(API_ERROR_MESSAGE_PREFIX)
-        ? message
-        : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
+      content:
+        transportFailure !== null
+          ? `${API_ERROR_MESSAGE_PREFIX}: ${transportFailure}`
+          : message.startsWith(API_ERROR_MESSAGE_PREFIX)
+            ? message
+            : `${API_ERROR_MESSAGE_PREFIX}: ${message}`,
     })
   }
 }

@@ -1,4 +1,4 @@
-import type { APIError } from '@anthropic-ai/sdk'
+import { APIError } from '@anthropic-ai/sdk'
 
 // SSL/TLS error codes from OpenSSL (used by both Node.js and Bun)
 // See: https://www.openssl.org/docs/man3.1/man3/X509_STORE_CTX_get_error.html
@@ -32,6 +32,148 @@ export type ConnectionErrorDetails = {
   code: string
   message: string
   isSSLError: boolean
+}
+
+type HttpTransportFailureInput = {
+  status: number
+  statusText?: string
+  body?: string
+}
+
+const TRANSIENT_TRANSPORT_MESSAGE_PATTERNS = [
+  /upstream connect error/i,
+  /disconnect\/reset before headers/i,
+  /reset reason:\s*connection termination/i,
+  /connection termination/i,
+  /transport terminated/i,
+  /\bterminated before completion\b/i,
+]
+
+function defaultStatusText(status: number): string {
+  switch (status) {
+    case 502:
+      return 'Bad Gateway'
+    case 503:
+      return 'Service Unavailable'
+    case 504:
+      return 'Gateway Timeout'
+    default:
+      return 'Transport Failure'
+  }
+}
+
+function normalizeTransportFailureDetail(message: string): string {
+  if (
+    /upstream connect error/i.test(message) ||
+    /disconnect\/reset before headers/i.test(message) ||
+    /connection termination/i.test(message)
+  ) {
+    return 'upstream transport reset before the request completed'
+  }
+
+  if (
+    /transport terminated/i.test(message) ||
+    /\bterminated before completion\b/i.test(message)
+  ) {
+    return 'transport terminated before completion'
+  }
+
+  return message.trim()
+}
+
+function extractTransportFailureMessage(input: unknown): string | null {
+  if (typeof input === 'string') {
+    return input
+  }
+
+  if (input instanceof Error) {
+    return input.message
+  }
+
+  if (
+    input &&
+    typeof input === 'object' &&
+    'status' in input &&
+    typeof input.status === 'number'
+  ) {
+    const candidate = input as HttpTransportFailureInput
+    if (typeof candidate.body === 'string' && candidate.body.trim().length > 0) {
+      return sanitizeMessageHTML(candidate.body)
+    }
+    if (typeof candidate.statusText === 'string' && candidate.statusText.trim()) {
+      return candidate.statusText.trim()
+    }
+  }
+
+  return null
+}
+
+function extractTransportFailureStatus(input: unknown): {
+  status: number
+  statusText: string
+} | null {
+  if (
+    input &&
+    typeof input === 'object' &&
+    'status' in input &&
+    typeof input.status === 'number'
+  ) {
+    const candidate = input as HttpTransportFailureInput
+    return {
+      status: candidate.status,
+      statusText:
+        typeof candidate.statusText === 'string' && candidate.statusText.trim()
+          ? candidate.statusText.trim()
+          : defaultStatusText(candidate.status),
+    }
+  }
+
+  if (input instanceof APIError && typeof input.status === 'number') {
+    return {
+      status: input.status,
+      statusText:
+        typeof input.name === 'string' && input.name.trim().length > 0
+          ? input.name.trim()
+          : defaultStatusText(input.status),
+    }
+  }
+
+  return null
+}
+
+export function isTransientTransportFailure(input: unknown): boolean {
+  const status = extractTransportFailureStatus(input)
+  if (status && [502, 503, 504].includes(status.status)) {
+    return true
+  }
+
+  const message = extractTransportFailureMessage(input)
+  if (!message) {
+    return false
+  }
+
+  return TRANSIENT_TRANSPORT_MESSAGE_PATTERNS.some(pattern =>
+    pattern.test(message),
+  )
+}
+
+export function describeTransientTransportFailure(input: unknown): string | null {
+  if (!isTransientTransportFailure(input)) {
+    return null
+  }
+
+  const status = extractTransportFailureStatus(input)
+  const message = extractTransportFailureMessage(input)
+  const detail =
+    typeof message === 'string' && message.trim().length > 0
+      ? normalizeTransportFailureDetail(message)
+      : 'provider transport was temporarily unavailable'
+
+  if (status) {
+    return `${status.status} ${status.statusText} · ${detail}. Retry in a moment.`
+  }
+
+  return `Transport temporarily unavailable · ${detail}. Retry in a moment.`
 }
 
 /**
