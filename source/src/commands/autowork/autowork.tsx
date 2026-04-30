@@ -29,6 +29,7 @@ import { parseAutoworkBudgetInput } from '../../services/autowork/runtimeWindow.
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
 import { markActivePlanApproved } from '../../services/projectIdentity/workflowState.js'
 import { launchRemoteAutoworkTask } from '../../tasks/RemoteAutoworkTask/RemoteAutoworkTask.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   formatAutoworkDoctorSummary,
   formatAutoworkStatusSummary,
@@ -106,14 +107,27 @@ function parseCloudOffloadArgs(
   }
 
   const parts = trimmed.split(/\s+/u)
-  if (parts.length < 2) {
+  const defaultAction = parts[0]?.toLowerCase()
+  const savedSshConfigs = getInitialSettings().sshConfigs ?? []
+
+  let target = parts[0] ?? ''
+  let actionRaw = parts[1] ?? ''
+  let rest = parts.slice(2)
+
+  if ((defaultAction === 'run' || defaultAction === 'step') && savedSshConfigs.length === 1) {
+    target = savedSshConfigs[0]!.sshHost
+    actionRaw = parts[0]!
+    rest = parts.slice(1)
+  } else if (parts.length < 2) {
     return {
       ok: false,
-      message: 'Usage: /autowork cloud local run 8h\n   or: /autowork cloud <ssh-host> run 8h',
+      message:
+        savedSshConfigs.length > 1
+          ? 'Multiple SSH configs are saved. Use `/autowork cloud <ssh-host> run 8h` to choose one explicitly.'
+          : 'Usage: /autowork cloud local run 8h\n   or: /autowork cloud <ssh-host> run 8h',
     }
   }
 
-  const [target, actionRaw, ...rest] = parts
   const action = actionRaw?.toLowerCase()
   if (action !== 'run' && action !== 'step') {
     return {

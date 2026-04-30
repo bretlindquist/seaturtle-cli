@@ -625,6 +625,7 @@ Current contract:
 - use `/autowork use <path>` or `/swim use <path>` when you want to pin a specific tracked executable plan path
 - `/autowork run` and `/swim run` carry the approved plan to completion
 - `/autowork run 8h`, `/autowork run for 8 hours`, and `/autowork step 30m` start bounded runtime windows
+- `/autowork cloud run 8h` auto-selects the sole saved SSH config when there is exactly one
 - `/autowork cloud local run 8h` and `/autowork cloud <ssh-host> run 8h` launch supervised cloud-offload background tasks from the current session
 - progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks

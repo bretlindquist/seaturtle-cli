@@ -229,6 +229,7 @@ Next steps:
 - Use `/autowork use <path>` or `/swim use <path>` when you need to pin one specific executable plan file
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
 - Use `/autowork run 8h`, `/autowork run for 8 hours`, or `/autowork step 30m` when you want a bounded runtime window
+- Use `/autowork cloud run 8h` when exactly one SSH config is saved and you want that host selected automatically
 - Use `/autowork cloud local run 8h` or `/autowork cloud <ssh-host> run 8h` when you want the run launched as a supervised background cloud-offload task
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
