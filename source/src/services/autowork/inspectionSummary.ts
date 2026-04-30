@@ -106,8 +106,8 @@ function formatActualExecutionPath(
   return 'main thread'
 }
 
-function formatCloudSwarmStatus(policy: AutoworkBackendPolicy): string {
-  switch (policy.cloudSwarmStatus) {
+function formatCloudOffloadStatus(policy: AutoworkBackendPolicy): string {
+  switch (policy.cloudOffloadStatus) {
     case 'active':
       return 'active'
     case 'available':
@@ -128,7 +128,7 @@ function formatCloudRecommendation(policy: AutoworkBackendPolicy): string {
     case 'optional':
       return 'optional'
     case 'none':
-      return policy.cloudSwarmStatus === 'unavailable'
+      return policy.cloudOffloadStatus === 'unavailable'
         ? 'unavailable'
         : 'not recommended'
   }
@@ -288,7 +288,7 @@ export function formatAutoworkStatusSummary(
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Execution path: ${formatActualExecutionPath(context)}`,
     `Backend policy: ${formatBackendTarget(backendPolicy)}`,
-    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
+    `Cloud offload: ${formatCloudOffloadStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
@@ -337,7 +337,7 @@ export function formatAutoworkDoctorSummary(
     `Heartbeat: ${execution?.heartbeatEnabled ? `on (${formatDuration(execution.heartbeatIntervalMs ?? DEFAULT_AUTOWORK_HEARTBEAT_INTERVAL_MS, { hideTrailingZeros: true, mostSignificantOnly: true })})` : 'off'}`,
     `Execution path: ${formatActualExecutionPath(context)}`,
     `Backend policy: ${formatBackendTarget(backendPolicy)}`,
-    `Cloud swarm: ${formatCloudSwarmStatus(backendPolicy)}`,
+    `Cloud offload: ${formatCloudOffloadStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
     `Selected mode: ${context.mode}`,

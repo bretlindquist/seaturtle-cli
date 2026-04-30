@@ -85,7 +85,7 @@ function run(): void {
 
   assert.match(
     policySource,
-    /cloudRecommendation: CloudSwarmRecommendation/,
+    /cloudRecommendation: CloudOffloadRecommendation/,
     'expected backend policy to carry a first-class cloud recommendation state',
   )
   assert.match(

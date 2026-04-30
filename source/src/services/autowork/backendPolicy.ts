@@ -15,8 +15,8 @@ export type AutoworkBackendTarget =
 
 export type LocalSwarmExecutorMode = 'in-process' | 'tmux'
 
-export type CloudSwarmStatus = 'unavailable' | 'available' | 'active'
-export type CloudSwarmRecommendation =
+export type CloudOffloadStatus = 'unavailable' | 'available' | 'active'
+export type CloudOffloadRecommendation =
   | 'none'
   | 'optional'
   | 'recommended'
@@ -46,8 +46,8 @@ export type AutoworkBackendPolicy = {
   swarmBackend: WorkSwarmBackend
   localSwarmEnabled: boolean
   localExecutorMode: LocalSwarmExecutorMode | null
-  cloudSwarmStatus: CloudSwarmStatus
-  cloudRecommendation: CloudSwarmRecommendation
+  cloudOffloadStatus: CloudOffloadStatus
+  cloudRecommendation: CloudOffloadRecommendation
   cloudPath: AutoworkCloudOffloadCapability['path']
   cloudConfiguredHostCount: number
   cloudReason: string | null
@@ -276,7 +276,7 @@ export function resolveAutoworkBackendPolicy(
       swarmBackend: 'cloud',
       localSwarmEnabled,
       localExecutorMode,
-      cloudSwarmStatus: cloudCapability.status,
+      cloudOffloadStatus: cloudCapability.status,
       cloudRecommendation: cloudRecommendation.cloudRecommendation,
       cloudPath: cloudCapability.path,
       cloudConfiguredHostCount: cloudCapability.configuredHostCount,
@@ -300,7 +300,7 @@ export function resolveAutoworkBackendPolicy(
       swarmBackend: 'local',
       localSwarmEnabled: true,
       localExecutorMode,
-      cloudSwarmStatus: cloudCapability.status,
+      cloudOffloadStatus: cloudCapability.status,
       cloudRecommendation: cloudRecommendation.cloudRecommendation,
       cloudPath: cloudCapability.path,
       cloudConfiguredHostCount: cloudCapability.configuredHostCount,
@@ -317,7 +317,7 @@ export function resolveAutoworkBackendPolicy(
     swarmBackend: 'none',
     localSwarmEnabled,
     localExecutorMode,
-    cloudSwarmStatus: cloudCapability.status,
+    cloudOffloadStatus: cloudCapability.status,
     cloudRecommendation: cloudRecommendation.cloudRecommendation,
     cloudPath: cloudCapability.path,
     cloudConfiguredHostCount: cloudCapability.configuredHostCount,

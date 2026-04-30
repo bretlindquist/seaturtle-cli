@@ -112,7 +112,7 @@ function run(): void {
     )
     assert.match(status, /Workflow phase: research/)
     assert.match(status, /Heartbeat: on \(/)
-    assert.match(status, /Cloud swarm:/)
+    assert.match(status, /Cloud offload:/)
     const handoff = JSON.parse(readFileSync(handoffFile, 'utf8')) as {
       resolution?: { phase?: string }
       packets?: { execution?: { heartbeatEnabled?: boolean } }

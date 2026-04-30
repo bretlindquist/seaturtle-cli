@@ -11,7 +11,7 @@ import {
 } from '../autowork/cloudOffloadCapability.js'
 import {
   resolveAutoworkBackendPolicy,
-  type CloudSwarmRecommendation,
+  type CloudOffloadRecommendation,
 } from '../autowork/backendPolicy.js'
 
 export type WorkflowRuntimeSnapshot = {
@@ -32,7 +32,7 @@ export type WorkflowRuntimeSnapshot = {
   cloudOffloadStatus: AutoworkCloudOffloadStatus
   cloudOffloadPath: AutoworkCloudOffloadPath
   cloudConfiguredHostCount: number
-  cloudRecommendation: CloudSwarmRecommendation
+  cloudRecommendation: CloudOffloadRecommendation
   cloudStatusText: string | null
   cloudRecommendationText: string | null
   cloudNextStep: string | null
@@ -169,7 +169,7 @@ export function readWorkflowRuntimeSnapshot(
     swarmBackend: execution?.swarmBackend ?? 'none',
     swarmActive: execution?.swarmActive ?? false,
     swarmWorkerCount: execution?.swarmWorkerCount ?? 0,
-    cloudOffloadStatus: backendPolicy.cloudSwarmStatus,
+    cloudOffloadStatus: backendPolicy.cloudOffloadStatus,
     cloudOffloadPath: backendPolicy.cloudPath,
     cloudConfiguredHostCount: backendPolicy.cloudConfiguredHostCount,
     cloudRecommendation: backendPolicy.cloudRecommendation,
