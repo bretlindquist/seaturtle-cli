@@ -13,6 +13,7 @@ import {
   resolveActiveAutoworkPlanFile,
   type AutoworkPlanResolutionResult,
 } from './planResolution.js'
+import { resolveAutoworkLifecycleDelegationPolicy } from './delegationPolicy.js'
 import { peekActiveWorkstream } from '../projectIdentity/workflowState.js'
 import { formatDuration } from '../../utils/format.js'
 
@@ -145,6 +146,17 @@ function formatCloudAutoLaunch(policy: AutoworkBackendPolicy): string {
     case 'none':
       return policy.cloudRecommendation === 'active' ? 'already active' : 'off'
   }
+}
+
+function formatLifecycleDelegation(
+  context: AutoworkStartupContext,
+): string {
+  const policy = resolveAutoworkLifecycleDelegationPolicy(context.mode)
+  if (policy.mode === 'none') {
+    return 'main thread only'
+  }
+
+  return `bounded agent sidecars via ${policy.toolName ?? 'agent tooling'}`
 }
 
 function resolveBackendPolicyForContext(
@@ -291,6 +303,7 @@ export function formatAutoworkStatusSummary(
     `Cloud offload: ${formatCloudOffloadStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
+    `Lifecycle delegation: ${formatLifecycleDelegation(context)}`,
     `Next chunk: ${context.nextPendingChunkId ?? 'none'}`,
     `Validation known: ${context.inspection.validationKnownForLastChunk ? 'yes' : 'no'}`,
     `Ignore hygiene: ${context.inspection.ignoreHygieneOk ? 'healthy' : 'needs work'}`,
@@ -323,6 +336,7 @@ export function formatAutoworkDoctorSummary(
     : null
   const workflowResolution = context.workflowResolution
   const backendPolicy = resolveBackendPolicyForContext(context, policyMode)
+  const delegationPolicy = resolveAutoworkLifecycleDelegationPolicy(context.mode)
   const lines = [
     'Autowork doctor',
     '',
@@ -340,6 +354,7 @@ export function formatAutoworkDoctorSummary(
     `Cloud offload: ${formatCloudOffloadStatus(backendPolicy)}`,
     `Cloud recommendation: ${formatCloudRecommendation(backendPolicy)}`,
     `Cloud auto-launch: ${formatCloudAutoLaunch(backendPolicy)}`,
+    `Lifecycle delegation: ${formatLifecycleDelegation(context)}`,
     `Selected mode: ${context.mode}`,
     `Reason: ${context.modeReason}`,
     `Current branch: ${context.inspection.branch ?? 'unknown'}`,
@@ -365,6 +380,16 @@ export function formatAutoworkDoctorSummary(
 
   if (backendPolicy.cloudAutoLaunch.reason) {
     lines.push(`Cloud launch policy: ${backendPolicy.cloudAutoLaunch.reason}`)
+  }
+
+  if (delegationPolicy.mode !== 'none') {
+    lines.push(
+      `Lifecycle delegation policy: ${delegationPolicy.summary}`,
+      'Lifecycle delegated work:',
+      ...delegationPolicy.allowedWork.map(work => `- ${work}`),
+      'Lifecycle delegation constraints:',
+      ...delegationPolicy.constraints.map(constraint => `- ${constraint}`),
+    )
   }
 
   if (workflowResolution?.issues.length) {

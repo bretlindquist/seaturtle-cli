@@ -632,6 +632,8 @@ Current contract:
 - if multiple SSH configs are saved, SeaTurtle refuses to guess and requires `/autowork cloud <ssh-host> run 8h`
 - `/autowork cloud run 8h` auto-selects the sole saved SSH config when there is exactly one
 - `/autowork cloud local run 8h` and `/autowork cloud <ssh-host> run 8h` launch supervised cloud-offload background tasks from the current session
+- discovery, research, plan-hardening, and audit-and-polish waves may use bounded Agent sidecars for research and review support
+- workflow packet updates, phase advancement, implementation start, and final completion claims remain main-thread authoritative
 - progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks
 - safe mode stops on checkpoint failure instead of continuing blindly

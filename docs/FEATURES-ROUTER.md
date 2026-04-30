@@ -236,6 +236,8 @@ Next steps:
 - if multiple SSH configs are saved, SeaTurtle refuses to guess and requires `/autowork cloud <ssh-host> run 8h`
 - Use `/autowork cloud run 8h` when exactly one SSH config is saved and you want that host selected automatically
 - Use `/autowork cloud local run 8h` or `/autowork cloud <ssh-host> run 8h` when you want the run launched as a supervised background cloud-offload task
+- discovery, research, plan-hardening, and audit-and-polish waves may use bounded Agent sidecars for research and review support
+- workflow packet updates, phase advancement, implementation start, and final completion claims remain main-thread authoritative
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown
