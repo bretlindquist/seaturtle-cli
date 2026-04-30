@@ -6,6 +6,7 @@ import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '.
 import type { Message as MessageType } from '../../types/message.js';
 import type { LogOption } from '../../types/logs.js';
 import { restoreRemoteAgentTasks } from '../../tasks/RemoteAgentTask/RemoteAgentTask.js';
+import { restoreRemoteAutoworkTasks } from '../../tasks/RemoteAutoworkTask/RemoteAutoworkTask.js';
 import { restoreReplReadFileState } from './restoreReplReadFileState.js';
 import { resumeReplSession } from './resumeReplSession.js';
 
@@ -98,6 +99,7 @@ export function useReplSessionLifecycle({
           bashToolsProcessedIdx,
           adoptResumedSessionFile,
           restoreRemoteAgentTasks,
+          restoreRemoteAutoworkTasks,
           store,
           saveWorktreeState,
           getCurrentWorktreeSession,
@@ -137,6 +139,11 @@ export function useReplSessionLifecycle({
     if (initialMessages && initialMessages.length > 0) {
       restoreReadFileState(initialMessages, getOriginalCwd());
       void restoreRemoteAgentTasks({
+        abortController: new AbortController(),
+        getAppState: () => store.getState(),
+        setAppState,
+      });
+      void restoreRemoteAutoworkTasks({
         abortController: new AbortController(),
         getAppState: () => store.getState(),
         setAppState,

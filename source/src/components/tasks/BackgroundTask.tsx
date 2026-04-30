@@ -146,6 +146,14 @@ export function BackgroundTask(t0) {
         }
         return t5;
       }
+    case "remote_autowork":
+      {
+        const running = task.status === "running" || task.status === "pending";
+        const marker = running ? DIAMOND_OPEN : DIAMOND_FILLED;
+        const label = `${task.entryPoint} ${task.action}${task.timeBudget ? ` ${task.timeBudget}` : ""} · ${task.mode === "local" ? "local child" : task.host ?? "remote host"}`;
+        const activity = truncate(label, activityLimit, true);
+        return <Text><Text dimColor={true}>{marker} </Text>{activity} <TaskStatusText status={task.status} /></Text>;
+      }
     case "in_process_teammate":
       {
         let T0;

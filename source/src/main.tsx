@@ -4284,7 +4284,7 @@ async function run(): Promise<CommanderCommand> {
         process.exit(1);
       }
     });
-    program.command('ssh-autowork').description('[Internal] Run one autowork action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to run').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork action to run remotely').choices(['run', 'step', 'verify', 'status', 'doctor']).default('status')).option('--time-budget <budget>', 'Optional autowork budget such as 30m or 8h for run/step actions').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
+    program.command('ssh-autowork').description('[Internal] Run one autowork action through the provider-managed remote-host SSH path.').option('--host <host>', 'SSH host or config alias for remote execution').option('--dir <dir>', 'Remote working directory (or local cwd when --local is used)').option('--local', 'Run the SSH offload action against a local provider-managed child session.').addOption(new Option('--entry-point <entry-point>', 'Autowork entry point to run').choices(['autowork', 'swim']).default('autowork')).addOption(new Option('--action <action>', 'Autowork action to run remotely').choices(['run', 'step', 'verify', 'status', 'doctor']).default('status')).option('--time-budget <budget>', 'Optional autowork budget such as 30m or 8h for run/step actions').option('--permission-mode <mode>', 'Permission mode for the remote session').option('--dangerously-skip-permissions', 'Skip all permission prompts on the remote session (dangerous)').option('--background-status-file <path>', '[Internal] Write a structured terminal status file for background supervision.').option('--timeout-ms <ms>', 'Action timeout in milliseconds', value => {
       const parsed = Number.parseInt(value, 10);
       if (!Number.isFinite(parsed) || parsed <= 0) {
         throw new Error(`Invalid timeout: ${value}`);
@@ -4299,12 +4299,16 @@ async function run(): Promise<CommanderCommand> {
       timeBudget?: string;
       permissionMode?: string;
       dangerouslySkipPermissions?: boolean;
+      backgroundStatusFile?: string;
       timeoutMs?: number;
     }) => {
       if (!opts.local && !opts.host) {
         process.stderr.write('Usage: ct ssh-autowork --host <user@host | ssh-config-alias> [--dir <dir>]\n       ct ssh-autowork --local [--dir <dir>]\n');
         process.exit(1);
       }
+      const {
+        writeRemoteAutoworkStatusFile
+      } = await import('./services/autowork/offloadStatusFile.js');
       const {
         runRemoteAutoworkOffload
       } = await import('./services/autowork/remoteOffload.js');
@@ -4332,11 +4336,34 @@ async function run(): Promise<CommanderCommand> {
           process.stderr.write('\n');
         }
         const body = result.output || 'Remote autowork inspection completed with no text output.';
+        if (opts.backgroundStatusFile) {
+          writeRemoteAutoworkStatusFile(opts.backgroundStatusFile, {
+            success: true,
+            exitCode: 0,
+            output: body,
+            mode: result.mode,
+            host: result.host,
+            remoteCwd: result.remoteCwd,
+            finishedAt: Date.now()
+          });
+        }
         process.stdout.write(`${body.endsWith('\n') ? body : `${body}\n`}`);
         process.exit(0);
       } catch (err) {
         if (process.stderr.isTTY && !opts.local) {
           process.stderr.write('\n');
+        }
+        if (opts.backgroundStatusFile) {
+          writeRemoteAutoworkStatusFile(opts.backgroundStatusFile, {
+            success: false,
+            exitCode: 1,
+            output: '',
+            mode: opts.local ? 'local' : 'remote',
+            host: opts.local ? null : (opts.host ?? null),
+            remoteCwd: opts.dir ?? process.cwd(),
+            finishedAt: Date.now(),
+            error: err instanceof Error ? err.message : String(err)
+          });
         }
         process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n`);
         process.exit(1);

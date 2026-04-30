@@ -613,6 +613,8 @@ Simple path:
 - create or approve one tracked executable plan
 - use `/autowork run 8h` when you want bounded persistent orchestration
 - use `/autowork run` when you want the same orchestration without a fixed window
+- use `/autowork cloud local run 8h` when you want a supervised background run against a local provider child
+- use `/autowork cloud <ssh-host> run 8h` when you want a supervised background run on the provider-managed remote-host path
 - use `/autowork status` to inspect the live runtime window, heartbeat, and next chunk
 - use `/autowork doctor` when the run refuses to continue or seems unhealthy
 
@@ -623,6 +625,7 @@ Current contract:
 - use `/autowork use <path>` or `/swim use <path>` when you want to pin a specific tracked executable plan path
 - `/autowork run` and `/swim run` carry the approved plan to completion
 - `/autowork run 8h`, `/autowork run for 8 hours`, and `/autowork step 30m` start bounded runtime windows
+- `/autowork cloud local run 8h` and `/autowork cloud <ssh-host> run 8h` launch supervised cloud-offload background tasks from the current session
 - progression still happens one guarded chunk at a time
 - safe mode enforces validation and commit gates between chunks
 - safe mode stops on checkpoint failure instead of continuing blindly
@@ -638,6 +641,8 @@ Current subcommands:
 - `/autowork use <path>`
 - `/autowork run`
 - `/autowork run 8h`
+- `/autowork cloud local run 8h`
+- `/autowork cloud <ssh-host> run 8h`
 - `/autowork step`
 - `/autowork status`
 - `/autowork doctor`

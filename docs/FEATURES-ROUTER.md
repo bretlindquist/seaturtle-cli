@@ -220,6 +220,8 @@ Next steps:
   - create or approve one tracked executable plan
   - use `/autowork run 8h` when you want bounded persistent orchestration
   - use `/autowork run` when you want the same orchestration without a fixed window
+  - use `/autowork cloud local run 8h` when you want a supervised background run against a local provider child
+  - use `/autowork cloud <ssh-host> run 8h` when you want a supervised background run on the provider-managed remote-host path
   - use `/autowork status` to check the live window, heartbeat, and next chunk
   - use `/autowork doctor` when the run refuses to continue or seems unhealthy
 - Use `/autowork safe` or `/swim safe` to restore the recommended checkpoint policy
@@ -227,6 +229,7 @@ Next steps:
 - Use `/autowork use <path>` or `/swim use <path>` when you need to pin one specific executable plan file
 - Use `/autowork run` or `/swim run` to carry the approved tracked plan to completion
 - Use `/autowork run 8h`, `/autowork run for 8 hours`, or `/autowork step 30m` when you want a bounded runtime window
+- Use `/autowork cloud local run 8h` or `/autowork cloud <ssh-host> run 8h` when you want the run launched as a supervised background cloud-offload task
 - Use `/autowork step` or `/swim step` when you want only one guarded chunk
 - Use `/autowork status` or `/swim status` to see the selected mode and next chunk
 - Use `/autowork doctor` or `/swim doctor` to inspect the full readiness breakdown

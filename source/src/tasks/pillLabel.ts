@@ -54,6 +54,8 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
           ? `${DIAMOND_OPEN} 1 cloud session`
           : `${DIAMOND_OPEN} ${n} cloud sessions`
       }
+      case 'remote_autowork':
+        return n === 1 ? '1 cloud autowork' : `${n} cloud autowork runs`
       case 'local_workflow':
         return n === 1 ? '1 background workflow' : `${n} background workflows`
       case 'monitor_mcp':

@@ -31,6 +31,7 @@ export async function finishReplSessionResume({
   bashToolsProcessedIdx,
   adoptResumedSessionFile,
   restoreRemoteAgentTasks,
+  restoreRemoteAutoworkTasks,
   store,
   saveWorktreeState,
   getCurrentWorktreeSession,
@@ -58,6 +59,7 @@ export async function finishReplSessionResume({
   bashToolsProcessedIdx: { current: number };
   adoptResumedSessionFile: () => void;
   restoreRemoteAgentTasks: (args: any) => Promise<void>;
+  restoreRemoteAutoworkTasks: (args: any) => Promise<void>;
   store: any;
   saveWorktreeState: (value: any) => void;
   getCurrentWorktreeSession: () => any;
@@ -116,6 +118,11 @@ export async function finishReplSessionResume({
     restoreWorktreeForResume(log.worktreeSession);
     adoptResumedSessionFile();
     void restoreRemoteAgentTasks({
+      abortController: new AbortController(),
+      getAppState: () => store.getState(),
+      setAppState,
+    });
+    void restoreRemoteAutoworkTasks({
       abortController: new AbortController(),
       getAppState: () => store.getState(),
       setAppState,

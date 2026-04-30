@@ -10,6 +10,7 @@ import {
   prepareAutoworkSafeExecution,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
+import { resolveAutoworkCloudOffloadCapability } from '../../services/autowork/cloudOffloadCapability.js'
 import {
   getAutoworkDangerousQuip,
   getAutoworkLaunchQuip,
@@ -27,6 +28,7 @@ import {
 import { parseAutoworkBudgetInput } from '../../services/autowork/runtimeWindow.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
 import { markActivePlanApproved } from '../../services/projectIdentity/workflowState.js'
+import { launchRemoteAutoworkTask } from '../../tasks/RemoteAutoworkTask/RemoteAutoworkTask.js'
 import {
   formatAutoworkDoctorSummary,
   formatAutoworkStatusSummary,
@@ -89,6 +91,107 @@ function parseAutoworkRunTail(
   return {
     ok: true,
     timeBudgetMs: parsed.timeBudgetMs,
+  }
+}
+
+function parseCloudOffloadArgs(
+  tail: string,
+): { ok: true; local: boolean; host?: string; action: 'run' | 'step'; timeBudget?: string } | { ok: false; message: string } {
+  const trimmed = tail.trim()
+  if (!trimmed) {
+    return {
+      ok: false,
+      message: 'Usage: /autowork cloud local run 8h\n   or: /autowork cloud <ssh-host> run 8h',
+    }
+  }
+
+  const parts = trimmed.split(/\s+/u)
+  if (parts.length < 2) {
+    return {
+      ok: false,
+      message: 'Usage: /autowork cloud local run 8h\n   or: /autowork cloud <ssh-host> run 8h',
+    }
+  }
+
+  const [target, actionRaw, ...rest] = parts
+  const action = actionRaw?.toLowerCase()
+  if (action !== 'run' && action !== 'step') {
+    return {
+      ok: false,
+      message: 'Cloud offload currently supports only run and step actions.',
+    }
+  }
+
+  const local = target === 'local' || target === '--local'
+  if (!local && (!target || target.startsWith('/'))) {
+    return {
+      ok: false,
+      message: 'Cloud offload requires `local` or an SSH host/config alias.',
+    }
+  }
+
+  const budget = rest.join(' ').trim()
+  if (budget) {
+    const parsed = parseAutoworkBudgetInput(budget)
+    if (!parsed.ok) {
+      return { ok: false, message: parsed.message }
+    }
+  }
+
+  return {
+    ok: true,
+    local,
+    host: local ? undefined : target,
+    action,
+    timeBudget: budget || undefined,
+  }
+}
+
+async function launchCloudOffload(
+  entryPoint: EntryPoint,
+  context: LocalJSXCommandContext,
+  tail: string,
+): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const capability = resolveAutoworkCloudOffloadCapability()
+  if (capability.status === 'unavailable') {
+    return { ok: false, message: capability.reason }
+  }
+
+  const parsed = parseCloudOffloadArgs(tail)
+  if (!parsed.ok) {
+    return parsed
+  }
+
+  const started = await launchRemoteAutoworkTask(
+    {
+      entryPoint,
+      action: parsed.action,
+      host: parsed.host,
+      cwd: getCtProjectRoot(),
+      local: parsed.local,
+      timeBudget: parsed.timeBudget,
+      permissionMode: context.getAppState().toolPermissionContext.mode,
+      dangerouslySkipPermissions:
+        context.getAppState().toolPermissionContext.dangerouslySkipPermissions,
+    },
+    {
+      abortController: context.abortController,
+      getAppState: context.getAppState,
+      setAppState: context.setAppState,
+    },
+  )
+
+  syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
+  return {
+    ok: true,
+    message: [
+      `${titleForEntryPoint(entryPoint)} cloud offload started.`,
+      '',
+      `Task: ${started.taskId}`,
+      `Target: ${parsed.local ? 'local provider child' : parsed.host}`,
+      `Action: ${entryPoint} ${parsed.action}${parsed.timeBudget ? ` ${parsed.timeBudget}` : ''}`,
+      'Next: use /tasks to inspect the run, or /autowork status for workflow state.',
+    ].join('\n'),
   }
 }
 
@@ -488,6 +591,8 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           `- ${baseName} run`,
           `- ${baseName} run 8h`,
           `- ${baseName} step`,
+          `- ${baseName} cloud local run 8h`,
+          `- ${baseName} cloud <ssh-host> run 8h`,
           `- ${baseName} status`,
           `- ${baseName} doctor`,
           `- ${baseName} verify`,
@@ -517,6 +622,12 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
     if (head === 'use') {
       const selection = await selectAutoworkPlan(entryPoint, tail)
       onDone(selection.message, { display: 'system' })
+      return null
+    }
+
+    if (head === 'cloud') {
+      const launched = await launchCloudOffload(entryPoint, context, tail)
+      onDone(launched.message, { display: 'system' })
       return null
     }
 
@@ -617,6 +728,8 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `- /${entryPoint} run`,
         `- /${entryPoint} run 8h`,
         `- /${entryPoint} step`,
+        `- /${entryPoint} cloud local run 8h`,
+        `- /${entryPoint} cloud <ssh-host> run 8h`,
         `- /${entryPoint} status`,
         `- /${entryPoint} doctor`,
         `- /${entryPoint} verify`,

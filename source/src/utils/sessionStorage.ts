@@ -319,6 +319,20 @@ export type RemoteAgentMetadata = {
   remoteTaskMetadata?: Record<string, unknown>
 }
 
+export type RemoteAutoworkMetadata = {
+  taskId: string
+  pid: number
+  mode: 'local' | 'remote'
+  host: string | null
+  localCwd: string
+  remoteCwd: string
+  entryPoint: 'autowork' | 'swim'
+  action: 'run' | 'step' | 'verify' | 'status' | 'doctor'
+  timeBudget?: string
+  statusFile: string
+  spawnedAt: number
+}
+
 function getRemoteAgentsDir(): string {
   // Same sessionProjectDir fallback as getAgentTranscriptPath — the project
   // dir (containing the .jsonl), not the session dir, so sessionId is joined.
@@ -328,6 +342,19 @@ function getRemoteAgentsDir(): string {
 
 function getRemoteAgentMetadataPath(taskId: string): string {
   return join(getRemoteAgentsDir(), `remote-agent-${taskId}.meta.json`)
+}
+
+function getRemoteAutoworksDir(): string {
+  const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
+  return join(projectDir, getSessionId(), 'remote-autoworks')
+}
+
+function getRemoteAutoworkMetadataPath(taskId: string): string {
+  return join(getRemoteAutoworksDir(), `remote-autowork-${taskId}.meta.json`)
+}
+
+export function getRemoteAutoworkStatusPath(taskId: string): string {
+  return join(getRemoteAutoworksDir(), `remote-autowork-${taskId}.status.json`)
 }
 
 /**
@@ -394,6 +421,65 @@ export async function listRemoteAgentMetadata(): Promise<
       // fire-and-forget persist shouldn't take down the whole restore.
       logForDebugging(
         `listRemoteAgentMetadata: skipping ${entry.name}: ${String(e)}`,
+      )
+    }
+  }
+  return results
+}
+
+export async function writeRemoteAutoworkMetadata(
+  taskId: string,
+  metadata: RemoteAutoworkMetadata,
+): Promise<void> {
+  const path = getRemoteAutoworkMetadataPath(taskId)
+  await mkdir(dirname(path), { recursive: true })
+  await writeFile(path, JSON.stringify(metadata))
+}
+
+export async function readRemoteAutoworkMetadata(
+  taskId: string,
+): Promise<RemoteAutoworkMetadata | null> {
+  const path = getRemoteAutoworkMetadataPath(taskId)
+  try {
+    const raw = await readFile(path, 'utf-8')
+    return JSON.parse(raw) as RemoteAutoworkMetadata
+  } catch (e) {
+    if (isFsInaccessible(e)) return null
+    throw e
+  }
+}
+
+export async function deleteRemoteAutoworkMetadata(taskId: string): Promise<void> {
+  const path = getRemoteAutoworkMetadataPath(taskId)
+  try {
+    await unlink(path)
+  } catch (e) {
+    if (isFsInaccessible(e)) return
+    throw e
+  }
+}
+
+export async function listRemoteAutoworkMetadata(): Promise<
+  RemoteAutoworkMetadata[]
+> {
+  const dir = getRemoteAutoworksDir()
+  let entries: Dirent[]
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (e) {
+    if (isFsInaccessible(e)) return []
+    throw e
+  }
+
+  const results: RemoteAutoworkMetadata[] = []
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.meta.json')) continue
+    try {
+      const raw = await readFile(join(dir, entry.name), 'utf-8')
+      results.push(JSON.parse(raw) as RemoteAutoworkMetadata)
+    } catch (e) {
+      logForDebugging(
+        `listRemoteAutoworkMetadata: skipping ${entry.name}: ${String(e)}`,
       )
     }
   }
