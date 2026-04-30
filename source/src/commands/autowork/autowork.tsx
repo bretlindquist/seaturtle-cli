@@ -397,6 +397,52 @@ async function selectAutoworkPlan(
   }
 }
 
+async function resolveAutoworkRunEntry(
+  entryPoint: EntryPoint,
+  action: 'run' | 'step',
+): Promise<
+  | {
+      ok: true
+      planPath: string | null
+    }
+  | {
+      ok: false
+      message: string
+    }
+> {
+  const resolved = await resolveActiveAutoworkPlanFile()
+  if (resolved.ok) {
+    return {
+      ok: true,
+      planPath: resolved.planPath,
+    }
+  }
+
+  const bootstrapContext = await inspectAndSelectAutoworkMode(null)
+  if (
+    bootstrapContext.repoRoot &&
+    (bootstrapContext.mode === 'discovery' ||
+      bootstrapContext.mode === 'research' ||
+      bootstrapContext.mode === 'plan-hardening' ||
+      bootstrapContext.mode === 'audit-and-polish')
+  ) {
+    return {
+      ok: true,
+      planPath: null,
+    }
+  }
+
+  const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+  return {
+    ok: false,
+    message: [
+      resolved.message,
+      '',
+      `Then rerun ${baseName} ${action} after the tracked plan is ready.`,
+    ].join('\n'),
+  }
+}
+
 async function runAutowork(
   entryPoint: EntryPoint,
   context: LocalJSXCommandContext,
@@ -434,21 +480,19 @@ async function runAutowork(
     }
   }
 
-  const resolved = await resolveActiveAutoworkPlanFile()
-  if (!resolved.ok) {
-    const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
+  const entry = await resolveAutoworkRunEntry(
+    entryPoint,
+    executionScope === 'step' ? 'step' : 'run',
+  )
+  if (!entry.ok) {
     return {
       ok: false,
-      message: [
-        resolved.message,
-        '',
-        `Then rerun ${baseName} run after the tracked plan is ready.`,
-      ].join('\n'),
+      message: entry.message,
     }
   }
 
   const launch = await prepareAutoworkSafeExecution(
-    resolved.planPath,
+    entry.planPath,
     entryPoint,
     executionScope,
     timeBudgetMs,

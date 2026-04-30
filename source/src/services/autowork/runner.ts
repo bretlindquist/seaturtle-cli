@@ -1089,7 +1089,7 @@ export async function inspectAndSelectAutoworkMode(
 }
 
 export async function prepareAutoworkSafeExecution(
-  planPath: string,
+  planPath: string | null,
   entryPoint: AutoworkEntryPoint,
   executionScope: AutoworkExecutionScope = 'plan',
   requestedTimeBudgetMs: number | null = null,

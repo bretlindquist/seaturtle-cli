@@ -44,6 +44,26 @@ function run(): void {
     /workflow bootstrap/,
     'expected autowork status surfaces to report workflow-bootstrap plan sourcing truthfully',
   )
+
+  const commandSource = read(
+    projectRoot,
+    'source/src/commands/autowork/autowork.tsx',
+  )
+  assert.match(
+    commandSource,
+    /async function resolveAutoworkRunEntry/,
+    'expected /autowork run to resolve lifecycle bootstrap through one shared command seam',
+  )
+  assert.match(
+    commandSource,
+    /inspectAndSelectAutoworkMode\(null\)/,
+    'expected /autowork run to fall back to workflow bootstrap inspection when no tracked plan exists yet',
+  )
+  assert.match(
+    commandSource,
+    /prepareAutoworkSafeExecution\(\s*entry\.planPath/s,
+    'expected /autowork run to pass the shared bootstrap-or-plan result into the centralized runner seam',
+  )
 }
 
 run()

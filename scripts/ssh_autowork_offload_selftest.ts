@@ -32,7 +32,7 @@ function runCli(
   projectRoot: string,
   sourceRepo: string,
   targetRepo: string,
-  action: 'run' | 'status' | 'doctor',
+  action: 'status' | 'doctor',
   workflowHandoffOutputFile?: string,
 ): string {
   const cliPath = join(projectRoot, 'dist', 'cli.js')
@@ -120,12 +120,10 @@ function run(): void {
     assert.equal(handoff.resolution?.phase, 'research')
     assert.equal(handoff.packets?.execution?.heartbeatEnabled, true)
 
-    const runGuidance = runCli(projectRoot, sourceRepo, targetRepo, 'run')
-    assert.match(runGuidance, /Then rerun \/autowork run after the tracked plan is ready\./)
-
     const doctor = runCli(projectRoot, sourceRepo, targetRepo, 'doctor')
     assert.match(doctor, /Autowork doctor/)
     assert.match(doctor, /Workflow phase: research/)
+    assert.match(doctor, /Plan: none yet/)
     assert.match(doctor, /Backend policy:/)
   } finally {
     rmSync(tempRoot, { recursive: true, force: true })

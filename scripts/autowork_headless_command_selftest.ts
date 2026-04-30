@@ -83,12 +83,6 @@ function run(): void {
       usage,
       /available in headless mode only with an explicit action/i,
     )
-
-    const runGuidance = runCli(projectRoot, repoRoot, '/autowork run')
-    assert.match(
-      runGuidance,
-      /Then rerun \/autowork run after the tracked plan is ready\./,
-    )
   } finally {
     rmSync(tempRoot, { recursive: true, force: true })
   }
