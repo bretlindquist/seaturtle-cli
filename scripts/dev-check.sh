@@ -138,6 +138,7 @@ bun scripts/ssh_autowork_offload_selftest.ts >/dev/null
 bun scripts/workflow_state_tool_selftest.ts >/dev/null
 bun scripts/autowork_backend_policy_selftest.ts >/dev/null
 bun scripts/autowork_cloud_auto_launch_selftest.ts >/dev/null
+bun scripts/autowork_cloud_concurrency_guard_selftest.ts >/dev/null
 bun scripts/autowork_cloud_offload_capability_selftest.ts >/dev/null
 bun scripts/gemini_agent_team_runtime_selftest.ts >/dev/null
 bun scripts/teammate_mode_snapshot_selftest.ts >/dev/null

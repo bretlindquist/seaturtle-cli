@@ -896,6 +896,21 @@ function syncAutoworkVerificationComplete(
   )
 }
 
+function getActiveCloudOffloadGuardMessage(
+  entryPoint: AutoworkEntryPoint,
+): string {
+  return [
+    'Autowork already has an active background cloud-offload run for this workstream.',
+    '',
+    `Next: inspect /tasks for the remote autowork task, use /${entryPoint} status for workflow truth, or stop the cloud run before starting local execution here.`,
+  ].join('\n')
+}
+
+function hasActiveCloudOffload(workflow: ReturnType<typeof peekActiveWorkstream>): boolean {
+  return workflow?.packets.execution.swarmBackend === 'cloud'
+    && workflow.packets.execution.swarmActive === true
+}
+
 export async function inspectAndSelectAutoworkMode(
   planPath: string | null,
 ): Promise<AutoworkStartupContext> {
@@ -1013,6 +1028,12 @@ export async function prepareAutoworkSafeExecution(
   }
 
   const workflow = peekActiveWorkstream(context.repoRoot)
+  if (hasActiveCloudOffload(workflow)) {
+    return {
+      ok: false,
+      message: getActiveCloudOffloadGuardMessage(entryPoint),
+    }
+  }
   const runtimeWindow = resolveAutoworkRuntimeWindow(
     workflow?.packets.execution ?? null,
     { requestedTimeBudgetMs },
@@ -1228,6 +1249,13 @@ export async function verifyAutoworkSafeExecution(
   const context = await inspectAndSelectAutoworkMode(planPath)
   if (!context.repoRoot) {
     return { ok: false, message: 'Autowork requires a git repository.' }
+  }
+
+  if (hasActiveCloudOffload(peekActiveWorkstream(context.repoRoot))) {
+    return {
+      ok: false,
+      message: getActiveCloudOffloadGuardMessage(entryPoint),
+    }
   }
 
   const activeChunk = getActiveChunk(context)
