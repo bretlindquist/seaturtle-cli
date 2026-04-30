@@ -133,6 +133,7 @@ bun scripts/autowork_lifecycle_run_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_delegation_policy_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_delegation_visibility_selftest.ts >/dev/null
 bun scripts/autowork_local_swarm_executor_foundation_selftest.ts >/dev/null
+bun scripts/autowork_lifecycle_backend_prompting_selftest.ts >/dev/null
 bun scripts/autowork_workflow_bootstrap_selftest.ts >/dev/null
 bun scripts/autowork_headless_status_selftest.ts >/dev/null
 bun scripts/autowork_headless_command_selftest.ts >/dev/null

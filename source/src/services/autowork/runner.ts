@@ -50,6 +50,10 @@ import {
 import { resolveAutoworkValidationPlan } from './validation.js'
 import { resolveAutoworkLifecycleDelegationPolicy } from './delegationPolicy.js'
 import {
+  resolveAutoworkBackendPolicy,
+  type AutoworkBackendPolicy,
+} from './backendPolicy.js'
+import {
   createWorkstreamId,
   peekActiveWorkstream,
   startActiveWorkstream,
@@ -366,17 +370,64 @@ function buildLifecyclePacketPathLines(repoRoot: string): string[] {
   ]
 }
 
+function formatLifecycleBackendTarget(
+  backendPolicy: AutoworkBackendPolicy,
+): string {
+  switch (backendPolicy.target) {
+    case 'main-thread':
+      return 'main thread'
+    case 'local-swarm':
+      return backendPolicy.localExecutorMode
+        ? `local swarm (${backendPolicy.localExecutorMode})`
+        : 'local swarm'
+    case 'cloud-offload':
+      return 'cloud offload'
+  }
+}
+
+function buildLifecycleBackendInstructionLines(
+  mode: AutoworkLifecycleMode,
+  backendPolicy: AutoworkBackendPolicy,
+  delegationPolicy: ReturnType<typeof resolveAutoworkLifecycleDelegationPolicy>,
+): string[] {
+  if (delegationPolicy.mode !== 'bounded-agent-sidecars') {
+    return []
+  }
+
+  switch (backendPolicy.target) {
+    case 'local-swarm':
+      return [
+        `- Preferred sidecar path: use ${delegationPolicy.toolName} through ${formatLifecycleBackendTarget(backendPolicy)} for bounded support work when it materially helps this ${mode} wave.`,
+        `- Keep the leader turn authoritative: sidecars gather evidence or review findings, then reconcile the results through ${WORKFLOW_STATE_TOOL_NAME}.`,
+      ]
+    case 'cloud-offload':
+      return [
+        `- This lifecycle wave is already inside cloud offload supervision. Keep any ${delegationPolicy.toolName} sidecars bounded and avoid inventing a second orchestration path.`,
+      ]
+    case 'main-thread':
+      return [
+        `- Stay on the main thread unless a bounded ${delegationPolicy.toolName} sidecar materially improves evidence-gathering or review quality for this ${mode} wave.`,
+      ]
+  }
+}
+
 function buildAutoworkLifecyclePrompt(
   entryPoint: AutoworkEntryPoint,
   repoRoot: string,
   planPath: string | null,
   context: AutoworkStartupContext,
   mode: AutoworkLifecycleMode,
+  backendPolicy: AutoworkBackendPolicy,
 ): string {
   const packetPathLines = buildLifecyclePacketPathLines(repoRoot)
   const workflowReason = context.workflowResolution?.reason ?? context.modeReason
   const nextStep = `/${entryPoint} run`
   const delegationPolicy = resolveAutoworkLifecycleDelegationPolicy(mode)
+  const backendInstructionLines = buildLifecycleBackendInstructionLines(
+    mode,
+    backendPolicy,
+    delegationPolicy,
+  )
 
   return [
     '<system-reminder>',
@@ -388,6 +439,8 @@ function buildAutoworkLifecyclePrompt(
     '',
     'Authoritative workflow packet files:',
     ...packetPathLines,
+    '',
+    `Preferred orchestration path: ${formatLifecycleBackendTarget(backendPolicy)}.`,
     '',
     'Required workflow:',
     `1. ${getLifecycleActionLine(mode)}`,
@@ -410,6 +463,7 @@ function buildAutoworkLifecyclePrompt(
     delegationPolicy.mode === 'bounded-agent-sidecars'
       ? `- You may use ${delegationPolicy.toolName} for bounded sidecar work when it materially helps this ${mode} wave.`
       : null,
+    ...backendInstructionLines,
     ...(
       delegationPolicy.mode === 'bounded-agent-sidecars'
         ? delegationPolicy.allowedWork.map(
@@ -1097,12 +1151,24 @@ export async function prepareAutoworkSafeExecution(
 
   if (isLifecycleMode(context.mode)) {
     const lifecycleMode = context.mode
+    const lifecycleBackendPolicy = resolveAutoworkBackendPolicy(
+      lifecycleMode,
+      {
+        heartbeatEnabled: runtimeWindow.heartbeatEnabled,
+        timeBudgetMs: runtimeWindow.timeBudgetMs,
+        deadlineAt: runtimeWindow.deadlineAt,
+        cloudOffloadActive: hasActiveCloudOffload(
+          peekActiveWorkstream(context.repoRoot),
+        ),
+      },
+    )
     const prompt = buildAutoworkLifecyclePrompt(
       entryPoint,
       context.repoRoot,
       context.planPath,
       context,
       lifecycleMode,
+      lifecycleBackendPolicy,
     )
     const nextRunCount = context.state.runCount + 1
     updateAutoworkState(
