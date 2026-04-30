@@ -24,13 +24,23 @@ function run(): void {
   )
   assert.match(
     policySource,
-    /localSwarmIntegrated = options\.localSwarmIntegrated \?\? false/,
-    'expected local swarm policy selection to be gated behind an explicit autowork integration seam',
+    /function isLocalSwarmIntegratedForMode/,
+    'expected backend policy to classify local swarm integration from the lifecycle delegation seam',
+  )
+  assert.match(
+    policySource,
+    /resolveAutoworkLifecycleDelegationPolicy\(mode\)\.mode !== 'none'/,
+    'expected backend policy to treat lifecycle delegation availability as the real local swarm integration seam',
+  )
+  assert.match(
+    policySource,
+    /localSwarmIntegrated =[\s\S]*isLocalSwarmIntegratedForMode\(mode\)/,
+    'expected backend policy to default local swarm integration from the central lifecycle seam',
   )
   assert.match(
     policySource,
     /if \(\s*localSwarmIntegrated[\s\S]*shouldPreferLocalSwarm\(mode\)/,
-    'expected backend policy to refuse selecting local swarm until the autowork scheduler actually integrates that executor path',
+    'expected backend policy to select local swarm only when lifecycle integration and preference both apply',
   )
   assert.match(
     policySource,
@@ -56,6 +66,11 @@ function run(): void {
     inspectionSource,
     /Backend policy: \$\{formatBackendTarget\(backendPolicy\)\}/,
     'expected autowork status surfaces to keep backend policy as a separate recommendation line',
+  )
+  assert.match(
+    inspectionSource,
+    /Execution path: \$\{formatActualExecutionPath\(context\)\}/,
+    'expected autowork status surfaces to keep actual execution path separate when backend policy prefers local swarm sidecars',
   )
   assert.match(
     inspectionSource,

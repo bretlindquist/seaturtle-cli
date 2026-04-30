@@ -3,6 +3,7 @@ import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import type { WorkSwarmBackend } from '../projectIdentity/workflowState.js'
 import type { AutoworkMode } from './state.js'
+import { resolveAutoworkLifecycleDelegationPolicy } from './delegationPolicy.js'
 import {
   resolveAutoworkCloudOffloadCapability,
   type AutoworkCloudOffloadCapability,
@@ -89,13 +90,17 @@ function shouldPreferLocalSwarm(mode: AutoworkMode): boolean {
   }
 }
 
+function isLocalSwarmIntegratedForMode(mode: AutoworkMode): boolean {
+  return resolveAutoworkLifecycleDelegationPolicy(mode).mode !== 'none'
+}
+
 function getMainThreadReason(mode: AutoworkMode): string {
   switch (mode) {
     case 'discovery':
     case 'research':
     case 'plan-hardening':
     case 'audit-and-polish':
-      return 'Local swarm is not yet wired into the autowork scheduler, so this wave remains on the main thread.'
+      return 'This lifecycle wave stays on the main thread for authoritative workflow state, even though bounded local swarm sidecars are available.'
     case 'execution':
       return 'Implementation stays on the main thread so edits, validation, and commit gates remain deterministic.'
     case 'verification':
@@ -253,7 +258,8 @@ export function resolveAutoworkBackendPolicy(
   const localExecutorMode =
     options.localExecutorMode ??
     (localSwarmEnabled ? getResolvedTeammateMode() : null)
-  const localSwarmIntegrated = options.localSwarmIntegrated ?? false
+  const localSwarmIntegrated =
+    options.localSwarmIntegrated ?? isLocalSwarmIntegratedForMode(mode)
   const cloudCapability =
     options.cloudCapability ??
     resolveAutoworkCloudOffloadCapability({
