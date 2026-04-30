@@ -31,7 +31,7 @@ assert.match(
 
 assert.match(
   autoworkIndexSource,
-  /argumentHint:\s*'\[run\|step\|status\|doctor\|safe\|dangerous\|verify\|use <plan>\|run 8h\|cloud local run 8h\|cloud <host> run 8h\]'/,
+  /argumentHint:\s*'\[run\|step\|status\|doctor\|safe\|dangerous\|verify\|use <plan>\|run 8h\|cloud run 8h\|cloud local run 8h\|cloud <host> run 8h\]'/,
   '/autowork should advertise its operator actions in slash-command hints',
 )
 
