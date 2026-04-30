@@ -13,6 +13,7 @@ import {
   saveExternalCodexCliAuth,
   saveProviderAuthProfile,
 } from './store.js'
+import { createServer } from 'node:http'
 
 export type OpenAiCodexNativeAuth = {
   accessToken: string
@@ -36,6 +37,13 @@ export type OpenAiCodexOAuthProfileIdentity = {
   emailAddress?: string
   planType?: string
 }
+
+const OPENAI_CODEX_CALLBACK_PORT = 1455
+
+export type OpenAiCodexOAuthLoginPreparation =
+  | { kind: 'native' }
+  | { kind: 'import-existing-codex-cli'; message: string }
+  | { kind: 'blocked'; message: string }
 
 function trimOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0
@@ -146,6 +154,53 @@ function getPlanTypeFromJwt(token: string | undefined): string | undefined {
   return undefined
 }
 
+export async function canBindOpenAiCodexCallbackPort(
+  port: number = OPENAI_CODEX_CALLBACK_PORT,
+): Promise<boolean> {
+  return await new Promise<boolean>(resolve => {
+    const testServer = createServer()
+
+    testServer.once('error', () => {
+      resolve(false)
+    })
+
+    testServer.listen(port, '127.0.0.1', () => {
+      testServer.close(() => resolve(true))
+    })
+  })
+}
+
+export async function resolveOpenAiCodexOAuthLoginPreparation(options?: {
+  callbackPort?: number
+  externalCodexCliAuthReady?: boolean
+}): Promise<OpenAiCodexOAuthLoginPreparation> {
+  const callbackPort = options?.callbackPort ?? OPENAI_CODEX_CALLBACK_PORT
+  const externalCodexCliAuthReady =
+    options?.externalCodexCliAuthReady ?? !!readExternalCodexCliAuth()?.refreshToken
+  const callbackPortAvailable =
+    await canBindOpenAiCodexCallbackPort(callbackPort)
+
+  if (callbackPortAvailable) {
+    return { kind: 'native' }
+  }
+
+  if (externalCodexCliAuthReady) {
+    return {
+      kind: 'import-existing-codex-cli',
+      message:
+        `CT could not claim localhost:${callbackPort} for native OpenAI/Codex OAuth. ` +
+        'Using the existing Codex CLI OAuth from ~/.codex/auth.json instead of starting a second browser flow.',
+    }
+  }
+
+  return {
+    kind: 'blocked',
+    message:
+      `OpenAI/Codex native login cannot start because localhost:${callbackPort} is already in use. ` +
+      'This callback port is required for ChatGPT OAuth. If you just ran codex login, go back and choose "Use existing Codex OAuth". Otherwise close the process listening on that port and try again.',
+  }
+}
+
 export function resolveOpenAiCodexOAuthProfileIdentity(
   profile: ProviderOAuthProfile | null | undefined,
   fallback?: {
@@ -181,6 +236,24 @@ export function resolveOpenAiCodexOAuthProfileIdentity(
 export async function loginWithOpenAiCodexOAuth(
   handlers: OpenAiCodexOAuthFlowHandlers,
 ): Promise<ProviderOAuthProfile> {
+  const loginPreparation = await resolveOpenAiCodexOAuthLoginPreparation()
+
+  if (loginPreparation.kind === 'import-existing-codex-cli') {
+    handlers.onProgress?.(loginPreparation.message)
+    const importResult = importExternalCodexCliAuthProfile()
+    if (!importResult.success || !importResult.profile) {
+      throw new Error(
+        importResult.warning ??
+          'CT detected existing Codex CLI auth, but could not import it into native provider auth storage.',
+      )
+    }
+    return importResult.profile
+  }
+
+  if (loginPreparation.kind === 'blocked') {
+    throw new Error(loginPreparation.message)
+  }
+
   const credentials = await loginOpenAICodex({
     onAuth: handlers.onAuth ?? (() => {}),
     onPrompt: handlers.onPrompt,
