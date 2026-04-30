@@ -1,4 +1,5 @@
 import type { AgentColorName } from '../../../tools/AgentTool/agentColorManager.js'
+import type { CustomAgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 
 /**
  * Types of backends available for teammate execution.
@@ -205,10 +206,16 @@ export type TeammateIdentity = {
 export type TeammateSpawnConfig = TeammateIdentity & {
   /** Initial prompt to send to the teammate */
   prompt: string
+  /** Optional description shown in agent/task UI */
+  description?: string
   /** Working directory for the teammate */
   cwd: string
   /** Model to use for this teammate */
   model?: string
+  /** Optional custom agent definition for in-process specialized runs */
+  agentDefinition?: CustomAgentDefinition
+  /** Request ID that initiated this teammate spawn, for lineage tracing */
+  invokingRequestId?: string
   /** System prompt for this teammate (resolved from workflow config) */
   systemPrompt?: string
   /** How to apply the system prompt: 'replace' or 'append' to default */

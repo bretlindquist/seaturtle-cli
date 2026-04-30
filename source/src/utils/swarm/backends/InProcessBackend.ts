@@ -115,6 +115,8 @@ export class InProcessBackend implements TeammateExecutor {
         },
         taskId: result.taskId,
         prompt: config.prompt,
+        description: config.description,
+        agentDefinition: config.agentDefinition,
         teammateContext: result.teammateContext,
         // Strip messages: the teammate never reads toolUseContext.messages
         // (runAgent overrides it via createSubagentContext). Passing the
@@ -122,6 +124,7 @@ export class InProcessBackend implements TeammateExecutor {
         toolUseContext: { ...this.context, messages: [] },
         abortController: result.abortController,
         model: config.model,
+        invokingRequestId: config.invokingRequestId,
         systemPrompt: config.systemPrompt,
         systemPromptMode: config.systemPromptMode,
         allowedTools: config.permissions,

@@ -1,4 +1,5 @@
 import { getIsNonInteractiveSession } from '../../../bootstrap/state.js'
+import type { ToolUseContext } from '../../../Tool.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getPlatform } from '../../../utils/platform.js'
 import {
@@ -433,6 +434,21 @@ export async function getTeammateExecutor(
   // Return pane backend executor
   logForDebugging('[BackendRegistry] Using pane backend executor')
   return getPaneBackendExecutor()
+}
+
+type ContextAwareTeammateExecutor = TeammateExecutor & {
+  setContext(context: ToolUseContext): void
+}
+
+export async function getInitializedTeammateExecutor(
+  context: ToolUseContext,
+  preferInProcess: boolean = false,
+): Promise<TeammateExecutor> {
+  const executor = await getTeammateExecutor(preferInProcess)
+  if ('setContext' in executor && typeof executor.setContext === 'function') {
+    ;(executor as ContextAwareTeammateExecutor).setContext(context)
+  }
+  return executor
 }
 
 /**

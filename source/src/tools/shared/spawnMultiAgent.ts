@@ -30,6 +30,7 @@ import { isTmuxAvailable } from '../../utils/swarm/backends/detection.js'
 import {
   detectAndGetBackend,
   getBackendByType,
+  getInitializedTeammateExecutor,
   isInProcessEnabled,
   markInProcessFallback,
   resetBackendDetection,
@@ -44,11 +45,6 @@ import {
   TMUX_COMMAND,
 } from '../../utils/swarm/constants.js'
 import { It2SetupPrompt } from '../../utils/swarm/It2SetupPrompt.js'
-import { startInProcessTeammate } from '../../utils/swarm/inProcessRunner.js'
-import {
-  type InProcessSpawnConfig,
-  spawnInProcessTeammate,
-} from '../../utils/swarm/spawnInProcess.js'
 import { buildInheritedEnvVars } from '../../utils/swarm/spawnUtils.js'
 import {
   readTeamFileAsync,
@@ -889,56 +885,34 @@ async function handleSpawnInProcess(
     )
   }
 
-  // Spawn in-process teammate
-  const config: InProcessSpawnConfig = {
+  const executor = await getInitializedTeammateExecutor(context, true)
+  if (executor.type !== 'in-process') {
+    throw new Error(
+      `Expected in-process executor for local teammate spawn, got ${executor.type}`,
+    )
+  }
+
+  const result = await executor.spawn({
     name: sanitizedName,
     teamName,
     prompt,
+    description: input.description,
     color: teammateColor,
     planModeRequired: plan_mode_required ?? false,
+    cwd: getCwd(),
     model,
-  }
-
-  const result = await spawnInProcessTeammate(config, context)
+    agentDefinition,
+    invokingRequestId: input.invokingRequestId,
+    parentSessionId: getSessionId(),
+  })
 
   if (!result.success) {
     throw new Error(result.error ?? 'Failed to spawn in-process teammate')
   }
 
-  // Debug: log what spawn returned
   logForDebugging(
-    `[handleSpawnInProcess] spawn result: taskId=${result.taskId}, hasContext=${!!result.teammateContext}, hasAbort=${!!result.abortController}`,
+    `[handleSpawnInProcess] spawned ${teammateId} through initialized in-process executor`,
   )
-
-  // Start the agent execution loop (fire-and-forget)
-  if (result.taskId && result.teammateContext && result.abortController) {
-    startInProcessTeammate({
-      identity: {
-        agentId: teammateId,
-        agentName: sanitizedName,
-        teamName,
-        color: teammateColor,
-        planModeRequired: plan_mode_required ?? false,
-        parentSessionId: result.teammateContext.parentSessionId,
-      },
-      taskId: result.taskId,
-      prompt,
-      description: input.description,
-      model,
-      agentDefinition,
-      teammateContext: result.teammateContext,
-      // Strip messages: the teammate never reads toolUseContext.messages
-      // (it builds its own history via allMessages in inProcessRunner).
-      // Passing the parent's full conversation here would pin it for the
-      // teammate's lifetime, surviving /clear and auto-compact.
-      toolUseContext: { ...context, messages: [] },
-      abortController: result.abortController,
-      invokingRequestId: input.invokingRequestId,
-    })
-    logForDebugging(
-      `[handleSpawnInProcess] Started agent execution for ${teammateId}`,
-    )
-  }
 
   // Track the teammate in AppState's teamContext
   // Auto-register leader if spawning without prior spawnTeam call
