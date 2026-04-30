@@ -90,10 +90,10 @@ function run(): void {
   ])
   assert.deepEqual(partition.attachNow, [
     relevantNow,
-    appendToTask,
     taskNotification,
   ])
   assert.deepEqual(partition.leaveQueued, [
+    appendToTask,
     deferredAdjacent,
     ignoredSideQuestion,
     continuationOnly,
@@ -115,17 +115,16 @@ function run(): void {
   })
   assert.deepEqual(plan.attachNow, [
     relevantNow,
-    appendToTask,
     taskNotification,
   ])
   assert.deepEqual(plan.leaveQueued, [
+    appendToTask,
     deferredAdjacent,
     ignoredSideQuestion,
     continuationOnly,
   ])
   assert.deepEqual(plan.consumedCommands, [
     relevantNow,
-    appendToTask,
     taskNotification,
   ])
   assert.equal(
@@ -260,6 +259,11 @@ function run(): void {
     querySource,
     /const boundaryCommandsToAttach = steerBoundaryPlan\.attachNow/,
     'query loop should attach boundary commands from the shared boundary plan',
+  )
+  assert.match(
+    querySource,
+    /const queuedCommandsSnapshot = getCommandsByMaxPriority/,
+    'query loop should still snapshot queue state once before boundary partitioning',
   )
   assert.match(
     querySource,

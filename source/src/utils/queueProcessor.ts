@@ -1,4 +1,5 @@
 import type { QueuedCommand } from '../types/textInputTypes.js'
+import { isPromptLikeInputMode } from '../components/PromptInput/inputModes.js'
 import {
   dequeue,
   dequeueAllMatching,
@@ -65,15 +66,19 @@ export function processQueueIfReady({
     return { processed: false }
   }
 
-  // Slash commands and bash-mode commands are processed individually.
-  // Bash commands need per-command error isolation, exit codes, and progress UI.
-  if (isSlashCommand(next) || next.mode === 'bash') {
+  // Slash commands, bash commands, and prompt-like operator steering should all
+  // advance one item at a time so queue order stays deterministic.
+  if (
+    isSlashCommand(next) ||
+    next.mode === 'bash' ||
+    isPromptLikeInputMode(next.mode)
+  ) {
     const cmd = dequeue(isMainThread)!
     void executeInput([cmd])
     return { processed: true }
   }
 
-  // Drain all non-slash-command items with the same mode at once.
+  // Drain remaining non-prompt system items with the same mode at once.
   const targetMode = next.mode
   const targetPriority = next.priority
   const targetMidTurnIntent = next.midTurnIntent

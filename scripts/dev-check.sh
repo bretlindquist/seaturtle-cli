@@ -85,6 +85,7 @@ bun scripts/attachment_input_prompt_selftest.ts >/dev/null
 bun scripts/openai_runtime_prompt_selftest.ts >/dev/null
 bun scripts/interrupt_draft_priority_selftest.ts >/dev/null
 bun scripts/queued_prompt_edit_selftest.ts >/dev/null
+bun scripts/queue_single_step_selftest.ts >/dev/null
 bun scripts/queued_pasted_text_expansion_selftest.ts >/dev/null
 bun scripts/command_menu_surface_selftest.ts >/dev/null
 bun scripts/onboarding_flow_selftest.ts >/dev/null

@@ -240,10 +240,16 @@ export function partitionQueuedCommandsForBoundary(
 } {
   const attachNow: QueuedCommand[] = []
   const leaveQueued: QueuedCommand[] = []
+  let consumedPromptLike = false
 
   for (const cmd of queuedCommands) {
     if (!isPromptLikeInputMode(cmd.mode)) {
       attachNow.push(cmd)
+      continue
+    }
+
+    if (consumedPromptLike) {
+      leaveQueued.push(cmd)
       continue
     }
 
@@ -258,6 +264,7 @@ export function partitionQueuedCommandsForBoundary(
       result?.classification === 'append_to_task'
     ) {
       attachNow.push(cmd)
+      consumedPromptLike = true
       continue
     }
 
