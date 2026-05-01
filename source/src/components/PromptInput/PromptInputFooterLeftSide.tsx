@@ -269,9 +269,9 @@ function formatHeartbeatValue(snapshot: WorkflowRuntimeSnapshot): string {
     return 'off'
   }
 
-  return formatDuration(snapshot.heartbeatIntervalMs, {
+  return `on (${formatDuration(snapshot.heartbeatIntervalMs, {
     mostSignificantOnly: true,
-  })
+  })})`
 }
 
 function formatSwarmValue(snapshot: WorkflowRuntimeSnapshot): string {
@@ -486,41 +486,35 @@ function ModeIndicator({
   />;
   const workflowPhasePart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
     key="workflow-phase"
-    label="Workflow"
+    label="Phase"
     value={workflowRuntime.workflowPhase}
     focused={false}
   /> : null;
-  const autoworkPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+  const autoworkPart = <FooterControl
     key="workflow-autowork"
     label="Autowork"
     value={workflowRuntime.autoworkActive ? 'on' : 'off'}
     focused={false}
-  /> : null;
-  const heartbeatPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+  />;
+  const heartbeatPart = <FooterControl
     key="workflow-heartbeat"
     label="Heartbeat"
     value={formatHeartbeatValue(workflowRuntime)}
     focused={false}
-  /> : null;
-  const swarmPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+  />;
+  const swarmPart = <FooterControl
     key="workflow-swarm"
     label="Swarm"
     value={formatSwarmValue(workflowRuntime)}
     focused={false}
-  /> : null;
+  />;
   const assistValue = shouldShowWorkflowRuntime(workflowRuntime) ? formatAssistValue(workflowRuntime) : null;
-  const assistPart = assistValue ? <FooterControl
-    key="workflow-assist"
-    label="Assist"
-    value={assistValue}
-    focused={false}
-  /> : null;
-  const cloudPart = shouldShowWorkflowRuntime(workflowRuntime) ? <FooterControl
+  const cloudPart = <FooterControl
     key="workflow-cloud"
     label="Cloud"
     value={formatCloudValue(workflowRuntime)}
     focused={false}
-  /> : null;
+  />;
   const controlHint = shouldShowModeHint ? (
     <Text dimColor key="control-hint">
       <KeyboardShortcutHint
@@ -534,19 +528,12 @@ function ModeIndicator({
 
   // Build parts array - exclude BackgroundTaskStatus when we have teammate pills
   // (teammate pills get their own row)
-  const parts = [
+  const primaryParts = [
   ...(executionPart ? [executionPart] : []),
   ...(modePart ? [modePart] : []),
   providerModelPart,
   ...(providerEffortPart ? [providerEffortPart] : []),
   workingDirectoryPart,
-  ...(workflowPhasePart ? [workflowPhasePart] : []),
-  ...(autoworkPart ? [autoworkPart] : []),
-  ...(heartbeatPart ? [heartbeatPart] : []),
-  ...(assistPart ? [assistPart] : []),
-  ...(swarmPart ? [swarmPart] : []),
-  ...(cloudPart ? [cloudPart] : []),
-  ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : []),
   // Remote session indicator
   ...(remoteSessionUrl ? [<Link url={remoteSessionUrl} key="remote">
             <Text color="ide">{figures.circleDouble} remote</Text>
@@ -563,14 +550,25 @@ function ModeIndicator({
 
   // Get hint parts separately for potential second-line rendering
   const hintParts = [ ...(controlHint ? [controlHint] : []), ...(showHint ? getSpinnerHintParts(isLoading, escShortcut, todosShortcut, killAgentsShortcut, hasTaskItems, expandedView, hasAnyInProcessTeammates, hasRunningAgentTasks, isKillAgentsConfirmShowing) : []) ];
+  const runtimeParts = [
+  ...(workflowPhasePart ? [workflowPhasePart] : []),
+  autoworkPart,
+  heartbeatPart,
+  ...(assistValue ? [<FooterControl
+            key="workflow-assist"
+            label="Assist"
+            value={assistValue}
+            focused={false}
+          />] : []),
+  swarmPart,
+  cloudPart,
+  ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : [])];
   if (isViewingCompletedTeammate) {
-    parts.push(<Text dimColor key="esc-return">
+    hintParts.push(<Text dimColor key="esc-return">
         <KeyboardShortcutHint shortcut={escShortcut} action="return to team lead" />
       </Text>);
   } else if ((feature('PROACTIVE') || feature('KAIROS')) && hasNextTick) {
-    parts.push(<ProactiveCountdown key="proactive" />);
-  } else if (!hasTeammatePills && showHint) {
-    parts.push(...hintParts);
+    hintParts.push(<ProactiveCountdown key="proactive" />);
   }
 
   // When we have teammate pills, always render them on their own line above other parts
@@ -579,12 +577,9 @@ function ModeIndicator({
         <Box>
           <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} />
         </Box>
-        {parts.length > 0 && <Box>
-            <Byline>{parts}</Byline>
-          </Box>}
-        {hintParts.length > 0 && <Box>
-            <Text dimColor wrap="truncate">
-              <Byline>{hintParts}</Byline>
+        {(primaryParts.length > 0 || runtimeParts.length > 0 || hintParts.length > 0) && <Box>
+            <Text wrap="truncate">
+              <Byline>{[...primaryParts, ...runtimeParts, ...hintParts]}</Byline>
             </Text>
           </Box>}
       </Box>;
@@ -598,7 +593,7 @@ function ModeIndicator({
   // reconciler throws on Box-in-Text. Computed here so the empty-checks
   // below still treat "pill present" as non-empty.
   const tasksPart = hasBackgroundTasks && !hasTeammatePills && !shouldHideTasksFooter(tasks, showSpinnerTree) ? <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} /> : null;
-  if (parts.length === 0 && !tasksPart && !modePart && showHint) {
+  if (primaryParts.length === 0 && runtimeParts.length === 0 && !tasksPart && !modePart && showHint) {
     hintParts.push(<Text dimColor key="shortcuts-hint">
         ? for shortcuts
       </Text>);
@@ -614,7 +609,7 @@ function ModeIndicator({
   // Warmup hint takes priority — when the user is actively holding
   // the activation key, show feedback regardless of other hints.
   if (feature('VOICE_MODE') && voiceEnabled && voiceWarmingUp) {
-    parts.push(<VoiceWarmupHint key="voice-warmup" />);
+    runtimeParts.push(<VoiceWarmupHint key="voice-warmup" />);
   } else if (isFullscreenEnvEnabled() && selectionHintHasContent) {
     // xterm.js (VS Code/Cursor/Windsurf) force-selection modifier is
     // platform-specific and gated on macOS (SelectionService.shouldForceSelection):
@@ -628,13 +623,13 @@ function ModeIndicator({
     // while hasSelection is true (set pre-drag, cleared with selection).
     const isMac = getPlatform() === 'macos';
     const altClickFailed = isMac && (selGetState()?.lastPressHadAlt ?? false);
-    parts.push(<Text dimColor key="selection-copy">
+    hintParts.push(<Text dimColor key="selection-copy">
         <Byline>
           {!copyOnSelect && <KeyboardShortcutHint shortcut="ctrl+c" action="copy" />}
           {isXtermJs() && (altClickFailed ? <Text>set macOptionClickForcesSelection in VS Code settings</Text> : <KeyboardShortcutHint shortcut={isMac ? 'option+click' : 'shift+click'} action="native select" />)}
         </Byline>
       </Text>);
-  } else if (feature('VOICE_MODE') && parts.length > 0 && showHint && voiceEnabled && voiceState === 'idle' && hintParts.length === 0 && voiceHintUnderCap) {
+  } else if (feature('VOICE_MODE') && (primaryParts.length > 0 || runtimeParts.length > 0) && showHint && voiceEnabled && voiceState === 'idle' && hintParts.length === 0 && voiceHintUnderCap) {
     hintParts.push(<Text dimColor key="voice-hint">
         hold {voiceKeyShortcut} to speak
       </Text>);
@@ -653,23 +648,23 @@ function ModeIndicator({
   // part (e.g. the selection copy/native-select hints) grow the column
   // from 0→1 row. Always render 1 row in fullscreen; return a space when
   // empty so Yoga reserves the row without painting anything visible.
-  if (parts.length === 0 && hintParts.length === 0 && !tasksPart && !modePart) {
+  if (primaryParts.length === 0 && runtimeParts.length === 0 && hintParts.length === 0 && !tasksPart && !modePart) {
     return isFullscreenEnvEnabled() ? <Text> </Text> : null;
   }
 
   return <Box flexDirection="column">
-      {(tasksPart || parts.length > 0) && <Box height={1} overflow="hidden">
+      {(tasksPart || primaryParts.length > 0) && <Box height={1} overflow="hidden">
           {tasksPart && <Box flexShrink={0}>
               {tasksPart}
-              {parts.length > 0 && <Text dimColor> · </Text>}
+              {primaryParts.length > 0 && <Text dimColor> · </Text>}
             </Box>}
-          {parts.length > 0 && <Text wrap="truncate">
-              <Byline>{parts}</Byline>
+          {primaryParts.length > 0 && <Text wrap="truncate">
+              <Byline>{primaryParts}</Byline>
             </Text>}
         </Box>}
-      {hintParts.length > 0 && <Box height={1} overflow="hidden">
-          <Text dimColor wrap="truncate">
-            <Byline>{hintParts}</Byline>
+      {(runtimeParts.length > 0 || hintParts.length > 0) && <Box height={1} overflow="hidden">
+          <Text wrap="truncate">
+            <Byline>{[...runtimeParts, ...hintParts]}</Byline>
           </Text>
         </Box>}
     </Box>;

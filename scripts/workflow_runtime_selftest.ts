@@ -80,6 +80,16 @@ function run(): void {
   )
   assert.match(
     footerSource,
+    /label="Autowork"/,
+    'expected the footer to surface autowork state explicitly on the runtime row',
+  )
+  assert.match(
+    footerSource,
+    /label="Heartbeat"/,
+    'expected the footer to surface heartbeat state explicitly on the runtime row',
+  )
+  assert.match(
+    footerSource,
     /function formatCloudValue/,
     'expected the footer to format cloud offload state through a dedicated value helper',
   )
