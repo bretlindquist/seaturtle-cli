@@ -229,6 +229,8 @@ export function useReplQueryController({
           proactiveActive:
             (feature('PROACTIVE') || feature('KAIROS')) &&
             !!proactiveModule?.isProactiveActive(),
+          currentInput: input ?? '',
+          workflowRuntime: store.getState().workflowRuntime,
         });
       queryCheckpoint('query_context_loading_end');
 

@@ -5,6 +5,13 @@ import type {
   ToolUseContext,
 } from '../../Tool.js';
 import type { EffortValue } from '../../utils/effort.js';
+import {
+  projectSystemContextForAutoworkProfile,
+  projectSystemPromptForAutoworkProfile,
+  projectUserContextForAutoworkProfile,
+  resolveAutoworkPromptProfile,
+} from '../../services/autowork/promptProfile.js';
+import type { WorkflowRuntimeSnapshot } from '../../services/projectIdentity/workflowRuntime.js';
 
 type UserContext = Record<string, unknown>;
 type SystemContext = Record<string, unknown>;
@@ -24,6 +31,8 @@ export async function loadReplQueryRuntimeContext({
   getScratchpadDir,
   terminalFocused,
   proactiveActive,
+  currentInput,
+  workflowRuntime,
 }: {
   toolUseContext: ToolUseContext
   effort: EffortValue | undefined
@@ -47,11 +56,17 @@ export async function loadReplQueryRuntimeContext({
   getScratchpadDir: () => string
   terminalFocused: boolean
   proactiveActive: boolean
+  currentInput: string
+  workflowRuntime?: WorkflowRuntimeSnapshot | null
 }) {
   const {
     tools: freshTools,
     mcpClients: freshMcpClients,
   } = toolUseContext.options;
+  const autoworkPromptProfile = resolveAutoworkPromptProfile({
+    currentInput,
+    workflowRuntime,
+  })
 
   if (effort !== undefined) {
     const previousGetAppState = toolUseContext.getAppState;
@@ -81,26 +96,37 @@ export async function loadReplQueryRuntimeContext({
       getSystemContext(),
     ]);
 
-  const userContext = {
-    ...baseUserContext,
-    ...getCoordinatorUserContext(
-      freshMcpClients,
-      isScratchpadEnabled() ? getScratchpadDir() : undefined,
-    ),
-    ...((feature('PROACTIVE') || feature('KAIROS')) &&
-    proactiveActive &&
-    !terminalFocused
-      ? {
-          terminalFocus:
-            'The terminal is unfocused — the user is not actively watching.',
-        }
-      : {}),
-  };
+  const userContext = projectUserContextForAutoworkProfile(
+    autoworkPromptProfile,
+    {
+      ...baseUserContext,
+      ...getCoordinatorUserContext(
+        freshMcpClients,
+        isScratchpadEnabled() ? getScratchpadDir() : undefined,
+      ),
+      ...((feature('PROACTIVE') || feature('KAIROS')) &&
+      proactiveActive &&
+      !terminalFocused
+        ? {
+            terminalFocus:
+              'The terminal is unfocused — the user is not actively watching.',
+          }
+        : {}),
+    },
+  );
+  const projectedSystemContext = projectSystemContextForAutoworkProfile(
+    autoworkPromptProfile,
+    systemContext,
+  );
+  const projectedDefaultSystemPrompt = projectSystemPromptForAutoworkProfile(
+    autoworkPromptProfile,
+    defaultSystemPrompt as string[],
+  );
 
   return {
-    defaultSystemPrompt,
+    defaultSystemPrompt: projectedDefaultSystemPrompt,
     userContext,
-    systemContext,
+    systemContext: projectedSystemContext,
   };
 }
 
