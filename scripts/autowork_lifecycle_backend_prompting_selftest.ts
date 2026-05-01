@@ -35,8 +35,8 @@ function run(): void {
   )
   assert.match(
     runnerSource,
-    /cloudOffloadActive: hasActiveCloudOffload\(/,
-    'expected lifecycle backend prompting to preserve cloud-offload precedence when the offload path is already active',
+    /cloudOffloadActive: activeSupervisedRun\?\.kind === 'cloud-offload'/,
+    'expected lifecycle backend prompting to preserve cloud-offload precedence through the shared supervision authority',
   )
 }
 

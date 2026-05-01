@@ -57,13 +57,13 @@ function run(): void {
   const runnerSource = read(projectRoot, 'source/src/services/autowork/runner.ts')
   assert.match(
     runnerSource,
-    /function hasActiveLocalLifecycleSwarm/,
-    'expected the runner to guard against starting a second local lifecycle worker while one is already authoritative',
+    /inspectActiveSupervisedAutoworkRun\(/,
+    'expected the runner to guard against starting a second local lifecycle worker through the shared supervision authority seam',
   )
   assert.match(
-    runnerSource,
-    /local-swarm lifecycle run/,
-    'expected the runner guard to explain the active local lifecycle worker truthfully',
+    read(projectRoot, 'source/src/services/autowork/supervisionAuthority.ts'),
+    /active local-swarm lifecycle run/,
+    'expected the shared supervision authority to explain the active local lifecycle worker truthfully',
   )
 }
 

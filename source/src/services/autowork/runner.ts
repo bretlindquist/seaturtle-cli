@@ -67,6 +67,10 @@ import {
   type AutoworkRuntimeWindow,
   resolveAutoworkRuntimeWindow,
 } from './runtimeWindow.js'
+import {
+  getSupervisedAutoworkGuardMessage,
+  inspectActiveSupervisedAutoworkRun,
+} from './supervisionAuthority.js'
 
 const AUTOWORK_BASH_TIMEOUT_MS = 30 * 60 * 1000
 
@@ -994,38 +998,6 @@ function syncAutoworkVerificationComplete(
   )
 }
 
-function getActiveCloudOffloadGuardMessage(
-  entryPoint: AutoworkEntryPoint,
-): string {
-  return [
-    'Autowork already has an active background cloud-offload run for this workstream.',
-    '',
-    `Next: inspect /tasks for the remote autowork task, use /${entryPoint} status for workflow truth, or stop the cloud run before starting local execution here.`,
-  ].join('\n')
-}
-
-function getActiveLocalLifecycleSwarmGuardMessage(
-  entryPoint: AutoworkEntryPoint,
-): string {
-  return [
-    'Autowork already has an active local-swarm lifecycle run for this workstream.',
-    '',
-    `Next: inspect /tasks for the lifecycle worker, use /${entryPoint} status for workflow truth, or stop the local swarm task before starting another local autowork run here.`,
-  ].join('\n')
-}
-
-function hasActiveCloudOffload(workflow: ReturnType<typeof peekActiveWorkstream>): boolean {
-  return workflow?.packets.execution.swarmBackend === 'cloud'
-    && workflow.packets.execution.swarmActive === true
-}
-
-function hasActiveLocalLifecycleSwarm(
-  workflow: ReturnType<typeof peekActiveWorkstream>,
-): boolean {
-  return workflow?.packets.execution.swarmBackend === 'local'
-    && workflow.packets.execution.swarmActive === true
-}
-
 export async function inspectAndSelectAutoworkMode(
   planPath: string | null,
 ): Promise<AutoworkStartupContext> {
@@ -1142,19 +1114,19 @@ export async function prepareAutoworkSafeExecution(
     return { ok: false, message: 'Autowork requires a git repository.' }
   }
 
+  const activeSupervisedRun = await inspectActiveSupervisedAutoworkRun(
+    context.repoRoot,
+  )
+  if (activeSupervisedRun) {
+    return {
+      ok: false,
+      message: getSupervisedAutoworkGuardMessage(
+        entryPoint,
+        activeSupervisedRun,
+      ),
+    }
+  }
   const workflow = peekActiveWorkstream(context.repoRoot)
-  if (hasActiveCloudOffload(workflow)) {
-    return {
-      ok: false,
-      message: getActiveCloudOffloadGuardMessage(entryPoint),
-    }
-  }
-  if (hasActiveLocalLifecycleSwarm(workflow)) {
-    return {
-      ok: false,
-      message: getActiveLocalLifecycleSwarmGuardMessage(entryPoint),
-    }
-  }
   const runtimeWindow = resolveAutoworkRuntimeWindow(
     workflow?.packets.execution ?? null,
     { requestedTimeBudgetMs },
@@ -1206,9 +1178,7 @@ export async function prepareAutoworkSafeExecution(
         heartbeatEnabled: runtimeWindow.heartbeatEnabled,
         timeBudgetMs: runtimeWindow.timeBudgetMs,
         deadlineAt: runtimeWindow.deadlineAt,
-        cloudOffloadActive: hasActiveCloudOffload(
-          peekActiveWorkstream(context.repoRoot),
-        ),
+        cloudOffloadActive: activeSupervisedRun?.kind === 'cloud-offload',
       },
     )
     const prompt = buildAutoworkLifecyclePrompt(
@@ -1383,17 +1353,16 @@ export async function verifyAutoworkSafeExecution(
   if (!context.repoRoot) {
     return { ok: false, message: 'Autowork requires a git repository.' }
   }
-  const workflow = peekActiveWorkstream(context.repoRoot)
-  if (hasActiveCloudOffload(workflow)) {
+  const activeSupervisedRun = await inspectActiveSupervisedAutoworkRun(
+    context.repoRoot,
+  )
+  if (activeSupervisedRun) {
     return {
       ok: false,
-      message: getActiveCloudOffloadGuardMessage(entryPoint),
-    }
-  }
-  if (hasActiveLocalLifecycleSwarm(workflow)) {
-    return {
-      ok: false,
-      message: getActiveLocalLifecycleSwarmGuardMessage(entryPoint),
+      message: getSupervisedAutoworkGuardMessage(
+        entryPoint,
+        activeSupervisedRun,
+      ),
     }
   }
 
