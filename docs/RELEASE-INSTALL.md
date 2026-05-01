@@ -99,11 +99,11 @@ Release sequence:
 There are two supported trigger paths:
 
 - tag push:
-  - `git tag v1.13`
-  - `git push origin v1.13`
+  - `git tag v1.14`
+  - `git push origin v1.14`
 - manual dispatch:
-  - GitHub Actions UI: run `Release Artifacts` with `tag=v1.13`
-  - or CLI: `gh workflow run release-artifacts.yml -f tag=v1.13`
+  - GitHub Actions UI: run `Release Artifacts` with `tag=v1.14`
+  - or CLI: `gh workflow run release-artifacts.yml -f tag=v1.14`
 
 The workflow builds both matrix targets:
 

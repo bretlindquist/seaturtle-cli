@@ -1,5 +1,11 @@
 # SeaTurtle Changelog
 
+## 1.14 - 2026-05-02
+
+- Hardened autowork persistence and orchestration so continuation, launch authority, execution authority, footer runtime state, and supervised local/cloud run truth all come from tighter shared seams instead of split per-path behavior.
+- Fixed high-visibility operator regressions around queue progression, long-session resume/recovery, OpenAI/Codex status identity, and provider transport/reset messaging while expanding the validation surface around those seams.
+- Continued maturing shipped remote and Windows release lanes, including the supervised cloud/offload path, release workflow verification, and the next Windows GitHub-release artifact checkpoint.
+
 ## 1.13 - 2026-04-27
 
 - Made macOS image paste handling stricter by probing the real clipboard image path before trusting bracketed-paste text fallback, which fixes cases where pasted screenshots with OCR-readable text were being treated as plain pasted text instead of `[Image #N]` attachments.

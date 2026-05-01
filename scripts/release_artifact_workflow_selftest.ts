@@ -53,7 +53,7 @@ assert(
   'expected README to mention the Windows GitHub-release updater path',
 )
 assert(
-  releaseInstallDoc.includes('gh workflow run release-artifacts.yml -f tag=v1.13'),
+  releaseInstallDoc.includes('gh workflow run release-artifacts.yml -f tag=v1.14'),
   'expected release install doc to describe the manual GitHub Actions dispatch path',
 )
 assert(

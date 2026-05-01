@@ -8,8 +8,8 @@ import {
   normalizeSeaTurtleReleaseVersionTag,
 } from '../source/src/utils/githubReleaseInstall.js'
 
-assert.equal(normalizeSeaTurtleReleaseVersionTag('1.13'), 'v1.13')
-assert.equal(normalizeSeaTurtleReleaseVersionTag('v1.13'), 'v1.13')
+assert.equal(normalizeSeaTurtleReleaseVersionTag('1.14'), 'v1.14')
+assert.equal(normalizeSeaTurtleReleaseVersionTag('v1.14'), 'v1.14')
 assert.equal(
   getSeaTurtleReleaseAssetName('darwin-arm64'),
   'seaturtle-darwin-arm64.tar.gz',
