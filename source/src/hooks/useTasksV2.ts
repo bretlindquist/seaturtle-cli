@@ -17,6 +17,70 @@ const HIDE_DELAY_MS = 5000
 const DEBOUNCE_MS = 50
 const FALLBACK_POLL_MS = 5000 // Fallback in case fs.watch misses events
 
+function metadataEqual(
+  left: Record<string, unknown> | undefined,
+  right: Record<string, unknown> | undefined,
+): boolean {
+  if (left === right) return true
+  if (!left || !right) return left === right
+  const leftKeys = Object.keys(left)
+  const rightKeys = Object.keys(right)
+  if (leftKeys.length !== rightKeys.length) return false
+  for (const key of leftKeys) {
+    if (!(key in right)) return false
+    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) {
+      return false
+    }
+  }
+  return true
+}
+
+export function areTasksEquivalent(
+  left: Task | undefined,
+  right: Task | undefined,
+): boolean {
+  if (!left || !right) return left === right
+  if (
+    left.id !== right.id ||
+    left.subject !== right.subject ||
+    left.description !== right.description ||
+    left.activeForm !== right.activeForm ||
+    left.owner !== right.owner ||
+    left.status !== right.status
+  ) {
+    return false
+  }
+
+  if (
+    left.blocks.length !== right.blocks.length ||
+    left.blockedBy.length !== right.blockedBy.length
+  ) {
+    return false
+  }
+  for (let i = 0; i < left.blocks.length; i++) {
+    if (left.blocks[i] !== right.blocks[i]) return false
+  }
+  for (let i = 0; i < left.blockedBy.length; i++) {
+    if (left.blockedBy[i] !== right.blockedBy[i]) return false
+  }
+
+  return metadataEqual(left.metadata, right.metadata)
+}
+
+export function areTaskListsEquivalent(
+  left: Task[] | undefined,
+  right: Task[],
+): boolean {
+  if (left === right) return true
+  if (!left || left.length !== right.length) return false
+  for (let i = 0; i < left.length; i++) {
+    if (!areTasksEquivalent(left[i], right[i])) {
+      return false
+    }
+  }
+  return true
+}
+
 /**
  * Singleton store for the TodoV2 task list. Owns the file watcher, timers,
  * and cached task list. Multiple hook instances (REPL, Spinner,
@@ -118,13 +182,21 @@ class TasksV2Store {
     const current = (await listTasks(taskListId)).filter(
       t => !t.metadata?._internal,
     )
-    this.#tasks = current
+    const prevTasks = this.#tasks
+    const prevHidden = this.#hidden
+    const nextHiddenBase = current.length === 0
+    const nextHasIncomplete = current.some(t => t.status !== 'completed')
+    const tasksChanged = !areTaskListsEquivalent(prevTasks, current)
 
-    const hasIncomplete = current.some(t => t.status !== 'completed')
+    if (tasksChanged) {
+      this.#tasks = current
+    }
+
+    const hasIncomplete = nextHasIncomplete
 
     if (hasIncomplete || current.length === 0) {
       // Has unresolved tasks (open/in_progress) or empty — reset hide state
-      this.#hidden = current.length === 0
+      this.#hidden = nextHiddenBase
       this.#clearHideTimer()
     } else if (this.#hideTimer === null && !this.#hidden) {
       // All tasks just became completed — schedule clear
@@ -135,7 +207,9 @@ class TasksV2Store {
       this.#hideTimer.unref()
     }
 
-    this.#notify()
+    if (tasksChanged || this.#hidden !== prevHidden) {
+      this.#notify()
+    }
 
     // Schedule fallback poll only when there are incomplete tasks that
     // need monitoring. When all tasks are completed (or there are none),
@@ -162,12 +236,15 @@ class TasksV2Store {
       const allStillCompleted =
         tasksToCheck.length > 0 &&
         tasksToCheck.every(t => t.status === 'completed')
+      const prevHidden = this.#hidden
       if (allStillCompleted) {
         await resetTaskList(currentId)
         this.#tasks = []
         this.#hidden = true
       }
-      this.#notify()
+      if (allStillCompleted || this.#hidden !== prevHidden) {
+        this.#notify()
+      }
     })
   }
 

@@ -130,6 +130,7 @@ bun scripts/worktree_parallel_spawn_selftest.ts >/dev/null
 bun scripts/file_edit_stale_drift_selftest.ts >/dev/null
 bun scripts/agent_worktree_result_notice_selftest.ts >/dev/null
 bun scripts/task_output_retention_selftest.ts >/dev/null
+bun scripts/tasks_v2_snapshot_stability_selftest.ts >/dev/null
 bun scripts/resume_oom_loader_selftest.ts >/dev/null
 bun scripts/resume_cross_project_lookup_selftest.ts >/dev/null
 bun scripts/autowork_plan_resolution_selftest.ts >/dev/null
