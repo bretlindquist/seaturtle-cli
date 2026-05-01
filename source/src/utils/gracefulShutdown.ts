@@ -12,8 +12,10 @@ import {
 } from '../bootstrap/state.js'
 import instances from '../ink/instances.js'
 import {
+  CURSOR_LEFT,
   DISABLE_KITTY_KEYBOARD,
   DISABLE_MODIFY_OTHER_KEYS,
+  eraseToEndOfScreen,
 } from '../ink/termio/csi.js'
 import {
   DBP,
@@ -172,9 +174,9 @@ function printResumeHint(): void {
 
       writeSync(
         1,
-        chalk.dim(
+        `${CURSOR_LEFT}${eraseToEndOfScreen()}${chalk.dim(
           `\nResume this session with:\nct --resume ${resumeArg}\n`,
-        ),
+        )}`,
       )
       resumeHintPrinted = true
     } catch {

@@ -73,6 +73,7 @@ bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/footer_two_line_runtime_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
 bun scripts/startup_sigint_selftest.ts >/dev/null
+bun scripts/graceful_shutdown_resume_hint_selftest.ts >/dev/null
 bun scripts/remindme_reply_notice_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_surface_selftest.ts >/dev/null
 bun scripts/source_wrapper_update_command_selftest.ts >/dev/null
