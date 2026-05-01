@@ -15,6 +15,7 @@ import type {
 } from '../types/textInputTypes.js'
 import type { PastedContent } from './config.js'
 import { extractTextContent } from './messages.js'
+import { isDisallowedMetaPrompt } from './metaPromptGuard.js'
 import { recordQueueOperation } from './sessionStorage.js'
 import { createSignal } from './signal.js'
 
@@ -146,6 +147,14 @@ export function resumeQueueAutoProcessing(): void {
  * Defaults priority to 'next' (processed before task notifications).
  */
 export function enqueue(command: QueuedCommand): void {
+  if (
+    command.isMeta &&
+    (command.mode === 'prompt' || command.mode === 'bash') &&
+    typeof command.value === 'string' &&
+    isDisallowedMetaPrompt(command.value)
+  ) {
+    return
+  }
   autoProcessingHalted = false
   commandQueue.push({ ...command, priority: command.priority ?? 'next' })
   notifySubscribers()
@@ -161,6 +170,14 @@ export function enqueue(command: QueuedCommand): void {
  * is never starved by system messages.
  */
 export function enqueuePendingNotification(command: QueuedCommand): void {
+  if (
+    command.isMeta &&
+    (command.mode === 'prompt' || command.mode === 'bash') &&
+    typeof command.value === 'string' &&
+    isDisallowedMetaPrompt(command.value)
+  ) {
+    return
+  }
   autoProcessingHalted = false
   commandQueue.push({ ...command, priority: command.priority ?? 'later' })
   notifySubscribers()

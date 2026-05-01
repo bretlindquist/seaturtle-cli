@@ -8,6 +8,7 @@ import type { Message as MessageType } from '../../types/message.js';
 import { createUserMessage } from '../../utils/messages.js';
 import { errorMessage } from '../../utils/errors.js';
 import { logForDebugging } from '../../utils/debug.js';
+import { isDisallowedMetaPrompt } from '../../utils/metaPromptGuard.js';
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js';
 import { appendMessageToLocalAgent, isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js';
 import { injectUserMessageToTeammate, type InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js';
@@ -82,6 +83,9 @@ export function useIncomingSubmissions({
   const handleIncomingPrompt = useCallback((content: string, options?: {
     isMeta?: boolean
   }): boolean => {
+    if (options?.isMeta && isDisallowedMetaPrompt(content)) {
+      return false;
+    }
     if (queryIsActive()) return false;
     if (getCommandQueue().some(cmd => isPromptLikeInputMode(cmd.mode) || cmd.mode === 'bash')) {
       return false;
