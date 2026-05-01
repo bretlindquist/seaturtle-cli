@@ -6,6 +6,7 @@ import {
   subscribeToCommandQueue,
 } from '../utils/messageQueueManager.js'
 import type { QueryGuard } from '../utils/QueryGuard.js'
+import { enqueueAutoworkContinuationIfNeeded } from '../services/autowork/continuationAuthority.js'
 import { processQueueIfReady } from '../utils/queueProcessor.js'
 
 type UseQueueProcessorParams = {
@@ -49,8 +50,12 @@ export function useQueueProcessor({
   useEffect(() => {
     if (isQueryActive) return
     if (hasActiveLocalJsxUI) return
-    if (queueSnapshot.length === 0) return
     if (isQueueAutoProcessingHalted()) return
+
+    if (queueSnapshot.length === 0) {
+      void enqueueAutoworkContinuationIfNeeded()
+      return
+    }
 
     // Reservation is now owned by handlePromptSubmit (inside executeUserInput's
     // try block). The sync chain executeQueuedInput → handlePromptSubmit →

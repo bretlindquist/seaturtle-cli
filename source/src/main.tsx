@@ -924,6 +924,7 @@ function parseHeadlessAutoworkInspectionFromArgv(
 ): {
   action: 'status' | 'doctor'
   outputFormat: string | undefined
+  emitWorkflowHandoffStream: boolean
   workflowHandoffFile: string | undefined
   replaceWorkflowHandoff: boolean
 } | null {
@@ -952,6 +953,7 @@ function parseHeadlessAutoworkInspectionFromArgv(
     action: hasDoctor ? 'doctor' : 'status',
     outputFormat:
       outputFormatIndex >= 0 ? argv[outputFormatIndex + 1] : undefined,
+    emitWorkflowHandoffStream: argv.includes('--emit-workflow-handoff-stream'),
     workflowHandoffFile:
       workflowHandoffIndex >= 0 ? argv[workflowHandoffIndex + 1] : undefined,
     replaceWorkflowHandoff: argv.includes('--replace-workflow-handoff'),
@@ -994,6 +996,10 @@ async function run(): Promise<CommanderCommand> {
       await runHeadlessAutoworkInspection(
         earlyHeadlessAutoworkInspection.action,
         earlyHeadlessAutoworkInspection.outputFormat,
+        {
+          emitWorkflowHandoffStream:
+            earlyHeadlessAutoworkInspection.emitWorkflowHandoffStream,
+        },
       )
     } catch (error) {
       const message = errorMessage(error)
@@ -4353,6 +4359,12 @@ async function run(): Promise<CommanderCommand> {
           process.stderr.write('\n');
         }
         const body = result.output || 'Remote autowork inspection completed with no text output.';
+        if (opts.workflowHandoffOutputFile && result.workflowHandoff) {
+          mirrorRemoteAutoworkWorkflowHandoff(
+            opts.workflowHandoffOutputFile,
+            result.workflowHandoff,
+          );
+        }
         if (opts.backgroundStatusFile) {
           writeRemoteAutoworkStatusFile(opts.backgroundStatusFile, {
             success: true,

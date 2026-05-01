@@ -155,7 +155,6 @@ export type AutoworkSafeExecutionLaunch =
       chunkId: string
       visibleMessage: string
       metaMessages: string[]
-      nextInput: string
     }
   | {
       ok: false
@@ -169,7 +168,6 @@ export type AutoworkVerificationResult =
       chunkId: string
       commitSha: string
       nextPendingChunkId: string | null
-      nextInput?: string
     }
   | {
       ok: false
@@ -478,7 +476,7 @@ function buildAutoworkLifecyclePrompt(
         : []
     ),
     '',
-    `When finished, the queued ${nextStep} command will reassess the workflow state and continue from the next correct phase.`,
+    `When finished, SeaTurtle will reassess the workflow state and continue with ${nextStep} if the persisted autowork contract is still active.`,
     '</system-reminder>',
   ]
     .filter((line): line is string => line !== null)
@@ -1225,6 +1223,7 @@ export async function prepareAutoworkSafeExecution(
     updateAutoworkState(
       current => ({
         ...current,
+        entryPoint,
         sourcePlanPath: context.planPath,
         currentChunkId: null,
         currentMode: lifecycleMode,
@@ -1250,10 +1249,9 @@ export async function prepareAutoworkSafeExecution(
         `${getLifecycleStatusText(lifecycleMode)}.`,
         `Plan: ${context.planPath ?? 'none yet'}`,
         `Why: ${context.modeReason}`,
-        `Queued next step: /${entryPoint} run`,
+        `Autowork continuation: /${entryPoint} run`,
       ].join('\n'),
       metaMessages: [prompt],
-      nextInput: `/${entryPoint} run`,
     }
   }
 
@@ -1332,7 +1330,7 @@ export async function prepareAutoworkSafeExecution(
     ...(context.state.runMode === 'dangerous'
       ? formatContinuationDebtLines(launchDebts)
       : []),
-    `Queued next step: /${entryPoint} verify`,
+    `Autowork continuation: /${entryPoint} verify`,
     executionScope === 'plan'
       ? `If verification passes, /${entryPoint} run will continue the remaining approved plan automatically.`
       : 'Step mode will stop after verification.',
@@ -1341,6 +1339,7 @@ export async function prepareAutoworkSafeExecution(
   updateAutoworkState(
     current => ({
       ...current,
+      entryPoint,
       sourcePlanPath: context.planPath,
       sourcePlanRevision: gitCheck.snapshot.headSha,
       currentChunkId: nextChunk.id,
@@ -1373,7 +1372,6 @@ export async function prepareAutoworkSafeExecution(
     chunkId: nextChunk.id,
     visibleMessage,
     metaMessages: [prompt],
-    nextInput: `/${entryPoint} verify`,
   }
 }
 
@@ -1431,6 +1429,7 @@ export async function verifyAutoworkSafeExecution(
       updateAutoworkState(
         current => ({
           ...current,
+          entryPoint,
           currentMode: 'verification',
           lastValidationResult: result,
           continuationDebt: appendUniqueContinuationDebt(
@@ -1593,6 +1592,7 @@ export async function verifyAutoworkSafeExecution(
   updateAutoworkState(
     current => ({
       ...current,
+      entryPoint,
       sourcePlanPath: context.planPath,
       sourcePlanRevision: postCommit.snapshot.headSha,
       currentChunkId: null,
@@ -1680,11 +1680,10 @@ export async function verifyAutoworkSafeExecution(
         ? 'Autowork time budget reached its checkpoint boundary. Start a new window to continue the remaining approved work.'
         : null,
       shouldContinuePlan
-        ? `Queued next step: /${entryPoint} run`
+        ? `Autowork continuation: /${entryPoint} run`
         : context.state.executionScope === 'step' && nextPendingChunkId
           ? `Step mode complete. Use /${entryPoint} run to continue the approved plan, or /${entryPoint} step to execute only one more chunk.`
           : null,
     ].join('\n'),
-    nextInput: shouldContinuePlan ? `/${entryPoint} run` : undefined,
   }
 }

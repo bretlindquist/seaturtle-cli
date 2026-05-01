@@ -13,6 +13,7 @@ export type AutoworkMode =
 
 export type AutoworkRunMode = 'safe' | 'dangerous'
 export type AutoworkExecutionScope = 'plan' | 'step'
+export type AutoworkEntryPoint = 'autowork' | 'swim'
 
 export type AutoworkStartupInspection = {
   branch: string | null
@@ -51,6 +52,7 @@ export type AutoworkStopReason = {
 
 export type AutoworkState = {
   version: 1
+  entryPoint: AutoworkEntryPoint
   selectedPlanPath: string | null
   sourcePlanPath: string | null
   sourcePlanRevision: string | null
@@ -87,6 +89,7 @@ function getDefaultProjectRoot(): string {
 function createDefaultAutoworkState(): AutoworkState {
   return {
     version: 1,
+    entryPoint: 'autowork',
     selectedPlanPath: null,
     sourcePlanPath: null,
     sourcePlanRevision: null,
@@ -269,6 +272,10 @@ function sanitizeExecutionScope(value: unknown): AutoworkExecutionScope {
   return value === 'step' ? 'step' : 'plan'
 }
 
+function sanitizeAutoworkEntryPoint(value: unknown): AutoworkEntryPoint {
+  return value === 'swim' ? 'swim' : 'autowork'
+}
+
 function sanitizeAutoworkState(input: unknown): AutoworkState {
   const defaults = createDefaultAutoworkState()
   if (!input || typeof input !== 'object') {
@@ -278,6 +285,7 @@ function sanitizeAutoworkState(input: unknown): AutoworkState {
   const value = input as Partial<AutoworkState>
   return {
     version: 1,
+    entryPoint: sanitizeAutoworkEntryPoint(value.entryPoint),
     selectedPlanPath:
       typeof value.selectedPlanPath === 'string'
         ? value.selectedPlanPath

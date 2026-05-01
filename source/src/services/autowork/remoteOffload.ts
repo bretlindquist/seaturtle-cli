@@ -15,6 +15,8 @@ import { writeRemoteAutoworkHandoffMirrorFile } from './offloadStatusFile.js'
 
 const DEFAULT_REMOTE_ACTION_TIMEOUT_MS = 60_000
 const AUTOWORK_OFFLOAD_CHILD_ENV = 'SEATURTLE_AUTOWORK_OFFLOAD_CHILD'
+const AUTOWORK_CONTINUATION_ALLOWED_ENV =
+  'SEATURTLE_AUTOWORK_CONTINUATION_ALLOWED'
 const WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV =
   'SEATURTLE_WORKFLOW_HANDOFF_STREAM_INTERVAL_MS'
 
@@ -63,9 +65,8 @@ function buildAutoworkPrompt(action: RemoteAutoworkAction): string {
     case 'verify':
       return `${base} verify`
     case 'status':
-      return `${base} status`
     case 'doctor':
-      return `${base} doctor`
+      return ''
   }
 }
 
@@ -78,15 +79,29 @@ function createSession(
     ? JSON.stringify(workflowHandoff, null, 2)
     : undefined
   const prompt = buildAutoworkPrompt(options.action)
+  const actionCliArgs =
+    options.action.kind === 'status'
+      ? ['--autowork-status']
+      : options.action.kind === 'doctor'
+        ? ['--autowork-doctor']
+        : []
+  const allowContinuation =
+    options.action.kind === 'run' ||
+    options.action.kind === 'step' ||
+    options.action.kind === 'verify'
 
   if (options.local) {
     return createLocalSSHSession({
       cwd: options.cwd,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      extraCliArgs: ['--emit-workflow-handoff-stream'],
+      extraCliArgs: [
+        '--emit-workflow-handoff-stream',
+        ...actionCliArgs,
+      ],
       extraEnv: {
         [AUTOWORK_OFFLOAD_CHILD_ENV]: '1',
+        [AUTOWORK_CONTINUATION_ALLOWED_ENV]: allowContinuation ? '1' : '0',
         [WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV]: '2000',
       },
       prompt,
@@ -109,9 +124,13 @@ function createSession(
       localVersion: options.localVersion,
       permissionMode: options.permissionMode,
       dangerouslySkipPermissions: options.dangerouslySkipPermissions,
-      extraCliArgs: ['--emit-workflow-handoff-stream'],
+      extraCliArgs: [
+        '--emit-workflow-handoff-stream',
+        ...actionCliArgs,
+      ],
       extraEnv: {
         [AUTOWORK_OFFLOAD_CHILD_ENV]: '1',
+        [AUTOWORK_CONTINUATION_ALLOWED_ENV]: allowContinuation ? '1' : '0',
         [WORKFLOW_HANDOFF_STREAM_INTERVAL_ENV]: '2000',
       },
       prompt,

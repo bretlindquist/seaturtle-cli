@@ -44,7 +44,6 @@ import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
 import { isPromptLikeInputMode } from 'src/components/PromptInput/inputModes.js'
 import {
-  dequeue,
   dequeueAllMatching,
   enqueue,
   hasCommandsInQueue,
@@ -53,6 +52,7 @@ import {
   getCommandsByMaxPriority,
 } from 'src/utils/messageQueueManager.js'
 import { dequeueNextExecutionBatch } from 'src/utils/queueProcessor.js'
+import { enqueueAutoworkContinuationIfNeeded } from 'src/services/autowork/continuationAuthority.js'
 import { notifyCommandLifecycle } from 'src/utils/commandLifecycle.js'
 import {
   getSessionState,
@@ -2488,6 +2488,17 @@ function runHeadlessStreaming(
       running = false
       // Start idle timer when we finish processing and are waiting for input
       idleTimeout.start()
+    }
+
+    const shouldAutoContinueAutowork =
+      process.env.SEATURTLE_AUTOWORK_CONTINUATION_ALLOWED === '1'
+
+    if (
+      shouldAutoContinueAutowork &&
+      (await enqueueAutoworkContinuationIfNeeded())
+    ) {
+      void run()
+      return
     }
 
     // Proactive tick: if proactive is active and queue is empty, inject a tick
@@ -5259,7 +5270,7 @@ function getStructuredIO(
  */
 export async function handleOrphanedPermissionResponse({
   message,
-  setAppState,
+  setAppState: _setAppState,
   onEnqueued,
   handledToolUseIds,
 }: {

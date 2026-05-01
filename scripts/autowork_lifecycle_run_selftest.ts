@@ -37,8 +37,8 @@ function run(): void {
   )
   assert.match(
     runnerSource,
-    /nextInput: `\/\$\{entryPoint\} run`/,
-    'expected lifecycle waves to re-enter autowork through the same run loop',
+    /SeaTurtle will reassess the workflow state and continue with \$\{nextStep\}/,
+    'expected lifecycle prompts to describe persisted reassessment instead of raw queued-command chaining',
   )
 
   const inspectionSource = read(

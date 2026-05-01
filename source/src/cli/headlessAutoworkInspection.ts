@@ -2,6 +2,8 @@ import { randomUUID } from 'crypto'
 import { inspectAutoworkHeadless } from '../services/autowork/inspectionSummary.js'
 import { EMPTY_USAGE } from '../services/api/logging.js'
 import { getSessionId } from '../bootstrap/state.js'
+import { getCtProjectRoot } from '../services/projectIdentity/paths.js'
+import { readActiveWorkflowHandoffPacket } from '../services/projectIdentity/workflowState.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 
 async function writeAndExit(
@@ -57,6 +59,9 @@ function buildErrorResult(message: string) {
 export async function runHeadlessAutoworkInspection(
   action: 'status' | 'doctor',
   outputFormat: string | undefined,
+  options: {
+    emitWorkflowHandoffStream?: boolean
+  } = {},
 ): Promise<never> {
   const inspection = await inspectAutoworkHeadless('autowork', action, {
     policyMode: 'early-startup',
@@ -74,6 +79,22 @@ export async function runHeadlessAutoworkInspection(
   }
 
   if (outputFormat === 'stream-json' || outputFormat === 'json') {
+    if (outputFormat === 'stream-json' && options.emitWorkflowHandoffStream) {
+      const handoff = readActiveWorkflowHandoffPacket(getCtProjectRoot())
+      if (handoff) {
+        await new Promise<void>(resolve => {
+          process.stdout.write(
+            jsonStringify({
+              type: 'system',
+              subtype: 'workflow_handoff',
+              workflow_handoff: handoff,
+            }) + '\n',
+            () => resolve(),
+          )
+        })
+      }
+    }
+
     return writeAndExit(
       process.stdout,
       jsonStringify(buildSuccessResult(inspection.message)) + '\n',

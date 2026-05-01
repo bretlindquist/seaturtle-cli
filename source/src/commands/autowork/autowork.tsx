@@ -384,7 +384,6 @@ async function runAutowork(
       message: string
       shouldQuery: boolean
       metaMessages: string[]
-      nextInput: string
     }
   | { ok: false; message: string }
 > {
@@ -460,7 +459,6 @@ async function runAutowork(
             message: launched.message,
             shouldQuery: false,
             metaMessages: [],
-            nextInput: '',
           }
         : { ok: false, message: launched.message }
     }
@@ -483,7 +481,6 @@ async function runAutowork(
             message: launched.message,
             shouldQuery: false,
             metaMessages: [],
-            nextInput: '',
           }
         : { ok: false, message: launched.message }
     }
@@ -534,7 +531,6 @@ async function runAutowork(
         ].join('\n'),
         shouldQuery: false,
         metaMessages: [],
-        nextInput: '',
       }
     }
   }
@@ -546,7 +542,6 @@ async function runAutowork(
     message: [quip, '', launch.visibleMessage].join('\n'),
     shouldQuery: true,
     metaMessages: launch.metaMessages,
-    nextInput: launch.nextInput,
   }
 }
 
@@ -629,7 +624,7 @@ async function setAutoworkRunMode(
 async function verifyAutowork(
   entryPoint: EntryPoint,
 ): Promise<
-  | { ok: true; message: string; nextInput?: string }
+  | { ok: true; message: string }
   | { ok: false; message: string }
 > {
   const resolved = await resolveActiveAutoworkPlanFile()
@@ -765,8 +760,6 @@ function AutoworkMenu({
                   ? {
                       shouldQuery: execution.shouldQuery,
                       metaMessages: execution.metaMessages,
-                      nextInput: execution.nextInput,
-                      submitNextInput: true,
                     }
                   : {}),
               })
@@ -891,8 +884,6 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
               ? {
                   shouldQuery: execution.shouldQuery,
                   metaMessages: execution.metaMessages,
-                  nextInput: execution.nextInput,
-                  submitNextInput: true,
                 }
               : {}),
           }
@@ -916,8 +907,6 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
               ? {
                   shouldQuery: execution.shouldQuery,
                   metaMessages: execution.metaMessages,
-                  nextInput: execution.nextInput,
-                  submitNextInput: true,
                 }
               : {}),
           }
@@ -928,13 +917,7 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
     if (head === 'verify' && !tail) {
       const verification = await verifyAutowork(entryPoint)
       syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
-      onDone(verification.message, verification.ok && verification.nextInput
-        ? {
-            display: 'system',
-            nextInput: verification.nextInput,
-            submitNextInput: true,
-          }
-        : { display: 'system' })
+      onDone(verification.message, { display: 'system' })
       return null
     }
 
