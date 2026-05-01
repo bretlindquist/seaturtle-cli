@@ -8,27 +8,36 @@ function read(root: string, relativePath: string): string {
 
 function run(): void {
   const projectRoot = join(import.meta.dir, '..')
+  const authoritySource = read(
+    projectRoot,
+    'source/src/services/autowork/executionAuthority.ts',
+  )
+  assert.match(
+    authoritySource,
+    /const swarmBackend = swarmActive \? options\.backend : 'none'/,
+    'expected the shared execution authority seam to clear live backend identity whenever no worker is actually active',
+  )
 
   const runnerSource = read(projectRoot, 'source/src/services/autowork/runner.ts')
   assert.match(
     runnerSource,
-    /function syncAutoworkExecutionStarted[\s\S]*swarmBackend: 'none'[\s\S]*swarmActive: false[\s\S]*swarmWorkerCount: 0/,
-    'expected local execution start to record main-thread truth instead of policy-derived swarm state',
+    /function syncAutoworkExecutionStarted[\s\S]*projectAutoworkExecutionAuthority/,
+    'expected local execution start to record main-thread truth through the shared execution authority seam',
   )
   assert.match(
     runnerSource,
-    /function syncAutoworkLifecycleModeStarted[\s\S]*swarmBackend: 'none'[\s\S]*swarmActive: false[\s\S]*swarmWorkerCount: 0/,
-    'expected local lifecycle waves to record main-thread truth instead of policy-derived swarm state',
+    /function syncAutoworkLifecycleModeStarted[\s\S]*projectAutoworkExecutionAuthority/,
+    'expected local lifecycle waves to record main-thread truth through the shared execution authority seam',
   )
   assert.match(
     runnerSource,
-    /function syncAutoworkVerificationBlocked[\s\S]*swarmBackend: 'none'[\s\S]*swarmActive: false[\s\S]*swarmWorkerCount: 0/,
-    'expected verification-blocked state to clear live swarm identity when no actual swarm is active',
+    /function syncAutoworkVerificationBlocked[\s\S]*projectAutoworkExecutionAuthority/,
+    'expected verification-blocked state to clear live swarm identity through the shared execution authority seam',
   )
   assert.match(
     runnerSource,
-    /function syncAutoworkStopped[\s\S]*swarmBackend: 'none'[\s\S]*swarmActive: false[\s\S]*swarmWorkerCount: 0/,
-    'expected stop-state sync to clear live swarm identity instead of preserving policy suggestions',
+    /function syncAutoworkStopped[\s\S]*projectAutoworkExecutionAuthority/,
+    'expected stop-state sync to clear live swarm identity through the shared execution authority seam instead of preserving policy suggestions',
   )
 
   const remoteTaskSource = read(
@@ -37,8 +46,8 @@ function run(): void {
   )
   assert.match(
     remoteTaskSource,
-    /swarmBackend: options\.active \? 'cloud' : 'none'/,
-    'expected cloud offload supervision to keep cloud identity only while the offload is actually active',
+    /syncAutoworkExecutionAuthority/,
+    'expected cloud offload supervision to keep cloud identity only through the shared execution authority seam',
   )
 
   const inspectionSource = read(

@@ -35,8 +35,8 @@ function run(): void {
   )
   assert.match(
     swarmSource,
-    /swarmBackend: options\.active \? 'local' : 'none'/,
-    'expected local lifecycle swarm activity to project truthful local swarm state into workflow execution packets',
+    /syncAutoworkExecutionAuthority/,
+    'expected local lifecycle swarm activity to project truthful local swarm state through the shared execution authority seam',
   )
 
   const commandSource = read(

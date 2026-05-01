@@ -52,8 +52,8 @@ function run(): void {
   )
   assert.match(
     taskSource,
-    /swarmBackend: 'cloud'[\s\S]*swarmActive: true[\s\S]*swarmWorkerCount: 1/,
-    'expected imported workflow progress to reapply the outer cloud-active overlay after each handoff import',
+    /projectAutoworkExecutionAuthority\(/,
+    'expected imported workflow progress to reapply the outer cloud-active overlay through the shared execution authority seam after each handoff import',
   )
 }
 

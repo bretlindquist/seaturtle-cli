@@ -42,6 +42,7 @@ import {
   type AutoworkValidationResult,
   updateAutoworkState,
 } from './state.js'
+import { projectAutoworkExecutionAuthority } from './executionAuthority.js'
 import {
   getAutoworkRunPolicy,
   isAutoworkRelaxableFailureCode,
@@ -699,23 +700,28 @@ function syncAutoworkStopped(
   const now = Date.now()
   const phase = resolveStoppedWorkPhase(repoRoot)
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      phase,
-      updatedAt: now,
-      timeBudgetMs: null,
-      deadlineAt: null,
-      heartbeatEnabled: false,
-      currentActions: [],
-      blockedOn: [phaseReason],
-      nextVerificationSteps: [],
-      stopReason: phaseReason,
-      swarmBackend: 'none',
-      swarmActive: false,
-      swarmWorkerCount: 0,
-      statusText,
-      lastActivityAt: now,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(
+        {
+          ...current,
+          phase,
+          updatedAt: now,
+          timeBudgetMs: null,
+          deadlineAt: null,
+          heartbeatEnabled: false,
+          currentActions: [],
+          blockedOn: [phaseReason],
+          nextVerificationSteps: [],
+          stopReason: phaseReason,
+          statusText,
+        },
+        {
+          backend: 'none',
+          active: false,
+          statusText,
+          lastActivityAt: now,
+        },
+      ),
     repoRoot,
   )
   setActiveWorkstreamPhase(
@@ -785,29 +791,34 @@ function syncAutoworkExecutionStarted(
 ): void {
   const now = Date.now()
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      phase: 'implementation',
-      activeChunkId: chunkId,
-      executionScope,
-      startedAt: now,
-      updatedAt: now,
-      timeBudgetMs: runtimeWindow.timeBudgetMs,
-      deadlineAt: runtimeWindow.deadlineAt,
-      heartbeatEnabled: runtimeWindow.heartbeatEnabled,
-      heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
-      checkpointPolicy: runtimeWindow.checkpointPolicy,
-      currentActions: [`Executing ${chunkId}`],
-      blockedOn: [],
-      nextVerificationSteps: [`/${entryPoint} verify`],
-      continuationDebt: [],
-      stopReason: null,
-      swarmBackend: 'none',
-      swarmActive: false,
-      swarmWorkerCount: 0,
-      statusText: `Executing ${chunkId}`,
-      lastActivityAt: now,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(
+        {
+          ...current,
+          phase: 'implementation',
+          activeChunkId: chunkId,
+          executionScope,
+          startedAt: now,
+          updatedAt: now,
+          timeBudgetMs: runtimeWindow.timeBudgetMs,
+          deadlineAt: runtimeWindow.deadlineAt,
+          heartbeatEnabled: runtimeWindow.heartbeatEnabled,
+          heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
+          checkpointPolicy: runtimeWindow.checkpointPolicy,
+          currentActions: [`Executing ${chunkId}`],
+          blockedOn: [],
+          nextVerificationSteps: [`/${entryPoint} verify`],
+          continuationDebt: [],
+          stopReason: null,
+          statusText: `Executing ${chunkId}`,
+        },
+        {
+          backend: 'none',
+          active: false,
+          statusText: `Executing ${chunkId}`,
+          lastActivityAt: now,
+        },
+      ),
     repoRoot,
   )
   setActiveWorkstreamPhase(
@@ -828,26 +839,31 @@ function syncAutoworkLifecycleModeStarted(
   const phase = getLifecyclePhaseForMode(mode)
   const statusText = getLifecycleStatusText(mode)
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      phase,
-      activeChunkId: null,
-      updatedAt: now,
-      timeBudgetMs: runtimeWindow.timeBudgetMs,
-      deadlineAt: runtimeWindow.deadlineAt,
-      heartbeatEnabled: runtimeWindow.heartbeatEnabled,
-      heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
-      checkpointPolicy: runtimeWindow.checkpointPolicy,
-      currentActions: [statusText],
-      blockedOn: [],
-      nextVerificationSteps: [],
-      stopReason: null,
-      swarmBackend: 'none',
-      swarmActive: false,
-      swarmWorkerCount: 0,
-      statusText,
-      lastActivityAt: now,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(
+        {
+          ...current,
+          phase,
+          activeChunkId: null,
+          updatedAt: now,
+          timeBudgetMs: runtimeWindow.timeBudgetMs,
+          deadlineAt: runtimeWindow.deadlineAt,
+          heartbeatEnabled: runtimeWindow.heartbeatEnabled,
+          heartbeatIntervalMs: runtimeWindow.heartbeatIntervalMs,
+          checkpointPolicy: runtimeWindow.checkpointPolicy,
+          currentActions: [statusText],
+          blockedOn: [],
+          nextVerificationSteps: [],
+          stopReason: null,
+          statusText,
+        },
+        {
+          backend: 'none',
+          active: false,
+          statusText,
+          lastActivityAt: now,
+        },
+      ),
     repoRoot,
   )
   setActiveWorkstreamPhase(
@@ -866,23 +882,28 @@ function syncAutoworkVerificationBlocked(
 ): void {
   const now = Date.now()
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      phase: 'verification',
-      activeChunkId: chunkId,
-      updatedAt: now,
-      timeBudgetMs: null,
-      deadlineAt: null,
-      heartbeatEnabled: false,
-      currentActions: [],
-      blockedOn: [reason],
-      stopReason: reason,
-      swarmBackend: 'none',
-      swarmActive: false,
-      swarmWorkerCount: 0,
-      statusText: `Verification blocked for ${chunkId}`,
-      lastActivityAt: now,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(
+        {
+          ...current,
+          phase: 'verification',
+          activeChunkId: chunkId,
+          updatedAt: now,
+          timeBudgetMs: null,
+          deadlineAt: null,
+          heartbeatEnabled: false,
+          currentActions: [],
+          blockedOn: [reason],
+          stopReason: reason,
+          statusText: `Verification blocked for ${chunkId}`,
+        },
+        {
+          backend: 'none',
+          active: false,
+          statusText: `Verification blocked for ${chunkId}`,
+          lastActivityAt: now,
+        },
+      ),
     repoRoot,
   )
   updateWorkVerificationPacket(
@@ -922,24 +943,31 @@ function syncAutoworkVerificationComplete(
         : `Next approved chunk ${nextPendingChunkId} is ready`
 
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      phase,
-      activeChunkId: null,
-      updatedAt: now,
-      timeBudgetMs: keepRuntimeWindowActive ? current.timeBudgetMs : null,
-      deadlineAt: keepRuntimeWindowActive ? current.deadlineAt : null,
-      heartbeatEnabled: keepRuntimeWindowActive ? current.heartbeatEnabled : false,
-      currentActions: [],
-      blockedOn: [],
-      nextVerificationSteps: [],
-      stopReason: null,
-      swarmBackend: 'none',
-      swarmActive: false,
-      swarmWorkerCount: 0,
-      statusText,
-      lastActivityAt: now,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(
+        {
+          ...current,
+          phase,
+          activeChunkId: null,
+          updatedAt: now,
+          timeBudgetMs: keepRuntimeWindowActive ? current.timeBudgetMs : null,
+          deadlineAt: keepRuntimeWindowActive ? current.deadlineAt : null,
+          heartbeatEnabled: keepRuntimeWindowActive
+            ? current.heartbeatEnabled
+            : false,
+          currentActions: [],
+          blockedOn: [],
+          nextVerificationSteps: [],
+          stopReason: null,
+          statusText,
+        },
+        {
+          backend: 'none',
+          active: false,
+          statusText,
+          lastActivityAt: now,
+        },
+      ),
     repoRoot,
   )
   updateWorkVerificationPacket(

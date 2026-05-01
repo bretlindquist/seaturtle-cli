@@ -29,13 +29,8 @@ function run(): void {
   )
   assert.match(
     source,
-    /swarmBackend:\s*options\.active \? 'local' : 'none'/,
-    'expected local lifecycle restore to clear local swarm backend authority through the same projection seam',
-  )
-  assert.match(
-    source,
-    /statusText:\s*options\.statusText \?\? current\.statusText/,
-    'expected local lifecycle swarm projection to carry explicit restore/interrupt status text',
+    /syncAutoworkExecutionAuthority/,
+    'expected local lifecycle restore to clear local swarm backend authority through the shared execution authority seam',
   )
   assert.match(
     source,

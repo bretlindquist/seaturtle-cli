@@ -27,6 +27,10 @@ import {
   importWorkflowHandoffPacket,
   updateWorkExecutionPacket,
 } from '../../services/projectIdentity/workflowState.js'
+import {
+  projectAutoworkExecutionAuthority,
+  syncAutoworkExecutionAuthority,
+} from '../../services/autowork/executionAuthority.js'
 import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 
 const POLL_INTERVAL_MS = 1_000
@@ -176,18 +180,12 @@ function syncCloudOffloadExecutionState(
     statusText: string
   },
 ): void {
-  updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      swarmBackend: options.active ? 'cloud' : 'none',
-      swarmActive: options.active,
-      swarmWorkerCount: options.active ? 1 : 0,
-      lastActivityAt: Date.now(),
-      statusText: options.statusText,
-    }),
-    root,
-  )
-  syncWorkflowRuntimeState(root, setAppState)
+  syncAutoworkExecutionAuthority(root, setAppState, {
+    backend: 'cloud',
+    active: options.active,
+    workerCount: 1,
+    statusText: options.statusText,
+  })
 }
 
 function getRemoteAutoworkHandoffFile(
@@ -212,17 +210,17 @@ function importRunningWorkflowHandoff(
 
   importWorkflowHandoffPacket(handoff, meta.localCwd)
   updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      swarmBackend: 'cloud',
-      swarmActive: true,
-      swarmWorkerCount: 1,
-      statusText:
-        handoff.packets.execution.statusText ??
-        `Cloud offload running: ${meta.entryPoint} ${meta.action}`,
-      lastActivityAt:
-        handoff.packets.execution.lastActivityAt ?? current.lastActivityAt,
-    }),
+    current =>
+      projectAutoworkExecutionAuthority(current, {
+        backend: 'cloud',
+        active: true,
+        workerCount: 1,
+        statusText:
+          handoff.packets.execution.statusText ??
+          `Cloud offload running: ${meta.entryPoint} ${meta.action}`,
+        lastActivityAt:
+          handoff.packets.execution.lastActivityAt ?? current.lastActivityAt,
+      }),
     meta.localCwd,
   )
   syncWorkflowRuntimeState(meta.localCwd, setAppState)

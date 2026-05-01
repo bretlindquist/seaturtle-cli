@@ -15,7 +15,6 @@ import {
 import { logForDebugging } from '../../utils/debug.js'
 import { registerTask } from '../../utils/task/framework.js'
 import { runAgent } from '../../tools/AgentTool/runAgent.js'
-import { syncWorkflowRuntimeState } from '../../state/workflowRuntimeState.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import {
@@ -25,8 +24,8 @@ import {
   type LocalLifecycleSwarmMetadata,
 } from '../../utils/sessionStorage.js'
 import { createAgentId } from '../../utils/uuid.js'
-import { updateWorkExecutionPacket } from '../projectIdentity/workflowState.js'
 import type { AutoworkBackendPolicy } from './backendPolicy.js'
+import { syncAutoworkExecutionAuthority } from './executionAuthority.js'
 import type { AutoworkEntryPoint } from './runner.js'
 import type { AutoworkMode } from './state.js'
 
@@ -63,18 +62,12 @@ function syncLocalLifecycleSwarmActivity(
     statusText?: string | null
   },
 ): void {
-  updateWorkExecutionPacket(
-    current => ({
-      ...current,
-      swarmBackend: options.active ? 'local' : 'none',
-      swarmActive: options.active,
-      swarmWorkerCount: options.active ? 1 : 0,
-      statusText: options.statusText ?? current.statusText,
-      lastActivityAt: Date.now(),
-    }),
-    repoRoot,
-  )
-  syncWorkflowRuntimeState(repoRoot, setAppState)
+  syncAutoworkExecutionAuthority(repoRoot, setAppState, {
+    backend: 'local',
+    active: options.active,
+    workerCount: 1,
+    statusText: options.statusText ?? null,
+  })
 }
 
 function getLocalLifecycleSwarmEndedStatusText(
