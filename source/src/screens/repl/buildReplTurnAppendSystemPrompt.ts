@@ -1,5 +1,7 @@
 import { getCtConversationPostureResult } from '../../services/projectIdentity/conversationPosture.js';
 import { getCtContextDomainResult } from '../../services/projectIdentity/contextDomain.js';
+import { resolveAutoworkExecutionPosture } from '../../services/autowork/executionPosture.js';
+import type { WorkflowRuntimeSnapshot } from '../../services/projectIdentity/workflowRuntime.js';
 import type { EditablePromptInputMode } from '../../types/textInputTypes.js';
 import { logError } from '../../utils/log.js';
 import { getReplInputModeGuidance } from './replInputModeGuidance.js';
@@ -11,6 +13,7 @@ export function buildReplTurnAppendSystemPrompt({
   recentUserMessages,
   cwd,
   messageCount,
+  workflowRuntime,
 }: {
   appendSystemPrompt: string | undefined
   currentInput: string
@@ -18,15 +21,22 @@ export function buildReplTurnAppendSystemPrompt({
   recentUserMessages: string[]
   cwd: string
   messageCount: number
+  workflowRuntime?: WorkflowRuntimeSnapshot | null
 }) {
   let effectiveAppendSystemPrompt = appendSystemPrompt;
 
   try {
-    const conversationPosture = getCtConversationPostureResult({
+    const autoworkExecutionPosture = resolveAutoworkExecutionPosture({
       currentInput,
-      recentUserMessages,
-      seed: `${cwd}:${currentInput}:${messageCount}`,
+      workflowRuntime,
     });
+    const conversationPosture = autoworkExecutionPosture.active
+      ? null
+      : getCtConversationPostureResult({
+          currentInput,
+          recentUserMessages,
+          seed: `${cwd}:${currentInput}:${messageCount}`,
+        });
     const contextDomain = getCtContextDomainResult({
       cwd,
       currentInput,
@@ -36,7 +46,7 @@ export function buildReplTurnAppendSystemPrompt({
     const turnAddendum = [
       inputModeGuidance,
       contextDomain.addendum,
-      conversationPosture.addendum,
+      autoworkExecutionPosture.addendum ?? conversationPosture?.addendum,
     ]
       .filter(Boolean)
       .join('\n\n');

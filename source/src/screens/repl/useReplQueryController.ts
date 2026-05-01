@@ -239,6 +239,7 @@ export function useReplQueryController({
         recentUserMessages: getRecentUserPromptTexts(messagesIncludingNewMessages),
         cwd: getCwd(),
         messageCount: messagesIncludingNewMessages.length,
+        workflowRuntime: store.getState().workflowRuntime,
       });
 
       const systemPrompt = buildEffectiveSystemPrompt({

@@ -136,6 +136,7 @@ bun scripts/autowork_workflow_plan_parser_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_run_selftest.ts >/dev/null
 bun scripts/autowork_continuation_authority_selftest.ts >/dev/null
 bun scripts/autowork_natural_language_directive_selftest.ts >/dev/null
+bun scripts/autowork_execution_posture_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_delegation_policy_selftest.ts >/dev/null
 bun scripts/autowork_lifecycle_delegation_visibility_selftest.ts >/dev/null
 bun scripts/autowork_local_swarm_executor_foundation_selftest.ts >/dev/null
