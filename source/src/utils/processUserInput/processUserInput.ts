@@ -58,6 +58,7 @@ import {
   hasUltraplanKeyword,
   replaceUltraplanKeyword,
 } from '../ultraplan/keyword.js'
+import { parseAutoworkNaturalLanguageDirective } from '../../services/autowork/naturalLanguageDirective.js'
 import { processTextPrompt } from './processTextPrompt.js'
 import type { EditablePromptInputMode } from '../../types/textInputTypes.js'
 import { isPromptLikeInputMode } from '../../components/PromptInput/inputModes.js'
@@ -496,6 +497,30 @@ async function processUserInputBase(
     const { processSlashCommand } = await import('./processSlashCommand.js')
     const slashResult = await processSlashCommand(
       `/ultraplan ${rewritten}`,
+      precedingInputBlocks,
+      imageContentBlocks,
+      [],
+      context,
+      setToolJSX,
+      uuid,
+      isAlreadyProcessing,
+      canUseTool,
+    )
+    return addImageMetadataMessage(slashResult, imageMetadataTexts)
+  }
+
+  const autoworkDirective =
+    inputString !== null && isPromptLikeInputMode(mode) && !effectiveSkipSlash
+      ? parseAutoworkNaturalLanguageDirective(inputString)
+      : null
+  if (autoworkDirective) {
+    logEvent('tengu_autowork_natural_language_directive', {
+      entry_point:
+        autoworkDirective.entryPoint as AnalyticsMetadata_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS,
+    })
+    const { processSlashCommand } = await import('./processSlashCommand.js')
+    const slashResult = await processSlashCommand(
+      autoworkDirective.slashCommand,
       precedingInputBlocks,
       imageContentBlocks,
       [],

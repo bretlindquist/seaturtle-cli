@@ -221,6 +221,7 @@ When writing or selecting SeaTurtle lines:
 
 - check the current line pool first
 - keep ordinary CT banter distinct from /autowork and /swim launch voice
+- do not claim that /autowork or /swim is active unless the real autowork runtime actually started
 - let the rotating disposition influence the flavor
 - keep the work clearer than the joke
 - prefer warmth and steadiness over cleverness
