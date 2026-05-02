@@ -565,6 +565,7 @@ function ModeIndicator({
   swarmPart,
   cloudPart,
   ...(workflowRuntime.swarmActive ? [<SwarmActivityIndicator key="swarm-activity" active={workflowRuntime.swarmActive} />] : [])];
+  const stateParts = [...primaryParts, ...runtimeParts];
   if (isViewingCompletedTeammate) {
     hintParts.push(<Text dimColor key="esc-return">
         <KeyboardShortcutHint shortcut={escShortcut} action="return to team lead" />
@@ -595,7 +596,7 @@ function ModeIndicator({
   // reconciler throws on Box-in-Text. Computed here so the empty-checks
   // below still treat "pill present" as non-empty.
   const tasksPart = hasBackgroundTasks && !hasTeammatePills && !shouldHideTasksFooter(tasks, showSpinnerTree) ? <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} /> : null;
-  if (primaryParts.length === 0 && runtimeParts.length === 0 && !tasksPart && !modePart && showHint) {
+  if (stateParts.length === 0 && !tasksPart && !modePart && showHint) {
     hintParts.push(<Text dimColor key="shortcuts-hint">
         ? for shortcuts
       </Text>);
@@ -650,23 +651,23 @@ function ModeIndicator({
   // part (e.g. the selection copy/native-select hints) grow the column
   // from 0→1 row. Always render 1 row in fullscreen; return a space when
   // empty so Yoga reserves the row without painting anything visible.
-  if (primaryParts.length === 0 && runtimeParts.length === 0 && hintParts.length === 0 && !tasksPart && !modePart) {
+  if (stateParts.length === 0 && hintParts.length === 0 && !tasksPart && !modePart) {
     return isFullscreenEnvEnabled() ? <Text> </Text> : null;
   }
 
   return <Box flexDirection="column">
-      {(tasksPart || primaryParts.length > 0) && <Box height={1} overflow="hidden">
+      {(tasksPart || stateParts.length > 0) && <Box height={1} overflow="hidden">
           {tasksPart && <Box flexShrink={0}>
               {tasksPart}
-              {primaryParts.length > 0 && <Text dimColor> · </Text>}
+              {stateParts.length > 0 && <Text dimColor> · </Text>}
             </Box>}
-          {primaryParts.length > 0 && <Text wrap="truncate">
-              <Byline>{primaryParts}</Byline>
+          {stateParts.length > 0 && <Text wrap="truncate">
+              <Byline>{stateParts}</Byline>
             </Text>}
         </Box>}
-      {(runtimeParts.length > 0 || hintParts.length > 0) && <Box height={1} overflow="hidden">
+      {hintParts.length > 0 && <Box height={1} overflow="hidden">
           <Text wrap="truncate">
-            <Byline>{[...runtimeParts, ...hintParts]}</Byline>
+            <Byline>{hintParts}</Byline>
           </Text>
         </Box>}
     </Box>;

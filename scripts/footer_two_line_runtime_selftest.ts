@@ -23,6 +23,11 @@ function run(): void {
     /const runtimeParts = \[/,
     'expected the footer to split runtime state into an explicit secondary-row parts collection',
   )
+  assert.match(
+    footerSource,
+    /const stateParts = \[\.\.\.primaryParts, \.\.\.runtimeParts\]/,
+    'expected the footer to merge primary and runtime state into one stable operator row',
+  )
   assert.doesNotMatch(
     footerSource,
     /parts\.push\(\.\.\.hintParts\)/,
@@ -45,8 +50,8 @@ function run(): void {
   )
   assert.match(
     footerSource,
-    /<Byline>\{\[\.\.\.runtimeParts, \.\.\.hintParts\]\}<\/Byline>/,
-    'expected the lower footer row to compose runtime state and hints intentionally on one line',
+    /<Byline>\{hintParts\}<\/Byline>/,
+    'expected the lower footer row to render only hint text, not mixed runtime state',
   )
 }
 
