@@ -71,6 +71,7 @@ bun scripts/completion_cache_paths_selftest.ts >/dev/null
 bun scripts/plugin_directory_display_selftest.ts >/dev/null
 bun scripts/footer_control_model_selftest.ts >/dev/null
 bun scripts/footer_two_line_runtime_selftest.ts >/dev/null
+bun scripts/footer_task_signature_selftest.ts >/dev/null
 bun scripts/startup_update_surface_selftest.ts >/dev/null
 bun scripts/startup_sigint_selftest.ts >/dev/null
 bun scripts/graceful_shutdown_resume_hint_selftest.ts >/dev/null

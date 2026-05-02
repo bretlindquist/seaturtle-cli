@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useMemo, useState } from 'react';
 import { useTerminalSize } from 'src/hooks/useTerminalSize.js';
 import { stringWidth } from 'src/ink/stringWidth.js';
-import { useAppState, useSetAppState } from 'src/state/AppState.js';
+import { useAppState, useAppStateStore, useSetAppState } from 'src/state/AppState.js';
 import { enterTeammateView, exitTeammateView } from 'src/state/teammateViewHelpers.js';
 import { isPanelAgentTask } from 'src/tasks/LocalAgentTask/LocalAgentTask.js';
 import { getPillLabel, pillNeedsCta } from 'src/tasks/pillLabel.js';
@@ -14,7 +14,10 @@ import { Box, Text } from '../../ink.js';
 import { AGENT_COLOR_TO_THEME_COLOR, AGENT_COLORS, type AgentColorName } from '../../tools/AgentTool/agentColorManager.js';
 import type { Theme } from '../../utils/theme.js';
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js';
-import { shouldHideTasksFooter } from './taskStatusUtils.js';
+import {
+  getBackgroundTaskRenderSignature,
+  shouldHideTasksFooter,
+} from './taskStatusUtils.js';
 type Props = {
   tasksSelected: boolean;
   isViewingTeammate?: boolean;
@@ -34,10 +37,12 @@ export function BackgroundTaskStatus(t0) {
   const teammateFooterIndex = t1 === undefined ? 0 : t1;
   const isLeaderIdle = t2 === undefined ? false : t2;
   const setAppState = useSetAppState();
+  const store = useAppStateStore();
   const {
     columns
   } = useTerminalSize();
-  const tasks = useAppState(_temp);
+  const taskRenderSignature = useAppState(_temp);
+  const tasks = useMemo(() => store.getState().tasks, [store, taskRenderSignature]);
   const viewingAgentTaskId = useAppState(_temp2);
   let t3;
   if ($[0] !== tasks) {
@@ -231,6 +236,9 @@ export function BackgroundTaskStatus(t0) {
     t11 = $[47];
   }
   return t11;
+}
+function _temp(s) {
+  return getBackgroundTaskRenderSignature(s.tasks);
 }
 function _temp1(pill_0, i_0) {
   const pillText = `@${pill_0.name}`;

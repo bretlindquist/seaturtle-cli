@@ -56,6 +56,7 @@ import {
   createDefaultWorkflowRuntimeSnapshot,
   type WorkflowRuntimeSnapshot,
 } from '../../services/projectIdentity/workflowRuntime.js';
+import { getBackgroundTaskRenderSignature } from '../tasks/taskStatusUtils.js';
 
 // Dead code elimination: conditional import for proactive mode
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -348,11 +349,12 @@ function ModeIndicator({
   const activeMainLoopModel = useMainLoopModel();
   const activeEffortValue = useAppState(s_8 => s_8.effortValue);
   const workflowRuntime = useAppState(s_9 => s_9.workflowRuntime ?? DEFAULT_WORKFLOW_RUNTIME);
-  const tasks = useAppState(s => s.tasks);
+  const taskRenderSignature = useAppState(s => getBackgroundTaskRenderSignature(s.tasks));
   const teamContext = useAppState(s_0 => s_0.teamContext);
   // Set once in initialState (main.tsx --remote mode) and never mutated — lazy
   // init captures the immutable value without a subscription.
   const store = useAppStateStore();
+  const tasks = useMemo(() => store.getState().tasks, [store, taskRenderSignature]);
   const [remoteSessionUrl] = useState(() => store.getState().remoteSessionUrl);
   const viewSelectionMode = useAppState(s_1 => s_1.viewSelectionMode);
   const viewingAgentTaskId = useAppState(s_2 => s_2.viewingAgentTaskId);
