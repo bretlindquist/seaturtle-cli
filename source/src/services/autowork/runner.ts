@@ -60,6 +60,7 @@ import {
   startActiveWorkstream,
   type WorkflowResolution,
   setActiveWorkstreamPhase,
+  updateWorkPlanPacket,
   updateWorkExecutionPacket,
   updateWorkVerificationPacket,
 } from '../projectIdentity/workflowState.js'
@@ -782,6 +783,53 @@ function persistAutoworkStop(
       }
     })
   }
+}
+
+export function stopAutoworkContract(
+  repoRoot: string,
+  options: {
+    code: string
+    message: string
+    failedCheck?: string
+    chunkId?: string
+    clearSelectedPlan?: boolean
+    clearWorkflowPlan?: boolean
+    clearSourcePlan?: boolean
+  },
+): void {
+  const now = Date.now()
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      selectedPlanPath: options.clearSelectedPlan ? null : current.selectedPlanPath,
+      sourcePlanPath: options.clearSourcePlan ? null : current.sourcePlanPath,
+      currentChunkId: null,
+      currentMode: 'idle',
+      stopReason: {
+        code: options.code,
+        message: options.message,
+        failedCheck: options.failedCheck,
+        chunkId: options.chunkId,
+        capturedAt: now,
+      },
+      lastFinishedAt: now,
+      implementedButUnverified: false,
+    }),
+    repoRoot,
+  )
+
+  if (options.clearWorkflowPlan) {
+    updateWorkPlanPacket(
+      current => ({
+        ...current,
+        promotedPlanDocs: [],
+      }),
+      repoRoot,
+    )
+  }
+
+  syncAutoworkStopped(repoRoot, options.message, options.message)
 }
 
 function syncAutoworkExecutionStarted(

@@ -9,6 +9,7 @@ import {
   type AutoworkEntryPoint,
   type AutoworkMode,
 } from './state.js'
+import { resolveAutoworkRunEntryAuthority } from './runEntryAuthority.js'
 
 export type AutoworkContinuationCommand = {
   entryPoint: AutoworkEntryPoint
@@ -101,8 +102,19 @@ export async function resolveAutoworkContinuationCommand(
     return null
   }
 
-  const planPath = state.sourcePlanPath ?? state.selectedPlanPath ?? null
-  const startupContext = await inspectAndSelectAutoworkMode(planPath)
+  const entry = await resolveAutoworkRunEntryAuthority(entryPoint, 'run', root)
+  if (!entry.ok) {
+    return null
+  }
+
+  if (entry.planPath === null) {
+    return {
+      entryPoint,
+      value: `/${entryPoint} run`,
+    }
+  }
+
+  const startupContext = await inspectAndSelectAutoworkMode(entry.planPath)
   if (!startupContext.repoRoot) {
     return null
   }

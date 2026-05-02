@@ -8,6 +8,7 @@ import { Box, Text } from '../../ink.js'
 import {
   inspectAndSelectAutoworkMode,
   prepareAutoworkSafeExecution,
+  stopAutoworkContract,
   verifyAutoworkSafeExecution,
 } from '../../services/autowork/runner.js'
 import {
@@ -35,10 +36,15 @@ import {
   type AutoworkRunMode,
 } from '../../services/autowork/state.js'
 import { parseAutoworkBudgetInput } from '../../services/autowork/runtimeWindow.js'
+import {
+  type AutoworkRunAction,
+  resolveAutoworkRunEntryAuthority,
+} from '../../services/autowork/runEntryAuthority.js'
 import { getCtProjectRoot } from '../../services/projectIdentity/paths.js'
 import {
   markActivePlanApproved,
   peekActiveWorkstream,
+  updateWorkPlanPacket,
 } from '../../services/projectIdentity/workflowState.js'
 import { launchRemoteAutoworkTask } from '../../tasks/RemoteAutoworkTask/RemoteAutoworkTask.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
@@ -67,6 +73,8 @@ type ShellAction =
   | 'step'
   | 'safe'
   | 'dangerous'
+  | 'stop'
+  | 'unpin'
   | 'status'
   | 'doctor'
   | 'back'
@@ -327,48 +335,110 @@ async function selectAutoworkPlan(
   }
 }
 
-async function resolveAutoworkRunEntry(
+function stopHeading(entryPoint: EntryPoint): string {
+  return entryPoint === 'swim' ? 'Swim mode stopped.' : 'Autowork stopped.'
+}
+
+function unpinHeading(entryPoint: EntryPoint): string {
+  return entryPoint === 'swim'
+    ? 'Swim pinned plan cleared.'
+    : 'Autowork pinned plan cleared.'
+}
+
+function stopAutoworkForOperator(
   entryPoint: EntryPoint,
-  action: 'run' | 'step',
-): Promise<
-  | {
-      ok: true
-      planPath: string | null
-    }
-  | {
-      ok: false
-      message: string
-    }
-> {
-  const resolved = await resolveActiveAutoworkPlanFile()
-  if (resolved.ok) {
-    return {
-      ok: true,
-      planPath: resolved.planPath,
-    }
-  }
+  code: string,
+  message: string,
+  options?: {
+    clearSelectedPlan?: boolean
+    clearWorkflowPlan?: boolean
+    clearSourcePlan?: boolean
+  },
+): { ok: true; message: string } | { ok: false; message: string } {
+  const repoRoot = getCtProjectRoot()
+  stopAutoworkContract(repoRoot, {
+    code,
+    message,
+    clearSelectedPlan: options?.clearSelectedPlan,
+    clearWorkflowPlan: options?.clearWorkflowPlan,
+    clearSourcePlan: options?.clearSourcePlan,
+  })
 
-  const bootstrapContext = await inspectAndSelectAutoworkMode(null)
-  if (
-    bootstrapContext.repoRoot &&
-    (bootstrapContext.mode === 'discovery' ||
-      bootstrapContext.mode === 'research' ||
-      bootstrapContext.mode === 'plan-hardening' ||
-      bootstrapContext.mode === 'audit-and-polish')
-  ) {
-    return {
-      ok: true,
-      planPath: null,
-    }
-  }
-
-  const baseName = entryPoint === 'swim' ? '/swim' : '/autowork'
   return {
-    ok: false,
+    ok: true,
+    message: [stopHeading(entryPoint), '', message].join('\n'),
+  }
+}
+
+function stopAutoworkByOperator(
+  entryPoint: EntryPoint,
+): { ok: true; message: string } | { ok: false; message: string } {
+  const repoRoot = getCtProjectRoot()
+  const state = readAutoworkState(repoRoot)
+  const workflow = peekActiveWorkstream(repoRoot)
+  const execution = workflow?.packets.execution ?? null
+
+  const hasAnythingToStop =
+    state.currentMode !== 'idle' ||
+    state.stopReason !== null ||
+    state.selectedPlanPath !== null ||
+    state.sourcePlanPath !== null ||
+    execution?.heartbeatEnabled === true
+
+  if (!hasAnythingToStop) {
+    return {
+      ok: false,
+      message: 'Autowork is not active right now.',
+    }
+  }
+
+  return stopAutoworkForOperator(
+    entryPoint,
+    'operator_stopped',
+    'Autowork was stopped explicitly by the operator.',
+  )
+}
+
+function unpinAutoworkPlan(
+  entryPoint: EntryPoint,
+): { ok: true; message: string } | { ok: false; message: string } {
+  const repoRoot = getCtProjectRoot()
+  const state = readAutoworkState(repoRoot)
+  const workflowPlan = peekActiveWorkstream(repoRoot)?.packets.plan ?? null
+
+  if (!state.selectedPlanPath && (workflowPlan?.promotedPlanDocs.length ?? 0) === 0) {
+    return {
+      ok: false,
+      message: 'Autowork has no pinned plan authority to clear.',
+    }
+  }
+
+  updateAutoworkState(
+    current => ({
+      ...current,
+      selectedPlanPath: null,
+      stopReason:
+        current.stopReason?.code === 'stale_selected_plan'
+          ? null
+          : current.stopReason,
+    }),
+    repoRoot,
+  )
+  updateWorkPlanPacket(
+    current => ({
+      ...current,
+      promotedPlanDocs: [],
+    }),
+    repoRoot,
+  )
+
+  return {
+    ok: true,
     message: [
-      resolved.message,
+      unpinHeading(entryPoint),
       '',
-      `Then rerun ${baseName} ${action} after the tracked plan is ready.`,
+      'Selected-plan and workflow promoted-plan authority were cleared.',
+      `Next: use /${entryPoint} use <path> to pin a tracked executable plan, or /${entryPoint} run to let SeaTurtle reassess from current workflow state.`,
     ].join('\n'),
   }
 }
@@ -387,11 +457,23 @@ async function runAutowork(
     }
   | { ok: false; message: string }
 > {
-  const entry = await resolveAutoworkRunEntry(
+  const action: AutoworkRunAction =
+    executionScope === 'step' ? 'step' : 'run'
+  const entry = await resolveAutoworkRunEntryAuthority(
     entryPoint,
-    executionScope === 'step' ? 'step' : 'run',
+    action,
   )
   if (!entry.ok) {
+    if (entry.shouldStop && entry.repoRoot) {
+      stopAutoworkContract(entry.repoRoot, {
+        code: entry.code,
+        message: entry.message,
+        clearSelectedPlan: entry.clearSelectedPlan,
+        clearWorkflowPlan: entry.clearWorkflowPlan,
+        clearSourcePlan: entry.clearSourcePlan,
+      })
+    }
+
     return {
       ok: false,
       message: entry.message,
@@ -660,6 +742,8 @@ function buildNonInteractiveUsage(entryPoint: EntryPoint): string {
     `Use one of:`,
     `- /${entryPoint} safe`,
     `- /${entryPoint} dangerous`,
+    `- /${entryPoint} stop`,
+    `- /${entryPoint} unpin`,
     `- /${entryPoint} use <path>`,
     `- /${entryPoint} run`,
     `- /${entryPoint} run 8h`,
@@ -719,6 +803,16 @@ function AutoworkMenu({
               description: 'Heavily discouraged. Relax selected checkpoint failures into recorded debt instead of safe-mode stops.',
             },
             {
+              label: 'Stop autowork',
+              value: 'stop' as const,
+              description: 'Stop the active autowork contract and suppress further automatic continuation',
+            },
+            {
+              label: 'Clear pinned plan',
+              value: 'unpin' as const,
+              description: 'Clear pinned selected-plan authority so the next run can reassess from current workflow state',
+            },
+            {
               label: 'Status snapshot',
               value: 'status' as const,
               description: 'See the selected mode, next chunk, and readiness summary',
@@ -775,6 +869,16 @@ function AutoworkMenu({
               return
             }
 
+            if (value === 'stop' || value === 'unpin') {
+              const changed =
+                value === 'stop'
+                  ? stopAutoworkByOperator(entryPoint)
+                  : unpinAutoworkPlan(entryPoint)
+              syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
+              onDone(changed.message, { display: 'system' })
+              return
+            }
+
             const resolved = await resolveAutoworkInspectionContext(entryPoint)
             if (!resolved.ok) {
               onDone(resolved.message, { display: 'system' })
@@ -822,6 +926,8 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
           `- ${baseName}`,
           `- ${baseName} safe`,
           `- ${baseName} dangerous`,
+          `- ${baseName} stop`,
+          `- ${baseName} unpin`,
           `- ${baseName} use <path>`,
           `- ${baseName} run`,
           `- ${baseName} run 8h`,
@@ -852,6 +958,20 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
 
     if (head === 'dangerous' && !tail) {
       const changed = await setAutoworkRunMode(entryPoint, 'dangerous')
+      onDone(changed.message, { display: 'system' })
+      return null
+    }
+
+    if ((head === 'stop' || head === 'off') && !tail) {
+      const stopped = stopAutoworkByOperator(entryPoint)
+      syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
+      onDone(stopped.message, { display: 'system' })
+      return null
+    }
+
+    if (head === 'unpin' && !tail) {
+      const changed = unpinAutoworkPlan(entryPoint)
+      syncWorkflowRuntimeState(getCtProjectRoot(), context.setAppState)
       onDone(changed.message, { display: 'system' })
       return null
     }
@@ -959,6 +1079,8 @@ export function createAutoworkCall(entryPoint: EntryPoint): LocalJSXCommandCall 
         `Use /${entryPoint} for the menu, or one of:`,
         `- /${entryPoint} safe`,
         `- /${entryPoint} dangerous`,
+        `- /${entryPoint} stop`,
+        `- /${entryPoint} unpin`,
         `- /${entryPoint} use <path>`,
         `- /${entryPoint} run`,
         `- /${entryPoint} run 8h`,

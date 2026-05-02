@@ -6,7 +6,7 @@ const autowork = {
   description:
     'Run persistent tracked-plan orchestration with bounded lifecycle sidecars, run/verify controls, runtime windows, and cloud offload launch',
   argumentHint:
-    '[run|step|status|doctor|safe|dangerous|verify|use <plan>|run 8h|cloud run 8h|cloud local run 8h|cloud <host> run 8h]',
+    '[run|step|status|doctor|safe|dangerous|stop|unpin|verify|use <plan>|run 8h|cloud run 8h|cloud local run 8h|cloud <host> run 8h]',
   immediate: true,
   supportsNonInteractive: true,
   disableModelInvocation: true,

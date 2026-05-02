@@ -20,6 +20,8 @@ const EXACT_ACTIONS = new Set([
   'safe',
   'dangerous',
   'verify',
+  'stop',
+  'unpin',
 ])
 
 const DEFAULT_RUN_TAIL =
@@ -57,6 +59,10 @@ function resolveSlashCommand(
   const lower = normalized.toLowerCase()
   if (EXACT_ACTIONS.has(lower)) {
     return `/${entryPoint} ${lower}`
+  }
+
+  if (lower === 'off') {
+    return `/${entryPoint} stop`
   }
 
   if (lower === 'cloud') {

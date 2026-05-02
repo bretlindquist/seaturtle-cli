@@ -51,13 +51,8 @@ function run(): void {
   )
   assert.match(
     commandSource,
-    /async function resolveAutoworkRunEntry/,
-    'expected /autowork run to resolve lifecycle bootstrap through one shared command seam',
-  )
-  assert.match(
-    commandSource,
-    /inspectAndSelectAutoworkMode\(null\)/,
-    'expected /autowork run to fall back to workflow bootstrap inspection when no tracked plan exists yet',
+    /resolveAutoworkRunEntryAuthority\(/,
+    'expected /autowork run to resolve lifecycle bootstrap through the shared run-entry authority seam',
   )
   assert.match(
     commandSource,

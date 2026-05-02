@@ -30,8 +30,13 @@ function run(): void {
   )
   assert.match(
     continuationSource,
-    /inspectAndSelectAutoworkMode\(planPath\)/,
-    'expected execution-phase continuation to reassess workflow state before continuing',
+    /resolveAutoworkRunEntryAuthority\(entryPoint, 'run', root\)/,
+    'expected continuation to reuse the shared run-entry authority before re-entering autowork',
+  )
+  assert.match(
+    continuationSource,
+    /inspectAndSelectAutoworkMode\(entry\.planPath\)/,
+    'expected execution-phase continuation to reassess workflow state only after shared run-entry authority succeeds',
   )
   assert.match(
     continuationSource,

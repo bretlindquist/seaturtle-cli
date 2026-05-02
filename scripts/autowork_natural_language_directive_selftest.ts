@@ -32,6 +32,11 @@ assert.deepEqual(parseAutoworkNaturalLanguageDirective('swim status'), {
   slashCommand: '/swim status',
 })
 
+assert.deepEqual(parseAutoworkNaturalLanguageDirective('autowork off'), {
+  entryPoint: 'autowork',
+  slashCommand: '/autowork stop',
+})
+
 assert.deepEqual(
   parseAutoworkNaturalLanguageDirective(
     'autowork the production-grade cmux wave',
